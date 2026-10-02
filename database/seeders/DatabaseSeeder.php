@@ -15,8 +15,12 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        $this->call([
+            CompanySeeder::class,
+            RoleSeeder::class,
+        ]);
 
+        // A parent-wide account: no company, so it may switch and view combined.
         User::factory()->create([
             'name' => 'Test User',
             'email' => 'test@example.com',
