@@ -3,7 +3,6 @@
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SetActiveCompany;
-use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -14,7 +13,6 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
-        api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
@@ -37,16 +35,6 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);
-
-        // Spike (S0): Sanctum cookie auth for a standalone SPA. statefulApi() starts the session
-        // for requests from SANCTUM_STATEFUL_DOMAINS, which is what lets the SPA sign in with a
-        // cookie instead of a token.
-        $middleware->statefulApi();
-        $middleware->api(append: [SetActiveCompany::class]);
-
-        // SetActiveCompany reads the authenticated user, so it must run after the route's auth
-        // middleware; the list otherwise sorts group middleware ahead of route middleware.
-        $middleware->appendToPriorityList(AuthenticatesRequests::class, SetActiveCompany::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

@@ -45,14 +45,6 @@ class SetActiveCompany
             return $next($request);
         }
 
-        // A bearer-token request has no session to remember a selection in, so a parent-wide
-        // token sees every company; narrowing is a stateful (cookie) feature.
-        if (! $request->hasSession()) {
-            $this->context->setCombined();
-
-            return $next($request);
-        }
-
         $selected = $request->session()->get(self::SESSION_KEY);
 
         if ($selected === self::COMBINED) {
