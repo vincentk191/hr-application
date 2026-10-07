@@ -2,44 +2,59 @@
 
 namespace App\Support\Attendance;
 
+use App\Support\AppSettings;
 use Carbon\CarbonInterface;
 
 /**
- * The working week the calendar judges punches against: which days are workdays, when work
- * starts and ends, and how much lateness is forgiven.
+ * The working day the calendar judges punches against: when work starts and ends, and how much
+ * lateness is forgiven.
  *
- * One schedule for everyone, read from config/attendance.php. The requirements do not define
- * shifts or per-department hours, so this is a deliberate simplification; a warehouse on shifts
- * would need a schedule per employee or department, and this class is where that would plug in.
+ * Saturday and Sunday are never workdays. That is fixed here rather than configurable on purpose:
+ * nobody works the weekend, and a setting for it would only be a way to mark everyone absent by
+ * accident. Public holidays are separate and arrive with the calendar events.
+ *
+ * The hours are edited by an administrator in the admin panel (Jam kerja) and stored in the
+ * database; config/attendance.php supplies the defaults until someone does. One schedule applies
+ * to everyone — shift work would need one per employee or department, and this is where that
+ * would plug in.
  */
 class WorkSchedule
 {
-    /**
-     * @param  list<int>  $workdays  ISO weekday numbers, Monday = 1
-     */
+    public const KEY_START = 'attendance.work_start';
+
+    public const KEY_END = 'attendance.work_end';
+
+    public const KEY_GRACE = 'attendance.late_grace_minutes';
+
     public function __construct(
-        public readonly array $workdays,
         public readonly string $start,
         public readonly string $end,
         public readonly int $lateGraceMinutes,
     ) {}
 
-    public static function fromConfig(): self
+    /**
+     * The schedule in force now: what an administrator saved, else the config defaults.
+     */
+    public static function current(): self
     {
-        /** @var array{workdays: list<int>, start: string, end: string, late_grace_minutes: int} $schedule */
-        $schedule = config('attendance.schedule');
+        $settings = app(AppSettings::class);
+
+        /** @var array{start: string, end: string, late_grace_minutes: int} $defaults */
+        $defaults = config('attendance.schedule');
 
         return new self(
-            $schedule['workdays'],
-            $schedule['start'],
-            $schedule['end'],
-            $schedule['late_grace_minutes'],
+            (string) $settings->get(self::KEY_START, $defaults['start']),
+            (string) $settings->get(self::KEY_END, $defaults['end']),
+            (int) $settings->get(self::KEY_GRACE, $defaults['late_grace_minutes']),
         );
     }
 
+    /**
+     * Monday to Friday.
+     */
     public function isWorkday(CarbonInterface $day): bool
     {
-        return in_array($day->dayOfWeekIso, $this->workdays, true);
+        return $day->isWeekday();
     }
 
     /**
@@ -47,13 +62,8 @@ class WorkSchedule
      */
     public function latestOnTime(): string
     {
-        return $this->addMinutes($this->start, $this->lateGraceMinutes);
-    }
-
-    private function addMinutes(string $time, int $minutes): string
-    {
-        [$hours, $mins] = array_map('intval', explode(':', $time));
-        $total = $hours * 60 + $mins + $minutes;
+        [$hours, $minutes] = array_map('intval', explode(':', $this->start));
+        $total = $hours * 60 + $minutes + $this->lateGraceMinutes;
 
         return sprintf('%02d:%02d', intdiv($total, 60) % 24, $total % 60);
     }

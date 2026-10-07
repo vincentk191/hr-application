@@ -560,7 +560,7 @@ the 309 features, their sizes and priorities, and the test cases. This table is 
 | `EMP-PRF`  | Profile shell                          | 3   | 2   | 🟡     | Header stats + tabs. Change audit is on (003); "SOPs to acknowledge" stays dropped with the Knowledge Hub                                             |
 | `EMP-DET`  | Profile — overview tab                 | 6   | 5   | ✅     | All five card groups render; bank, payroll and health are withheld from roles without `view-sensitive-data` (006) |
 | `EMP-DOC`  | Profile — documents tab                | 4   | 2   | ✅     | Upload, categorise, version, expiry flags and per-document restriction. Reminders are in-app only — see Known gaps |
-| `EMP-ATT`  | Profile — attendance tab               | 3   | 3   | ⬜     | Phase 2. Tab says so                                                                                                                                  |
+| `EMP-ATT`  | Profile — attendance tab               | 3   | 3   | 🟡     | Timesheet, manual add/change/void with reason + audit, recompute done. Totals by department/period are not |
 | `EMP-REQ`  | Profile — requests tab                 | 2   | 2   | ✅     | Real: lists the employee's leave requests and leave taken this year                                                                                   |
 | `CORE-USR` | User & role management                 | 6   | 5   | 🟡     | Policies and Filament screens done (users, roles, permissions)                                                                                                                 |
 | `CORE-ORG` | Departments, positions, reporting line | 4   | 4   | ✅     | Schema, policies, the downline resolver and Filament screens for departments and positions                                                                         |
@@ -613,16 +613,33 @@ How the import behaves, so it is not surprised by:
   5. someone with **no scanner ID mapped** on that date is no data, not absent — nothing could
      have been recorded for them. Rows say "ID pemindai belum dipetakan".
   Only then is a workday with no scan an absence.
-- **The working schedule is an assumption.** Nothing in the requirements defines hours or a
-  lateness rule, so `config/attendance.php` defaults to Monday–Friday, 08:00–17:00, late after
-  08:10 (`ATTENDANCE_WORKDAYS`, `ATTENDANCE_WORK_START`, `ATTENDANCE_WORK_END`,
-  `ATTENDANCE_LATE_GRACE_MINUTES`). One schedule applies to everyone: shift work (a warehouse)
-  would need one per employee or department. First scan is the check-in and last scan the
-  check-out; the scanner's in/out flag is not trusted. A day with a single scan is never judged
-  an early departure.
-- **Not built yet:** the year view shows company totals only, "team" and "leave type" filters,
-  export to PDF/CSV, a separate live "today" board, the Issues screen (`ATT-ISS`), manual punch
-  correction, and the attendance tab on the employee profile (`EMP-ATT`).
+- **Working hours are set in the admin panel** (`/admin`, "Jam kerja", parent-wide HR Admin
+  only): start, end and the lateness tolerance in minutes. Nothing in the requirements defines
+  them, so until someone saves their own, `config/attendance.php` supplies 08:00, 17:00 and 10
+  minutes. They live in `app_settings` and apply at once; each change is on the audit trail.
+  **Saturday and Sunday are fixed as non-working in code** and are deliberately not a setting.
+  One schedule applies to everyone: shift work (a warehouse) would need one per employee or
+  department. First scan is the check-in and last scan the check-out; the scanner's in/out flag is
+  not trusted. A day with a single scan is never judged an early departure.
+- **The profile's attendance tab** (`EMP-ATT`) is sent only when opened (an Inertia optional prop,
+  fetched by a partial reload), so the profile does not pay for a month of scans on every visit.
+  It shows each day's status, first/last scan and duration, plus the scans behind them. People
+  with `correct-attendance` (HR Admin) can add a scan, change a time, or void a scan, each with a
+  mandatory reason. **The punch log stays append-only**: a voided scan is kept, struck through
+  with who voided it and why, and everything derived ignores it; a changed time is a void plus a
+  new `manual` punch. All of it is on the audit trail. An employee sees their own timesheet but
+  cannot correct it.
+- **Issues** (`/attendance/issues`, "Masalah absensi") are never stored: they are read off the same
+  derived days as the calendar, so correcting a scan or approving leave makes one disappear. Five
+  kinds: late, early leave, no check-out (a single scan on a day that is over), absent without
+  approved leave, and doubled scans (two within 2 minutes). Only the decision to **excuse** one is
+  stored (`attendance_issue_resolutions`), with a mandatory reason and who made it, and it can be
+  reopened. Excusing is bulk-capable and refused for the whole batch if any employee is outside
+  the user's reach. Ranges are capped at 62 days.
+- **Not built yet:** totals per department or period on the timesheet (`EMP-ATT-003`), the year
+  view per employee, "team" and "leave type" filters, export to PDF/CSV, a separate live "today"
+  board, notifying the employee and supervisor about an issue (needs the notifications module),
+  and public holidays (`ATT-WIZ`).
 - **The sync agent's ingest endpoint will reuse `IngestPunches`**, so both routes into the
   system behave identically. It is not built yet, and needs Sanctum, which is not on `main`
   (the spike is on `spike/sanctum-api`).
@@ -633,7 +650,7 @@ How the import behaves, so it is not surprised by:
 | `ATT-CAL` | Attendance calendar       | 5   | 4   | 🟡     | Day / week / month / year, filters and status rules done. Export (005), the live board and the ingest endpoint (003) are not |
 | `ATT-SID` | Calendar side panel       | 3   | 1   | ✅     | Headcount, out today / upcoming and the approvals link, from the same rows as the grid |
 | `ATT-WIZ` | Calendar event wizard     | 1   | 0   | ⬜     | Holidays/events — also feeds leave working-day counts            |
-| `EMP-ATT` | Profile — attendance tab  | 3   | 3   | ⬜     | Manual punch edit + recompute                                    |
+| `EMP-ATT` | Profile — attendance tab  | 3   | 3   | 🟡     | Timesheet, manual add/change/void with reason + audit, recompute done. Totals by department/period are not |
 
 ### Phase 3 — Requests (leave) + notifications
 
@@ -647,7 +664,7 @@ unapproved-absence detection needs approved-leave data.
 | `REQ-DLG`  | Decision dialog        | 5   | 5   | ⬜     | Approve/reject — engine already does this                  |
 | `ATT-LVE`  | Absensi › Cuti         | 10  | 5   | ⬜     | Day picture, 14-day availability, headcount reconciliation |
 | `EMP-REQ`  | Profile — requests tab | 2   | 2   | ⬜     |                                                            |
-| `ATT-ISS`  | Attendance issues      | 6   | 4   | ⬜     | Needs working calendar **and** approved leave              |
+| `ATT-ISS`  | Attendance issues      | 6   | 4   | 🟡     | Five exception types, filters, bulk excuse with audit, reopen. Notify employee + supervisor waits on notifications |
 | `CORE-NOT` | Notifications          | 8   | 5   | ⬜     | In-app + email first; Web Push with the PWA                |
 
 **Open rules to settle before building:** does a rejection require a reason (offboarding's

@@ -2,6 +2,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { STATUS_STYLE } from '@/lib/attendance-status';
 import { device } from '@/routes/attendance';
 import { calendar } from '@/routes/attendance';
 import { index as leaveRequestsIndex } from '@/routes/leave-requests';
@@ -56,19 +57,6 @@ const VIEWS: { value: CalendarView; label: string }[] = [
     { value: 'month', label: 'Bulan' },
     { value: 'year', label: 'Tahun' },
 ];
-
-/** One colour per status, used by the grid, the legend and the side panel alike. */
-const STATUS_STYLE: Record<DayStatus, string> = {
-    present:
-        'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200',
-    late: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200',
-    early_leave:
-        'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-200',
-    absent: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200',
-    leave: 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200',
-    off: 'bg-muted text-muted-foreground',
-    no_data: 'border border-dashed text-muted-foreground bg-transparent',
-};
 
 function Cell({
     record,

@@ -63,6 +63,7 @@ enum Role: string
                 Permission::ViewSensitiveData,
                 Permission::ManageAttendance,
                 Permission::ViewAttendance,
+                Permission::CorrectAttendance,
             ],
             // Sees its scope and decides; does not administer records.
             self::Management => [

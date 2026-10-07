@@ -11,9 +11,9 @@ use App\Models\LeaveRequest;
 use App\Models\WorkflowStep;
 use App\Support\Attendance\CaptureStatus;
 use App\Support\Attendance\DailyAttendance;
+use App\Support\Attendance\EmployeeRoster;
 use App\Support\Attendance\WorkSchedule;
 use Carbon\CarbonImmutable;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
@@ -40,7 +40,7 @@ class AttendanceCalendarController extends Controller
 
     private const UPCOMING_DAYS = 14;
 
-    public function index(Request $request, DailyAttendance $attendance, WorkSchedule $schedule, CaptureStatus $capture): Response
+    public function index(Request $request, DailyAttendance $attendance, WorkSchedule $schedule, CaptureStatus $capture, EmployeeRoster $roster): Response
     {
         abort_unless($request->user()->can(Permission::ViewAttendance->value), 403);
 
@@ -60,13 +60,8 @@ class AttendanceCalendarController extends Controller
             'search' => trim((string) $request->string('search')),
         ];
 
-        $employees = $this->employees($from, $to, $filters);
-        $window = $employees->mapWithKeys(fn (Employee $employee): array => [
-            $employee->id => [
-                'joined' => $employee->joined_on?->toDateString(),
-                'exited' => $employee->exited_on?->toDateString(),
-            ],
-        ])->all();
+        $employees = $roster->between($from, $to, $filters['departments'], $filters['search']);
+        $window = $roster->windows($employees);
 
         $result = $attendance->forRange($from, $to, $window);
         $withScannerId = AttendanceEnrolMap::acrossCompanies()->pluck('employee_id')->flip();
@@ -154,33 +149,11 @@ class AttendanceCalendarController extends Controller
     }
 
     /**
-     * Employees to show, who were employed at any point in the range and match the filters.
-     *
-     * @param  array{departments: list<int>, statuses: list<string>, search: string}  $filters
-     * @return Collection<int, Employee>
-     */
-    private function employees(CarbonImmutable $from, CarbonImmutable $to, array $filters): Collection
-    {
-        return Employee::query()
-            ->with('department:id,name')
-            ->where(fn (Builder $query) => $query->whereNull('joined_on')->orWhereDate('joined_on', '<=', $to->toDateString()))
-            ->where(fn (Builder $query) => $query->whereNull('exited_on')->orWhereDate('exited_on', '>=', $from->toDateString()))
-            ->when($filters['departments'] !== [], fn (Builder $query) => $query->whereIn('department_id', $filters['departments']))
-            ->when($filters['search'] !== '', fn (Builder $query) => $query->where(
-                fn (Builder $inner) => $inner
-                    ->where('full_name', 'like', "%{$filters['search']}%")
-                    ->orWhere('employee_number', 'like', "%{$filters['search']}%"),
-            ))
-            ->orderBy('full_name')
-            ->get(['id', 'full_name', 'employee_number', 'department_id', 'joined_on', 'exited_on']);
-    }
-
-    /**
      * Shape the grid rows, keeping only employees who have one of the chosen statuses in the
      * range when a status filter is on.
      *
      * @param  Collection<int, Employee>  $employees
-     * @param  array<int, array<string, array{status: string, in: string|null, out: string|null, punches: int}>>  $records
+     * @param  array<int, array<string, array{status: string, in: string|null, out: string|null, punches: int, minutes: int|null, duplicate: bool}>>  $records
      * @param  list<string>  $statuses
      * @param  Collection<int, int>  $withScannerId  employee ids that have any scanner ID mapped
      * @return list<array<string, mixed>>
@@ -230,7 +203,7 @@ class AttendanceCalendarController extends Controller
     /**
      * Company totals per month, for the year view.
      *
-     * @param  array<int, array<string, array{status: string, in: string|null, out: string|null, punches: int}>>  $records
+     * @param  array<int, array<string, array{status: string, in: string|null, out: string|null, punches: int, minutes: int|null, duplicate: bool}>>  $records
      * @param  list<string>  $dates
      * @return list<array<string, mixed>>
      */

@@ -15,6 +15,9 @@ use App\Models\EmployeeDocumentVersion;
 use App\Models\LeaveRequest;
 use App\Models\Position;
 use App\Models\User;
+use App\Support\Attendance\DailyAttendance;
+use App\Support\Attendance\EmployeeTimesheet;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -121,6 +124,12 @@ class EmployeeController extends Controller
                 ->whereHas('workflow', fn (Builder $query) => $query->where('current_stage', 'approved'))
                 ->sum('days'),
             'canUpdate' => $request->user()->can('update', $employee),
+            // Loaded only when the tab is opened (router.reload with `only`), so the profile does
+            // not pay for a month of punches on every visit.
+            'attendance' => $user->can('viewAttendance', $employee)
+                ? Inertia::optional(fn (): array => $this->timesheet($employee, $request))
+                : null,
+            'canCorrectAttendance' => $user->can('correctAttendance', $employee),
         ]);
     }
 
@@ -272,6 +281,24 @@ class EmployeeController extends Controller
                 'last_medical_check_on' => $employee->last_medical_check_on?->toDateString(),
             ] : null,
         ];
+    }
+
+    /**
+     * The month asked for with ?month=YYYY-MM, otherwise the last month that has data, otherwise
+     * this one.
+     *
+     * @return array<string, mixed>
+     */
+    private function timesheet(Employee $employee, Request $request): array
+    {
+        $timezone = (string) config('attendance.device_timezone');
+        $asked = $request->string('month')->toString();
+
+        $month = preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $asked) === 1
+            ? CarbonImmutable::createFromFormat('Y-m-d', $asked.'-01', $timezone)
+            : CarbonImmutable::parse(app(DailyAttendance::class)->dataThrough($timezone) ?? 'today', $timezone);
+
+        return app(EmployeeTimesheet::class)->forMonth($employee, $month->startOfMonth());
     }
 
     /**

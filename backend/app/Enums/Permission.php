@@ -22,6 +22,7 @@ enum Permission: string
     case ViewSensitiveData = 'view-sensitive-data';
     case ManageAttendance = 'manage-attendance';
     case ViewAttendance = 'view-attendance';
+    case CorrectAttendance = 'correct-attendance';
 
     /**
      * The Indonesian label shown in the dashboard.
@@ -41,6 +42,7 @@ enum Permission: string
             self::ViewSensitiveData => 'Lihat data sensitif (dokumen terbatas, bank, gaji, kesehatan)',
             self::ManageAttendance => 'Kelola data absensi (impor log, pemetaan ID pemindai)',
             self::ViewAttendance => 'Lihat kalender absensi',
+            self::CorrectAttendance => 'Koreksi data absensi (tambah / batalkan scan)',
         };
     }
 }

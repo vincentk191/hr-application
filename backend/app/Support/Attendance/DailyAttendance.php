@@ -20,6 +20,11 @@ use Carbon\CarbonInterface;
  */
 class DailyAttendance
 {
+    /**
+     * Two scans this close together are one finger pressed twice, not two arrivals.
+     */
+    public const DUPLICATE_WITHIN_SECONDS = 120;
+
     public function __construct(
         private DayClassifier $classifier,
         private WorkSchedule $schedule,
@@ -28,7 +33,7 @@ class DailyAttendance
     /**
      * @param  array<int, array{joined: string|null, exited: string|null}>  $employees  keyed by employee id
      * @return array{
-     *     records: array<int, array<string, array{status: string, in: string|null, out: string|null, punches: int}>>,
+     *     records: array<int, array<string, array{status: string, in: string|null, out: string|null, punches: int, minutes: int|null, duplicate: bool}>>,
      *     dataThrough: string|null,
      *     dates: list<string>
      * }
@@ -79,11 +84,24 @@ class DailyAttendance
                     'in' => $punches['first'] ?? null,
                     'out' => ($punches['count'] ?? 0) > 1 ? $punches['last'] : null,
                     'punches' => $punches['count'] ?? 0,
+                    'minutes' => ($punches['count'] ?? 0) > 1 ? $this->minutesBetween($punches['first'], $punches['last']) : null,
+                    'duplicate' => ($punches['minGap'] ?? null) !== null && $punches['minGap'] <= self::DUPLICATE_WITHIN_SECONDS,
                 ];
             }
         }
 
         return ['records' => $records, 'dataThrough' => $dataThrough, 'dates' => $dates];
+    }
+
+    /**
+     * Whole minutes between two local "HH:MM" times of the same day.
+     */
+    private function minutesBetween(string $from, string $to): int
+    {
+        [$fromHours, $fromMinutes] = array_map('intval', explode(':', $from));
+        [$toHours, $toMinutes] = array_map('intval', explode(':', $to));
+
+        return max(0, ($toHours * 60 + $toMinutes) - ($fromHours * 60 + $fromMinutes));
     }
 
     /**
@@ -140,16 +158,17 @@ class DailyAttendance
      *
      * Read through the company scope, so the calendar only ever sees the active company.
      *
-     * @return array{0: array<int, array<string, array{first: string, last: string, count: int}>>, 1: array<string, true>}
+     * @return array{0: array<int, array<string, array{first: string, last: string, count: int, lastTs: int, minGap: int|null}>>, 1: array<string, true>}
      */
     private function collectPunches(CarbonImmutable $start, CarbonImmutable $end, string $timezone): array
     {
-        /** @var array<int, array<string, array{first: string, last: string, count: int}>> $byEmployee */
+        /** @var array<int, array<string, array{first: string, last: string, count: int, lastTs: int, minGap: int|null}>> $byEmployee */
         $byEmployee = [];
         /** @var array<string, true> $anyScan */
         $anyScan = [];
 
         AttendancePunch::query()
+            ->counted()
             ->whereBetween('scan_at', [$start->utc(), $end->endOfDay()->utc()])
             ->orderBy('scan_at')
             ->select(['employee_id', 'scan_at'])
@@ -163,10 +182,15 @@ class DailyAttendance
 
                 $before = $byEmployee[$punch->employee_id][$date] ?? null;
 
+                $timestamp = $local->getTimestamp();
+                $gap = $before === null ? null : $timestamp - $before['lastTs'];
+
                 $byEmployee[$punch->employee_id][$date] = [
                     'first' => $before['first'] ?? $time,
                     'last' => $time,
                     'count' => ($before['count'] ?? 0) + 1,
+                    'lastTs' => $timestamp,
+                    'minGap' => $gap === null ? null : min($gap, $before['minGap'] ?? $gap),
                 ];
             });
 
@@ -202,7 +226,7 @@ class DailyAttendance
     /**
      * Count each status across a set of employees and a set of dates.
      *
-     * @param  array<int, array<string, array{status: string, in: string|null, out: string|null, punches: int}>>  $records
+     * @param  array<int, array<string, array{status: string, in: string|null, out: string|null, punches: int, minutes: int|null, duplicate: bool}>>  $records
      * @param  list<string>  $dates
      * @return array<string, int>
      */

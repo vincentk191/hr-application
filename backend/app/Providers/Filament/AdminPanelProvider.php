@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\ManageWorkingHours;
 use App\Filament\Resources\ActivityLogs\ActivityLogResource;
 use App\Filament\Resources\Companies\CompanyResource;
 use App\Filament\Resources\Departments\DepartmentResource;
@@ -31,6 +32,24 @@ use Illuminate\View\Middleware\ShareErrorsFromSession;
 class AdminPanelProvider extends PanelProvider
 {
     /**
+     * Admin pages that are not resources. Like the resources, only registered where the panel is
+     * served.
+     *
+     * @return list<class-string>
+     */
+    private function extraPages(): array
+    {
+        return $this->servesPanel() ? [ManageWorkingHours::class] : [];
+    }
+
+    private function servesPanel(): bool
+    {
+        return $this->app->runningInConsole()
+            || $this->app->runningUnitTests()
+            || request()->is('admin', 'admin/*', 'livewire*');
+    }
+
+    /**
      * Registering the resources costs about 0.7s a request here, and every request pays it
      * because panel providers boot with the application — including pages that have nothing to
      * do with the panel. So they are only registered where the panel is actually served: its own
@@ -43,11 +62,7 @@ class AdminPanelProvider extends PanelProvider
      */
     private function resources(): array
     {
-        $servesPanel = $this->app->runningInConsole()
-            || $this->app->runningUnitTests()
-            || request()->is('admin', 'admin/*', 'livewire*');
-
-        if (! $servesPanel) {
+        if (! $this->servesPanel()) {
             return [];
         }
 
@@ -83,6 +98,7 @@ class AdminPanelProvider extends PanelProvider
             // is slow on the Windows bind mount (about 1.4s of every page load here). A new
             // resource is one line below, in the same spirit as the workflow registry.
             ->resources($this->resources())
+            ->pages($this->extraPages())
             ->pages([
                 Dashboard::class,
             ])

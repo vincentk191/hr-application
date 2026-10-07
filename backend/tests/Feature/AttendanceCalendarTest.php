@@ -29,7 +29,7 @@ beforeEach(function () {
     $this->travelTo(CarbonImmutable::parse('2026-10-20 12:00', 'Asia/Jakarta'));
     config([
         'attendance.device_timezone' => 'Asia/Jakarta',
-        'attendance.schedule' => ['workdays' => [1, 2, 3, 4, 5], 'start' => '08:00', 'end' => '17:00', 'late_grace_minutes' => 10],
+        'attendance.schedule' => ['start' => '08:00', 'end' => '17:00', 'late_grace_minutes' => 10],
     ]);
     $this->company = Company::factory()->create();
     $this->hr = calendarUser(Role::HrAdmin, $this->company);
@@ -94,7 +94,7 @@ it('classifies a day by the documented order of rules', function (array $input, 
     ];
 
     $status = (new DayClassifier)->classify(
-        new WorkSchedule([1, 2, 3, 4, 5], '08:00', '17:00', 10),
+        new WorkSchedule('08:00', '17:00', 10),
         $input['workday'], $input['covered'], $input['anyone'], $input['leave'],
         $input['in'], $input['out'], $input['count'], $input['working'], $input['scannerId'],
     );

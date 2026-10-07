@@ -110,3 +110,41 @@ export type CalendarFilters = {
     statuses: DayStatus[];
     search: string;
 };
+
+export type TimesheetScan = {
+    id: number;
+    time: string;
+    source: string;
+    isManual: boolean;
+    reason: string | null;
+    voided: boolean;
+    voidReason: string | null;
+};
+
+export type TimesheetDay = {
+    date: string;
+    weekday: string;
+    status: DayStatus;
+    in: string | null;
+    out: string | null;
+    minutes: number | null;
+    scans: TimesheetScan[];
+};
+
+/** One employee's month of attendance, as sent to the profile's attendance tab (EMP-ATT-003). */
+export type Timesheet = {
+    month: string;
+    label: string;
+    prev: string;
+    next: string;
+    dataThrough: string | null;
+    days: TimesheetDay[];
+    totals: {
+        present: number;
+        late: number;
+        early_leave: number;
+        absent: number;
+        leave: number;
+        minutes: number;
+    };
+};

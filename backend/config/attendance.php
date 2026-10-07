@@ -29,17 +29,17 @@ return [
     | Working schedule
     |--------------------------------------------------------------------------
     |
-    | What the attendance calendar judges punches against. The requirements do not define working
-    | hours, shifts or a lateness rule, so these are assumptions, set here until someone confirms
-    | them. One schedule applies to everyone; shift work would need one per employee or department.
+    | The defaults the attendance calendar judges punches against, used until an administrator
+    | saves their own under Jam kerja in the admin panel (which then take precedence). The
+    | requirements do not define working hours, so these are assumptions.
     |
-    | workdays: ISO weekday numbers, Monday = 1. A scan after start + late_grace_minutes is late;
-    | a last scan before end, on a day with more than one scan, is an early departure.
+    | A scan after start + late_grace_minutes is late; a last scan before end, on a day with more
+    | than one scan, is an early departure. Saturday and Sunday are always non-working and are not
+    | configurable.
     |
     */
 
     'schedule' => [
-        'workdays' => array_map('intval', explode(',', (string) env('ATTENDANCE_WORKDAYS', '1,2,3,4,5'))),
         'start' => env('ATTENDANCE_WORK_START', '08:00'),
         'end' => env('ATTENDANCE_WORK_END', '17:00'),
         'late_grace_minutes' => (int) env('ATTENDANCE_LATE_GRACE_MINUTES', 10),

@@ -33,6 +33,30 @@ class EmployeePolicy
             && $user->canAccessCompany($employee->company_id);
     }
 
+    /**
+     * The attendance tab: the employee's own, or anyone allowed to see the calendar for a company
+     * they can reach.
+     */
+    public function viewAttendance(User $user, Employee $employee): bool
+    {
+        if ($this->isSelf($user, $employee)) {
+            return true;
+        }
+
+        return $user->can(Permission::ViewAttendance->value)
+            && $user->canAccessCompany($employee->company_id);
+    }
+
+    /**
+     * Adding, changing and voiding punches. Deliberately separate from editing the profile, and
+     * allowed on a former employee too: their last days sometimes need fixing after they leave.
+     */
+    public function correctAttendance(User $user, Employee $employee): bool
+    {
+        return $user->can(Permission::CorrectAttendance->value)
+            && $user->canAccessCompany($employee->company_id);
+    }
+
     public function create(User $user): bool
     {
         return $user->can(Permission::CreateEmployees->value);

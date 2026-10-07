@@ -4,6 +4,8 @@ use App\Http\Controllers\AttendanceCalendarController;
 use App\Http\Controllers\AttendanceDeviceController;
 use App\Http\Controllers\AttendanceEnrolMapController;
 use App\Http\Controllers\AttendanceImportController;
+use App\Http\Controllers\AttendanceIssueController;
+use App\Http\Controllers\AttendancePunchController;
 use App\Http\Controllers\CompanySwitcherController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeeController;
@@ -40,12 +42,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('documents.download');
 
     Route::get('attendance/calendar', [AttendanceCalendarController::class, 'index'])->name('attendance.calendar');
+    Route::get('attendance/issues', [AttendanceIssueController::class, 'index'])->name('attendance.issues');
+    Route::post('attendance/issues/resolve', [AttendanceIssueController::class, 'resolve'])->name('attendance.issues.resolve');
+    Route::post('attendance/issues/reopen', [AttendanceIssueController::class, 'reopen'])->name('attendance.issues.reopen');
     Route::get('attendance/device', [AttendanceDeviceController::class, 'index'])->name('attendance.device');
     Route::post('attendance/imports', [AttendanceImportController::class, 'store'])->name('attendance.imports.store');
     Route::post('attendance/enrol-maps', [AttendanceEnrolMapController::class, 'store'])
         ->name('attendance.enrol-maps.store');
     Route::delete('attendance/enrol-maps/{enrolMap}', [AttendanceEnrolMapController::class, 'destroy'])
         ->name('attendance.enrol-maps.destroy');
+
+    Route::post('employees/{employee}/punches', [AttendancePunchController::class, 'store'])->name('punches.store');
+    Route::put('punches/{punch}', [AttendancePunchController::class, 'update'])->name('punches.update');
+    Route::delete('punches/{punch}', [AttendancePunchController::class, 'destroy'])->name('punches.destroy');
 
     Route::get('leave-requests', [LeaveRequestController::class, 'index'])->name('leave-requests.index');
     Route::get('leave-requests/create', [LeaveRequestController::class, 'create'])->name('leave-requests.create');

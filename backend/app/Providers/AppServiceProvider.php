@@ -27,7 +27,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->registerWorkflows();
-        $this->app->singleton(WorkSchedule::class, fn (): WorkSchedule => WorkSchedule::fromConfig());
+        $this->app->bind(WorkSchedule::class, fn (): WorkSchedule => WorkSchedule::current());
     }
 
     /**

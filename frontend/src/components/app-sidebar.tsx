@@ -4,6 +4,7 @@ import {
     CalendarCheck,
     CalendarDays,
     Fingerprint,
+    TriangleAlert,
     FolderGit2,
     LayoutGrid,
     ShieldCheck,
@@ -27,6 +28,7 @@ import { dashboard } from '@/routes';
 import {
     calendar as attendanceCalendar,
     device as attendanceDevice,
+    issues as attendanceIssues,
 } from '@/routes/attendance';
 import {
     index as employeesIndex,
@@ -90,6 +92,11 @@ export function AppSidebar() {
                       title: 'Kalender absensi',
                       href: attendanceCalendar(),
                       icon: CalendarCheck,
+                  },
+                  {
+                      title: 'Masalah absensi',
+                      href: attendanceIssues(),
+                      icon: TriangleAlert,
                   },
               ]
             : []),

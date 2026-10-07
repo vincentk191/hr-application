@@ -1,11 +1,13 @@
 import { Head, Link, setLayoutProps } from '@inertiajs/react';
 import { useState } from 'react';
+import { EmployeeAttendance } from '@/components/employee-attendance';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import { EmployeeDocuments } from '@/components/employee-documents';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { edit } from '@/routes/employees';
 import type { BreadcrumbItem } from '@/types';
+import type { Timesheet } from '@/types/attendance';
 import type {
     EmployeeDetail,
     EmployeeDocumentRow,
@@ -28,6 +30,9 @@ type Props = {
     documentCategories: ValueOption[];
     canManageDocuments: boolean;
     canRestrictDocuments: boolean;
+    /** Absent until the tab asks for it; null when this viewer may not see it. */
+    attendance?: Timesheet | null;
+    canCorrectAttendance: boolean;
     requests: LeaveRow[];
     leaveTakenThisYear: number;
     canUpdate: boolean;
@@ -105,11 +110,23 @@ export default function EmployeeShow({
     documentCategories,
     canManageDocuments,
     canRestrictDocuments,
+    attendance,
+    canCorrectAttendance,
     requests,
     leaveTakenThisYear,
     canUpdate,
 }: Props) {
-    const [tab, setTab] = useState<TabKey>('overview');
+    // ?tab=attendance opens straight onto that tab, so other screens can link to it.
+    const [tab, setTab] = useState<TabKey>(() => {
+        const asked =
+            typeof window === 'undefined'
+                ? null
+                : new URLSearchParams(window.location.search).get('tab');
+
+        return TABS.some((item) => item.key === asked)
+            ? (asked as TabKey)
+            : 'overview';
+    });
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Karyawan', href: '/employees' },
@@ -396,10 +413,11 @@ export default function EmployeeShow({
                 )}
 
                 {tab === 'attendance' && (
-                    <p className="rounded-xl border p-6 text-sm text-muted-foreground">
-                        Riwayat absensi menyusul bersama modul Absensi, yang
-                        membutuhkan data dari mesin scan (Fase 2).
-                    </p>
+                    <EmployeeAttendance
+                        employeeId={employee.id}
+                        attendance={attendance}
+                        canCorrect={canCorrectAttendance}
+                    />
                 )}
 
                 {tab === 'documents' && (
