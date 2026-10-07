@@ -1,4 +1,5 @@
 import { Form } from '@inertiajs/react';
+import { EmployeeAvatar } from '@/components/employee-avatar';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -105,6 +106,39 @@ export function EmployeeForm({
         >
             {({ processing, errors }) => (
                 <>
+                    <Section title="Foto profil">
+                        <div className="flex items-center gap-4 sm:col-span-2">
+                            <EmployeeAvatar
+                                name={employee?.name ?? '?'}
+                                photoUrl={employee?.photoUrl ?? null}
+                                className="size-16"
+                            />
+                            <div className="grid flex-1 gap-2">
+                                <Label htmlFor="photo">Unggah foto</Label>
+                                <Input
+                                    id="photo"
+                                    name="photo"
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp"
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    JPG, PNG, atau WebP, maksimal 2 MB.
+                                </p>
+                                <InputError message={errors.photo} />
+                                {employee?.photoUrl && (
+                                    <label className="flex items-center gap-2 text-sm">
+                                        <input
+                                            type="checkbox"
+                                            name="remove_photo"
+                                            value="1"
+                                        />
+                                        Hapus foto saat ini
+                                    </label>
+                                )}
+                            </div>
+                        </div>
+                    </Section>
+
                     <Section title="Kepegawaian">
                         <TextField
                             name="employee_number"

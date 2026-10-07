@@ -1,5 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
+import { EmployeeAvatar } from '@/components/employee-avatar';
 import { EmployeeOrgChart } from '@/components/employee-org-chart';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -210,30 +211,37 @@ export default function EmployeesIndex({
                             <Link
                                 key={employee.id}
                                 href={show(employee.id).url}
-                                className="flex flex-col gap-1 rounded-xl border p-4 hover:bg-muted/50"
+                                className="flex items-start gap-3 rounded-xl border p-4 hover:bg-muted/50"
                             >
-                                <span className="font-medium">
-                                    {employee.name}
-                                </span>
-                                <span className="font-mono text-xs text-muted-foreground">
-                                    {employee.number}
-                                </span>
-                                <span className="text-sm text-muted-foreground">
-                                    {employee.position ?? '—'}
-                                    {employee.department
-                                        ? ` · ${employee.department}`
-                                        : ''}
-                                </span>
-                                <Badge
-                                    variant={
-                                        employee.isActive
-                                            ? 'default'
-                                            : 'secondary'
-                                    }
-                                    className="mt-2 w-fit"
-                                >
-                                    {employee.status}
-                                </Badge>
+                                <EmployeeAvatar
+                                    name={employee.name}
+                                    photoUrl={employee.photoUrl}
+                                    className="size-14"
+                                />
+                                <div className="flex min-w-0 flex-col gap-1">
+                                    <span className="truncate font-medium">
+                                        {employee.name}
+                                    </span>
+                                    <span className="font-mono text-xs text-muted-foreground">
+                                        {employee.number}
+                                    </span>
+                                    <span className="text-sm text-muted-foreground">
+                                        {employee.position ?? '—'}
+                                        {employee.department
+                                            ? ` · ${employee.department}`
+                                            : ''}
+                                    </span>
+                                    <Badge
+                                        variant={
+                                            employee.isActive
+                                                ? 'default'
+                                                : 'secondary'
+                                        }
+                                        className="mt-2 w-fit"
+                                    >
+                                        {employee.status}
+                                    </Badge>
+                                </div>
                             </Link>
                         ))}
                         {employees.length === 0 && (

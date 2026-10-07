@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 
@@ -26,6 +27,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int|null $user_id
  * @property string $employee_number
  * @property string $full_name
+ * @property string|null $photo_path
  * @property int|null $department_id
  * @property int|null $position_id
  * @property int|null $manager_id
@@ -64,6 +66,7 @@ use Spatie\Activitylog\Support\LogOptions;
     'user_id',
     'employee_number',
     'full_name',
+    'photo_path',
     'department_id',
     'position_id',
     'manager_id',
@@ -171,6 +174,14 @@ class Employee extends Model
     public function directReports(): HasMany
     {
         return $this->hasMany(self::class, 'manager_id');
+    }
+
+    /**
+     * The public URL of the profile picture, or null when the record has none.
+     */
+    public function photoUrl(): ?string
+    {
+        return $this->photo_path === null ? null : Storage::disk('public')->url($this->photo_path);
     }
 
     public function hasLogin(): bool

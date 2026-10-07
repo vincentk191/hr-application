@@ -2,6 +2,8 @@ export type EmployeeRow = {
     id: number;
     number: string;
     name: string;
+    /** Public URL of the profile picture, or null to fall back to initials. */
+    photoUrl: string | null;
     department: string | null;
     position: string | null;
     manager: string | null;

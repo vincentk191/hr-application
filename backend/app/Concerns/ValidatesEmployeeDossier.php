@@ -32,6 +32,9 @@ trait ValidatesEmployeeDossier
                     ->ignore($ignoring),
             ],
             'full_name' => ['required', 'string', 'max:255'],
+            // Profile picture: an image only, and small enough for a directory card.
+            'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'remove_photo' => ['nullable', 'boolean'],
             // Department, position and manager are resolved through the company scope, so a
             // record from another company simply does not exist to be selected.
             'department_id' => ['nullable', 'integer', Rule::exists(Department::class, 'id')],
@@ -84,6 +87,9 @@ trait ValidatesEmployeeDossier
             'employee_number.required' => 'Isi ID karyawan.',
             'employee_number.unique' => 'ID karyawan ini sudah dipakai di perusahaan ini.',
             'full_name.required' => 'Isi nama lengkap.',
+            'photo.image' => 'Foto harus berupa gambar.',
+            'photo.mimes' => 'Foto harus berformat JPG, PNG, atau WebP.',
+            'photo.max' => 'Ukuran foto maksimal 2 MB.',
             'exited_on.after_or_equal' => 'Tanggal keluar tidak boleh sebelum tanggal bergabung.',
         ];
     }

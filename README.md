@@ -525,8 +525,8 @@ the 309 features, their sizes and priorities, and the test cases. This table is 
 | Screen     | Name                                   | f   | P1  | Status | Notes                                                                                                                                                 |
 | ---------- | -------------------------------------- | --- | --- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `EMP-DIR`  | Employee directory (list)              | 12  | 9   | 🟡     | Search, department/position multi-select, status chips, sort, active-filter strip, row summary. Missing: bulk import (needs Laravel Excel) and export |
-| `EMP-GRD`  | Directory — grid view                  | 1   | 1   | ✅     | A view over the same filtered query                                                                                                                   |
-| `EMP-CHT`  | Directory — org chart                  | 1   | 1   | ✅     | Drawn from `manager_id`; anyone whose manager is filtered out renders as a root                                                                       |
+| `EMP-GRD`  | Directory — grid view                  | 1   | 1   | ✅     | A view over the same filtered query; each card shows the profile picture, or initials |
+| `EMP-CHT`  | Directory — org chart                  | 1   | 1   | ✅     | A top-down tree drawn from `manager_id` with connector lines; anyone whose manager is filtered out renders as a root |
 | `EMP-ADD`  | Add / edit employee                    | 6   | 6   | ✅     | One form for both. Self-referencing manager refused; company filled from the active company                                                           |
 | `EMP-PRF`  | Profile shell                          | 3   | 2   | 🟡     | Header stats + tabs. Change audit is on (003); "SOPs to acknowledge" stays dropped with the Knowledge Hub                                             |
 | `EMP-DET`  | Profile — overview tab                 | 6   | 5   | 🟡     | All five card groups render. Per-card access control for the sensitive groups (006) waits on `EMP-DOC`                                                |
@@ -639,6 +639,10 @@ Progress Tracking analytics (Appendix C).
   positions and an audit-log viewer have no screens yet. The panel needs the
   `access-admin-panel` permission **and** a parent-wide account, and it still has its own
   `/admin/login` page alongside the app's login. `SetActiveCompany` runs inside it.
+- **Profile pictures sit on the public disk** (`storage/app/public/employee-photos`, served at
+  `/storage`) under random file names. They are reachable by anyone who has the URL, unlike the
+  rest of the dossier. If that is not acceptable, they need a private disk and an authorised
+  route. The container image has no GD extension, so there is no server-side resizing.
 - **`EMP-DIR-010` bulk import** needs Laravel Excel — another dependency to approve.
 - **No Sanctum**, so no employee API and no attendance ingest endpoint yet.
 - **The Indonesian workbook copy** (`…_ID.xlsx`) is regenerated from the English one — if you

@@ -34,6 +34,9 @@ BACKEND=/var/www/backend
     # The bind mount can arrive without these, and Laravel fails late and confusingly if so.
     mkdir -p storage/framework/{cache,sessions,testing,views} storage/logs bootstrap/cache
     chmod -R a+w storage bootstrap/cache 2>/dev/null || true
+
+    # Profile pictures live on the public disk; this exposes it at /storage.
+    php artisan storage:link --force >/dev/null 2>&1 || true
 )
 
 exec "$@"

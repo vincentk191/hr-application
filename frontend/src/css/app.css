@@ -132,6 +132,88 @@
     --sidebar-ring: oklch(0.439 0 0);
 }
 
+/*
+ * The org-chart tree (components/employee-org-chart.tsx). A nested list becomes a top-down tree:
+ * each nested item draws the horizontal bar over its siblings and the stub down to itself, and
+ * each nested list draws the stem from its parent. Only the outermost list carries the
+ * org-tree class; everything below it is reached by descendant selectors.
+ */
+.org-tree,
+.org-tree ul {
+    display: flex;
+    justify-content: center;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    position: relative;
+}
+
+.org-tree ul {
+    padding-top: 1.25rem;
+}
+
+.org-tree ul::before {
+    border-left: 1px solid var(--border);
+    content: '';
+    height: 1.25rem;
+    left: 50%;
+    position: absolute;
+    top: 0;
+}
+
+.org-tree li {
+    align-items: center;
+    display: flex;
+    flex-direction: column;
+    padding: 1.25rem 0.5rem 0;
+    position: relative;
+}
+
+/* The root has no parent to connect to. */
+.org-tree > li {
+    padding-top: 0;
+}
+
+.org-tree li li::before,
+.org-tree li li::after {
+    border-top: 1px solid var(--border);
+    content: '';
+    height: 1.25rem;
+    position: absolute;
+    right: 50%;
+    top: 0;
+    width: 50%;
+}
+
+.org-tree li li::after {
+    border-left: 1px solid var(--border);
+    left: 50%;
+    right: auto;
+}
+
+/* An only child needs the stem from its parent but no sideways bar. */
+.org-tree li li:only-child::before {
+    display: none;
+}
+
+.org-tree li li:only-child::after {
+    border-top: 0;
+}
+
+.org-tree li li:first-child::before,
+.org-tree li li:last-child::after {
+    border: 0 none;
+}
+
+.org-tree li li:last-child::before {
+    border-right: 1px solid var(--border);
+    border-radius: 0 0.25rem 0 0;
+}
+
+.org-tree li li:first-child::after {
+    border-radius: 0.25rem 0 0 0;
+}
+
 @layer base {
     * {
         @apply border-border;

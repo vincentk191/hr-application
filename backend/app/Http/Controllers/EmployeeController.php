@@ -13,6 +13,7 @@ use App\Models\Position;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -120,7 +121,10 @@ class EmployeeController extends Controller
     {
         // company_id is filled by BelongsToCompany from the active company (EMP-ADD-004), so
         // it is deliberately absent from the validated payload.
-        $employee = Employee::create($request->validated());
+        $employee = Employee::create([
+            ...$request->safe()->except(['photo', 'remove_photo']),
+            'photo_path' => $request->file('photo')?->store('employee-photos', 'public'),
+        ]);
 
         Inertia::flash('toast', [
             'type' => 'success',
@@ -142,7 +146,21 @@ class EmployeeController extends Controller
 
     public function update(UpdateEmployeeRequest $request, Employee $employee): RedirectResponse
     {
-        $employee->update($request->validated());
+        $data = $request->safe()->except(['photo', 'remove_photo']);
+
+        if ($request->hasFile('photo')) {
+            $data['photo_path'] = $request->file('photo')->store('employee-photos', 'public');
+        } elseif ($request->boolean('remove_photo')) {
+            $data['photo_path'] = null;
+        }
+
+        $previousPhoto = $employee->photo_path;
+
+        $employee->update($data);
+
+        if ($previousPhoto !== null && $employee->photo_path !== $previousPhoto) {
+            Storage::disk('public')->delete($previousPhoto);
+        }
 
         Inertia::flash('toast', [
             'type' => 'success',
@@ -189,6 +207,7 @@ class EmployeeController extends Controller
             'id' => $employee->id,
             'number' => $employee->employee_number,
             'name' => $employee->full_name,
+            'photoUrl' => $employee->photoUrl(),
             'department' => $employee->department?->name,
             'position' => $employee->position?->name,
             'manager' => $employee->manager?->full_name,
