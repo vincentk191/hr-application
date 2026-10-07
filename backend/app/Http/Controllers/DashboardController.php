@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\Permission;
 use App\Models\EmployeeDocument;
+use App\Support\Attendance\CaptureStatus;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -15,7 +16,7 @@ class DashboardController extends Controller
      */
     private const EXPIRY_LIST_LIMIT = 8;
 
-    public function __invoke(Request $request): Response
+    public function __invoke(Request $request, CaptureStatus $status): Response
     {
         $user = $request->user();
 
@@ -32,6 +33,8 @@ class DashboardController extends Controller
             : null;
 
         return Inertia::render('dashboard', [
+            // Only for the people who capture the scanner log; everyone else gets no card.
+            'attendanceStatus' => $user->can('manage-attendance-device') ? $status->resolve() : null,
             'expiringDocuments' => $lapsing === null ? null : [
                 'total' => $lapsing->count(),
                 'items' => $lapsing->take(self::EXPIRY_LIST_LIMIT)->map(fn (EmployeeDocument $document): array => [

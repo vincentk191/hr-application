@@ -14,6 +14,10 @@ export type Auth = {
     user: User;
     canAccessAdminPanel: boolean;
     canViewEmployees: boolean;
+    /** May load scanner logs and map scanner IDs (parent-wide accounts with the permission). */
+    canManageAttendance: boolean;
+    /** May open the attendance calendar. */
+    canViewAttendance: boolean;
     /** The signed-in person's own dossier record, if they have one. */
     employeeId: number | null;
 };

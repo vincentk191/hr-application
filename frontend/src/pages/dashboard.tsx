@@ -2,7 +2,9 @@ import { Head, Link } from '@inertiajs/react';
 import { Badge } from '@/components/ui/badge';
 import { PlaceholderPattern } from '@/components/ui/placeholder-pattern';
 import { dashboard } from '@/routes';
+import { device } from '@/routes/attendance';
 import { show } from '@/routes/employees';
+import type { CaptureStatus } from '@/types/attendance';
 
 type ExpiringDocuments = {
     total: number;
@@ -77,15 +79,54 @@ function ExpiringDocumentsCard({ data }: { data: ExpiringDocuments }) {
     );
 }
 
+/**
+ * How current the scanner data is, for the person who loads it by hand (ATT-DEV-001). Shown only
+ * to them, and only when something needs doing, so it does not become noise on a good day.
+ */
+function AttendanceStatusCard({ status }: { status: CaptureStatus }) {
+    if (status.state === 'current' && status.unmapped === 0) {
+        return null;
+    }
+
+    return (
+        <section className="rounded-xl border p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="font-medium">Data absensi perlu diperbarui</h2>
+                <Link
+                    href={device()}
+                    className="text-sm text-primary underline-offset-4 hover:underline"
+                >
+                    Buka data absensi
+                </Link>
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">
+                {status.state === 'never'
+                    ? 'Belum ada log pemindai yang diunggah.'
+                    : status.state === 'late'
+                      ? `Log terakhir berhenti sebelum ${status.expectedThrough}. Unggah log hari kerja terbaru.`
+                      : null}
+                {status.unmapped > 0
+                    ? ` ${status.unmapped} scan menunggu pemetaan ID ke karyawan.`
+                    : ''}
+            </p>
+        </section>
+    );
+}
+
 export default function Dashboard({
     expiringDocuments,
+    attendanceStatus,
 }: {
     expiringDocuments: ExpiringDocuments | null;
+    attendanceStatus: CaptureStatus | null;
 }) {
     return (
         <>
             <Head title="Dashboard" />
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+                {attendanceStatus && (
+                    <AttendanceStatusCard status={attendanceStatus} />
+                )}
                 {expiringDocuments && (
                     <ExpiringDocumentsCard data={expiringDocuments} />
                 )}

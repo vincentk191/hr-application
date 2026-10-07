@@ -475,7 +475,7 @@ the enum later reaches new installs only — grant it to existing roles from the
 | Role                    | Holds                                                 |
 | ----------------------- | ----------------------------------------------------- |
 | System Admin            | accounts, roles, companies, org — **not** the dossier |
-| HR Admin                | the dossier, documents and sensitive data + org — **not** accounts or roles |
+| HR Admin                | the dossier, documents, sensitive data and attendance data + org — **not** accounts or roles |
 | Management / Supervisor | view employees only (no documents, bank, payroll or health) |
 | Employee                | nothing; sees their own record via policy             |
 
@@ -569,13 +569,69 @@ the 309 features, their sizes and priorities, and the test cases. This table is 
 ### Phase 2 — Attendance
 
 Sync first: it is the prerequisite for any real attendance data, and the on-site probe has
-**not been run yet** (`../ATTENDANCE-SYNC.md`).
+**not been run yet** (`../ATTENDANCE-SYNC.md`). Until it is, the log is captured by hand: someone
+runs Personnel's **Download ScanLog** at the end of each working day and loads the file at
+`/attendance/device` ("Data absensi" in the sidebar). The scanner IDs are matched to employees
+there too.
+
+How the import behaves, so it is not surprised by:
+
+- **Idempotent.** Punches are de-duplicated on (device serial, scan time, PIN), the same key as
+  Personnel's `att_log`. The same file twice, or two overlapping files, adds nothing the second
+  time; the page reports "baru / duplikat / menunggu / ditolak" for every load.
+- **Unmapped PINs are held, never dropped**, in `attendance_unmapped_punches`. Mapping the PIN
+  moves its waiting punches into attendance in the same step. A PIN that equals exactly one
+  employee number is offered as a suggestion.
+- **Mappings can carry dates**, because scanners reuse PINs. The mapping in force on the day of
+  the scan wins, judged in the scanner's timezone.
+- **Times are interpreted in `ATTENDANCE_DEVICE_TIMEZONE`** (default `Asia/Jakarta`), because the
+  scanner records local time with no zone. They are stored in UTC and shown back in the scanner's
+  zone. Wrong zone, and every punch shifts by the difference.
+- **"Data sampai" matters.** While capture is manual the data is only as fresh as the last
+  upload, so nothing built on it may read the days after it as absence. The status shows
+  Terkini / Terlambat against the previous working day; public holidays are not known yet, so a
+  holiday can show as late. The dashboard shows a card to the people who load the log, but only
+  when something needs doing.
+- **Open to parent-wide accounts holding `manage-attendance` only** (HR Admin by default). The
+  scanner serves the whole group, so a company-pinned HR admin cannot load or map.
+- **The file format is not verified.** Personnel's real export has not been inspected, so the
+  parser reads a CSV header and recognises common column names (English and Indonesian) rather
+  than one fixed layout. Needed: a PIN column and a date-time column (or separate date and time
+  columns); optional: device serial, verify mode, in/out mode. Dates are read day-first. If a
+  real export differs, adapt the alias lists in `App\Support\Attendance\ScanLogParser`.
+  `backend/tests/Fixtures/scanlog-sample.csv` is a sample to try the page with (PINs 1001–1005
+  and an unknown 9999).
+- **The calendar (`/attendance/calendar`, "Kalender absensi")** derives each person's day from the
+  raw punches every time; nothing is stored, so a late upload or a corrected mapping changes it
+  immediately. It needs the `view-attendance` permission (HR Admin by default) and follows the
+  company switcher. The rules, in order, are in `DayClassifier`:
+  1. a day after the last captured data is **no data**, never absence;
+  2. a day nobody at all scanned on is **off** (public holidays are not recorded yet, so this
+     stands in for them);
+  3. any punch makes the day present / late / early-leave, even on leave or a weekend;
+  4. a non-workday is off, and approved leave is leave;
+  5. someone with **no scanner ID mapped** on that date is no data, not absent — nothing could
+     have been recorded for them. Rows say "ID pemindai belum dipetakan".
+  Only then is a workday with no scan an absence.
+- **The working schedule is an assumption.** Nothing in the requirements defines hours or a
+  lateness rule, so `config/attendance.php` defaults to Monday–Friday, 08:00–17:00, late after
+  08:10 (`ATTENDANCE_WORKDAYS`, `ATTENDANCE_WORK_START`, `ATTENDANCE_WORK_END`,
+  `ATTENDANCE_LATE_GRACE_MINUTES`). One schedule applies to everyone: shift work (a warehouse)
+  would need one per employee or department. First scan is the check-in and last scan the
+  check-out; the scanner's in/out flag is not trusted. A day with a single scan is never judged
+  an early departure.
+- **Not built yet:** the year view shows company totals only, "team" and "leave type" filters,
+  export to PDF/CSV, a separate live "today" board, the Issues screen (`ATT-ISS`), manual punch
+  correction, and the attendance tab on the employee profile (`EMP-ATT`).
+- **The sync agent's ingest endpoint will reuse `IngestPunches`**, so both routes into the
+  system behave identically. It is not built yet, and needs Sanctum, which is not on `main`
+  (the spike is on `spike/sanctum-api`).
 
 | Screen    | Name                      | f   | P1  | Status | Notes                                                            |
 | --------- | ------------------------- | --- | --- | ------ | ---------------------------------------------------------------- |
-| `ATT-DEV` | Device integration health | 6   | 4   | ⬜     | RtListener + sync agent + ingest endpoint + enrol-ID mapping (L) |
-| `ATT-CAL` | Attendance calendar       | 5   | 4   | ⬜     | Needs the ingest endpoint feeding it                             |
-| `ATT-SID` | Calendar side panel       | 3   | 1   | ⬜     | Recalculates with the calendar's date range                      |
+| `ATT-DEV` | Device integration health | 6   | 4   | 🟡     | Manual CSV import, enrol-ID mapping and the capture-status check done. Listener, sync agent and the ingest endpoint wait on the on-site probe |
+| `ATT-CAL` | Attendance calendar       | 5   | 4   | 🟡     | Day / week / month / year, filters and status rules done. Export (005), the live board and the ingest endpoint (003) are not |
+| `ATT-SID` | Calendar side panel       | 3   | 1   | ✅     | Headcount, out today / upcoming and the approvals link, from the same rows as the grid |
 | `ATT-WIZ` | Calendar event wizard     | 1   | 0   | ⬜     | Holidays/events — also feeds leave working-day counts            |
 | `EMP-ATT` | Profile — attendance tab  | 3   | 3   | ⬜     | Manual punch edit + recompute                                    |
 

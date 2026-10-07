@@ -1,5 +1,9 @@
 <?php
 
+use App\Http\Controllers\AttendanceCalendarController;
+use App\Http\Controllers\AttendanceDeviceController;
+use App\Http\Controllers\AttendanceEnrolMapController;
+use App\Http\Controllers\AttendanceImportController;
 use App\Http\Controllers\CompanySwitcherController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeeController;
@@ -34,6 +38,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('documents/{document}/versions/{version}', [EmployeeDocumentController::class, 'download'])
         ->scopeBindings()
         ->name('documents.download');
+
+    Route::get('attendance/calendar', [AttendanceCalendarController::class, 'index'])->name('attendance.calendar');
+    Route::get('attendance/device', [AttendanceDeviceController::class, 'index'])->name('attendance.device');
+    Route::post('attendance/imports', [AttendanceImportController::class, 'store'])->name('attendance.imports.store');
+    Route::post('attendance/enrol-maps', [AttendanceEnrolMapController::class, 'store'])
+        ->name('attendance.enrol-maps.store');
+    Route::delete('attendance/enrol-maps/{enrolMap}', [AttendanceEnrolMapController::class, 'destroy'])
+        ->name('attendance.enrol-maps.destroy');
 
     Route::get('leave-requests', [LeaveRequestController::class, 'index'])->name('leave-requests.index');
     Route::get('leave-requests/create', [LeaveRequestController::class, 'create'])->name('leave-requests.create');

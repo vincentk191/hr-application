@@ -1,7 +1,9 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
     BookOpen,
+    CalendarCheck,
     CalendarDays,
+    Fingerprint,
     FolderGit2,
     LayoutGrid,
     ShieldCheck,
@@ -22,6 +24,10 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import {
+    calendar as attendanceCalendar,
+    device as attendanceDevice,
+} from '@/routes/attendance';
 import {
     index as employeesIndex,
     show as employeeShow,
@@ -78,6 +84,24 @@ export function AppSidebar() {
               ]
             : []),
         ...mainNavItems.slice(1),
+        ...(auth.canViewAttendance
+            ? [
+                  {
+                      title: 'Kalender absensi',
+                      href: attendanceCalendar(),
+                      icon: CalendarCheck,
+                  },
+              ]
+            : []),
+        ...(auth.canManageAttendance
+            ? [
+                  {
+                      title: 'Data absensi',
+                      href: attendanceDevice(),
+                      icon: Fingerprint,
+                  },
+              ]
+            : []),
         ...(auth.canAccessAdminPanel
             ? [
                   {

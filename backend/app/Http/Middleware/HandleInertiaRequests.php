@@ -48,6 +48,8 @@ class HandleInertiaRequests extends Middleware
                 'canAccessAdminPanel' => $request->user()?->canAccessAdminPanel() ?? false,
                 // What the sidebar offers: the directory only to roles that may open it, and a
                 // link to the signed-in person's own profile if they have one.
+                'canViewAttendance' => $request->user()?->can(Permission::ViewAttendance->value) ?? false,
+                'canManageAttendance' => $request->user()?->can('manage-attendance-device') ?? false,
                 'canViewEmployees' => $request->user()?->can(Permission::ViewEmployees->value) ?? false,
                 'employeeId' => $request->user() === null
                     ? null
