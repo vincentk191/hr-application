@@ -16,6 +16,7 @@ enum Permission: string
     case ViewEmployees = 'view-employees';
     case CreateEmployees = 'create-employees';
     case UpdateEmployees = 'update-employees';
+    case AccessAdminPanel = 'access-admin-panel';
 
     /**
      * The Indonesian label shown in the dashboard.
@@ -29,6 +30,7 @@ enum Permission: string
             self::ViewEmployees => 'Lihat data karyawan',
             self::CreateEmployees => 'Tambah karyawan',
             self::UpdateEmployees => 'Ubah data karyawan',
+            self::AccessAdminPanel => 'Akses panel admin',
         };
     }
 }

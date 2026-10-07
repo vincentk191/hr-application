@@ -2,8 +2,11 @@
 
 namespace App\Models;
 
+use App\Enums\Permission;
 use App\Enums\Role;
 use Database\Factories\UserFactory;
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -32,7 +35,7 @@ use Spatie\Permission\Traits\HasRoles;
  */
 #[Fillable(['name', 'email', 'password', 'company_id'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
-class User extends Authenticatable implements MustVerifyEmail
+class User extends Authenticatable implements FilamentUser, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, HasRoles, Notifiable, TwoFactorAuthenticatable;
@@ -92,6 +95,18 @@ class User extends Authenticatable implements MustVerifyEmail
         }
 
         return $this->company_id === ($company instanceof Company ? $company->id : $company);
+    }
+
+    /**
+     * Who may open the admin panel: a parent-wide account holding the access permission.
+     *
+     * The permission is what is assignable to roles; the parent-wide requirement is a fixed
+     * rule, because the panel administers every company (CORE-NAV-003).
+     */
+    public function canAccessPanel(Panel $panel): bool
+    {
+        return $this->isParentWide()
+            && $this->hasPermissionTo(Permission::AccessAdminPanel->value);
     }
 
     /**
