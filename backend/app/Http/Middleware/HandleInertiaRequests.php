@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\Company;
 use App\Support\CompanyContext;
+use Filament\Facades\Filament;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -42,6 +43,8 @@ class HandleInertiaRequests extends Middleware
             'name' => config('app.name'),
             'auth' => [
                 'user' => $request->user(),
+                // Drives the sidebar's link to the admin panel; the panel enforces access itself.
+                'canAccessAdminPanel' => $request->user()?->canAccessPanel(Filament::getDefaultPanel()) ?? false,
             ],
             'companySwitcher' => fn (): ?array => $this->companySwitcher($request),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',

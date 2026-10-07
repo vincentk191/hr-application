@@ -11,4 +11,6 @@ export type NavItem = {
     href: NonNullable<InertiaLinkProps['href']>;
     icon?: LucideIcon | null;
     isActive?: boolean;
+    /** Leaves the Inertia app (a full page load), e.g. the Filament admin panel. */
+    external?: boolean;
 };

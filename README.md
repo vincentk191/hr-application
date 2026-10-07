@@ -534,7 +534,7 @@ the 309 features, their sizes and priorities, and the test cases. This table is 
 | `EMP-ATT`  | Profile — attendance tab               | 3   | 3   | ⬜     | Phase 2. Tab says so                                                                                                                                  |
 | `EMP-REQ`  | Profile — requests tab                 | 2   | 2   | ✅     | Real: lists the employee's leave requests and leave taken this year                                                                                   |
 | `CORE-USR` | User & role management                 | 6   | 5   | 🟡     | Policies and Filament screens done (users, roles, permissions)                                                                                                                 |
-| `CORE-ORG` | Departments, positions, reporting line | 4   | 4   | 🟡     | Schema, policies and the downline resolver done; admin screens not — Filament                                                                         |
+| `CORE-ORG` | Departments, positions, reporting line | 4   | 4   | ✅     | Schema, policies, the downline resolver and Filament screens for departments and positions                                                                         |
 | `CORE-ADM` | Company settings                       | 1   | 0   | 🟡     | Filament company screen done                                                                                                                                |
 
 ### Phase 2 — Attendance
@@ -635,10 +635,14 @@ Progress Tracking analytics (Appendix C).
 
 - **No test cases in the workbook** for `CORE-*` or `EMP-*` — the Pest suite covers them, but
   the workbook's coverage figures do not reflect that. Only Recruitment has test-case rows.
-- **The admin panel covers companies, users and role permissions only.** Departments,
-  positions and an audit-log viewer have no screens yet. The panel needs the
-  `access-admin-panel` permission **and** a parent-wide account, and it still has its own
-  `/admin/login` page alongside the app's login. `SetActiveCompany` runs inside it.
+- **The admin panel covers companies, users, role permissions, departments, positions and a
+  read-only audit log.** The panel needs the `access-admin-panel` permission **and** a
+  parent-wide account. It has no login page of its own: a guest is sent to the app's `/login`
+  (two-factor included) and returned to the page they asked for. Signing out from the panel
+  ends the whole session. Nothing in the main app's sidebar links to `/admin` yet.
+  `SetActiveCompany` runs inside it and is registered as _persistent_ middleware: without that,
+  Filament's search, sort and pagination (Livewire requests) would drop the company scope.
+  The audit log is gated by `manage-users`, not a permission of its own.
 - **Profile pictures sit on the public disk** (`storage/app/public/employee-photos`, served at
   `/storage`) under random file names. They are reachable by anyone who has the URL, unlike the
   rest of the dossier. If that is not acceptable, they need a private disk and an authorised

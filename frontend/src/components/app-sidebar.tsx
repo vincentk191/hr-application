@@ -1,9 +1,10 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import {
     BookOpen,
     CalendarDays,
     FolderGit2,
     LayoutGrid,
+    ShieldCheck,
     Users,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
@@ -56,6 +57,22 @@ const footerNavItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
+    const { auth } = usePage().props;
+
+    // The admin panel is outside the Inertia app, so it is a plain link, and only offered to
+    // people the server says may open it.
+    const navItems: NavItem[] = auth.canAccessAdminPanel
+        ? [
+              ...mainNavItems,
+              {
+                  title: 'Panel admin',
+                  href: '/admin',
+                  icon: ShieldCheck,
+                  external: true,
+              },
+          ]
+        : mainNavItems;
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
@@ -71,7 +88,7 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={mainNavItems} />
+                <NavMain items={navItems} />
             </SidebarContent>
 
             <SidebarFooter>

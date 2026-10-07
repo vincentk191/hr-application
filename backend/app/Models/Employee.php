@@ -104,6 +104,19 @@ use Spatie\Activitylog\Support\LogOptions;
 ])]
 class Employee extends Model
 {
+    /**
+     * The bank, payroll and health fields (EMP-DET-003/004/005). Seeing or changing them needs
+     * the sensitive-data permission on top of access to the record (EMP-DET-006).
+     *
+     * @var list<string>
+     */
+    public const SENSITIVE_FIELDS = [
+        'bank_name', 'bank_account_number', 'bank_account_holder', 'tax_number', 'payment_method',
+        'pay_group', 'base_salary_idr', 'allowances_idr', 'overtime_rate_idr',
+        'insurance_number', 'insurance_tier', 'blood_type', 'height_cm', 'weight_kg',
+        'last_medical_check_on', 'declared_conditions',
+    ];
+
     /** @use HasFactory<EmployeeFactory> */
     use BelongsToCompany, HasFactory, LogsActivity;
 
@@ -139,6 +152,14 @@ class Employee extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * @return HasMany<EmployeeDocument, $this>
+     */
+    public function documents(): HasMany
+    {
+        return $this->hasMany(EmployeeDocument::class);
     }
 
     /**

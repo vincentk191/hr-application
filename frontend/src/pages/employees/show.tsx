@@ -1,5 +1,6 @@
 import { Head, Link, setLayoutProps } from '@inertiajs/react';
 import { useState } from 'react';
+import { EmployeeAvatar } from '@/components/employee-avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { edit } from '@/routes/employees';
@@ -98,20 +99,29 @@ export default function EmployeeShow({
 
             <div className="flex flex-col gap-4 p-4">
                 <header className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                        <h1 className="text-xl font-semibold">
-                            {employee.name}
-                        </h1>
-                        <p className="text-sm text-muted-foreground">
-                            {employee.number}
-                            {employee.position ? ` · ${employee.position}` : ''}
-                            {employee.department
-                                ? ` · ${employee.department}`
-                                : ''}
-                            {employee.companyCode
-                                ? ` · ${employee.companyCode}`
-                                : ''}
-                        </p>
+                    <div className="flex items-center gap-4">
+                        <EmployeeAvatar
+                            name={employee.name}
+                            photoUrl={employee.photoUrl}
+                            className="size-20"
+                        />
+                        <div>
+                            <h1 className="text-xl font-semibold">
+                                {employee.name}
+                            </h1>
+                            <p className="text-sm text-muted-foreground">
+                                {employee.number}
+                                {employee.position
+                                    ? ` · ${employee.position}`
+                                    : ''}
+                                {employee.department
+                                    ? ` · ${employee.department}`
+                                    : ''}
+                                {employee.companyCode
+                                    ? ` · ${employee.companyCode}`
+                                    : ''}
+                            </p>
+                        </div>
                     </div>
                     {canUpdate && (
                         <Button asChild variant="outline">

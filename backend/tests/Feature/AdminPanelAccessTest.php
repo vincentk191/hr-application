@@ -5,7 +5,6 @@ use App\Enums\Role;
 use App\Models\Company;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
-use Filament\Facades\Filament;
 use Spatie\Permission\PermissionRegistrar;
 
 beforeEach(function () {
@@ -34,8 +33,18 @@ it('keeps roles without the permission out of the panel', function (Role $role) 
     $this->actingAs(panelUser($role))->get('/admin')->assertForbidden();
 })->with([Role::Management, Role::Supervisor, Role::Employee]);
 
-it('sends guests to the panel login', function () {
-    $this->get('/admin')->assertRedirect(Filament::getPanel('admin')->getLoginUrl());
+it('sends guests to the application login rather than a panel login of its own', function () {
+    $this->get('/admin')->assertRedirect(route('login'));
+    $this->get('/admin/login')->assertNotFound();
+});
+
+it('returns a guest to the panel page they asked for after signing in', function () {
+    $user = panelUser(Role::SystemAdmin);
+
+    $this->get('/admin/companies')->assertRedirect(route('login'));
+
+    $this->post(route('login.store'), ['email' => $user->email, 'password' => 'password'])
+        ->assertRedirect('/admin/companies');
 });
 
 it('follows a permission granted to a role in the database', function () {
@@ -48,4 +57,13 @@ it('follows a permission granted to a role in the database', function () {
     app(PermissionRegistrar::class)->forgetCachedPermissions();
 
     $this->actingAs($user->fresh())->get('/admin')->assertOk();
+});
+
+it('signs out of the whole application from the panel and lands on the login', function () {
+    $this->actingAs(panelUser(Role::SystemAdmin))
+        ->post('/admin/logout')
+        ->assertRedirect('/admin');
+
+    $this->assertGuest();
+    $this->get('/admin')->assertRedirect(route('login'));
 });

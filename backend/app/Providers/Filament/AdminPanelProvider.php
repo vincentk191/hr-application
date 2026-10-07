@@ -2,8 +2,8 @@
 
 namespace App\Providers\Filament;
 
+use App\Http\Middleware\AuthenticateAdminPanel;
 use App\Http\Middleware\SetActiveCompany;
-use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
@@ -28,7 +28,7 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
-            ->login()
+            // No ->login(): the panel signs in through the application's own login.
             ->colors([
                 'primary' => Color::Amber,
             ])
@@ -54,9 +54,13 @@ class AdminPanelProvider extends PanelProvider
                 DispatchServingFilamentEvent::class,
             ])
             ->authMiddleware([
-                Authenticate::class,
+                AuthenticateAdminPanel::class,
                 // After authentication, so the user is known and CompanyScope has a context.
                 SetActiveCompany::class,
-            ]);
+            ])
+            // Table search, sorting, pagination and form actions are Livewire requests, which
+            // only re-run the middleware listed here. Without this they would query with no
+            // company context and ignore the company the administrator selected.
+            ->persistentMiddleware([SetActiveCompany::class]);
     }
 }

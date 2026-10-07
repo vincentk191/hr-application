@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\CompanySwitcherController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\EmployeeDocumentController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\LeaveRequestDecisionController;
 use Illuminate\Support\Facades\Route;
@@ -22,6 +23,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('employees/{employee}', [EmployeeController::class, 'show'])->name('employees.show');
     Route::get('employees/{employee}/edit', [EmployeeController::class, 'edit'])->name('employees.edit');
     Route::put('employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update');
+
+    Route::post('employees/{employee}/documents', [EmployeeDocumentController::class, 'store'])
+        ->name('documents.store');
+    Route::put('documents/{document}', [EmployeeDocumentController::class, 'update'])->name('documents.update');
+    Route::delete('documents/{document}', [EmployeeDocumentController::class, 'destroy'])->name('documents.destroy');
+    Route::post('documents/{document}/versions', [EmployeeDocumentController::class, 'storeVersion'])
+        ->name('documents.versions.store');
+    Route::get('documents/{document}/versions/{version}', [EmployeeDocumentController::class, 'download'])
+        ->scopeBindings()
+        ->name('documents.download');
 
     Route::get('leave-requests', [LeaveRequestController::class, 'index'])->name('leave-requests.index');
     Route::get('leave-requests/create', [LeaveRequestController::class, 'create'])->name('leave-requests.create');

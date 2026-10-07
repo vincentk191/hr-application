@@ -58,6 +58,9 @@ enum Role: string
                 Permission::CreateEmployees,
                 Permission::UpdateEmployees,
                 Permission::AccessAdminPanel,
+                Permission::ViewDocuments,
+                Permission::ManageDocuments,
+                Permission::ViewSensitiveData,
             ],
             // Sees its scope and decides; does not administer records.
             self::Management => [

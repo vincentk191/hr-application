@@ -17,6 +17,9 @@ enum Permission: string
     case CreateEmployees = 'create-employees';
     case UpdateEmployees = 'update-employees';
     case AccessAdminPanel = 'access-admin-panel';
+    case ViewDocuments = 'view-documents';
+    case ManageDocuments = 'manage-documents';
+    case ViewSensitiveData = 'view-sensitive-data';
 
     /**
      * The Indonesian label shown in the dashboard.
@@ -31,6 +34,9 @@ enum Permission: string
             self::CreateEmployees => 'Tambah karyawan',
             self::UpdateEmployees => 'Ubah data karyawan',
             self::AccessAdminPanel => 'Akses panel admin',
+            self::ViewDocuments => 'Lihat dokumen karyawan',
+            self::ManageDocuments => 'Kelola dokumen karyawan',
+            self::ViewSensitiveData => 'Lihat data sensitif (dokumen terbatas, bank, gaji, kesehatan)',
         };
     }
 }
