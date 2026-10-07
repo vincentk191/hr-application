@@ -13,6 +13,12 @@ jobs:
   ci:
     runs-on: ubuntu-latest
 
+    # Every `run:` step here is a composer script, and composer.json lives in backend/. Those
+    # scripts reach the frontend project themselves, via `npm --prefix ../frontend`.
+    defaults:
+      run:
+        working-directory: backend
+
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

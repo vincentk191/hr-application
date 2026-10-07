@@ -1,0 +1,24 @@
+# Build context hygiene. The dev image bind-mounts both projects anyway, so the context only
+# really needs docker/. Keeping it lean keeps `docker build` fast and stops host-built
+# artefacts leaking into the image.
+#
+# `**/` matters: .dockerignore patterns are anchored to the context root, so a bare
+# `node_modules` would no longer match frontend/node_modules.
+.git
+.github
+**/node_modules
+**/vendor
+backend/public/build
+backend/public/hot
+backend/storage/logs/*
+backend/storage/framework/cache/*
+backend/storage/framework/sessions/*
+backend/storage/framework/views/*
+backend/bootstrap/cache/*
+backend/.env
+backend/.env.*
+!backend/.env.example
+backend/database/database.sqlite
+**/.phpunit.result.cache
+.claude
+.ai

@@ -1,0 +1,141 @@
+# Local development stack. `docker compose up` is all you need — no PHP, Composer or Node on
+# the host.
+#
+# The repository holds two projects side by side, mounted the same way inside the containers:
+#   backend/   the Laravel app    -> /var/www/backend
+#   frontend/  the React app      -> /var/www/frontend
+# They must stay siblings: the Vite config reaches the backend as ../backend.
+#
+# Ports are chosen to coexist with the CMP project on the same machine:
+#   8001  the app          (8000 is taken by CMP's backend-api container)
+#   5173  the Vite dev server
+#   5434  PostgreSQL       (5432 is taken by CMP's local database)
+#
+# This replaced the standalone ../ops/local-postgres/ compose, retired 2026-10-06.
+
+services:
+    db:
+        image: postgres:16-alpine
+        container_name: hr-app-db
+        restart: unless-stopped
+        environment:
+            POSTGRES_DB: hr_app
+            POSTGRES_USER: hr_app
+            POSTGRES_PASSWORD: hr_app_local
+        ports:
+            # Published so host tools (psql, a GUI client, a host PHP install) can still reach it.
+            # Containers use the service name and 5432 instead; see DB_HOST below.
+            - '127.0.0.1:5434:5432'
+        volumes:
+            - pgdata:/var/lib/postgresql/data
+        healthcheck:
+            test: ['CMD-SHELL', 'pg_isready -U hr_app -d hr_app']
+            interval: 5s
+            timeout: 5s
+            retries: 10
+
+    app:
+        build:
+            context: .
+            target: dev
+        container_name: hr-app
+        restart: unless-stopped
+        # --no-reload is required for PHP_CLI_SERVER_WORKERS to take effect; without it the dev
+        # server runs a single process and serialises every request. It only disables restarting
+        # on .env changes, not picking up code edits.
+        command: php artisan serve --host=0.0.0.0 --port=8000 --no-reload
+        # Only the two values that genuinely differ from .env are set here: a host PHP install
+        # reaches Postgres on 127.0.0.1:5434, a container reaches it as db:5432. Everything else
+        # (DB_CONNECTION, DB_DATABASE, credentials) comes from backend/.env.
+        #
+        # Do NOT add DB_CONNECTION or DB_DATABASE here. Compose variables also land in $$_SERVER,
+        # Laravel's env() reads $$_SERVER before $$_ENV, and phpunit.xml's force="true" cannot
+        # reach $$_SERVER — so the test suite would silently run against this development database
+        # and RefreshDatabase would wipe it.
+        environment:
+            APP_URL: http://localhost:8001
+            DB_HOST: db
+            DB_PORT: 5432
+            # SSR is off for local development: it makes every page render a second round trip into
+            # the Vite container for no local benefit. Flip to "true" to exercise it — the hot_url
+            # below is what makes it work across containers, since public/hot necessarily holds a
+            # browser-reachable URL this container cannot use. See backend/config/inertia.php.
+            INERTIA_SSR_ENABLED: 'false'
+            INERTIA_SSR_HOT_URL: http://vite:5173
+            # `artisan serve` is single-worker by default, so one slow request blocks the next.
+            PHP_CLI_SERVER_WORKERS: '4'
+        ports:
+            - '8001:8000'
+        volumes:
+            - ./backend:/var/www/backend
+            # vendor/ is ~10k files and is never edited by hand. Bind-mounting it from Windows made
+            # a bare framework boot take 6-15s; in a named volume it lives on the container's own
+            # filesystem. The host keeps its own vendor/ on disk for IDE intellisense — this volume
+            # simply shadows it inside the container.
+            - vendor:/var/www/backend/vendor
+            # Inertia's test helper checks that a rendered page component exists on disk, and the
+            # pages live in the frontend project. Read-only, and only src/ — the app has no
+            # business with node_modules or the build config.
+            - ./frontend/src:/var/www/frontend/src:ro
+        depends_on:
+            db:
+                condition: service_healthy
+
+    queue:
+        build:
+            context: .
+            target: dev
+        container_name: hr-app-queue
+        restart: unless-stopped
+        command: php artisan queue:listen --tries=1 --timeout=0
+        environment:
+            DB_HOST: db
+            DB_PORT: 5432
+        volumes:
+            - ./backend:/var/www/backend
+            - vendor:/var/www/backend/vendor
+        depends_on:
+            db:
+                condition: service_healthy
+
+    vite:
+        # The same image as `app`, because the Wayfinder Vite plugin runs `php artisan` on start.
+        build:
+            context: .
+            target: dev
+        container_name: hr-app-vite
+        restart: unless-stopped
+        # The frontend project is the working directory; the backend is reached as ../backend.
+        working_dir: /var/www/frontend
+        environment:
+            # Read by vite.config.ts: makes Vite listen on all interfaces and, crucially, writes
+            # this URL into backend/public/hot so the browser can load assets from outside the
+            # container.
+            VITE_DEV_SERVER_URL: http://localhost:5173
+            # The origin Vite must allow as a cross-origin caller: the page is served from here,
+            # the modules come from 5173. Read by vite.config.ts.
+            APP_URL: http://localhost:8001
+            # Wayfinder generation boots the app, so it needs to reach the database.
+            DB_HOST: db
+            DB_PORT: 5432
+        # Install on first run so a fresh clone needs nothing on the host.
+        command: sh -c "[ -f node_modules/.package-lock.json ] || npm ci; npm run dev"
+        ports:
+            - '5173:5173'
+        volumes:
+            - ./frontend:/var/www/frontend
+            # A named volume, not the host directory: node_modules here is built for Linux, and the
+            # host tree is built for Windows. Sharing one would mean mismatched native binaries.
+            - node_modules:/var/www/frontend/node_modules
+            # Vite writes backend/public/hot and, on build, backend/public/build, and Wayfinder runs
+            # backend/artisan.
+            - ./backend:/var/www/backend
+            - vendor:/var/www/backend/vendor
+        depends_on:
+            db:
+                condition: service_healthy
+
+volumes:
+    pgdata:
+    node_modules:
+    vendor:

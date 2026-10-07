@@ -1,32 +1,15 @@
-/.phpunit.cache
-/bootstrap/ssr
-/node_modules
-/public/build
-/public/fonts-manifest.dev.json
-/public/hot
-/public/storage
-/storage/*.key
-/storage/pail
-/resources/js/actions
-/resources/js/routes
-/resources/js/wayfinder
-/vendor
 .DS_Store
-.env
-.env.backup
-.env.production
-.phpactor.json
-.phpunit.result.cache
-Homestead.json
-Homestead.yaml
-npm-debug.log
-yarn-error.log
-/auth.json
+
+# Editors
 /.fleet
 /.idea
 /.nova
 /.vscode
 /.zed
+
+# AI tooling. Laravel Boost generates these and regenerates them, so they are never committed.
+# They sit at the repository root, where the tools are run from; the second block covers the
+# copies Boost writes when `php artisan boost:update` runs inside backend/.
 /.agents
 /.amp
 /.claude
@@ -42,3 +25,18 @@ yarn-error.log
 /boost.json
 /opencode.json
 /opencode.jsonc
+/backend/.agents
+/backend/.amp
+/backend/.claude
+/backend/.cursor
+/backend/.factory
+/backend/.grok
+/backend/.junie
+/backend/.kiro
+/backend/.pi
+/backend/.mcp.json
+/backend/AGENTS.md
+/backend/CLAUDE.md
+/backend/boost.json
+/backend/opencode.json
+/backend/opencode.jsonc
