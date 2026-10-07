@@ -13,9 +13,11 @@ use Spatie\Permission\PermissionRegistrar;
 /**
  * Creates the roles and permissions of context.md §9.2 / CORE-RBA-001.
  *
- * Idempotent, and the single source of truth for who holds what: the mapping lives on the
- * Role enum, so adding a permission to a role is a code change that this seeder applies
- * rather than something adjusted by hand in the database.
+ * Idempotent, and it only ever creates what is missing. The mapping on the Role enum is the
+ * default a role starts with; once a role exists, its permissions belong to the database and
+ * are managed from the admin panel. Re-running this seeder therefore never undoes a change an
+ * administrator made. The cost: a permission later added to a role's enum default reaches new
+ * installs only, and has to be granted to existing roles from the panel.
  */
 class RoleSeeder extends Seeder
 {
@@ -35,8 +37,10 @@ class RoleSeeder extends Seeder
         foreach (RoleEnum::cases() as $role) {
             $model = Role::findOrCreate($role->value);
 
-            // syncPermissions, not givePermissionTo: a permission removed from the enum is
-            // removed from the role on the next run.
+            if (! $model->wasRecentlyCreated) {
+                continue;
+            }
+
             $model->syncPermissions(
                 array_map(fn (PermissionEnum $permission): string => $permission->value, $role->permissions()),
             );

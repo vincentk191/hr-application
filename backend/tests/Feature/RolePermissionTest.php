@@ -29,16 +29,23 @@ it('is idempotent', function () {
         ->and(PermissionModel::count())->toBe(count(Permission::cases()));
 });
 
-it('removes a permission from a role when the enum no longer grants it', function () {
+it('leaves an existing role alone when the seeder runs again', function () {
     $supervisor = RoleModel::findByName(Role::Supervisor->value);
     $supervisor->givePermissionTo(Permission::ManageUsers->value);
 
-    expect($supervisor->hasPermissionTo(Permission::ManageUsers->value))->toBeTrue();
-
-    // syncPermissions, not givePermissionTo: re-running the seeder is a repair, not an append.
+    // Permissions are managed from the admin panel once a role exists; the seeder only
+    // creates what is missing, so an administrator's change survives a re-run.
     $this->seed(RoleSeeder::class);
 
-    expect($supervisor->fresh()->hasPermissionTo(Permission::ManageUsers->value))->toBeFalse();
+    expect($supervisor->fresh()->hasPermissionTo(Permission::ManageUsers->value))->toBeTrue();
+});
+
+it('gives a newly created role its enum defaults', function () {
+    RoleModel::findByName(Role::Supervisor->value)->delete();
+
+    $this->seed(RoleSeeder::class);
+
+    expect(RoleModel::findByName(Role::Supervisor->value)->hasPermissionTo(Permission::ViewEmployees->value))->toBeTrue();
 });
 
 it('gives the System Admin account administration but not HR process work', function () {

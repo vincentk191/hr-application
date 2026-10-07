@@ -44,7 +44,7 @@ are in; the admin screens are not.
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Framework                   | Laravel 13 (PHP 8.4), single monolith                                                                                                                         |
 | Designed screens            | Inertia v3 + React 19 + TypeScript, Tailwind 4                                                                                                                |
-| Admin / back-office screens | Filament — **chosen but not yet installed**                                                                                                                   |
+| Admin / back-office screens | Filament 5 — panel at `/admin`: companies, users, role permissions                                                                                            |
 | Database                    | PostgreSQL 16 (Docker, port 5434 locally)                                                                                                                     |
 | Auth                        | Laravel Fortify — session login, 2FA, password reset, email verification. Registration is **not** enabled, which matches the spec: accounts are created by HR |
 | Roles                       | spatie/laravel-permission (`teams` feature deliberately **off**)                                                                                              |
@@ -438,8 +438,10 @@ authorise the caller before using it.
 ### 2. RBAC
 
 Roles and permissions are **enums**, not strings, and the role → permission mapping lives on
-`Role::permissions()`. `RoleSeeder` applies it with `syncPermissions`, so it is a _repair_:
-remove a permission from the enum and re-running the seeder removes it from the role.
+`Role::permissions()`. That mapping is only the **starting point**: `RoleSeeder` creates a role
+with its defaults and then never touches it again, so what a role may do is managed from the
+admin panel (`/admin/roles`) and survives re-seeding. The cost is that a permission added to
+the enum later reaches new installs only — grant it to existing roles from the panel.
 
 | Role                    | Holds                                                 |
 | ----------------------- | ----------------------------------------------------- |
@@ -531,9 +533,9 @@ the 309 features, their sizes and priorities, and the test cases. This table is 
 | `EMP-DOC`  | Profile — documents tab                | 4   | 2   | ⬜     | Needs a documents table + per-document ACL (L). Tab says so rather than showing a blank                                                               |
 | `EMP-ATT`  | Profile — attendance tab               | 3   | 3   | ⬜     | Phase 2. Tab says so                                                                                                                                  |
 | `EMP-REQ`  | Profile — requests tab                 | 2   | 2   | ✅     | Real: lists the employee's leave requests and leave taken this year                                                                                   |
-| `CORE-USR` | User & role management                 | 6   | 5   | ⬜     | Policies done, screens not — Filament                                                                                                                 |
+| `CORE-USR` | User & role management                 | 6   | 5   | 🟡     | Policies and Filament screens done (users, roles, permissions)                                                                                                                 |
 | `CORE-ORG` | Departments, positions, reporting line | 4   | 4   | 🟡     | Schema, policies and the downline resolver done; admin screens not — Filament                                                                         |
-| `CORE-ADM` | Company settings                       | 1   | 0   | ⬜     | Model ready — Filament                                                                                                                                |
+| `CORE-ADM` | Company settings                       | 1   | 0   | 🟡     | Filament company screen done                                                                                                                                |
 
 ### Phase 2 — Attendance
 
@@ -633,8 +635,10 @@ Progress Tracking analytics (Appendix C).
 
 - **No test cases in the workbook** for `CORE-*` or `EMP-*` — the Pest suite covers them, but
   the workbook's coverage figures do not reflect that. Only Recruitment has test-case rows.
-- **Filament is not installed**, so `CORE-USR`, `CORE-ORG` and `CORE-ADM` have policies and
-  permissions but no screens.
+- **The admin panel covers companies, users and role permissions only.** Departments,
+  positions and an audit-log viewer have no screens yet. The panel needs the
+  `access-admin-panel` permission **and** a parent-wide account, and it still has its own
+  `/admin/login` page alongside the app's login. `SetActiveCompany` runs inside it.
 - **`EMP-DIR-010` bulk import** needs Laravel Excel — another dependency to approve.
 - **No Sanctum**, so no employee API and no attendance ingest endpoint yet.
 - **The Indonesian workbook copy** (`…_ID.xlsx`) is regenerated from the English one — if you
