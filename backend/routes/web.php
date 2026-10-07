@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CompanySwitcherController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeDocumentController;
 use App\Http\Controllers\LeaveRequestController;
@@ -12,7 +13,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', fn () => to_route(auth()->check() ? 'dashboard' : 'login'))->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::inertia('dashboard', 'dashboard')->name('dashboard');
+    Route::get('dashboard', DashboardController::class)->name('dashboard');
 
     Route::put('active-company', [CompanySwitcherController::class, 'update'])
         ->name('active-company.update');

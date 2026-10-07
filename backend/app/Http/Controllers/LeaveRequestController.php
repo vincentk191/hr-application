@@ -4,12 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Actions\Leave\SubmitLeaveRequest;
 use App\Enums\LeaveType;
+use App\Enums\Permission;
 use App\Enums\WorkflowStepStatus;
 use App\Http\Requests\StoreLeaveRequestRequest;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\User;
 use App\Models\WorkflowStep;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -20,8 +22,9 @@ class LeaveRequestController extends Controller
     /**
      * The requests queue (REQ-DSH).
      *
-     * Every leave request in the active company; CompanyScope does the filtering, so there is
-     * no company clause here to forget.
+     * Every leave request in the active company for roles that can see employees; CompanyScope
+     * does the company filtering, so there is no company clause here to forget. Anyone else — an
+     * ordinary employee — sees only their own requests and the ones they are asked to approve.
      */
     public function index(Request $request): Response
     {
@@ -30,6 +33,13 @@ class LeaveRequestController extends Controller
         $user = $request->user();
 
         $requests = LeaveRequest::query()
+            ->when(
+                ! $user->can(Permission::ViewEmployees->value),
+                fn (Builder $query) => $query->where(function (Builder $inner) use ($user): void {
+                    $inner->whereHas('employee', fn (Builder $employee) => $employee->where('user_id', $user->id))
+                        ->orWhereHas('workflow.steps', fn (Builder $step) => $step->where('approver_user_id', $user->id));
+                }),
+            )
             ->with(['employee:id,full_name,employee_number,department_id', 'employee.department:id,name', 'workflow.steps'])
             ->latest('id')
             ->get()

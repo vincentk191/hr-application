@@ -39,14 +39,15 @@ export type EmployeeDetail = EmployeeRow & {
         emergency_contact_phone: string | null;
         emergency_contact_relation: string | null;
     };
+    /** Null when the viewer lacks the sensitive-data permission (EMP-DET-006). */
     bank: {
         bank_name: string | null;
         bank_account_number: string | null;
         bank_account_holder: string | null;
         tax_number: string | null;
         payment_method: string | null;
-    };
-    payroll: EmployeePayroll;
+    } | null;
+    payroll: EmployeePayroll | null;
     health: {
         insurance_number: string | null;
         insurance_tier: string | null;
@@ -55,7 +56,7 @@ export type EmployeeDetail = EmployeeRow & {
         weight_kg: number | null;
         declared_conditions: string | null;
         last_medical_check_on: string | null;
-    };
+    } | null;
 };
 
 export type EmployeeFilters = {
@@ -70,3 +71,27 @@ export type EmployeeFilters = {
 export type Option = { id: number; name: string };
 export type ValueOption = { value: string; label: string };
 export type ManagerOption = { id: number; label: string };
+
+export type EmployeeDocumentVersion = {
+    id: number;
+    versionNo: number;
+    name: string;
+    sizeBytes: number;
+    note: string | null;
+    uploadedBy: string | null;
+    uploadedAt: string | null;
+    downloadUrl: string;
+};
+
+export type EmployeeDocumentRow = {
+    id: number;
+    title: string;
+    category: string;
+    categoryLabel: string;
+    isRestricted: boolean;
+    expiresOn: string | null;
+    expiryStatus: 'expired' | 'expiring' | null;
+    canUpdate: boolean;
+    /** Newest first. */
+    versions: EmployeeDocumentVersion[];
+};

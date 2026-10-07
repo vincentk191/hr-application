@@ -13,6 +13,9 @@ export type User = {
 export type Auth = {
     user: User;
     canAccessAdminPanel: boolean;
+    canViewEmployees: boolean;
+    /** The signed-in person's own dossier record, if they have one. */
+    employeeId: number | null;
 };
 
 export type TwoFactorSetupData = {

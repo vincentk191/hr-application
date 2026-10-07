@@ -105,8 +105,19 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
      */
     public function canAccessPanel(Panel $panel): bool
     {
+        return $this->canAccessAdminPanel();
+    }
+
+    /**
+     * The rule behind canAccessPanel(), without needing a Filament panel to ask it of — the
+     * sidebar asks on every page, and Filament is not loaded on pages outside the panel.
+     */
+    public function canAccessAdminPanel(): bool
+    {
         return $this->isParentWide()
-            && $this->hasPermissionTo(Permission::AccessAdminPanel->value);
+            // checkPermissionTo, not hasPermissionTo: it must answer false rather than throw
+            // while the permission does not exist yet.
+            && $this->checkPermissionTo(Permission::AccessAdminPanel->value);
     }
 
     /**

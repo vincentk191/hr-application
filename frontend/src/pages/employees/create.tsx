@@ -12,7 +12,10 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 /** Add an employee (EMP-ADD-001). */
-export default function EmployeeCreate(options: EmployeeFormOptions) {
+export default function EmployeeCreate({
+    canEditSensitive,
+    ...options
+}: EmployeeFormOptions & { canEditSensitive: boolean }) {
     return (
         <>
             <Head title="Tambah karyawan" />
@@ -22,6 +25,7 @@ export default function EmployeeCreate(options: EmployeeFormOptions) {
                     action={store().url}
                     method="post"
                     options={options}
+                    canEditSensitive={canEditSensitive}
                     submitLabel="Simpan karyawan"
                 />
             </div>

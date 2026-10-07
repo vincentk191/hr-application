@@ -11,6 +11,7 @@ use App\Http\Requests\UpdateEmployeeRequest;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
+use App\Models\EmployeeDocumentVersion;
 use App\Models\LeaveRequest;
 use App\Models\Position;
 use App\Models\User;
@@ -303,7 +304,7 @@ class EmployeeController extends Controller
      * The documents this user may see on the record, newest first. A restricted document the
      * user cannot see is left out entirely, with no hint that it exists.
      *
-     * @return list<array<string, mixed>>
+     * @return array<int, array<string, mixed>>
      */
     private function documentsFor(User $user, Employee $employee): array
     {
@@ -322,7 +323,7 @@ class EmployeeController extends Controller
                 'expiresOn' => $document->expires_on?->toDateString(),
                 'expiryStatus' => $document->expiryStatus(),
                 'canUpdate' => $user->can('update', $document),
-                'versions' => $document->versions->map(fn ($version): array => [
+                'versions' => $document->versions->map(fn (EmployeeDocumentVersion $version): array => [
                     'id' => $version->id,
                     'versionNo' => $version->version_no,
                     'name' => $version->original_name,

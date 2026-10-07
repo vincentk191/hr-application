@@ -1,11 +1,16 @@
 import { Head, Link, setLayoutProps } from '@inertiajs/react';
 import { useState } from 'react';
 import { EmployeeAvatar } from '@/components/employee-avatar';
+import { EmployeeDocuments } from '@/components/employee-documents';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { edit } from '@/routes/employees';
 import type { BreadcrumbItem } from '@/types';
-import type { EmployeeDetail } from '@/types/employee';
+import type {
+    EmployeeDetail,
+    EmployeeDocumentRow,
+    ValueOption,
+} from '@/types/employee';
 
 type LeaveRow = {
     id: number;
@@ -19,6 +24,10 @@ type LeaveRow = {
 
 type Props = {
     employee: EmployeeDetail;
+    documents: EmployeeDocumentRow[];
+    documentCategories: ValueOption[];
+    canManageDocuments: boolean;
+    canRestrictDocuments: boolean;
     requests: LeaveRow[];
     leaveTakenThisYear: number;
     canUpdate: boolean;
@@ -56,6 +65,18 @@ function Field({ label, value }: { label: string; value: unknown }) {
     );
 }
 
+/** Shown in place of a sensitive card the viewer may not read (EMP-DET-006). */
+function RestrictedCard({ title }: { title: string }) {
+    return (
+        <section className="rounded-xl border p-4">
+            <h3 className="mb-2 font-medium">{title}</h3>
+            <p className="text-sm text-muted-foreground">
+                Data ini dibatasi dan tidak dapat Anda lihat.
+            </p>
+        </section>
+    );
+}
+
 function Card({
     title,
     children,
@@ -80,6 +101,10 @@ function Card({
  */
 export default function EmployeeShow({
     employee,
+    documents,
+    documentCategories,
+    canManageDocuments,
+    canRestrictDocuments,
     requests,
     leaveTakenThisYear,
     canUpdate,
@@ -230,80 +255,98 @@ export default function EmployeeShow({
                             />
                         </Card>
 
-                        <Card title="Bank & pajak">
-                            <Field
-                                label="Bank"
-                                value={employee.bank.bank_name}
-                            />
-                            <Field
-                                label="No. rekening"
-                                value={employee.bank.bank_account_number}
-                            />
-                            <Field
-                                label="Atas nama"
-                                value={employee.bank.bank_account_holder}
-                            />
-                            <Field
-                                label="NPWP"
-                                value={employee.bank.tax_number}
-                            />
-                            <Field
-                                label="Metode bayar"
-                                value={employee.bank.payment_method}
-                            />
-                        </Card>
+                        {employee.bank ? (
+                            <Card title="Bank & pajak">
+                                <Field
+                                    label="Bank"
+                                    value={employee.bank.bank_name}
+                                />
+                                <Field
+                                    label="No. rekening"
+                                    value={employee.bank.bank_account_number}
+                                />
+                                <Field
+                                    label="Atas nama"
+                                    value={employee.bank.bank_account_holder}
+                                />
+                                <Field
+                                    label="NPWP"
+                                    value={employee.bank.tax_number}
+                                />
+                                <Field
+                                    label="Metode bayar"
+                                    value={employee.bank.payment_method}
+                                />
+                            </Card>
+                        ) : (
+                            <RestrictedCard title="Bank & pajak" />
+                        )}
 
-                        <Card title="Payroll">
-                            <Field
-                                label="Pay group"
-                                value={employee.payroll.pay_group}
-                            />
-                            <Field
-                                label="Gaji pokok"
-                                value={rupiah(employee.payroll.base_salary_idr)}
-                            />
-                            <Field
-                                label="Tunjangan"
-                                value={rupiah(employee.payroll.allowances_idr)}
-                            />
-                            <Field
-                                label="Tarif lembur"
-                                value={rupiah(
-                                    employee.payroll.overtime_rate_idr,
-                                )}
-                            />
-                        </Card>
+                        {employee.payroll ? (
+                            <Card title="Payroll">
+                                <Field
+                                    label="Pay group"
+                                    value={employee.payroll.pay_group}
+                                />
+                                <Field
+                                    label="Gaji pokok"
+                                    value={rupiah(
+                                        employee.payroll.base_salary_idr,
+                                    )}
+                                />
+                                <Field
+                                    label="Tunjangan"
+                                    value={rupiah(
+                                        employee.payroll.allowances_idr,
+                                    )}
+                                />
+                                <Field
+                                    label="Tarif lembur"
+                                    value={rupiah(
+                                        employee.payroll.overtime_rate_idr,
+                                    )}
+                                />
+                            </Card>
+                        ) : (
+                            <RestrictedCard title="Payroll" />
+                        )}
 
-                        <Card title="Kesehatan & asuransi">
-                            <Field
-                                label="No. asuransi"
-                                value={employee.health.insurance_number}
-                            />
-                            <Field
-                                label="Tingkat"
-                                value={employee.health.insurance_tier}
-                            />
-                            <Field
-                                label="Gol. darah"
-                                value={employee.health.blood_type}
-                            />
-                            <Field
-                                label="Tinggi (cm)"
-                                value={employee.health.height_cm}
-                            />
-                            <Field
-                                label="Berat (kg)"
-                                value={employee.health.weight_kg}
-                            />
-                            <Field
-                                label="Medical check terakhir"
-                                value={employee.health.last_medical_check_on}
-                            />
-                            <Field
-                                label="Kondisi dilaporkan"
-                                value={employee.health.declared_conditions}
-                            />
-                        </Card>
+                        {employee.health ? (
+                            <Card title="Kesehatan & asuransi">
+                                <Field
+                                    label="No. asuransi"
+                                    value={employee.health.insurance_number}
+                                />
+                                <Field
+                                    label="Tingkat"
+                                    value={employee.health.insurance_tier}
+                                />
+                                <Field
+                                    label="Gol. darah"
+                                    value={employee.health.blood_type}
+                                />
+                                <Field
+                                    label="Tinggi (cm)"
+                                    value={employee.health.height_cm}
+                                />
+                                <Field
+                                    label="Berat (kg)"
+                                    value={employee.health.weight_kg}
+                                />
+                                <Field
+                                    label="Medical check terakhir"
+                                    value={
+                                        employee.health.last_medical_check_on
+                                    }
+                                />
+                                <Field
+                                    label="Kondisi dilaporkan"
+                                    value={employee.health.declared_conditions}
+                                />
+                            </Card>
+                        ) : (
+                            <RestrictedCard title="Kesehatan & asuransi" />
+                        )}
                     </div>
                 )}
 
@@ -360,10 +403,13 @@ export default function EmployeeShow({
                 )}
 
                 {tab === 'documents' && (
-                    <p className="rounded-xl border p-6 text-sm text-muted-foreground">
-                        Dokumen karyawan menyusul: membutuhkan tabel dokumen dan
-                        kontrol akses per dokumen (EMP-DOC).
-                    </p>
+                    <EmployeeDocuments
+                        employeeId={employee.id}
+                        documents={documents}
+                        categories={documentCategories}
+                        canManage={canManageDocuments}
+                        canRestrict={canRestrictDocuments}
+                    />
                 )}
             </div>
         </>

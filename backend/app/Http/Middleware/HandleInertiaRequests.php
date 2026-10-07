@@ -2,9 +2,10 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\Permission;
 use App\Models\Company;
+use App\Models\Employee;
 use App\Support\CompanyContext;
-use Filament\Facades\Filament;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -44,7 +45,13 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
                 // Drives the sidebar's link to the admin panel; the panel enforces access itself.
-                'canAccessAdminPanel' => $request->user()?->canAccessPanel(Filament::getDefaultPanel()) ?? false,
+                'canAccessAdminPanel' => $request->user()?->canAccessAdminPanel() ?? false,
+                // What the sidebar offers: the directory only to roles that may open it, and a
+                // link to the signed-in person's own profile if they have one.
+                'canViewEmployees' => $request->user()?->can(Permission::ViewEmployees->value) ?? false,
+                'employeeId' => $request->user() === null
+                    ? null
+                    : Employee::acrossCompanies()->where('user_id', $request->user()->id)->value('id'),
             ],
             'companySwitcher' => fn (): ?array => $this->companySwitcher($request),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',

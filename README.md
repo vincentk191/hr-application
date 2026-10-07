@@ -32,7 +32,7 @@ are in; the admin screens are not.
 | Tests           | 147 passing, 549 assertions                                                                                  |
 | Static analysis | PHPStan level 7, 0 errors                                                                                    |
 | Phase 0         | **Complete** — company scoping, RBAC, the approval workflow engine                                           |
-| Phase 1         | Employee directory + profile + add/edit done; `CORE-USR` / `CORE-ORG` / `CORE-ADM` and `EMP-DOC` outstanding |
+| Phase 1         | Employee directory, profile, add/edit, documents and the admin panel done |
 | Also built      | Leave requests end to end — the first real workflow consumer                                                 |
 | Not built       | Attendance, recruitment and offboarding screens; notifications, global search, employee app, scanner sync    |
 
@@ -77,7 +77,7 @@ Then open **http://localhost:8001**.
 | `app`   | **8001** | the application — this is the one you open                                                            |
 | `vite`  | 5173     | the asset dev server. Opening it directly shows Vite's own landing page; that is normal, not an error |
 | `db`    | 5434     | PostgreSQL, published so host tools can still connect                                                 |
-| `queue` | —        | `queue:listen`                                                                                        |
+| `queue` | —        | `queue:work` — restart it after changing job code                                                     |
 
 > The first `docker compose up` is slow: it runs `composer install` and `npm ci` into named
 > volumes. Later starts are quick.
@@ -93,6 +93,12 @@ Seeded logins, all with password `password`:
 | `hr.a@hr.test`         | HR Admin     | Company A — switcher locked     |
 | `admin@hr.test`        | System Admin | parent-wide                     |
 | `supervisor.a@hr.test` | Supervisor   | Company A — read-only           |
+| `employee.a@hr.test`   | Employee     | Company A — own profile only    |
+
+`employee.a@hr.test` is the ordinary person's view: no directory, no admin panel, only their own
+profile (with their own salary and bank details), their own leave requests, and the one ordinary
+document filed on them. A restricted document is filed on the same record to show that it stays
+hidden from them.
 
 ### Checks
 
@@ -112,6 +118,29 @@ docker compose exec vite php ../backend/artisan wayfinder:generate --with-form -
 > omitting the flag silently drops the `.form` helpers and breaks the type-check in files you
 > never touched), and `--path=./src` is what puts the output in the frontend — without it,
 > Wayfinder writes into `backend/resources/js`, which is not used.
+
+### Why pages are as fast as they are (and what is still slow)
+
+A page load on the Windows bind mount was taking about **3.4 seconds**, almost all of it booting
+the framework rather than running the page. It is now about **0.8–1.1 seconds**. What was done,
+so it is not undone by accident:
+
+- **The admin panel's resources are registered only where the panel is served**
+  (`AdminPanelProvider::resources()`), not on every request. Filament registers panels when the
+  app boots, so every page — including ones with nothing to do with the panel — was paying about
+  0.7s for six resources. They are listed explicitly rather than discovered (discovery scans
+  folders on every request). **A new Filament resource must be added to that list.**
+- **The sidebar's admin-panel check is `User::canAccessAdminPanel()`**, which does not need
+  Filament loaded.
+- **The queue worker is `queue:work`, not `queue:listen`.** `listen` re-boots the whole
+  framework on every poll and held a core at 50% doing nothing.
+- **Vite polls every 1000ms, not 300ms**, which had kept another core busy.
+
+Still slow, and not fixed here: the code lives on a Windows bind mount, so every config, route
+and class file is read across it. Two things would help further and were deliberately not done:
+caching config (`php artisan config:cache`) is unsafe with this test setup, because a cached
+config ignores `phpunit.xml` and the suite would run against the development database; and
+moving the repository into the WSL2 filesystem would remove the bind-mount cost altogether.
 
 ### Why the compose file looks the way it does
 
@@ -446,8 +475,8 @@ the enum later reaches new installs only — grant it to existing roles from the
 | Role                    | Holds                                                 |
 | ----------------------- | ----------------------------------------------------- |
 | System Admin            | accounts, roles, companies, org — **not** the dossier |
-| HR Admin                | the dossier + org — **not** accounts or roles         |
-| Management / Supervisor | view employees only                                   |
+| HR Admin                | the dossier, documents and sensitive data + org — **not** accounts or roles |
+| Management / Supervisor | view employees only (no documents, bank, payroll or health) |
 | Employee                | nothing; sees their own record via policy             |
 
 Policies re-check the company even though `CompanyScope` already filters, because a model
@@ -529,8 +558,8 @@ the 309 features, their sizes and priorities, and the test cases. This table is 
 | `EMP-CHT`  | Directory — org chart                  | 1   | 1   | ✅     | A top-down tree drawn from `manager_id` with connector lines; anyone whose manager is filtered out renders as a root |
 | `EMP-ADD`  | Add / edit employee                    | 6   | 6   | ✅     | One form for both. Self-referencing manager refused; company filled from the active company                                                           |
 | `EMP-PRF`  | Profile shell                          | 3   | 2   | 🟡     | Header stats + tabs. Change audit is on (003); "SOPs to acknowledge" stays dropped with the Knowledge Hub                                             |
-| `EMP-DET`  | Profile — overview tab                 | 6   | 5   | 🟡     | All five card groups render. Per-card access control for the sensitive groups (006) waits on `EMP-DOC`                                                |
-| `EMP-DOC`  | Profile — documents tab                | 4   | 2   | ⬜     | Needs a documents table + per-document ACL (L). Tab says so rather than showing a blank                                                               |
+| `EMP-DET`  | Profile — overview tab                 | 6   | 5   | ✅     | All five card groups render; bank, payroll and health are withheld from roles without `view-sensitive-data` (006) |
+| `EMP-DOC`  | Profile — documents tab                | 4   | 2   | ✅     | Upload, categorise, version, expiry flags and per-document restriction. Reminders are in-app only — see Known gaps |
 | `EMP-ATT`  | Profile — attendance tab               | 3   | 3   | ⬜     | Phase 2. Tab says so                                                                                                                                  |
 | `EMP-REQ`  | Profile — requests tab                 | 2   | 2   | ✅     | Real: lists the employee's leave requests and leave taken this year                                                                                   |
 | `CORE-USR` | User & role management                 | 6   | 5   | 🟡     | Policies and Filament screens done (users, roles, permissions)                                                                                                                 |
@@ -633,13 +662,29 @@ Progress Tracking analytics (Appendix C).
 
 ## Known gaps worth remembering
 
+- **Documents are private, and two permissions gate them.** Files live on the `local` disk
+  (`storage/app/private`), never under `/storage`, and are served only by an authorised route.
+  `view-documents` and `manage-documents` decide what a role may do with ordinary documents; a
+  document marked _restricted_ additionally needs `view-sensitive-data`, the same permission
+  that gates the bank, payroll and health cards on the profile. An employee sees their own
+  ordinary documents and their own bank/payroll, never restricted ones. A restricted document a
+  viewer cannot see is omitted entirely. Downloads of restricted documents are written to the
+  audit trail. Access is by role, not per person — there is no allow-list of named users.
+- **Expiry reminders are in-app only.** Lapsing documents (past their date or within 30 days)
+  show on the dashboard for roles that can view documents. Nothing is emailed or pushed; that
+  waits for the notifications module (Phase 3).
+- **Documents are soft-deleted**: the record disappears but the files stay on disk.
+
 - **No test cases in the workbook** for `CORE-*` or `EMP-*` — the Pest suite covers them, but
   the workbook's coverage figures do not reflect that. Only Recruitment has test-case rows.
 - **The admin panel covers companies, users, role permissions, departments, positions and a
   read-only audit log.** The panel needs the `access-admin-panel` permission **and** a
   parent-wide account. It has no login page of its own: a guest is sent to the app's `/login`
-  (two-factor included) and returned to the page they asked for. Signing out from the panel
-  ends the whole session. Nothing in the main app's sidebar links to `/admin` yet.
+  (two-factor included). Signing in **never** lands anyone in the panel on its own — a
+  remembered `/admin` address is dropped and they go to the dashboard, so someone without access
+  is not thrown a 403 straight after login. The panel is opened from the sidebar's "Panel admin"
+  link, and has a "Kembali ke dashboard" entry and logo link back. Signing out from the panel
+  ends the whole session.
   `SetActiveCompany` runs inside it and is registered as _persistent_ middleware: without that,
   Filament's search, sort and pagination (Livewire requests) would drop the company scope.
   The audit log is gated by `manage-users`, not a permission of its own.

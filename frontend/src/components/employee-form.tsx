@@ -90,12 +90,15 @@ export function EmployeeForm({
     method,
     options,
     employee,
+    canEditSensitive,
     submitLabel,
 }: {
     action: string;
     method: 'post' | 'put';
     options: EmployeeFormOptions;
     employee?: EmployeeDetail;
+    /** Bank, payroll and health are left out of the form for anyone who may not handle them. */
+    canEditSensitive: boolean;
     submitLabel: string;
 }) {
     return (
@@ -333,132 +336,154 @@ export function EmployeeForm({
                         />
                     </Section>
 
-                    <Section title="Bank & pajak">
-                        <TextField
-                            name="bank_name"
-                            label="Bank"
-                            defaultValue={employee?.bank.bank_name}
-                            error={errors.bank_name}
-                        />
-                        <TextField
-                            name="bank_account_number"
-                            label="No. rekening"
-                            defaultValue={employee?.bank.bank_account_number}
-                            error={errors.bank_account_number}
-                        />
-                        <TextField
-                            name="bank_account_holder"
-                            label="Atas nama"
-                            defaultValue={employee?.bank.bank_account_holder}
-                            error={errors.bank_account_holder}
-                        />
-                        <TextField
-                            name="tax_number"
-                            label="NPWP"
-                            defaultValue={employee?.bank.tax_number}
-                            error={errors.tax_number}
-                        />
-                        <TextField
-                            name="payment_method"
-                            label="Metode pembayaran"
-                            defaultValue={employee?.bank.payment_method}
-                            error={errors.payment_method}
-                        />
-                    </Section>
+                    {canEditSensitive && (
+                        <>
+                            <Section title="Bank & pajak">
+                                <TextField
+                                    name="bank_name"
+                                    label="Bank"
+                                    defaultValue={employee?.bank?.bank_name}
+                                    error={errors.bank_name}
+                                />
+                                <TextField
+                                    name="bank_account_number"
+                                    label="No. rekening"
+                                    defaultValue={
+                                        employee?.bank?.bank_account_number
+                                    }
+                                    error={errors.bank_account_number}
+                                />
+                                <TextField
+                                    name="bank_account_holder"
+                                    label="Atas nama"
+                                    defaultValue={
+                                        employee?.bank?.bank_account_holder
+                                    }
+                                    error={errors.bank_account_holder}
+                                />
+                                <TextField
+                                    name="tax_number"
+                                    label="NPWP"
+                                    defaultValue={employee?.bank?.tax_number}
+                                    error={errors.tax_number}
+                                />
+                                <TextField
+                                    name="payment_method"
+                                    label="Metode pembayaran"
+                                    defaultValue={
+                                        employee?.bank?.payment_method
+                                    }
+                                    error={errors.payment_method}
+                                />
+                            </Section>
 
-                    <Section
-                        title="Payroll"
-                        description="Nilai dalam rupiah penuh, tanpa desimal."
-                    >
-                        <TextField
-                            name="pay_group"
-                            label="Pay group"
-                            defaultValue={employee?.payroll.pay_group}
-                            error={errors.pay_group}
-                        />
-                        <TextField
-                            name="base_salary_idr"
-                            label="Gaji pokok (Rp)"
-                            type="number"
-                            min={0}
-                            step={1}
-                            defaultValue={employee?.payroll.base_salary_idr}
-                            error={errors.base_salary_idr}
-                        />
-                        <TextField
-                            name="allowances_idr"
-                            label="Tunjangan (Rp)"
-                            type="number"
-                            min={0}
-                            step={1}
-                            defaultValue={employee?.payroll.allowances_idr}
-                            error={errors.allowances_idr}
-                        />
-                        <TextField
-                            name="overtime_rate_idr"
-                            label="Tarif lembur (Rp)"
-                            type="number"
-                            min={0}
-                            step={1}
-                            defaultValue={employee?.payroll.overtime_rate_idr}
-                            error={errors.overtime_rate_idr}
-                        />
-                    </Section>
+                            <Section
+                                title="Payroll"
+                                description="Nilai dalam rupiah penuh, tanpa desimal."
+                            >
+                                <TextField
+                                    name="pay_group"
+                                    label="Pay group"
+                                    defaultValue={employee?.payroll?.pay_group}
+                                    error={errors.pay_group}
+                                />
+                                <TextField
+                                    name="base_salary_idr"
+                                    label="Gaji pokok (Rp)"
+                                    type="number"
+                                    min={0}
+                                    step={1}
+                                    defaultValue={
+                                        employee?.payroll?.base_salary_idr
+                                    }
+                                    error={errors.base_salary_idr}
+                                />
+                                <TextField
+                                    name="allowances_idr"
+                                    label="Tunjangan (Rp)"
+                                    type="number"
+                                    min={0}
+                                    step={1}
+                                    defaultValue={
+                                        employee?.payroll?.allowances_idr
+                                    }
+                                    error={errors.allowances_idr}
+                                />
+                                <TextField
+                                    name="overtime_rate_idr"
+                                    label="Tarif lembur (Rp)"
+                                    type="number"
+                                    min={0}
+                                    step={1}
+                                    defaultValue={
+                                        employee?.payroll?.overtime_rate_idr
+                                    }
+                                    error={errors.overtime_rate_idr}
+                                />
+                            </Section>
 
-                    <Section
-                        title="Kesehatan & asuransi"
-                        description="Data sensitif untuk polis kesehatan grup."
-                    >
-                        <TextField
-                            name="insurance_number"
-                            label="No. asuransi / BPJS"
-                            defaultValue={employee?.health.insurance_number}
-                            error={errors.insurance_number}
-                        />
-                        <TextField
-                            name="insurance_tier"
-                            label="Tingkat polis"
-                            defaultValue={employee?.health.insurance_tier}
-                            error={errors.insurance_tier}
-                        />
-                        <TextField
-                            name="blood_type"
-                            label="Golongan darah"
-                            defaultValue={employee?.health.blood_type}
-                            error={errors.blood_type}
-                        />
-                        <TextField
-                            name="height_cm"
-                            label="Tinggi (cm)"
-                            type="number"
-                            min={0}
-                            defaultValue={employee?.health.height_cm}
-                            error={errors.height_cm}
-                        />
-                        <TextField
-                            name="weight_kg"
-                            label="Berat (kg)"
-                            type="number"
-                            min={0}
-                            defaultValue={employee?.health.weight_kg}
-                            error={errors.weight_kg}
-                        />
-                        <TextField
-                            name="last_medical_check_on"
-                            label="Medical check terakhir"
-                            type="date"
-                            defaultValue={
-                                employee?.health.last_medical_check_on
-                            }
-                            error={errors.last_medical_check_on}
-                        />
-                        <TextField
-                            name="declared_conditions"
-                            label="Kondisi yang dilaporkan"
-                            defaultValue={employee?.health.declared_conditions}
-                            error={errors.declared_conditions}
-                        />
-                    </Section>
+                            <Section
+                                title="Kesehatan & asuransi"
+                                description="Data sensitif untuk polis kesehatan grup."
+                            >
+                                <TextField
+                                    name="insurance_number"
+                                    label="No. asuransi / BPJS"
+                                    defaultValue={
+                                        employee?.health?.insurance_number
+                                    }
+                                    error={errors.insurance_number}
+                                />
+                                <TextField
+                                    name="insurance_tier"
+                                    label="Tingkat polis"
+                                    defaultValue={
+                                        employee?.health?.insurance_tier
+                                    }
+                                    error={errors.insurance_tier}
+                                />
+                                <TextField
+                                    name="blood_type"
+                                    label="Golongan darah"
+                                    defaultValue={employee?.health?.blood_type}
+                                    error={errors.blood_type}
+                                />
+                                <TextField
+                                    name="height_cm"
+                                    label="Tinggi (cm)"
+                                    type="number"
+                                    min={0}
+                                    defaultValue={employee?.health?.height_cm}
+                                    error={errors.height_cm}
+                                />
+                                <TextField
+                                    name="weight_kg"
+                                    label="Berat (kg)"
+                                    type="number"
+                                    min={0}
+                                    defaultValue={employee?.health?.weight_kg}
+                                    error={errors.weight_kg}
+                                />
+                                <TextField
+                                    name="last_medical_check_on"
+                                    label="Medical check terakhir"
+                                    type="date"
+                                    defaultValue={
+                                        employee?.health?.last_medical_check_on
+                                    }
+                                    error={errors.last_medical_check_on}
+                                />
+                                <TextField
+                                    name="declared_conditions"
+                                    label="Kondisi yang dilaporkan"
+                                    defaultValue={
+                                        employee?.health?.declared_conditions
+                                    }
+                                    error={errors.declared_conditions}
+                                />
+                            </Section>
+                        </>
+                    )}
 
                     <div>
                         <Button type="submit" disabled={processing}>

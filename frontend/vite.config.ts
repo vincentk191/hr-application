@@ -87,7 +87,9 @@ export default defineConfig({
             // Windows bind mounts do not deliver inotify events into a Linux container, so
             // HMR needs polling there. Native watching stays on when running on the host.
             usePolling: Boolean(containerOrigin),
-            interval: 300,
+            // 300ms polled the whole tree three times a second and kept a core busy; edits
+            // showing up a second later is not noticeable.
+            interval: 1000,
             ignored: [
                 '**/.agents/**',
                 '**/.claude/**',

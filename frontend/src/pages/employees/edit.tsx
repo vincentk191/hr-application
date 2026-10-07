@@ -10,8 +10,12 @@ import type { EmployeeDetail } from '@/types/employee';
 /** Edit an employee (EMP-ADD-003). Every change is written to the profile audit. */
 export default function EmployeeEdit({
     employee,
+    canEditSensitive,
     ...options
-}: EmployeeFormOptions & { employee: EmployeeDetail }) {
+}: EmployeeFormOptions & {
+    employee: EmployeeDetail;
+    canEditSensitive: boolean;
+}) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Karyawan', href: '/employees' },
         { title: employee.name, href: `/employees/${employee.id}` },
@@ -30,6 +34,7 @@ export default function EmployeeEdit({
                     method="put"
                     options={options}
                     employee={employee}
+                    canEditSensitive={canEditSensitive}
                     submitLabel="Simpan perubahan"
                 />
             </div>

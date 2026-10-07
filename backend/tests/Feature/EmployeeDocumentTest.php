@@ -331,3 +331,33 @@ it('tells the sidebar whether to offer the admin panel', function () {
     $this->actingAs($this->hr)->get(route('dashboard'))
         ->assertInertia(fn (Assert $page) => $page->where('auth.canAccessAdminPanel', false));
 });
+
+// --- Expiry reminder on the dashboard (EMP-DOC-002) ---
+
+it('lists lapsing documents on the dashboard for roles that look after documents', function () {
+    $expired = fileDocument($this->employee, ['title' => 'Visa', 'expires_on' => now()->subDays(3)->toDateString()]);
+    fileDocument($this->employee, ['title' => 'Aman', 'expires_on' => now()->addDays(200)->toDateString()]);
+    fileDocument($this->employee, ['title' => 'Rahasia', 'is_restricted' => true, 'expires_on' => now()->addDays(5)->toDateString()]);
+
+    $this->actingAs($this->hr)->get(route('dashboard'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('expiringDocuments.total', 2)
+            ->where('expiringDocuments.items.0.id', $expired->id)
+            ->where('expiringDocuments.items.0.expiryStatus', 'expired'));
+});
+
+it('gives roles without document access no reminder card at all', function () {
+    fileDocument($this->employee, ['expires_on' => now()->subDay()->toDateString()]);
+
+    $this->actingAs(docUser(Role::Supervisor, $this->company))->get(route('dashboard'))
+        ->assertInertia(fn (Assert $page) => $page->where('expiringDocuments', null));
+});
+
+it('leaves a restricted lapsing document off the reminder for a reader without the permission', function () {
+    fileDocument($this->employee, ['is_restricted' => true, 'expires_on' => now()->subDay()->toDateString()]);
+    $reader = docUser(Role::Management, $this->company);
+    $reader->givePermissionTo(Permission::ViewDocuments->value);
+
+    $this->actingAs($reader)->get(route('dashboard'))
+        ->assertInertia(fn (Assert $page) => $page->where('expiringDocuments.total', 0));
+});

@@ -87,7 +87,10 @@ services:
             target: dev
         container_name: hr-app-queue
         restart: unless-stopped
-        command: php artisan queue:listen --tries=1 --timeout=0
+        # queue:work, not queue:listen: listen re-boots the whole framework on every poll, which
+        # held a core at 50% doing nothing. The cost is that job code changes need a
+        # `docker compose restart queue` to take effect.
+        command: php artisan queue:work --tries=1 --timeout=0 --sleep=3 --max-time=3600
         environment:
             DB_HOST: db
             DB_PORT: 5432

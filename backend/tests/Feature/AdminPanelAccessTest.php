@@ -38,13 +38,29 @@ it('sends guests to the application login rather than a panel login of its own',
     $this->get('/admin/login')->assertNotFound();
 });
 
-it('returns a guest to the panel page they asked for after signing in', function () {
+it('does not land anyone in the admin panel after signing in, even if that is where they were heading', function () {
     $user = panelUser(Role::SystemAdmin);
 
     $this->get('/admin/companies')->assertRedirect(route('login'));
 
     $this->post(route('login.store'), ['email' => $user->email, 'password' => 'password'])
-        ->assertRedirect('/admin/companies');
+        ->assertRedirect(route('dashboard'));
+});
+
+it('still returns a guest to an ordinary page they were heading for', function () {
+    $user = panelUser(Role::HrAdmin);
+
+    $this->get('/employees')->assertRedirect(route('login'));
+
+    $this->post(route('login.store'), ['email' => $user->email, 'password' => 'password'])
+        ->assertRedirect('/employees');
+});
+
+it('leads back to the dashboard from inside the panel', function () {
+    $this->actingAs(panelUser(Role::SystemAdmin))->get('/admin')
+        ->assertOk()
+        ->assertSee('Kembali ke dashboard')
+        ->assertSee(route('dashboard'), false);
 });
 
 it('follows a permission granted to a role in the database', function () {
