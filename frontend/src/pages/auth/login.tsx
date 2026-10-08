@@ -29,7 +29,9 @@ export default function Login({ status, canResetPassword }: Props) {
                     <>
                         <div className="grid gap-6">
                             <div className="grid gap-2">
-                                <Label htmlFor="email">Email atau ID karyawan</Label>
+                                <Label htmlFor="email">
+                                    Email atau ID karyawan
+                                </Label>
                                 <Input
                                     id="email"
                                     type="text"

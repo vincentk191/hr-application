@@ -14,6 +14,7 @@ import type {
     Timesheet,
     TimesheetDay,
     TimesheetScan,
+    YearTimesheet,
 } from '@/types/attendance';
 
 /**
@@ -286,6 +287,218 @@ function DayRow({
     );
 }
 
+function PeriodToggle({
+    period,
+    onChange,
+}: {
+    period: 'month' | 'year';
+    onChange: (period: 'month' | 'year') => void;
+}) {
+    return (
+        <div className="flex w-fit rounded-md border text-sm">
+            {(
+                [
+                    ['month', 'Bulan'],
+                    ['year', 'Tahun'],
+                ] as const
+            ).map(([value, label]) => (
+                <button
+                    key={value}
+                    type="button"
+                    onClick={() => period !== value && onChange(value)}
+                    className={`px-3 py-1.5 ${
+                        period === value
+                            ? 'bg-muted font-medium'
+                            : 'text-muted-foreground'
+                    }`}
+                >
+                    {label}
+                </button>
+            ))}
+        </div>
+    );
+}
+
+/**
+ * A whole year in one table (EMP-ATT-003): per month the day counts, worked time and attendance
+ * rate, with the year's totals underneath. A month with nothing recorded shows "Belum ada data",
+ * not zeros, and opening a row switches to that month's day-by-day timesheet.
+ */
+function YearView({
+    attendance,
+    onYear,
+    onMonth,
+}: {
+    attendance: YearTimesheet;
+    onYear: (year: number) => void;
+    onMonth: (month: string) => void;
+}) {
+    const { totals } = attendance;
+    const empty = (month: YearTimesheet['months'][number]) =>
+        month.rate === null && month.leave === 0;
+
+    return (
+        <>
+            <div className="flex flex-wrap items-center gap-2">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onYear(attendance.prev)}
+                    aria-label="Tahun sebelumnya"
+                >
+                    ‹
+                </Button>
+                <h2 className="text-lg font-semibold">{attendance.label}</h2>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onYear(attendance.next)}
+                    aria-label="Tahun berikutnya"
+                >
+                    ›
+                </Button>
+                <span className="ml-auto text-xs text-muted-foreground">
+                    Data sampai {attendance.dataThrough ?? '—'}
+                </span>
+            </div>
+
+            <div className="flex items-baseline gap-2">
+                <span className="text-3xl font-semibold tabular-nums">
+                    {totals.rate === null ? '—' : `${totals.rate}%`}
+                </span>
+                <span className="text-sm text-muted-foreground">
+                    tingkat kehadiran {attendance.label}
+                </span>
+            </div>
+
+            <div className="grid grid-cols-12 items-end gap-1.5">
+                {attendance.months.map((month) => (
+                    <button
+                        key={month.key}
+                        type="button"
+                        onClick={() => onMonth(month.key)}
+                        className="flex flex-col items-center gap-1"
+                        title={month.label}
+                    >
+                        <div className="flex h-24 w-full items-end">
+                            <div
+                                className={`w-full rounded-sm ${
+                                    month.rate === null
+                                        ? 'h-2 border border-dashed'
+                                        : month.rate < 90
+                                          ? 'bg-amber-400'
+                                          : 'bg-emerald-500'
+                                }`}
+                                style={
+                                    month.rate === null
+                                        ? undefined
+                                        : {
+                                              height: `${Math.max(month.rate, 3)}%`,
+                                          }
+                                }
+                            />
+                        </div>
+                        <span className="text-[11px] text-muted-foreground">
+                            {month.label.slice(0, 3)}
+                        </span>
+                    </button>
+                ))}
+            </div>
+
+            <div className="overflow-x-auto rounded-xl border">
+                <table className="w-full text-sm">
+                    <thead className="bg-muted/50 text-left">
+                        <tr>
+                            <th className="p-2 font-medium">Bulan</th>
+                            <th className="p-2 font-medium">Tingkat</th>
+                            <th className="p-2 font-medium">Hadir</th>
+                            <th className="p-2 font-medium">Terlambat</th>
+                            <th className="p-2 font-medium">Pulang cepat</th>
+                            <th className="p-2 font-medium">Tidak hadir</th>
+                            <th className="p-2 font-medium">Cuti</th>
+                            <th className="p-2 font-medium">Jam kerja</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {attendance.months.map((month) => (
+                            <tr
+                                key={month.key}
+                                className="cursor-pointer border-t hover:bg-muted/40"
+                                onClick={() => onMonth(month.key)}
+                            >
+                                <td className="p-2 font-medium">
+                                    {month.label}
+                                </td>
+                                <td className="p-2 tabular-nums">
+                                    {month.rate === null
+                                        ? '—'
+                                        : `${month.rate}%`}
+                                </td>
+                                {empty(month) ? (
+                                    <td
+                                        colSpan={6}
+                                        className="p-2 text-muted-foreground"
+                                    >
+                                        Belum ada data
+                                    </td>
+                                ) : (
+                                    <>
+                                        <td className="p-2 tabular-nums">
+                                            {month.present}
+                                        </td>
+                                        <td className="p-2 tabular-nums">
+                                            {month.late}
+                                        </td>
+                                        <td className="p-2 tabular-nums">
+                                            {month.early_leave}
+                                        </td>
+                                        <td className="p-2 tabular-nums">
+                                            {month.absent}
+                                        </td>
+                                        <td className="p-2 tabular-nums">
+                                            {month.leave}
+                                        </td>
+                                        <td className="p-2 whitespace-nowrap">
+                                            {formatMinutes(month.minutes)}
+                                        </td>
+                                    </>
+                                )}
+                            </tr>
+                        ))}
+                    </tbody>
+                    <tfoot>
+                        <tr className="border-t bg-muted/30 font-medium">
+                            <td className="p-2">Total</td>
+                            <td className="p-2 tabular-nums">
+                                {totals.rate === null ? '—' : `${totals.rate}%`}
+                            </td>
+                            <td className="p-2 tabular-nums">
+                                {totals.present}
+                            </td>
+                            <td className="p-2 tabular-nums">{totals.late}</td>
+                            <td className="p-2 tabular-nums">
+                                {totals.early_leave}
+                            </td>
+                            <td className="p-2 tabular-nums">
+                                {totals.absent}
+                            </td>
+                            <td className="p-2 tabular-nums">{totals.leave}</td>
+                            <td className="p-2 whitespace-nowrap">
+                                {formatMinutes(totals.minutes)}
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+                Tingkat = hadir ÷ (hadir + tidak hadir); cuti tidak dihitung.
+                Klik sebuah bulan untuk melihat hari demi hari.
+            </p>
+        </>
+    );
+}
+
 /**
  * The attendance tab of an employee's profile (EMP-ATT): a month's timesheet with each day's
  * status and worked time, and — for people allowed to — corrections to the scans behind it.
@@ -299,7 +512,7 @@ export function EmployeeAttendance({
     canCorrect,
 }: {
     employeeId: number;
-    attendance: Timesheet | null | undefined;
+    attendance: Timesheet | YearTimesheet | null | undefined;
     canCorrect: boolean;
 }) {
     useEffect(() => {
@@ -330,10 +543,38 @@ export function EmployeeAttendance({
             data: { month },
         });
 
+    const toggle = (
+        <PeriodToggle
+            period={attendance.period}
+            onChange={(period) =>
+                router.reload({ only: ['attendance'], data: { period } })
+            }
+        />
+    );
+
+    if (attendance.period === 'year') {
+        return (
+            <div className="flex flex-col gap-4">
+                {toggle}
+                <YearView
+                    attendance={attendance}
+                    onYear={(year) =>
+                        router.reload({
+                            only: ['attendance'],
+                            data: { period: 'year', year },
+                        })
+                    }
+                    onMonth={goTo}
+                />
+            </div>
+        );
+    }
+
     const { totals } = attendance;
 
     return (
         <div className="flex flex-col gap-4">
+            {toggle}
             <div className="flex flex-wrap items-center gap-2">
                 <Button
                     variant="outline"

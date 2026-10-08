@@ -1,11 +1,19 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { EmployeeAvatar } from '@/components/employee-avatar';
+import { EmployeeDrawer } from '@/components/employee-drawer';
 import { EmployeeOrgChart } from '@/components/employee-org-chart';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { create, index, show } from '@/routes/employees';
+import { openInDrawer } from '@/lib/open-in-drawer';
+import {
+    create,
+    exportMethod,
+    importMethod,
+    index,
+    show,
+} from '@/routes/employees';
 import type { BreadcrumbItem } from '@/types';
 import type {
     EmployeeFilters,
@@ -52,6 +60,7 @@ export default function EmployeesIndex({
     canCreate,
 }: Props) {
     const [search, setSearch] = useState(filters.search);
+    const [openId, setOpenId] = useState<number | null>(null);
 
     const apply = (changes: Partial<EmployeeFilters>) => {
         router.get(
@@ -77,6 +86,15 @@ export default function EmployeesIndex({
                 : [...filters.statuses, value],
         });
     };
+
+    // The export follows whatever the list is showing right now.
+    const exportUrl = `${exportMethod().url}?${new URLSearchParams([
+        ['search', search],
+        ['sort', filters.sort],
+        ...filters.departments.map((id) => ['departments[]', String(id)]),
+        ...filters.positions.map((id) => ['positions[]', String(id)]),
+        ...filters.statuses.map((value) => ['statuses[]', value]),
+    ]).toString()}`;
 
     const isFiltered =
         filters.search !== '' ||
@@ -137,10 +155,19 @@ export default function EmployeesIndex({
                         ))}
                     </div>
 
+                    <Button asChild variant="outline">
+                        <a href={exportUrl}>Unduh CSV</a>
+                    </Button>
+
                     {canCreate && (
-                        <Button asChild>
-                            <Link href={create().url}>Tambah karyawan</Link>
-                        </Button>
+                        <>
+                            <Button asChild variant="outline">
+                                <Link href={importMethod().url}>Impor</Link>
+                            </Button>
+                            <Button asChild>
+                                <Link href={create().url}>Tambah karyawan</Link>
+                            </Button>
+                        </>
                     )}
                 </div>
 
@@ -202,7 +229,10 @@ export default function EmployeesIndex({
                 </div>
 
                 {filters.view === 'chart' && (
-                    <EmployeeOrgChart employees={employees} />
+                    <EmployeeOrgChart
+                        employees={employees}
+                        onOpen={setOpenId}
+                    />
                 )}
 
                 {filters.view === 'grid' && (
@@ -211,6 +241,9 @@ export default function EmployeesIndex({
                             <Link
                                 key={employee.id}
                                 href={show(employee.id).url}
+                                onClick={(event) =>
+                                    openInDrawer(event, employee.id, setOpenId)
+                                }
                                 className="flex items-start gap-3 rounded-xl border p-4 hover:bg-muted/50"
                             >
                                 <EmployeeAvatar
@@ -286,9 +319,7 @@ export default function EmployeesIndex({
                                     <tr
                                         key={employee.id}
                                         className="cursor-pointer border-t hover:bg-muted/40"
-                                        onClick={() =>
-                                            router.visit(show(employee.id).url)
-                                        }
+                                        onClick={() => setOpenId(employee.id)}
                                     >
                                         <td className="p-3 font-mono text-xs">
                                             {employee.number}
@@ -331,6 +362,12 @@ export default function EmployeesIndex({
                     </div>
                 )}
             </div>
+
+            <EmployeeDrawer
+                employeeId={openId}
+                onOpen={setOpenId}
+                onClose={() => setOpenId(null)}
+            />
         </>
     );
 }

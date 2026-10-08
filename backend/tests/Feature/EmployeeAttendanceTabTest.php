@@ -238,3 +238,44 @@ it('keeps another company\'s punches out of reach', function () {
     $this->actingAs($this->hr)->delete(route('punches.destroy', $punch->id), ['reason' => 'Alasan cukup'])->assertNotFound();
     $this->actingAs($this->hr)->post(route('punches.store', $outsider), ['date' => '2026-10-05', 'time' => '08:00', 'reason' => 'Alasan cukup'])->assertNotFound();
 });
+
+// --- The year at a glance ---
+
+it('summarises a year per month, with the rate and totals', function () {
+    tabScan($this->budi, '2026-10-05 08:00:00');
+    tabScan($this->budi, '2026-10-05 17:00:00');
+    tabScan($this->budi, '2026-10-06 08:30:00');
+    tabScan($this->budi, '2026-10-06 17:00:00');
+
+    $this->actingAs($this->hr)
+        ->get(route('employees.show', $this->budi).'?period=year&year=2026')
+        ->assertInertia(fn (Assert $page) => $page->reloadOnly('attendance', fn (Assert $reload) => $reload->has('attendance', function (Assert $attendance) {
+            $attendance->where('period', 'year')
+                ->where('year', 2026)
+                ->where('prev', 2025)
+                ->where('next', 2027)
+                ->has('months', 12)
+                ->where('months.9.present', 1)
+                ->where('months.9.late', 1)
+                ->where('months.9.minutes', 1050)
+                ->where('months.0.rate', null)
+                ->where('totals.present', 1)
+                ->where('totals.late', 1)
+                ->where('totals.rate', fn ($rate) => $rate > 0 && $rate <= 100)
+                ->etc();
+        })));
+});
+
+it('falls back to the year the data reaches when the year asked for is nonsense', function () {
+    tabScan($this->budi, '2026-10-05 08:00:00');
+
+    $this->actingAs($this->hr)
+        ->get(route('employees.show', $this->budi).'?period=year&year=banana')
+        ->assertInertia(fn (Assert $page) => $page->reloadOnly('attendance', fn (Assert $reload) => $reload->has('attendance', fn (Assert $attendance) => $attendance->where('year', 2026)->etc())));
+});
+
+it('keeps the month timesheet as the default and marks it as one', function () {
+    tabScan($this->budi, '2026-10-05 08:00:00');
+
+    withTimesheet($this->hr, $this->budi, fn (Assert $attendance) => $attendance->where('period', 'month')->where('month', '2026-10'));
+});

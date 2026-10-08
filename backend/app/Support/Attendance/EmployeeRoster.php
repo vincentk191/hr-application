@@ -25,7 +25,7 @@ class EmployeeRoster
     public function between(CarbonInterface $from, CarbonInterface $to, array $departments = [], string $search = '', ?int $teamLead = null, ?string $leaveType = null): Collection
     {
         return Employee::query()
-            ->with('department:id,name')
+            ->with(['department:id,name', 'position:id,name', 'manager:id,full_name'])
             ->where(fn (Builder $query) => $query->whereNull('joined_on')->orWhereDate('joined_on', '<=', $to->toDateString()))
             ->where(fn (Builder $query) => $query->whereNull('exited_on')->orWhereDate('exited_on', '>=', $from->toDateString()))
             ->when($departments !== [], fn (Builder $query) => $query->whereIn('department_id', $departments))
@@ -37,7 +37,7 @@ class EmployeeRoster
             ->when($teamLead !== null, fn (Builder $query) => $query->whereIn('id', $this->teamOf($teamLead)))
             ->when($leaveType !== null, fn (Builder $query) => $query->whereIn('id', $this->onLeaveOfType($leaveType, $from, $to)))
             ->orderBy('full_name')
-            ->get(['id', 'company_id', 'full_name', 'employee_number', 'department_id', 'joined_on', 'exited_on']);
+            ->get(['id', 'company_id', 'full_name', 'employee_number', 'department_id', 'position_id', 'manager_id', 'joined_on', 'exited_on']);
     }
 
     /**

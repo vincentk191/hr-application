@@ -87,6 +87,9 @@ export type CalendarRow = {
     name: string;
     number: string;
     department: string | null;
+    position: string | null;
+    /** Name of the employee's supervisor. */
+    manager: string | null;
     /** False when no scanner ID is mapped to this person, so nothing can be recorded for them. */
     hasScannerId: boolean;
     days: Record<string, DayRecord>;
@@ -106,6 +109,32 @@ export type CalendarMonth = {
     label: string;
     firstDate: string;
     counts: StatusCounts;
+    attended: number;
+    expected: number;
+    /** Attendance rate in percent, null while the month has no data. */
+    rate: number | null;
+    workdays: number;
+    /** Person-days. */
+    leaveDays: number;
+    late: number;
+    absent: number;
+};
+
+/** One day of the week and month views, for the people the filters select. */
+export type CalendarDaySummary = {
+    date: string;
+    day: number;
+    weekday: string;
+    isWorkday: boolean;
+    /** The scan log reaches this day; otherwise the counts mean nothing. */
+    covered: boolean;
+    attended: number;
+    late: number;
+    earlyLeave: number;
+    absent: number;
+    leave: number;
+    /** Name of the holiday or event covering everyone, if any. */
+    holiday: string | null;
 };
 
 export type LeaveEntry = {
@@ -166,6 +195,7 @@ export type TimesheetDay = {
 
 /** One employee's month of attendance, as sent to the profile's attendance tab (EMP-ATT-003). */
 export type Timesheet = {
+    period: 'month';
     month: string;
     label: string;
     prev: string;
@@ -179,5 +209,37 @@ export type Timesheet = {
         absent: number;
         leave: number;
         minutes: number;
+    };
+};
+
+/** One employee's year at a glance: a summary per month (EMP-ATT-003). */
+export type YearTimesheet = {
+    period: 'year';
+    year: number;
+    label: string;
+    prev: number;
+    next: number;
+    dataThrough: string | null;
+    months: {
+        month: number;
+        /** "YYYY-MM", to open that month. */
+        key: string;
+        label: string;
+        present: number;
+        late: number;
+        early_leave: number;
+        absent: number;
+        leave: number;
+        minutes: number;
+        rate: number | null;
+    }[];
+    totals: {
+        present: number;
+        late: number;
+        early_leave: number;
+        absent: number;
+        leave: number;
+        minutes: number;
+        rate: number | null;
     };
 };

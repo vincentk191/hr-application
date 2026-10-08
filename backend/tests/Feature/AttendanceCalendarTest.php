@@ -4,6 +4,7 @@ use App\Enums\AttendanceDayStatus;
 use App\Enums\Role;
 use App\Models\AttendanceEnrolMap;
 use App\Models\AttendancePunch;
+use App\Models\CalendarEvent;
 use App\Models\Company;
 use App\Models\Department;
 use App\Models\Employee;
@@ -353,4 +354,56 @@ it('lets the sidebar know who can open the calendar', function () {
 
     $this->actingAs(calendarUser(Role::Employee, $this->company))->get(route('dashboard'))
         ->assertInertia(fn (Assert $page) => $page->where('auth.canViewAttendance', false));
+});
+
+it('summarises each day of a week: who checked in, who was late, and what the day is', function () {
+    scan($this->budi, '2026-10-05 08:00:00');
+    scan($this->budi, '2026-10-06 08:30:00');
+    $other = withScannerId(Employee::factory()->forCompany($this->company)->create(['joined_on' => '2020-01-01']));
+    scan($other, '2026-10-05 08:00:00');
+
+    calendar('?view=week&date=2026-10-05')->assertInertia(fn (Assert $page) => $page
+        ->has('daily', 7)
+        ->where('daily.0.attended', 2)
+        ->where('daily.0.late', 0)
+        ->where('daily.1.attended', 1)
+        ->where('daily.1.late', 1)
+        ->where('daily.0.covered', true)
+        ->where('daily.0.isWorkday', true)
+        ->where('daily.5.isWorkday', false)
+        ->where('daily.5.covered', false));
+});
+
+it('does not call a day beyond the data a day of nobody', function () {
+    scan($this->budi, '2026-10-05 08:00:00');
+
+    calendar('?view=week&date=2026-10-12')->assertInertia(fn (Assert $page) => $page
+        ->where('daily.0.covered', false)
+        ->where('daily.0.attended', 0));
+});
+
+it('names a holiday that covers everyone, but not one that covers a single department', function () {
+    CalendarEvent::create(['title' => 'Hari Libur', 'kind' => 'holiday', 'starts_on' => '2026-10-06', 'ends_on' => '2026-10-06']);
+    $dept = Department::factory()->forCompany($this->company)->create();
+    CalendarEvent::create(['title' => 'Acara Gudang', 'kind' => 'event', 'starts_on' => '2026-10-07', 'ends_on' => '2026-10-07', 'company_id' => $this->company->id, 'department_id' => $dept->id]);
+    scan($this->budi, '2026-10-05 08:00:00');
+
+    calendar('?view=month&date=2026-10-05')->assertInertia(fn (Assert $page) => $page
+        ->has('daily', 31)
+        ->where('daily.5.holiday', 'Hari Libur')
+        ->where('daily.6.holiday', null));
+});
+
+it('gives each month of the year a rate, working days and the people-day counts', function () {
+    scan($this->budi, '2026-10-05 08:00:00');
+    scan($this->budi, '2026-10-06 08:30:00');
+    CalendarEvent::create(['title' => 'Libur', 'kind' => 'holiday', 'starts_on' => '2026-10-07', 'ends_on' => '2026-10-07']);
+
+    calendar('?view=year&date=2026-10-05')->assertInertia(fn (Assert $page) => $page
+        ->where('months.9.attended', 2)
+        ->where('months.9.late', 1)
+        ->where('months.9.workdays', 21)
+        ->where('months.9.rate', fn ($rate) => $rate > 0 && $rate <= 100)
+        ->where('months.0.rate', null)
+        ->where('months.0.workdays', 22));
 });

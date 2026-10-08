@@ -1,5 +1,10 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
+import {
+    MonthSummary,
+    WeekSummary,
+    YearSummary,
+} from '@/components/attendance-summary-views';
 import { CalendarEvents } from '@/components/calendar-events';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +19,7 @@ import { show as employeeShow } from '@/routes/employees';
 import type { BreadcrumbItem } from '@/types';
 import type {
     CalendarDate,
+    CalendarDaySummary,
     CalendarEventRow,
     EventFormOptions,
     CalendarFilters,
@@ -21,7 +27,6 @@ import type {
     CalendarRow,
     CalendarView,
     CaptureStatus,
-    DayRecord,
     DayStatus,
     LeaveEntry,
     StatusCounts,
@@ -36,6 +41,7 @@ type Props = {
     nav: { prev: string; next: string; today: string; label: string };
     dates: CalendarDate[];
     rows: CalendarRow[];
+    daily: CalendarDaySummary[];
     truncated: boolean;
     months: CalendarMonth[];
     summary: {
@@ -71,51 +77,22 @@ const VIEWS: { value: CalendarView; label: string }[] = [
     { value: 'year', label: 'Tahun' },
 ];
 
-function Cell({
-    record,
-    code,
-    showTimes,
-}: {
-    record: DayRecord | undefined;
-    code: string;
-    showTimes: boolean;
-}) {
-    if (record === undefined) {
-        return null;
-    }
-
-    const times =
-        record.in === null
-            ? ''
-            : record.out === null
-              ? record.in
-              : `${record.in}–${record.out}`;
-
-    return (
-        <span
-            title={record.event ?? (times === '' ? undefined : times)}
-            className={`inline-flex min-h-6 min-w-6 flex-col items-center justify-center rounded px-1 text-xs font-medium ${STATUS_STYLE[record.status]}`}
-        >
-            {code}
-            {showTimes && times !== '' && (
-                <span className="text-[10px] font-normal whitespace-nowrap">
-                    {times}
-                </span>
-            )}
-        </span>
-    );
-}
-
-function Grid({
-    view,
-    dates,
+/**
+ * The Day view as a list rather than a one-column grid: the date is already in the toolbar, so the
+ * columns carry what differs per person — position, supervisor, first and last scan, and status.
+ */
+function DayTable({
+    date,
     rows,
     statuses,
-}: Pick<Props, 'view' | 'dates' | 'rows'> & { statuses: StatusOption[] }) {
-    const codeOf = Object.fromEntries(
-        statuses.map((status) => [status.value, status.code]),
+}: {
+    date: string;
+    rows: CalendarRow[];
+    statuses: StatusOption[];
+}) {
+    const labelOf = Object.fromEntries(
+        statuses.map((status) => [status.value, status.label]),
     ) as Record<DayStatus, string>;
-    const showTimes = view !== 'month';
 
     if (rows.length === 0) {
         return (
@@ -130,119 +107,62 @@ function Grid({
             <table className="w-full text-sm">
                 <thead className="bg-muted/50 text-left">
                     <tr>
-                        <th className="sticky left-0 z-10 min-w-48 bg-muted p-2 font-medium">
-                            Karyawan
-                        </th>
-                        {dates.map((date) => (
-                            <th
-                                key={date.date}
-                                className={`p-1 text-center text-xs font-medium ${
-                                    date.isWorkday
-                                        ? ''
-                                        : 'text-muted-foreground'
-                                }`}
-                            >
-                                <div>{date.day}</div>
-                                <div className="font-normal">
-                                    {date.weekday}
-                                </div>
-                            </th>
-                        ))}
+                        <th className="p-3 font-medium">Karyawan</th>
+                        <th className="p-3 font-medium">Jabatan</th>
+                        <th className="p-3 font-medium">Atasan</th>
+                        <th className="p-3 font-medium">Masuk</th>
+                        <th className="p-3 font-medium">Pulang</th>
+                        <th className="p-3 font-medium">Status</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {rows.map((row) => (
-                        <tr key={row.id} className="border-t">
-                            <td className="sticky left-0 z-10 bg-background p-2">
-                                <Link
-                                    href={employeeShow(row.id)}
-                                    className="font-medium hover:underline"
-                                >
-                                    {row.name}
-                                </Link>
-                                <div className="text-xs text-muted-foreground">
-                                    {row.department ?? row.number}
-                                </div>
-                                {!row.hasScannerId && (
-                                    <div className="text-[11px] text-amber-700 dark:text-amber-300">
-                                        ID pemindai belum dipetakan
-                                    </div>
-                                )}
-                            </td>
-                            {dates.map((date) => {
-                                const record = row.days[date.date];
+                    {rows.map((row) => {
+                        const record = row.days[date];
 
-                                return (
-                                    <td
-                                        key={date.date}
-                                        className="p-1 text-center"
+                        return (
+                            <tr key={row.id} className="border-t">
+                                <td className="p-3">
+                                    <Link
+                                        href={employeeShow(row.id)}
+                                        className="font-medium hover:underline"
                                     >
-                                        <Cell
-                                            record={record}
-                                            code={
-                                                record
-                                                    ? codeOf[record.status]
-                                                    : ''
-                                            }
-                                            showTimes={showTimes}
-                                        />
-                                    </td>
-                                );
-                            })}
-                        </tr>
-                    ))}
+                                        {row.name}
+                                    </Link>
+                                    <div className="text-xs text-muted-foreground">
+                                        {row.department ?? row.number}
+                                    </div>
+                                    {!row.hasScannerId && (
+                                        <div className="text-[11px] text-amber-700 dark:text-amber-300">
+                                            ID pemindai belum dipetakan
+                                        </div>
+                                    )}
+                                </td>
+                                <td className="p-3">{row.position ?? '—'}</td>
+                                <td className="p-3">{row.manager ?? '—'}</td>
+                                <td className="p-3 tabular-nums">
+                                    {record?.in ?? '—'}
+                                </td>
+                                <td className="p-3 tabular-nums">
+                                    {record?.out ?? '—'}
+                                </td>
+                                <td className="p-3">
+                                    {record && (
+                                        <span
+                                            title={record.event ?? undefined}
+                                            className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[record.status]}`}
+                                        >
+                                            {record.event &&
+                                            record.status === 'off'
+                                                ? record.event
+                                                : labelOf[record.status]}
+                                        </span>
+                                    )}
+                                </td>
+                            </tr>
+                        );
+                    })}
                 </tbody>
             </table>
-        </div>
-    );
-}
-
-function YearTable({
-    months,
-    onOpen,
-}: {
-    months: CalendarMonth[];
-    onOpen: (date: string) => void;
-}) {
-    return (
-        <div className="overflow-x-auto rounded-xl border">
-            <table className="w-full text-sm">
-                <thead className="bg-muted/50 text-left">
-                    <tr>
-                        <th className="p-3 font-medium">Bulan</th>
-                        <th className="p-3 font-medium">Hadir</th>
-                        <th className="p-3 font-medium">Terlambat</th>
-                        <th className="p-3 font-medium">Pulang cepat</th>
-                        <th className="p-3 font-medium">Tidak hadir</th>
-                        <th className="p-3 font-medium">Cuti</th>
-                        <th className="p-3" />
-                    </tr>
-                </thead>
-                <tbody>
-                    {months.map((month) => (
-                        <tr key={month.month} className="border-t">
-                            <td className="p-3 font-medium">{month.label}</td>
-                            <td className="p-3">{month.counts.present}</td>
-                            <td className="p-3">{month.counts.late}</td>
-                            <td className="p-3">{month.counts.early_leave}</td>
-                            <td className="p-3">{month.counts.absent}</td>
-                            <td className="p-3">{month.counts.leave}</td>
-                            <td className="p-3 text-right">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => onOpen(month.firstDate)}
-                                >
-                                    Buka
-                                </Button>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-            <p className="border-t p-3 text-xs text-muted-foreground">
-                Angka dalam hari-orang (satu karyawan pada satu hari kerja).
-            </p>
         </div>
     );
 }
@@ -300,6 +220,7 @@ export default function AttendanceCalendar(props: Props) {
         nav,
         dates,
         rows,
+        daily,
         truncated,
         months,
         summary,
@@ -598,16 +519,27 @@ export default function AttendanceCalendar(props: Props) {
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
                     <div className="flex min-w-0 flex-col gap-3">
                         {view === 'year' ? (
-                            <YearTable
+                            <YearSummary
                                 months={months}
                                 onOpen={(date) => go({ view: 'month', date })}
                             />
-                        ) : (
-                            <Grid
-                                view={view}
-                                dates={dates}
+                        ) : view === 'day' ? (
+                            <DayTable
+                                date={dates[0]?.date ?? anchor}
                                 rows={rows}
                                 statuses={options.statuses}
+                            />
+                        ) : view === 'week' ? (
+                            <WeekSummary
+                                days={daily}
+                                employees={summary.employees}
+                                onOpen={(date) => go({ view: 'day', date })}
+                            />
+                        ) : (
+                            <MonthSummary
+                                days={daily}
+                                today={nav.today}
+                                onOpen={(date) => go({ view: 'day', date })}
                             />
                         )}
 

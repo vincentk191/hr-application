@@ -295,3 +295,15 @@ it('shows holidays and approved leave, weekends included, on days the log has no
         ->and($classify(false, true, false))->toBe(AttendanceDayStatus::Leave)
         ->and($classify(false, false))->toBe(AttendanceDayStatus::NoData);
 });
+
+it('gives the day view each person\'s position and supervisor', function () {
+    $boss = eventEmployee($this->a, 'Bos');
+    $this->budi->update(['manager_id' => $boss->id]);
+
+    $rows = $this->actingAs($this->hrA)->get('/attendance/calendar?view=day&date=2026-10-06')
+        ->assertOk()->viewData('page')['props']['rows'];
+
+    $row = collect($rows)->firstWhere('id', $this->budi->id);
+
+    expect($row['manager'])->toBe('Bos')->and($row)->toHaveKeys(['position', 'manager']);
+});

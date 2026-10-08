@@ -3,14 +3,16 @@ import { useState } from 'react';
 import { EmployeeAttendance } from '@/components/employee-attendance';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import { EmployeeDocuments } from '@/components/employee-documents';
+import { EmployeeTeamTab } from '@/components/employee-team';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { edit } from '@/routes/employees';
 import type { BreadcrumbItem } from '@/types';
-import type { Timesheet } from '@/types/attendance';
+import type { Timesheet, YearTimesheet } from '@/types/attendance';
 import type {
     EmployeeDetail,
     EmployeeDocumentRow,
+    EmployeeTeam,
     ValueOption,
 } from '@/types/employee';
 
@@ -31,11 +33,13 @@ type Props = {
     canManageDocuments: boolean;
     canRestrictDocuments: boolean;
     /** Absent until the tab asks for it; null when this viewer may not see it. */
-    attendance?: Timesheet | null;
+    attendance?: Timesheet | YearTimesheet | null;
     canCorrectAttendance: boolean;
     requests: LeaveRow[];
     leaveTakenThisYear: number;
     canUpdate: boolean;
+    /** Null for someone who may not see the directory. */
+    team: EmployeeTeam | null;
 };
 
 const TABS = [
@@ -43,6 +47,7 @@ const TABS = [
     { key: 'attendance', label: 'Absensi' },
     { key: 'requests', label: 'Pengajuan' },
     { key: 'documents', label: 'Dokumen' },
+    { key: 'team', label: 'Tim' },
 ] as const;
 
 type TabKey = (typeof TABS)[number]['key'];
@@ -115,6 +120,7 @@ export default function EmployeeShow({
     requests,
     leaveTakenThisYear,
     canUpdate,
+    team,
 }: Props) {
     // ?tab=attendance opens straight onto that tab, so other screens can link to it.
     const [tab, setTab] = useState<TabKey>(() => {
@@ -203,20 +209,22 @@ export default function EmployeeShow({
                 </div>
 
                 <nav className="flex gap-1 border-b">
-                    {TABS.map((item) => (
-                        <button
-                            key={item.key}
-                            type="button"
-                            onClick={() => setTab(item.key)}
-                            className={`-mb-px border-b-2 px-3 py-2 text-sm ${
-                                tab === item.key
-                                    ? 'border-foreground font-medium'
-                                    : 'border-transparent text-muted-foreground'
-                            }`}
-                        >
-                            {item.label}
-                        </button>
-                    ))}
+                    {TABS.filter((item) => item.key !== 'team' || team).map(
+                        (item) => (
+                            <button
+                                key={item.key}
+                                type="button"
+                                onClick={() => setTab(item.key)}
+                                className={`-mb-px border-b-2 px-3 py-2 text-sm ${
+                                    tab === item.key
+                                        ? 'border-foreground font-medium'
+                                        : 'border-transparent text-muted-foreground'
+                                }`}
+                            >
+                                {item.label}
+                            </button>
+                        ),
+                    )}
                 </nav>
 
                 {tab === 'overview' && (
@@ -418,6 +426,10 @@ export default function EmployeeShow({
                         attendance={attendance}
                         canCorrect={canCorrectAttendance}
                     />
+                )}
+
+                {tab === 'team' && team && (
+                    <EmployeeTeamTab team={team} name={employee.name} />
                 )}
 
                 {tab === 'documents' && (

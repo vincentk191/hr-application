@@ -24,17 +24,18 @@ tracks structure and progress; the workbook tracks requirements and tests.
 
 ## Status
 
-Phase 0 is complete. Phase 1 is underway: the employee directory, profile and add/edit screens
-are in; the admin screens are not.
+Phases 0 and 1 are largely done and Phase 2 (attendance) is mostly built; what remains in them is
+listed in the checklist below. Nothing here is committed yet: changes are left for review.
 
 |                 |                                                                                                              |
 | --------------- | ------------------------------------------------------------------------------------------------------------ |
-| Tests           | 147 passing, 549 assertions                                                                                  |
+| Tests           | 417 passing                                                                                                  |
 | Static analysis | PHPStan level 7, 0 errors                                                                                    |
-| Phase 0         | **Complete** — company scoping, RBAC, the approval workflow engine                                           |
-| Phase 1         | Employee directory, profile, add/edit, documents and the admin panel done |
+| Phase 0         | **Complete** — company scoping, RBAC, workflow engine, account state and login rules                         |
+| Phase 1         | Directory (with CSV import/export), profile, add/edit, documents, admin panel done                           |
+| Phase 2         | Scan-log import, ingest API + agents, calendar, holidays/events, recap/export, issues, timesheet corrections |
 | Also built      | Leave requests end to end — the first real workflow consumer                                                 |
-| Not built       | Attendance, recruitment and offboarding screens; notifications, global search, employee app, scanner sync    |
+| Not built       | Recruitment and offboarding screens; notifications, global search, employee app, on-site sync agent          |
 
 ---
 
@@ -547,22 +548,22 @@ the 309 features, their sizes and priorities, and the test cases. This table is 
 | `CORE-NAV` | Company switcher              | 4   | 3   | ✅     | Scoping + switcher + server-side lock                                                                                                                                                                                                                         |
 | `CORE-RBA` | Role & permission enforcement | 7   | 6   | ✅     | Roles, permissions, policies, reporting-line downline resolver (004), role-change audit (007)                                                                                                                                                                 |
 | `CORE-WFL` | Approval workflow engine      | 9   | 7   | ✅     | All nine, including acting on an approval over HTTP (009). The "or app" half waits on the PWA                                                                                                                                                                 |
-| `CORE-AUT` | Login & session               | 8   | 8   | 🟡     | Session login + 2FA (001). Missing: employee-ID login (002), HR-created temp passwords (003), HR reset (004), inactivity expiry (005), session/token revocation (006), scoped Sanctum tokens (008) — most pair with `CORE-USR`, and 008 with the employee app |
+| `CORE-AUT` | Login & session               | 8   | 8   | 🟡     | Session login + 2FA (001), employee-ID login (002), temporary passwords forced to change (003), admin reset (004), idle expiry = `SESSION_LIFETIME`, 120 min (005), session/token revocation (006), failed-login throttling (007). Missing: scoped employee-app tokens (008) — waits on the employee app |
 
 ### Phase 1 — Employee dossier & admin screens
 
 | Screen     | Name                                   | f   | P1  | Status | Notes                                                                                                                                                 |
 | ---------- | -------------------------------------- | --- | --- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `EMP-DIR`  | Employee directory (list)              | 12  | 9   | 🟡     | Search, department/position multi-select, status chips, sort, active-filter strip, row summary. Missing: bulk import (needs Laravel Excel) and export |
+| `EMP-DIR`  | Employee directory (list)              | 12  | 12  | ✅     | Search, department/position multi-select, status chips, sort, active-filter strip, row summary, CSV import (010) and CSV export of the filtered list (011) |
 | `EMP-GRD`  | Directory — grid view                  | 1   | 1   | ✅     | A view over the same filtered query; each card shows the profile picture, or initials |
 | `EMP-CHT`  | Directory — org chart                  | 1   | 1   | ✅     | A top-down tree drawn from `manager_id` with connector lines; anyone whose manager is filtered out renders as a root |
 | `EMP-ADD`  | Add / edit employee                    | 6   | 6   | ✅     | One form for both. Self-referencing manager refused; company filled from the active company                                                           |
-| `EMP-PRF`  | Profile shell                          | 3   | 2   | 🟡     | Header stats + tabs. Change audit is on (003); "SOPs to acknowledge" stays dropped with the Knowledge Hub                                             |
+| `EMP-PRF`  | Profile shell                          | 3   | 2   | 🟡     | Header stats + tabs (Overview, Absensi, Pengajuan, Dokumen, Tim). Opens as a side drawer from the directory. Change audit is on (003); "SOPs to acknowledge" stays dropped with the Knowledge Hub |
 | `EMP-DET`  | Profile — overview tab                 | 6   | 5   | ✅     | All five card groups render; bank, payroll and health are withheld from roles without `view-sensitive-data` (006) |
 | `EMP-DOC`  | Profile — documents tab                | 4   | 2   | ✅     | Upload, categorise, version, expiry flags and per-document restriction. Reminders are in-app only — see Known gaps |
 | `EMP-ATT`  | Profile — attendance tab               | 3   | 3   | 🟡     | Timesheet, manual add/change/void with reason + audit, recompute done. Totals by department/period are not |
 | `EMP-REQ`  | Profile — requests tab                 | 2   | 2   | ✅     | Real: lists the employee's leave requests and leave taken this year                                                                                   |
-| `CORE-USR` | User & role management                 | 6   | 5   | 🟡     | Policies and Filament screens done (users, roles, permissions)                                                                                                                 |
+| `CORE-USR` | User & role management                 | 6   | 5   | ✅     | Policies and Filament screens (users, roles, permissions); activate/deactivate, last login, temporary password, reset password and revoke sessions per user |
 | `CORE-ORG` | Departments, positions, reporting line | 4   | 4   | ✅     | Schema, policies, the downline resolver and Filament screens for departments and positions                                                                         |
 | `CORE-ADM` | Company settings                       | 1   | 0   | 🟡     | Filament company screen done                                                                                                                                |
 
@@ -605,14 +606,38 @@ How the import behaves, so it is not surprised by:
   raw punches every time; nothing is stored, so a late upload or a corrected mapping changes it
   immediately. It needs the `view-attendance` permission (HR Admin by default) and follows the
   company switcher. The rules, in order, are in `DayClassifier`:
-  1. a day after the last captured data is **no data**, never absence;
-  2. a day nobody at all scanned on is **off** (public holidays are not recorded yet, so this
-     stands in for them);
+  1. a day after the last captured data is **no data**, never absence — except what is known in
+     advance: a holiday is **off** and approved leave is **leave**, even in the future (leave
+     shows on weekends too, matching the day count on the request);
+  2. a holiday or event covering the person is **off**; a day nobody at all scanned on is also
+     off, as a fallback for a holiday nobody entered;
   3. any punch makes the day present / late / early-leave, even on leave or a weekend;
-  4. a non-workday is off, and approved leave is leave;
+  4. approved leave is leave, and otherwise a non-workday is off;
   5. someone with **no scanner ID mapped** on that date is no data, not absent — nothing could
      have been recorded for them. Rows say "ID pemindai belum dipetakan".
   Only then is a workday with no scan an absence.
+- **The Day view is a list, not a grid:** one row per person with Jabatan, Atasan, Masuk (first scan),
+  Pulang (last scan, blank for a single scan) and a Status column (Hadir / Terlambat / Cuti …; a
+  holiday shows its name). The date is not repeated as a column; it is in the toolbar.
+- **Week, month and year are summaries, not grids of people.** Each answers how many came in and how
+  many were late or away, at a different scale; clicking a day opens its Day view, where the people
+  are listed (and a month opens from the year view).
+  - **Week:** a bar per day (checked in, with the late share marked), the weekday average as the
+    headline, weekends and holidays hatched.
+  - **Month:** a Monday-first calendar of day tiles with the head count, "n cuti · m terlambat", the
+    holiday's name, today outlined, and a flag when under 60% of the people expected came in.
+  - **Year:** the attendance rate per month (under 90% highlighted, months with no data hatched), the
+    year's rate as the headline, and a table per month of working days, leave days, late arrivals and
+    unexplained absences with a total row.
+  - **The rate is attended ÷ (attended + absent).** Approved leave counts neither for nor against, and
+    a day or month the log has not reached shows "—", never 0%. The side panel uses the same
+    definition. Leave, late and absent in the year table are person-days. The filters (department,
+    team, leave type, status) apply to all of these, and the CSV export of the year view carries the
+    rate and working days.
+- **An employee's Absensi tab has a Bulan / Tahun toggle.** Tahun is the whole year in one table: per
+  month hadir, terlambat, pulang cepat, tidak hadir, cuti, working hours and the rate, with a total
+  row and a bar per month; opening a month goes to its day-by-day timesheet. It is fetched the same
+  way (`?period=year&year=YYYY` on the profile's partial reload).
 - **Working hours are set in the admin panel** (`/admin`, "Jam kerja", parent-wide HR Admin
   only): start, end and the lateness tolerance in minutes. Nothing in the requirements defines
   them, so until someone saves their own, `config/attendance.php` supplies 08:00, 17:00 and 10
@@ -636,20 +661,40 @@ How the import behaves, so it is not surprised by:
   stored (`attendance_issue_resolutions`), with a mandatory reason and who made it, and it can be
   reopened. Excusing is bulk-capable and refused for the whole batch if any employee is outside
   the user's reach. Ranges are capped at 62 days.
+- **Holidays and events** (`ATT-WIZ`, the "Hari libur & acara" card on the calendar) are stored in
+  `calendar_events`, each for the whole group, one company, or one department, up to 31 days. They
+  need `manage-calendar-events` (HR Admin by default); a company-pinned admin can only add for
+  their own company and can only delete their own company's. Everything is on the audit trail.
+- **Recap and export.** `/attendance/recap` ("Rekap absensi") totals each person's statuses over
+  a range of up to 366 days, with the same department/team/leave-type filters, `?export=csv`, and
+  a print layout (browser "save as PDF"; no PDF library). The calendar toolbar has "Unduh CSV" and
+  "Cetak". CSV cells that start with `= + - @` are prefixed so a spreadsheet will not run them.
+- **Ingest endpoint and agents.** `POST /api/attendance/punches` accepts batches from the on-site
+  agent, through the same `IngestPunches` as the file import, so both are idempotent and behave
+  identically. Auth is a **Sanctum token only** (no cookies) with the `attendance:ingest` ability,
+  one token per `AttendanceAgent`, limited to 120 requests a minute per token. Agents are created
+  in the admin panel ("Agen sinkronisasi"); the token is shown **once** and creating a new one
+  rotates it. Every batch, including rejected ones, is in a read-only request log in the panel.
+  The device page lists agents with last report and listener heartbeat, and **"Sinkronkan
+  sekarang"** asks the agent to sync on its next call (the response carries `sync_now`). An agent
+  silent for over 3 hours during working hours shows as "Diam" and raises a dashboard warning.
+- **Accounts.** A user is deactivated, never deleted; deactivating signs them out everywhere and
+  cancels their tokens. Sign in with an email or an employee ID; an ID shared by two companies is
+  refused and that person uses their email. A failed login gives the same message whatever the
+  reason. An account created or reset by an administrator carries a temporary password and can
+  reach nothing but the security page until it is changed. The sessions are database-backed, which
+  revoking relies on. Idle expiry is `SESSION_LIFETIME`.
 - **Not built yet:** totals per department or period on the timesheet (`EMP-ATT-003`), the year
-  view per employee, "team" and "leave type" filters, export to PDF/CSV, a separate live "today"
-  board, notifying the employee and supervisor about an issue (needs the notifications module),
-  and public holidays (`ATT-WIZ`).
-- **The sync agent's ingest endpoint will reuse `IngestPunches`**, so both routes into the
-  system behave identically. It is not built yet, and needs Sanctum, which is not on `main`
-  (the spike is on `spike/sanctum-api`).
+  view per employee, a notification to the employee and supervisor about an issue (needs the
+  notifications module), the on-site agent and listener, xlsx import, and weekend/holiday-aware
+  leave day counts.
 
 | Screen    | Name                      | f   | P1  | Status | Notes                                                            |
 | --------- | ------------------------- | --- | --- | ------ | ---------------------------------------------------------------- |
-| `ATT-DEV` | Device integration health | 6   | 4   | 🟡     | Manual CSV import, enrol-ID mapping and the capture-status check done. Listener, sync agent and the ingest endpoint wait on the on-site probe |
-| `ATT-CAL` | Attendance calendar       | 5   | 4   | 🟡     | Day / week / month / year, filters and status rules done. Export (005), the live board and the ingest endpoint (003) are not |
+| `ATT-DEV` | Device integration health | 6   | 5   | 🟡     | Manual CSV import, enrol-ID mapping, capture status, the token-only ingest endpoint, agent registry/health and "sync now" done. The on-site agent and listener themselves (002, 006) are not built here |
+| `ATT-CAL` | Attendance calendar       | 5   | 5   | 🟡     | Day / week / month / year, department/team/leave-type filters, status rules, holidays and approved leave shown ahead of the data, CSV export, printable recap. A separate live board is covered by the Day view |
 | `ATT-SID` | Calendar side panel       | 3   | 1   | ✅     | Headcount, out today / upcoming and the approvals link, from the same rows as the grid |
-| `ATT-WIZ` | Calendar event wizard     | 1   | 0   | ⬜     | Holidays/events — also feeds leave working-day counts            |
+| `ATT-WIZ` | Calendar event wizard     | 1   | 1   | ✅     | Holidays and company/department events, with audit. `WorkingDays` exists for leave day counts but is not wired in yet |
 | `EMP-ATT` | Profile — attendance tab  | 3   | 3   | 🟡     | Timesheet, manual add/change/void with reason + audit, recompute done. Totals by department/period are not |
 
 ### Phase 3 — Requests (leave) + notifications
@@ -765,12 +810,34 @@ Progress Tracking analytics (Appendix C).
   `/storage`) under random file names. They are reachable by anyone who has the URL, unlike the
   rest of the dossier. If that is not acceptable, they need a private disk and an authorised
   route. The container image has no GD extension, so there is no server-side resizing.
-- **`EMP-DIR-010` bulk import** needs Laravel Excel — another dependency to approve.
-- **No Sanctum**, so no employee API and no attendance ingest endpoint yet.
+- **The profile opens as a side drawer from the directory.** Clicking a row, card or org-chart node
+  slides the profile in over the list instead of navigating (Ctrl/Cmd/Shift-click still opens the
+  full page). The drawer reads `GET /employees/{id}/summary` (JSON, same authorisation as the
+  profile) and has Profil, Dokumen, Cuti, Absensi and Tim tabs. **It is read-only on purpose:**
+  uploading a document or correcting a scan redirects, which would navigate the list away from
+  under it, so those stay on the full page ("Buka profil penuh"). "Ubah data" and "Ajukan cuti"
+  are links; "Ajukan cuti" opens the leave form and does not preselect the employee.
+- **The "Tim" tab** (drawer and full profile) shows a slice of the reporting line, not the whole
+  chart: the supervisor and their supervisor above, the colleagues who share that supervisor
+  beside (the person highlighted), and the person's own direct reports below. "Jumlah tim" counts
+  the direct reports when there are any, otherwise the peers. "Hadir hari ini" and "Cuti hari ini"
+  use the attendance derivation and appear only for roles with `view-attendance`; "Hadir hari ini"
+  says the data is missing, instead of 0, when the log has not reached today. Former employees are
+  left out. Someone viewing only their own record gets no Tim tab.
+- **Directory import and export are CSV only** (`/employees/import`, "Unduh CSV" on the list). The
+  importer finds columns by header name (the template lists them), only ever creates, and skips an
+  employee number the company already has rather than updating it. A bad row is rejected with its
+  line number while good rows still load; "Hanya periksa" checks without saving. Departments and
+  positions must already exist by name; the manager is an employee number, in the company or in the
+  same file. Bank, payroll and health fields are neither imported nor exported. It loads into the
+  active company, so a group-wide user must pick one first. Max 2,000 rows. `.xlsx` would need
+  Laravel Excel, which is parked.
+- **Sanctum is installed for the attendance agent only** (token-only, `config/sanctum.php` has no
+  stateful guard). There is no employee-app API yet.
 - **The Indonesian workbook copy** (`…_ID.xlsx`) is regenerated from the English one — if you
   edit the English file, regenerate it.
 - **Leave counts calendar days, not working days.** `REQ-WIZ-005` wants weekends and calendar
-  holidays excluded, which needs `ATT-WIZ`. `LeaveRequest::countDays()` says so in place.
+  holidays excluded; `ATT-WIZ` and `WorkingDays` now exist, so this only needs wiring in. `LeaveRequest::countDays()` says so in place.
 - **Middleware order is load-bearing.** `SubstituteBindings` is deliberately re-added after
   `SetActiveCompany` in `backend/bootstrap/app.php` so route model binding is company-scoped. Moving it
   back to its default slot silently lets a record from another company bind.

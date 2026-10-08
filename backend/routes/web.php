@@ -13,6 +13,7 @@ use App\Http\Controllers\CompanySwitcherController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeDocumentController;
+use App\Http\Controllers\EmployeeImportController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\LeaveRequestDecisionController;
 use Illuminate\Support\Facades\Route;
@@ -29,8 +30,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('employees', [EmployeeController::class, 'index'])->name('employees.index');
     Route::get('employees/create', [EmployeeController::class, 'create'])->name('employees.create');
+    Route::get('employees/import', [EmployeeImportController::class, 'create'])->name('employees.import');
+    Route::post('employees/import', [EmployeeImportController::class, 'store'])->name('employees.import.store');
+    Route::get('employees/import/template', [EmployeeImportController::class, 'template'])->name('employees.import.template');
+    Route::get('employees/export', [EmployeeController::class, 'export'])->name('employees.export');
     Route::post('employees', [EmployeeController::class, 'store'])->name('employees.store');
     Route::get('employees/{employee}', [EmployeeController::class, 'show'])->name('employees.show');
+    Route::get('employees/{employee}/summary', [EmployeeController::class, 'summary'])->name('employees.summary');
     Route::get('employees/{employee}/edit', [EmployeeController::class, 'edit'])->name('employees.edit');
     Route::put('employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update');
 

@@ -17,13 +17,17 @@ use App\Models\Position;
 use App\Models\User;
 use App\Support\Attendance\DailyAttendance;
 use App\Support\Attendance\EmployeeTimesheet;
+use App\Support\CsvDownload;
+use App\Support\Employees\TeamSlice;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class EmployeeController extends Controller
 {
@@ -38,34 +42,10 @@ class EmployeeController extends Controller
     {
         $this->authorize('viewAny', Employee::class);
 
-        $filters = [
-            'search' => trim((string) $request->string('search')),
-            'departments' => array_filter(array_map('intval', (array) $request->input('departments', []))),
-            'positions' => array_filter(array_map('intval', (array) $request->input('positions', []))),
-            'statuses' => array_values(array_intersect(
-                (array) $request->input('statuses', []),
-                array_column(EmploymentStatus::cases(), 'value'),
-            )),
-            'sort' => in_array($request->string('sort')->toString(), ['name', 'joined'], true)
-                ? $request->string('sort')->toString()
-                : 'name',
-            'view' => in_array($request->string('view')->toString(), ['list', 'grid', 'chart'], true)
-                ? $request->string('view')->toString()
-                : 'list',
-        ];
+        $filters = $this->filtersFrom($request);
 
-        $employees = Employee::query()
+        $employees = $this->filteredQuery($filters)
             ->with(['department:id,name', 'position:id,name', 'manager:id,full_name'])
-            ->when($filters['search'] !== '', fn (Builder $query) => $query->where(
-                fn (Builder $inner) => $inner
-                    ->where('full_name', 'like', "%{$filters['search']}%")
-                    ->orWhere('employee_number', 'like', "%{$filters['search']}%"),
-            ))
-            ->when($filters['departments'] !== [], fn (Builder $query) => $query->whereIn('department_id', $filters['departments']))
-            ->when($filters['positions'] !== [], fn (Builder $query) => $query->whereIn('position_id', $filters['positions']))
-            ->when($filters['statuses'] !== [], fn (Builder $query) => $query->whereIn('employment_status', $filters['statuses']))
-            ->when($filters['sort'] === 'joined', fn (Builder $query) => $query->orderByDesc('joined_on'))
-            ->when($filters['sort'] === 'name', fn (Builder $query) => $query->orderBy('full_name'))
             ->get();
 
         return Inertia::render('employees/index', [
@@ -83,6 +63,86 @@ class EmployeeController extends Controller
     }
 
     /**
+     * The directory's filters as read from the query string, shared by the list and its export so
+     * the file always matches what is on screen.
+     *
+     * @return array{search: string, departments: array<int, int>, positions: array<int, int>, statuses: list<mixed>, sort: string, view: string}
+     */
+    private function filtersFrom(Request $request): array
+    {
+        return [
+            'search' => trim((string) $request->string('search')),
+            'departments' => array_filter(array_map('intval', (array) $request->input('departments', []))),
+            'positions' => array_filter(array_map('intval', (array) $request->input('positions', []))),
+            'statuses' => array_values(array_intersect(
+                (array) $request->input('statuses', []),
+                array_column(EmploymentStatus::cases(), 'value'),
+            )),
+            'sort' => in_array($request->string('sort')->toString(), ['name', 'joined'], true)
+                ? $request->string('sort')->toString()
+                : 'name',
+            'view' => in_array($request->string('view')->toString(), ['list', 'grid', 'chart'], true)
+                ? $request->string('view')->toString()
+                : 'list',
+        ];
+    }
+
+    /**
+     * @param  array{search: string, departments: array<int, int>, positions: array<int, int>, statuses: list<mixed>, sort: string, view: string}  $filters
+     * @return Builder<Employee>
+     */
+    private function filteredQuery(array $filters): Builder
+    {
+        return Employee::query()
+            ->when($filters['search'] !== '', fn (Builder $query) => $query->where(
+                fn (Builder $inner) => $inner
+                    ->where('full_name', 'like', "%{$filters['search']}%")
+                    ->orWhere('employee_number', 'like', "%{$filters['search']}%"),
+            ))
+            ->when($filters['departments'] !== [], fn (Builder $query) => $query->whereIn('department_id', $filters['departments']))
+            ->when($filters['positions'] !== [], fn (Builder $query) => $query->whereIn('position_id', $filters['positions']))
+            ->when($filters['statuses'] !== [], fn (Builder $query) => $query->whereIn('employment_status', $filters['statuses']))
+            ->when($filters['sort'] === 'joined', fn (Builder $query) => $query->orderByDesc('joined_on'))
+            ->when($filters['sort'] === 'name', fn (Builder $query) => $query->orderBy('full_name'));
+    }
+
+    /**
+     * Download the filtered directory as CSV (EMP-DIR-011): the same columns the import reads, and
+     * never the bank, payroll or health fields. The download is on the audit trail.
+     */
+    public function export(Request $request): StreamedResponse
+    {
+        $this->authorize('viewAny', Employee::class);
+
+        $employees = $this->filteredQuery($this->filtersFrom($request))
+            ->with(['department:id,name', 'position:id,name', 'manager:id,employee_number'])
+            ->get();
+
+        activity('employee')
+            ->causedBy($request->user())
+            ->withProperties(['rows' => $employees->count()])
+            ->log('Ekspor direktori karyawan ke CSV');
+
+        $rows = $employees->map(fn (Employee $employee): array => [
+            $employee->employee_number,
+            $employee->full_name,
+            $employee->department?->name,
+            $employee->position?->name,
+            $employee->manager?->employee_number,
+            $employee->employment_status->label(),
+            $employee->employment_type?->label(),
+            $employee->joined_on?->toDateString(),
+            $employee->exited_on?->toDateString(),
+            $employee->email,
+            $employee->phone,
+            $employee->address,
+            $employee->national_id,
+        ]);
+
+        return CsvDownload::stream('karyawan-'.now()->format('Y-m-d').'.csv', [EmployeeImportController::COLUMNS, ...$rows]);
+    }
+
+    /**
      * The employee profile (EMP-PRF) and its Overview tab (EMP-DET).
      */
     public function show(Request $request, Employee $employee): Response
@@ -94,14 +154,54 @@ class EmployeeController extends Controller
         $user = $request->user();
 
         return Inertia::render('employees/show', [
-            'employee' => $this->detail($employee, $this->maySeeSensitive($user, $employee)),
-            'documents' => $this->documentsFor($user, $employee),
+            ...$this->profile($request, $employee),
             'documentCategories' => array_map(
                 fn (DocumentCategory $category): array => ['value' => $category->value, 'label' => $category->label()],
                 DocumentCategory::cases(),
             ),
             'canManageDocuments' => $user->can('create', EmployeeDocument::class),
             'canRestrictDocuments' => $user->can(Permission::ViewSensitiveData->value),
+            // Loaded only when the tab is opened (router.reload with `only`), so the profile does
+            // not pay for a month of punches on every visit.
+            'attendance' => $user->can('viewAttendance', $employee)
+                ? Inertia::optional(fn (): array => $this->timesheet($employee, $request))
+                : null,
+            'canCorrectAttendance' => $user->can('correctAttendance', $employee),
+        ]);
+    }
+
+    /**
+     * The profile as JSON, for the side drawer on the directory. Read-only by design: uploading a
+     * document or correcting a scan redirects, which would navigate the list away from under the
+     * drawer, so those stay on the full profile page.
+     */
+    public function summary(Request $request, Employee $employee): JsonResponse
+    {
+        $this->authorize('view', $employee);
+
+        $employee->load(['department:id,name', 'position:id,name', 'manager:id,full_name', 'company:id,code,name']);
+
+        $user = $request->user();
+
+        return response()->json([
+            ...$this->profile($request, $employee),
+            'attendance' => $user->can('viewAttendance', $employee) ? $this->timesheet($employee, $request) : null,
+            'canCreateLeave' => $user->can('create', LeaveRequest::class),
+        ]);
+    }
+
+    /**
+     * What the full profile and the drawer share: the dossier, documents, leave and the team.
+     *
+     * @return array<string, mixed>
+     */
+    private function profile(Request $request, Employee $employee): array
+    {
+        $user = $request->user();
+
+        return [
+            'employee' => $this->detail($employee, $this->maySeeSensitive($user, $employee)),
+            'documents' => $this->documentsFor($user, $employee),
             'requests' => LeaveRequest::query()
                 ->where('employee_id', $employee->id)
                 ->with('workflow')
@@ -123,14 +223,13 @@ class EmployeeController extends Controller
                 ->whereYear('start_on', now()->year)
                 ->whereHas('workflow', fn (Builder $query) => $query->where('current_stage', 'approved'))
                 ->sum('days'),
-            'canUpdate' => $request->user()->can('update', $employee),
-            // Loaded only when the tab is opened (router.reload with `only`), so the profile does
-            // not pay for a month of punches on every visit.
-            'attendance' => $user->can('viewAttendance', $employee)
-                ? Inertia::optional(fn (): array => $this->timesheet($employee, $request))
+            'canUpdate' => $user->can('update', $employee),
+            // The reporting line names colleagues, so it is for people who may see the directory;
+            // an employee looking only at their own record does not get it.
+            'team' => $user->can('viewAny', Employee::class)
+                ? app(TeamSlice::class)->for($employee, $user->can(Permission::ViewAttendance->value))
                 : null,
-            'canCorrectAttendance' => $user->can('correctAttendance', $employee),
-        ]);
+        ];
     }
 
     public function create(Request $request): Response
@@ -292,6 +391,17 @@ class EmployeeController extends Controller
     private function timesheet(Employee $employee, Request $request): array
     {
         $timezone = (string) config('attendance.device_timezone');
+
+        // ?period=year&year=YYYY is the year at a glance; the default is the month's timesheet.
+        if ($request->string('period')->toString() === 'year') {
+            $year = $request->integer('year');
+            $year = $year >= 2000 && $year <= 2100
+                ? $year
+                : (int) CarbonImmutable::parse(app(DailyAttendance::class)->dataThrough($timezone) ?? 'today', $timezone)->format('Y');
+
+            return app(EmployeeTimesheet::class)->forYear($employee, $year);
+        }
+
         $asked = $request->string('month')->toString();
 
         $month = preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $asked) === 1

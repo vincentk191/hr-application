@@ -95,3 +95,34 @@ export type EmployeeDocumentRow = {
     /** Newest first. */
     versions: EmployeeDocumentVersion[];
 };
+
+export type TeamPerson = {
+    id: number;
+    name: string;
+    position: string | null;
+};
+
+/** The reporting-line slice behind the profile's "Tim" tab. */
+export type EmployeeTeam = {
+    grandSupervisor: TeamPerson | null;
+    supervisor: TeamPerson | null;
+    peers: (TeamPerson & { isSelf: boolean })[];
+    reports: TeamPerson[];
+    /** Which group the figures describe: direct reports when there are any, else the peers. */
+    basis: 'reports' | 'peers';
+    size: number;
+    /** Null when the log has not reached today, or the viewer may not see attendance. */
+    presentToday: number | null;
+    /** Null when the viewer may not see attendance. */
+    onLeaveToday: string[] | null;
+};
+
+export type LeaveRow = {
+    id: number;
+    reference: string;
+    type: string;
+    startOn: string;
+    endOn: string;
+    days: number;
+    stageLabel: string | null;
+};

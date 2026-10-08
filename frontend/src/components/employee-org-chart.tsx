@@ -1,5 +1,6 @@
 import { Link } from '@inertiajs/react';
 import { EmployeeAvatar } from '@/components/employee-avatar';
+import { openInDrawer } from '@/lib/open-in-drawer';
 import { show } from '@/routes/employees';
 import type { EmployeeRow } from '@/types/employee';
 
@@ -15,9 +16,11 @@ import type { EmployeeRow } from '@/types/employee';
 function Node({
     employee,
     childrenByManager,
+    onOpen,
 }: {
     employee: EmployeeRow;
     childrenByManager: Map<number, EmployeeRow[]>;
+    onOpen?: (id: number) => void;
 }) {
     const reports = childrenByManager.get(employee.id) ?? [];
 
@@ -25,6 +28,7 @@ function Node({
         <li>
             <Link
                 href={show(employee.id).url}
+                onClick={(event) => openInDrawer(event, employee.id, onOpen)}
                 className="flex w-44 flex-col items-center gap-1 rounded-lg border bg-card px-3 py-2 text-center text-sm shadow-xs hover:bg-muted/60"
             >
                 <EmployeeAvatar
@@ -52,6 +56,7 @@ function Node({
                             key={report.id}
                             employee={report}
                             childrenByManager={childrenByManager}
+                            onOpen={onOpen}
                         />
                     ))}
                 </ul>
@@ -60,7 +65,13 @@ function Node({
     );
 }
 
-export function EmployeeOrgChart({ employees }: { employees: EmployeeRow[] }) {
+export function EmployeeOrgChart({
+    employees,
+    onOpen,
+}: {
+    employees: EmployeeRow[];
+    onOpen?: (id: number) => void;
+}) {
     const present = new Set(employees.map((employee) => employee.id));
 
     const childrenByManager = new Map<number, EmployeeRow[]>();
@@ -94,6 +105,7 @@ export function EmployeeOrgChart({ employees }: { employees: EmployeeRow[] }) {
                         <Node
                             employee={root}
                             childrenByManager={childrenByManager}
+                            onOpen={onOpen}
                         />
                     </ul>
                 ))}

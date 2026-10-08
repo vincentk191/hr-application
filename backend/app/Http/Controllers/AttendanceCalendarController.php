@@ -59,7 +59,10 @@ class AttendanceCalendarController extends Controller
             'dates' => $data['view'] === 'year' ? [] : $this->dateHeaders($data['result']['dates'], $schedule),
             'rows' => $data['view'] === 'year' ? [] : array_slice($data['rows'], 0, self::MAX_ROWS),
             'truncated' => count($data['rows']) > self::MAX_ROWS,
-            'months' => $data['view'] === 'year' ? $this->months($data['records'], $data['result']['dates'], $attendance) : [],
+            'daily' => in_array($data['view'], ['week', 'month'], true)
+                ? $this->daily($data['records'], $data['result']['dates'], $data['result']['dataThrough'], $schedule)
+                : [],
+            'months' => $data['view'] === 'year' ? $this->months($data['records'], $data['result']['dates'], $data['result']['dataThrough'], $schedule, $attendance) : [],
             'summary' => $this->summary($attendance->tally($data['records'], $data['result']['dates']), count($data['rows'])),
             'side' => $this->sidePanel($request, $data['timezone']),
             'events' => $this->events($request, $data['from'], $data['to']),
@@ -91,7 +94,7 @@ class AttendanceCalendarController extends Controller
      * derivation as the page, so the file is exactly what was being looked at. PDF is not offered:
      * the browser's own "print to PDF" covers it without another dependency.
      */
-    public function export(Request $request, DailyAttendance $attendance, EmployeeRoster $roster): StreamedResponse
+    public function export(Request $request, DailyAttendance $attendance, EmployeeRoster $roster, WorkSchedule $schedule): StreamedResponse
     {
         $data = $this->gather($request, $attendance, $roster);
         $label = $this->navigation($data['view'], $data['anchor'], $data['timezone'])['label'];
@@ -103,11 +106,11 @@ class AttendanceCalendarController extends Controller
         ];
 
         if ($data['view'] === 'year') {
-            $lines[] = ['Bulan', 'Hadir', 'Terlambat', 'Pulang cepat', 'Tidak hadir', 'Cuti'];
+            $lines[] = ['Bulan', 'Hadir', 'Terlambat', 'Pulang cepat', 'Tidak hadir', 'Cuti', 'Tingkat kehadiran (%)', 'Hari kerja'];
 
-            foreach ($this->months($data['records'], $data['result']['dates'], $attendance) as $month) {
+            foreach ($this->months($data['records'], $data['result']['dates'], $data['result']['dataThrough'], $schedule, $attendance) as $month) {
                 $counts = $month['counts'];
-                $lines[] = [$month['label'], $counts['present'], $counts['late'], $counts['early_leave'], $counts['absent'], $counts['leave']];
+                $lines[] = [$month['label'], $counts['present'], $counts['late'], $counts['early_leave'], $counts['absent'], $counts['leave'], $month['rate'], $month['workdays']];
             }
         } else {
             $lines[] = ['Karyawan', 'ID', 'Departemen', ...$data['result']['dates'], 'Hadir', 'Terlambat', 'Pulang cepat', 'Tidak hadir', 'Cuti'];
@@ -345,6 +348,8 @@ class AttendanceCalendarController extends Controller
                 'name' => $employee->full_name,
                 'number' => $employee->employee_number,
                 'department' => $employee->department?->name,
+                'position' => $employee->position?->name,
+                'manager' => $employee->manager?->full_name,
                 'hasScannerId' => $withScannerId->has($employee->id),
                 'days' => $days,
             ];
@@ -372,28 +377,95 @@ class AttendanceCalendarController extends Controller
     }
 
     /**
-     * Company totals per month, for the year view.
+     * One summary per date for the week and month views: how many people checked in, how many of
+     * those were late, and who was away, for the people the filters select.
+     *
+     * A holiday is a day every selected person has an event on, so a department's own event does
+     * not turn the whole company's day into a holiday.
      *
      * @param  array<int, array<string, array{status: string, in: string|null, out: string|null, punches: int, minutes: int|null, duplicate: bool, event: string|null}>>  $records
      * @param  list<string>  $dates
      * @return list<array<string, mixed>>
      */
-    private function months(array $records, array $dates, DailyAttendance $attendance): array
+    private function daily(array $records, array $dates, ?string $dataThrough, WorkSchedule $schedule): array
     {
-        $byMonth = [];
+        $summaries = [];
 
         foreach ($dates as $date) {
-            $byMonth[(int) substr($date, 5, 2)][] = $date;
+            $day = CarbonImmutable::parse($date);
+            $counts = array_fill_keys(array_map(fn (AttendanceDayStatus $status): string => $status->value, AttendanceDayStatus::cases()), 0);
+            $withEvent = 0;
+            $eventTitle = null;
+            $people = 0;
+
+            foreach ($records as $byDate) {
+                if (! isset($byDate[$date])) {
+                    continue;
+                }
+
+                $people++;
+                $counts[$byDate[$date]['status']]++;
+
+                if ($byDate[$date]['event'] !== null) {
+                    $withEvent++;
+                    $eventTitle ??= $byDate[$date]['event'];
+                }
+            }
+
+            $summaries[] = [
+                'date' => $date,
+                'day' => $day->day,
+                'weekday' => $this->indonesian($day, 'D'),
+                'isWorkday' => $schedule->isWorkday($day),
+                'covered' => $dataThrough !== null && $date <= $dataThrough,
+                'attended' => $counts['present'] + $counts['late'] + $counts['early_leave'],
+                'late' => $counts['late'],
+                'earlyLeave' => $counts['early_leave'],
+                'absent' => $counts['absent'],
+                'leave' => $counts['leave'],
+                'holiday' => $people > 0 && $withEvent === $people ? $eventTitle : null,
+            ];
         }
 
+        return $summaries;
+    }
+
+    /**
+     * Company totals per month, for the year view: the attendance rate, working days, leave days,
+     * late arrivals and unexplained absences, as person-days.
+     *
+     * The rate is attended over attended + absent, the same definition as the side panel. Approved leave
+     * is not an expectation to be present, so it counts neither for nor against.
+     * A month with none of those has no data yet and no rate, rather than a 0% that reads as a
+     * disaster.
+     *
+     * @param  array<int, array<string, array{status: string, in: string|null, out: string|null, punches: int, minutes: int|null, duplicate: bool, event: string|null}>>  $records
+     * @param  list<string>  $dates
+     * @return list<array<string, mixed>>
+     */
+    private function months(array $records, array $dates, ?string $dataThrough, WorkSchedule $schedule, DailyAttendance $attendance): array
+    {
+        $daily = collect($this->daily($records, $dates, $dataThrough, $schedule));
         $months = [];
 
-        foreach ($byMonth as $month => $monthDates) {
+        foreach ($daily->groupBy(fn (array $day): int => (int) substr($day['date'], 5, 2)) as $month => $days) {
+            $attended = $days->sum('attended');
+            $absent = $days->sum('absent');
+            $leave = $days->sum('leave');
+            $expected = $attended + $absent;
+
             $months[] = [
                 'month' => $month,
                 'label' => $this->indonesian(CarbonImmutable::create(2000, $month, 1), 'F'),
-                'firstDate' => $monthDates[0],
-                'counts' => $attendance->tally($records, $monthDates),
+                'firstDate' => $days->first()['date'],
+                'counts' => $attendance->tally($records, array_values(array_map(strval(...), $days->pluck('date')->all()))),
+                'attended' => $attended,
+                'expected' => $expected,
+                'rate' => $expected === 0 ? null : round($attended / $expected * 100, 1),
+                'workdays' => $days->filter(fn (array $day): bool => $day['isWorkday'] && $day['holiday'] === null)->count(),
+                'leaveDays' => $leave,
+                'late' => $days->sum('late'),
+                'absent' => $absent,
             ];
         }
 
@@ -413,7 +485,7 @@ class AttendanceCalendarController extends Controller
         return [
             'counts' => $counts,
             'attended' => $attended,
-            'expected' => $attended + $counts['absent'] + $counts['leave'],
+            'expected' => $attended + $counts['absent'],
             'employees' => $employees,
         ];
     }
