@@ -1,15 +1,21 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
+import { CalendarEvents } from '@/components/calendar-events';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { STATUS_STYLE } from '@/lib/attendance-status';
+import { printReport } from '@/lib/print';
 import { device } from '@/routes/attendance';
 import { calendar } from '@/routes/attendance';
+import { recap } from '@/routes/attendance';
+import { exportMethod as exportRoute } from '@/routes/attendance/calendar';
 import { index as leaveRequestsIndex } from '@/routes/leave-requests';
 import { show as employeeShow } from '@/routes/employees';
 import type { BreadcrumbItem } from '@/types';
 import type {
     CalendarDate,
+    CalendarEventRow,
+    EventFormOptions,
     CalendarFilters,
     CalendarMonth,
     CalendarRow,
@@ -38,13 +44,20 @@ type Props = {
         expected: number;
         employees: number;
     };
+    events: CalendarEventRow[];
+    eventForm: EventFormOptions | null;
     side: {
         outToday: LeaveEntry[];
         upcoming: LeaveEntry[];
         pendingApprovals: number;
     };
     filters: CalendarFilters;
-    options: { departments: Option[]; statuses: StatusOption[] };
+    options: {
+        departments: Option[];
+        statuses: StatusOption[];
+        teams: { id: number; full_name: string }[];
+        leaveTypes: { value: string; label: string }[];
+    };
     dataThrough: string | null;
     capture: CaptureStatus;
     schedule: { start: string; end: string; lateAfter: string };
@@ -80,7 +93,7 @@ function Cell({
 
     return (
         <span
-            title={times === '' ? undefined : times}
+            title={record.event ?? (times === '' ? undefined : times)}
             className={`inline-flex min-h-6 min-w-6 flex-col items-center justify-center rounded px-1 text-xs font-medium ${STATUS_STYLE[record.status]}`}
         >
             {code}
@@ -297,6 +310,8 @@ export default function AttendanceCalendar(props: Props) {
         capture,
         schedule,
         canManageAttendance,
+        events,
+        eventForm,
     } = props;
 
     const [search, setSearch] = useState(filters.search);
@@ -316,6 +331,8 @@ export default function AttendanceCalendar(props: Props) {
                 departments: next.departments,
                 statuses: next.statuses,
                 search: next.search,
+                team: next.team ?? '',
+                leave_type: next.leaveType ?? '',
             },
             { preserveState: true, preserveScroll: true, replace: true },
         );
@@ -329,7 +346,20 @@ export default function AttendanceCalendar(props: Props) {
     const hasFilters =
         filters.departments.length > 0 ||
         filters.statuses.length > 0 ||
+        filters.team !== null ||
+        filters.leaveType !== null ||
         filters.search !== '';
+
+    // The export is the view as filtered: the same query, to the export route.
+    const exportUrl = `${exportRoute().url}?${new URLSearchParams([
+        ['view', view],
+        ['date', anchor],
+        ...filters.departments.map((id) => ['departments[]', String(id)]),
+        ...filters.statuses.map((status) => ['statuses[]', status]),
+        ['search', filters.search],
+        ['team', filters.team === null ? '' : String(filters.team)],
+        ['leave_type', filters.leaveType ?? ''],
+    ]).toString()}`;
 
     return (
         <>
@@ -403,7 +433,24 @@ export default function AttendanceCalendar(props: Props) {
 
                     <h1 className="text-lg font-semibold">{nav.label}</h1>
 
-                    <span className="ml-auto text-xs text-muted-foreground">
+                    <div className="ml-auto flex gap-2 print:hidden">
+                        <Button asChild variant="outline" size="sm">
+                            <Link href={recap()}>Rekap</Link>
+                        </Button>
+                        <Button asChild variant="outline" size="sm">
+                            <a href={exportUrl}>Unduh CSV</a>
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            type="button"
+                            onClick={printReport}
+                        >
+                            Cetak / PDF
+                        </Button>
+                    </div>
+
+                    <span className="text-xs text-muted-foreground">
                         Data sampai {dataThrough ?? '—'} · jam kerja{' '}
                         {schedule.start}–{schedule.end}, terlambat setelah{' '}
                         {schedule.lateAfter}
@@ -484,6 +531,48 @@ export default function AttendanceCalendar(props: Props) {
                             </button>
                         ))}
 
+                    <select
+                        aria-label="Tim"
+                        value={filters.team ?? ''}
+                        onChange={(event) =>
+                            go({
+                                filters: {
+                                    team: event.target.value
+                                        ? Number(event.target.value)
+                                        : null,
+                                },
+                            })
+                        }
+                        className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                    >
+                        <option value="">Semua tim</option>
+                        {options.teams.map((lead) => (
+                            <option key={lead.id} value={lead.id}>
+                                Tim {lead.full_name}
+                            </option>
+                        ))}
+                    </select>
+
+                    <select
+                        aria-label="Jenis cuti"
+                        value={filters.leaveType ?? ''}
+                        onChange={(event) =>
+                            go({
+                                filters: {
+                                    leaveType: event.target.value || null,
+                                },
+                            })
+                        }
+                        className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                    >
+                        <option value="">Semua jenis cuti</option>
+                        {options.leaveTypes.map((type) => (
+                            <option key={type.value} value={type.value}>
+                                Cuti {type.label}
+                            </option>
+                        ))}
+                    </select>
+
                     {hasFilters && (
                         <Button
                             variant="ghost"
@@ -495,6 +584,8 @@ export default function AttendanceCalendar(props: Props) {
                                         departments: [],
                                         statuses: [],
                                         search: '',
+                                        team: null,
+                                        leaveType: null,
                                     },
                                 });
                             }}
@@ -580,6 +671,12 @@ export default function AttendanceCalendar(props: Props) {
                                     ` ${summary.counts.no_data} hari-orang belum ada datanya.`}
                             </p>
                         </section>
+
+                        <CalendarEvents
+                            events={events}
+                            options={eventForm}
+                            defaultDate={anchor}
+                        />
 
                         <LeaveList
                             title="Sedang cuti hari ini"

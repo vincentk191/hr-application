@@ -83,8 +83,16 @@ function ExpiringDocumentsCard({ data }: { data: ExpiringDocuments }) {
  * How current the scanner data is, for the person who loads it by hand (ATT-DEV-001). Shown only
  * to them, and only when something needs doing, so it does not become noise on a good day.
  */
-function AttendanceStatusCard({ status }: { status: CaptureStatus }) {
-    if (status.state === 'current' && status.unmapped === 0) {
+function AttendanceStatusCard({
+    status,
+}: {
+    status: CaptureStatus & { agentStale: boolean };
+}) {
+    if (
+        status.state === 'current' &&
+        status.unmapped === 0 &&
+        !status.agentStale
+    ) {
         return null;
     }
 
@@ -108,6 +116,9 @@ function AttendanceStatusCard({ status }: { status: CaptureStatus }) {
                 {status.unmapped > 0
                     ? ` ${status.unmapped} scan menunggu pemetaan ID ke karyawan.`
                     : ''}
+                {status.agentStale
+                    ? ' Agen sinkronisasi belum melapor lebih dari 3 jam pada jam kerja.'
+                    : ''}
             </p>
         </section>
     );
@@ -118,7 +129,7 @@ export default function Dashboard({
     attendanceStatus,
 }: {
     expiringDocuments: ExpiringDocuments | null;
-    attendanceStatus: CaptureStatus | null;
+    attendanceStatus: (CaptureStatus & { agentStale: boolean }) | null;
 }) {
     return (
         <>

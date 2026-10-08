@@ -46,6 +46,18 @@ export type EnrolMapRow = {
     validTo: string | null;
 };
 
+export type SyncAgent = {
+    id: number;
+    name: string;
+    lastRunAt: string | null;
+    lastSeenAt: string | null;
+    lastHeartbeatAt: string | null;
+    lastIp: string | null;
+    /** No completed report for over 3 hours during working hours. */
+    stale: boolean;
+    syncRequested: boolean;
+};
+
 export type EmployeeOption = { id: number; label: string; number: string };
 
 export type DayStatus =
@@ -66,6 +78,8 @@ export type DayRecord = {
     /** Local "HH:MM" of the last scan when there was more than one. */
     out: string | null;
     punches: number;
+    /** Title of the holiday or company event covering this person that day, if any. */
+    event: string | null;
 };
 
 export type CalendarRow = {
@@ -103,12 +117,30 @@ export type LeaveEntry = {
     to: string;
 };
 
+export type CalendarEventRow = {
+    id: number;
+    title: string;
+    kind: 'holiday' | 'event';
+    from: string;
+    to: string;
+    scope: string;
+    canDelete: boolean;
+};
+
+export type EventFormOptions = {
+    canBeGroupWide: boolean;
+    companies: { id: number; code: string; name: string }[];
+    departments: { id: number; company_id: number; name: string }[];
+};
+
 export type StatusOption = { value: DayStatus; label: string; code: string };
 
 export type CalendarFilters = {
     departments: number[];
     statuses: DayStatus[];
     search: string;
+    team: number | null;
+    leaveType: string | null;
 };
 
 export type TimesheetScan = {
@@ -125,6 +157,7 @@ export type TimesheetDay = {
     date: string;
     weekday: string;
     status: DayStatus;
+    event: string | null;
     in: string | null;
     out: string | null;
     minutes: number | null;

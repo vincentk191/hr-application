@@ -6,6 +6,7 @@ use App\Enums\AttendanceDayStatus;
 use App\Models\AttendanceEnrolMap;
 use App\Models\AttendancePunch;
 use App\Models\AttendanceUnmappedPunch;
+use App\Models\CalendarEvent;
 use App\Models\LeaveRequest;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -31,9 +32,9 @@ class DailyAttendance
     ) {}
 
     /**
-     * @param  array<int, array{joined: string|null, exited: string|null}>  $employees  keyed by employee id
+     * @param  array<int, array{joined: string|null, exited: string|null, company: int|null, department: int|null}>  $employees  keyed by employee id
      * @return array{
-     *     records: array<int, array<string, array{status: string, in: string|null, out: string|null, punches: int, minutes: int|null, duplicate: bool}>>,
+     *     records: array<int, array<string, array{status: string, in: string|null, out: string|null, punches: int, minutes: int|null, duplicate: bool, event: string|null}>>,
      *     dataThrough: string|null,
      *     dates: list<string>
      * }
@@ -48,6 +49,7 @@ class DailyAttendance
         [$byEmployee, $datesWithAnyScan] = $this->collectPunches($start, $end, $timezone);
         $leaveDays = $this->leaveDays($start, $end);
         $scannerIds = $this->scannerIds();
+        $eventsByDate = $this->eventsByDate($start, $end);
         $dataThrough = $this->dataThrough($timezone);
 
         $records = [];
@@ -61,6 +63,7 @@ class DailyAttendance
 
             foreach ($employees as $employeeId => $employment) {
                 $punches = $byEmployee[$employeeId][$date] ?? null;
+                $event = $this->eventFor($eventsByDate[$date] ?? [], $employment['company'], $employment['department']);
                 $employed = ($employment['joined'] === null || $date >= $employment['joined'])
                     && ($employment['exited'] === null || $date <= $employment['exited']);
 
@@ -77,6 +80,7 @@ class DailyAttendance
                     $punches['count'] ?? 0,
                     $stillWorking,
                     $this->hasScannerId($scannerIds[$employeeId] ?? [], $date),
+                    $event !== null,
                 );
 
                 $records[$employeeId][$date] = [
@@ -86,11 +90,54 @@ class DailyAttendance
                     'punches' => $punches['count'] ?? 0,
                     'minutes' => ($punches['count'] ?? 0) > 1 ? $this->minutesBetween($punches['first'], $punches['last']) : null,
                     'duplicate' => ($punches['minGap'] ?? null) !== null && $punches['minGap'] <= self::DUPLICATE_WITHIN_SECONDS,
+                    'event' => $event,
                 ];
             }
         }
 
         return ['records' => $records, 'dataThrough' => $dataThrough, 'dates' => $dates];
+    }
+
+    /**
+     * Holidays and events in the range, expanded to the dates they cover.
+     *
+     * @return array<string, list<CalendarEvent>>
+     */
+    private function eventsByDate(CarbonImmutable $start, CarbonImmutable $end): array
+    {
+        $byDate = [];
+
+        CalendarEvent::query()
+            ->whereDate('starts_on', '<=', $end->toDateString())
+            ->whereDate('ends_on', '>=', $start->toDateString())
+            ->get()
+            ->each(function (CalendarEvent $event) use (&$byDate, $start, $end): void {
+                // Parsed in the range's own timezone: mixing UTC dates with local bounds drops one-day ranges.
+                $from = CarbonImmutable::parse($event->starts_on->toDateString(), $start->getTimezone())->max($start);
+                $to = CarbonImmutable::parse($event->ends_on->toDateString(), $start->getTimezone())->min($end);
+
+                for ($day = $from; $day->lte($to); $day = $day->addDay()) {
+                    $byDate[$day->toDateString()][] = $event;
+                }
+            });
+
+        return $byDate;
+    }
+
+    /**
+     * The title of the first event that covers someone, if any does.
+     *
+     * @param  list<CalendarEvent>  $events
+     */
+    private function eventFor(array $events, ?int $companyId, ?int $departmentId): ?string
+    {
+        foreach ($events as $event) {
+            if ($event->appliesTo($companyId, $departmentId)) {
+                return $event->title;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -212,8 +259,8 @@ class DailyAttendance
             ->whereDate('end_on', '>=', $start->toDateString())
             ->get(['employee_id', 'start_on', 'end_on'])
             ->each(function (LeaveRequest $leave) use (&$days, $start, $end): void {
-                $from = CarbonImmutable::parse($leave->start_on->toDateString())->max($start);
-                $to = CarbonImmutable::parse($leave->end_on->toDateString())->min($end);
+                $from = CarbonImmutable::parse($leave->start_on->toDateString(), $start->getTimezone())->max($start);
+                $to = CarbonImmutable::parse($leave->end_on->toDateString(), $start->getTimezone())->min($end);
 
                 for ($day = $from; $day->lte($to); $day = $day->addDay()) {
                     $days[$leave->employee_id][$day->toDateString()] = true;
@@ -226,7 +273,7 @@ class DailyAttendance
     /**
      * Count each status across a set of employees and a set of dates.
      *
-     * @param  array<int, array<string, array{status: string, in: string|null, out: string|null, punches: int, minutes: int|null, duplicate: bool}>>  $records
+     * @param  array<int, array<string, array{status: string, in: string|null, out: string|null, punches: int, minutes: int|null, duplicate: bool, event: string|null}>>  $records
      * @param  list<string>  $dates
      * @return array<string, int>
      */

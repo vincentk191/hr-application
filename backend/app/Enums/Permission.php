@@ -23,6 +23,7 @@ enum Permission: string
     case ManageAttendance = 'manage-attendance';
     case ViewAttendance = 'view-attendance';
     case CorrectAttendance = 'correct-attendance';
+    case ManageCalendarEvents = 'manage-calendar-events';
 
     /**
      * The Indonesian label shown in the dashboard.
@@ -43,6 +44,7 @@ enum Permission: string
             self::ManageAttendance => 'Kelola data absensi (impor log, pemetaan ID pemindai)',
             self::ViewAttendance => 'Lihat kalender absensi',
             self::CorrectAttendance => 'Koreksi data absensi (tambah / batalkan scan)',
+            self::ManageCalendarEvents => 'Kelola hari libur dan acara',
         };
     }
 }

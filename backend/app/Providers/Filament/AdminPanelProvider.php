@@ -4,12 +4,15 @@ namespace App\Providers\Filament;
 
 use App\Filament\Pages\ManageWorkingHours;
 use App\Filament\Resources\ActivityLogs\ActivityLogResource;
+use App\Filament\Resources\AttendanceAgents\AttendanceAgentResource;
+use App\Filament\Resources\AttendanceIngestRequests\AttendanceIngestRequestResource;
 use App\Filament\Resources\Companies\CompanyResource;
 use App\Filament\Resources\Departments\DepartmentResource;
 use App\Filament\Resources\Positions\PositionResource;
 use App\Filament\Resources\Roles\RoleResource;
 use App\Filament\Resources\Users\UserResource;
 use App\Http\Middleware\AuthenticateAdminPanel;
+use App\Http\Middleware\EnforceAccountState;
 use App\Http\Middleware\SetActiveCompany;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -68,6 +71,8 @@ class AdminPanelProvider extends PanelProvider
 
         return [
             ActivityLogResource::class,
+            AttendanceAgentResource::class,
+            AttendanceIngestRequestResource::class,
             CompanyResource::class,
             DepartmentResource::class,
             PositionResource::class,
@@ -119,6 +124,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 AuthenticateAdminPanel::class,
+                EnforceAccountState::class,
                 // After authentication, so the user is known and CompanyScope has a context.
                 SetActiveCompany::class,
             ])

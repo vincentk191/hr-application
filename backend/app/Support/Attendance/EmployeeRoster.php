@@ -3,6 +3,8 @@
 namespace App\Support\Attendance;
 
 use App\Models\Employee;
+use App\Models\LeaveRequest;
+use App\Support\ReportingLine;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -20,7 +22,7 @@ class EmployeeRoster
      * @param  list<int>  $departments
      * @return Collection<int, Employee>
      */
-    public function between(CarbonInterface $from, CarbonInterface $to, array $departments = [], string $search = ''): Collection
+    public function between(CarbonInterface $from, CarbonInterface $to, array $departments = [], string $search = '', ?int $teamLead = null, ?string $leaveType = null): Collection
     {
         return Employee::query()
             ->with('department:id,name')
@@ -32,15 +34,62 @@ class EmployeeRoster
                     ->where('full_name', 'like', "%{$search}%")
                     ->orWhere('employee_number', 'like', "%{$search}%"),
             ))
+            ->when($teamLead !== null, fn (Builder $query) => $query->whereIn('id', $this->teamOf($teamLead)))
+            ->when($leaveType !== null, fn (Builder $query) => $query->whereIn('id', $this->onLeaveOfType($leaveType, $from, $to)))
             ->orderBy('full_name')
-            ->get(['id', 'full_name', 'employee_number', 'department_id', 'joined_on', 'exited_on']);
+            ->get(['id', 'company_id', 'full_name', 'employee_number', 'department_id', 'joined_on', 'exited_on']);
+    }
+
+    /**
+     * People who supervise others, for the team filter.
+     *
+     * @return Collection<int, Employee>
+     */
+    public function teamLeads(): Collection
+    {
+        return Employee::query()
+            ->whereIn('id', Employee::query()->whereNotNull('manager_id')->select('manager_id'))
+            ->orderBy('full_name')
+            ->get(['id', 'full_name']);
+    }
+
+    /**
+     * Everyone below a supervisor in the reporting line, at any depth. Empty for someone who is not
+     * in reach, so the filter can never reveal a team the viewer could not already see.
+     *
+     * @return list<int>
+     */
+    private function teamOf(int $leadId): array
+    {
+        $lead = Employee::query()->find($leadId);
+
+        return $lead === null ? [] : app(ReportingLine::class)->downlineIds($lead);
+    }
+
+    /**
+     * Employees with approved leave of the given kind that touches the range.
+     *
+     * @return array<int, int>
+     */
+    private function onLeaveOfType(string $leaveType, CarbonInterface $from, CarbonInterface $to): array
+    {
+        return LeaveRequest::query()
+            ->where('leave_type', $leaveType)
+            ->whereHas('workflow', fn (Builder $query) => $query->where('current_stage', 'approved'))
+            ->whereDate('start_on', '<=', $to->toDateString())
+            ->whereDate('end_on', '>=', $from->toDateString())
+            ->pluck('employee_id')
+            ->unique()
+            ->map(fn (mixed $id): int => (int) $id)
+            ->values()
+            ->all();
     }
 
     /**
      * The employment window of each person, in the shape DailyAttendance takes.
      *
      * @param  Collection<int, Employee>  $employees
-     * @return array<int, array{joined: string|null, exited: string|null}>
+     * @return array<int, array{joined: string|null, exited: string|null, company: int|null, department: int|null}>
      */
     public function windows(Collection $employees): array
     {
@@ -48,6 +97,8 @@ class EmployeeRoster
             $employee->id => [
                 'joined' => $employee->joined_on?->toDateString(),
                 'exited' => $employee->exited_on?->toDateString(),
+                'company' => $employee->company_id,
+                'department' => $employee->department_id,
             ],
         ])->all();
     }

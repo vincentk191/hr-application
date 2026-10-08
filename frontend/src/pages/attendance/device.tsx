@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { device } from '@/routes/attendance';
+import { syncNow } from '@/routes/attendance/agents';
 import { destroy, store as storeMap } from '@/routes/attendance/enrol-maps';
 import { store as storeImport } from '@/routes/attendance/imports';
 import type { BreadcrumbItem } from '@/types';
@@ -13,11 +14,13 @@ import type {
     CaptureStatus,
     EmployeeOption,
     EnrolMapRow,
+    SyncAgent,
     WaitingId,
 } from '@/types/attendance';
 
 type Props = {
     status: CaptureStatus;
+    agents: SyncAgent[];
     timezone: string;
     lastDeviceSn: string | null;
     knownDevices: string[];
@@ -80,6 +83,75 @@ function StatusCard({ status }: { status: CaptureStatus }) {
                     Hari-hari setelah data terakhir bukan berarti karyawan tidak
                     hadir; datanya hanya belum masuk.
                 </p>
+            )}
+        </section>
+    );
+}
+
+/**
+ * The on-site sync agents and whether they are reporting in (ATT-DEV-001, ATT-DEV-003). With none
+ * registered the page says so: the manual upload below is then the only way data arrives.
+ */
+function AgentsCard({ agents }: { agents: SyncAgent[] }) {
+    return (
+        <section className="rounded-xl border p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="font-medium">Agen sinkronisasi</h2>
+                {agents.length > 0 && (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        type="button"
+                        onClick={() =>
+                            router.post(
+                                syncNow().url,
+                                {},
+                                { preserveScroll: true },
+                            )
+                        }
+                    >
+                        Sinkronkan sekarang
+                    </Button>
+                )}
+            </div>
+
+            {agents.length === 0 ? (
+                <p className="mt-2 text-sm text-muted-foreground">
+                    Belum ada agen terdaftar. Data masuk lewat unggah manual di
+                    bawah. Agen didaftarkan di panel admin (Agen sinkronisasi).
+                </p>
+            ) : (
+                <ul className="mt-2 divide-y text-sm">
+                    {agents.map((agent) => (
+                        <li
+                            key={agent.id}
+                            className="flex flex-wrap items-center justify-between gap-2 py-2"
+                        >
+                            <div>
+                                <span className="font-medium">
+                                    {agent.name}
+                                </span>
+                                <div className="text-xs text-muted-foreground">
+                                    Laporan terakhir{' '}
+                                    {formatDateTime(agent.lastRunAt)} · listener
+                                    aktif{' '}
+                                    {formatDateTime(agent.lastHeartbeatAt)}
+                                    {agent.lastIp ? ` · ${agent.lastIp}` : ''}
+                                    {agent.syncRequested
+                                        ? ' · menunggu permintaan sinkronisasi'
+                                        : ''}
+                                </div>
+                            </div>
+                            <Badge
+                                variant={
+                                    agent.stale ? 'destructive' : 'default'
+                                }
+                            >
+                                {agent.stale ? 'Diam' : 'Melapor'}
+                            </Badge>
+                        </li>
+                    ))}
+                </ul>
             )}
         </section>
     );
@@ -316,6 +388,7 @@ function AddMapCard({
  */
 export default function AttendanceDevice({
     status,
+    agents,
     timezone,
     lastDeviceSn,
     knownDevices,
@@ -330,6 +403,8 @@ export default function AttendanceDevice({
 
             <div className="flex flex-col gap-4 p-4">
                 <StatusCard status={status} />
+
+                <AgentsCard agents={agents} />
 
                 <UploadCard
                     lastDeviceSn={lastDeviceSn}

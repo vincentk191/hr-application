@@ -40,6 +40,8 @@ class EmployeeTimesheet
             $employee->id => [
                 'joined' => $employee->joined_on?->toDateString(),
                 'exited' => $employee->exited_on?->toDateString(),
+                'company' => $employee->company_id,
+                'department' => $employee->department_id,
             ],
         ]);
 
@@ -57,6 +59,7 @@ class EmployeeTimesheet
                 'date' => $date,
                 'weekday' => CarbonImmutable::parse($date)->settings(['locale' => 'id'])->translatedFormat('D'),
                 'status' => $record['status'],
+                'event' => $record['event'],
                 'in' => $record['in'],
                 'out' => $record['out'],
                 'minutes' => $record['minutes'],

@@ -3,8 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Enums\AttendanceDayStatus;
+use App\Enums\LeaveType;
 use App\Enums\Permission;
 use App\Models\AttendanceEnrolMap;
+use App\Models\CalendarEvent;
+use App\Models\Company;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
@@ -13,11 +16,15 @@ use App\Support\Attendance\CaptureStatus;
 use App\Support\Attendance\DailyAttendance;
 use App\Support\Attendance\EmployeeRoster;
 use App\Support\Attendance\WorkSchedule;
+use App\Support\CompanyContext;
+use App\Support\CsvDownload;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * The attendance calendar and its side panel (ATT-CAL, ATT-SID).
@@ -42,53 +49,33 @@ class AttendanceCalendarController extends Controller
 
     public function index(Request $request, DailyAttendance $attendance, WorkSchedule $schedule, CaptureStatus $capture, EmployeeRoster $roster): Response
     {
-        abort_unless($request->user()->can(Permission::ViewAttendance->value), 403);
-
-        $timezone = (string) config('attendance.device_timezone');
-        $view = in_array($request->string('view')->toString(), self::VIEWS, true) ? $request->string('view')->toString() : 'month';
-
-        $dataThrough = $attendance->dataThrough($timezone);
-        $anchor = $this->anchor($request, $dataThrough, $timezone);
-        [$from, $to] = $this->range($view, $anchor);
-
-        $filters = [
-            'departments' => array_values(array_filter(array_map('intval', (array) $request->input('departments', [])))),
-            'statuses' => array_values(array_intersect(
-                (array) $request->input('statuses', []),
-                array_column(AttendanceDayStatus::cases(), 'value'),
-            )),
-            'search' => trim((string) $request->string('search')),
-        ];
-
-        $employees = $roster->between($from, $to, $filters['departments'], $filters['search']);
-        $window = $roster->windows($employees);
-
-        $result = $attendance->forRange($from, $to, $window);
-        $withScannerId = AttendanceEnrolMap::acrossCompanies()->pluck('employee_id')->flip();
-        $rows = $this->rowsWithStatus($employees, $result['records'], $filters['statuses'], $withScannerId);
-        $records = collect($rows)->mapWithKeys(fn (array $row): array => [$row['id'] => $row['days']])->all();
+        $data = $this->gather($request, $attendance, $roster);
 
         return Inertia::render('attendance/calendar', [
-            'view' => $view,
-            'anchor' => $anchor->toDateString(),
-            'range' => ['from' => $from->toDateString(), 'to' => $to->toDateString()],
-            'nav' => $this->navigation($view, $anchor, $timezone),
-            'dates' => $view === 'year' ? [] : $this->dateHeaders($result['dates'], $schedule),
-            'rows' => $view === 'year' ? [] : array_slice($rows, 0, self::MAX_ROWS),
-            'truncated' => count($rows) > self::MAX_ROWS,
-            'months' => $view === 'year' ? $this->months($records, $result['dates'], $attendance) : [],
-            'summary' => $this->summary($attendance->tally($records, $result['dates']), count($rows)),
-            'side' => $this->sidePanel($request, $timezone),
-            'filters' => $filters,
+            'view' => $data['view'],
+            'anchor' => $data['anchor']->toDateString(),
+            'range' => ['from' => $data['from']->toDateString(), 'to' => $data['to']->toDateString()],
+            'nav' => $this->navigation($data['view'], $data['anchor'], $data['timezone']),
+            'dates' => $data['view'] === 'year' ? [] : $this->dateHeaders($data['result']['dates'], $schedule),
+            'rows' => $data['view'] === 'year' ? [] : array_slice($data['rows'], 0, self::MAX_ROWS),
+            'truncated' => count($data['rows']) > self::MAX_ROWS,
+            'months' => $data['view'] === 'year' ? $this->months($data['records'], $data['result']['dates'], $attendance) : [],
+            'summary' => $this->summary($attendance->tally($data['records'], $data['result']['dates']), count($data['rows'])),
+            'side' => $this->sidePanel($request, $data['timezone']),
+            'events' => $this->events($request, $data['from'], $data['to']),
+            'eventForm' => $this->eventForm($request),
+            'filters' => $data['filters'],
             'options' => [
                 'departments' => Department::orderBy('name')->get(['id', 'name']),
+                'teams' => $roster->teamLeads(),
+                'leaveTypes' => LeaveType::options(),
                 'statuses' => array_map(fn (AttendanceDayStatus $status): array => [
                     'value' => $status->value,
                     'label' => $status->label(),
                     'code' => $status->code(),
                 ], AttendanceDayStatus::cases()),
             ],
-            'dataThrough' => $result['dataThrough'],
+            'dataThrough' => $data['result']['dataThrough'],
             'capture' => $capture->resolve(),
             'schedule' => [
                 'start' => $schedule->start,
@@ -97,6 +84,190 @@ class AttendanceCalendarController extends Controller
             ],
             'canManageAttendance' => $request->user()->can('manage-attendance-device'),
         ]);
+    }
+
+    /**
+     * The view on screen, as a CSV (ATT-CAL-005). The same range and filters, run through the same
+     * derivation as the page, so the file is exactly what was being looked at. PDF is not offered:
+     * the browser's own "print to PDF" covers it without another dependency.
+     */
+    public function export(Request $request, DailyAttendance $attendance, EmployeeRoster $roster): StreamedResponse
+    {
+        $data = $this->gather($request, $attendance, $roster);
+        $label = $this->navigation($data['view'], $data['anchor'], $data['timezone'])['label'];
+
+        /** @var list<array<int, string|int|float|null>> $lines */
+        $lines = [
+            ['Kalender absensi', $label, 'Data sampai '.($data['result']['dataThrough'] ?? '-')],
+            [],
+        ];
+
+        if ($data['view'] === 'year') {
+            $lines[] = ['Bulan', 'Hadir', 'Terlambat', 'Pulang cepat', 'Tidak hadir', 'Cuti'];
+
+            foreach ($this->months($data['records'], $data['result']['dates'], $attendance) as $month) {
+                $counts = $month['counts'];
+                $lines[] = [$month['label'], $counts['present'], $counts['late'], $counts['early_leave'], $counts['absent'], $counts['leave']];
+            }
+        } else {
+            $lines[] = ['Karyawan', 'ID', 'Departemen', ...$data['result']['dates'], 'Hadir', 'Terlambat', 'Pulang cepat', 'Tidak hadir', 'Cuti'];
+
+            foreach ($data['rows'] as $row) {
+                $counts = $attendance->tally([$row['id'] => $row['days']], $data['result']['dates']);
+
+                $lines[] = [
+                    $row['name'],
+                    $row['number'],
+                    $row['department'] ?? '',
+                    ...array_map(fn (string $date): string => $this->cell($row['days'][$date] ?? null), $data['result']['dates']),
+                    $counts['present'], $counts['late'], $counts['early_leave'], $counts['absent'], $counts['leave'],
+                ];
+            }
+
+            $lines[] = [];
+            $lines[] = ['Keterangan: H hadir, T terlambat, P pulang cepat, A tidak hadir, C cuti, · libur / tidak ada scan, ? belum ada data'];
+        }
+
+        return CsvDownload::stream('kalender-absensi-'.$data['from']->toDateString().'-'.$data['to']->toDateString().'.csv', $lines);
+    }
+
+    /**
+     * One cell of the grid as text: the status letter, then the times when there are any.
+     *
+     * @param  array{status: string, in: string|null, out: string|null, punches: int, minutes: int|null, duplicate: bool, event: string|null}|null  $day
+     */
+    private function cell(?array $day): string
+    {
+        if ($day === null) {
+            return '';
+        }
+
+        $code = AttendanceDayStatus::from($day['status'])->code();
+
+        if ($day['in'] === null) {
+            return $day['event'] !== null ? "{$code} {$day['event']}" : $code;
+        }
+
+        return $day['out'] === null ? "{$code} {$day['in']}" : "{$code} {$day['in']}-{$day['out']}";
+    }
+
+    /**
+     * Everything the calendar and its export both need: the range, the filters, the people, and
+     * each person's days. Kept in one place so the two can never drift apart.
+     *
+     * @return array{
+     *     view: string, timezone: string, anchor: CarbonImmutable, from: CarbonImmutable, to: CarbonImmutable,
+     *     filters: array<string, mixed>, result: array<string, mixed>, rows: list<array<string, mixed>>,
+     *     records: array<int, array<string, array{status: string, in: string|null, out: string|null, punches: int, minutes: int|null, duplicate: bool, event: string|null}>>
+     * }
+     */
+    private function gather(Request $request, DailyAttendance $attendance, EmployeeRoster $roster): array
+    {
+        abort_unless($request->user()->can(Permission::ViewAttendance->value), 403);
+
+        $timezone = (string) config('attendance.device_timezone');
+        $view = in_array($request->string('view')->toString(), self::VIEWS, true) ? $request->string('view')->toString() : 'month';
+
+        $anchor = $this->anchor($request, $attendance->dataThrough($timezone), $timezone);
+        [$from, $to] = $this->range($view, $anchor);
+
+        $leaveType = LeaveType::tryFrom($request->string('leave_type')->toString());
+
+        $filters = [
+            'departments' => array_values(array_filter(array_map('intval', (array) $request->input('departments', [])))),
+            'statuses' => array_values(array_intersect(
+                (array) $request->input('statuses', []),
+                array_column(AttendanceDayStatus::cases(), 'value'),
+            )),
+            'search' => trim((string) $request->string('search')),
+            'team' => $request->integer('team') ?: null,
+            'leaveType' => $leaveType?->value,
+        ];
+
+        $employees = $roster->between($from, $to, $filters['departments'], $filters['search'], $filters['team'], $filters['leaveType']);
+
+        $result = $attendance->forRange($from, $to, $roster->windows($employees));
+        $withScannerId = AttendanceEnrolMap::acrossCompanies()->pluck('employee_id')->flip();
+        $rows = $this->rowsWithStatus($employees, $result['records'], $filters['statuses'], $withScannerId);
+
+        return [
+            'view' => $view,
+            'timezone' => $timezone,
+            'anchor' => $anchor,
+            'from' => $from,
+            'to' => $to,
+            'filters' => $filters,
+            'result' => $result,
+            'rows' => $rows,
+            'records' => collect($rows)->mapWithKeys(fn (array $row): array => [$row['id'] => $row['days']])->all(),
+        ];
+    }
+
+    /**
+     * Holidays and events inside the range, among those this user may see: group-wide ones, and
+     * those for the company being viewed (or their own, if they are bound to one).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function events(Request $request, CarbonImmutable $from, CarbonImmutable $to): array
+    {
+        $user = $request->user();
+        $activeCompany = app(CompanyContext::class)->companyId();
+
+        return CalendarEvent::query()
+            ->with(['company:id,code', 'department:id,name'])
+            ->whereDate('starts_on', '<=', $to->toDateString())
+            ->whereDate('ends_on', '>=', $from->toDateString())
+            ->when($activeCompany !== null, fn (Builder $query) => $query->where(
+                fn (Builder $inner) => $inner->whereNull('company_id')->orWhere('company_id', $activeCompany),
+            ))
+            ->orderBy('starts_on')
+            ->get()
+            ->map(fn (CalendarEvent $event): array => [
+                'id' => $event->id,
+                'title' => $event->title,
+                'kind' => $event->kind,
+                'from' => $event->starts_on->toDateString(),
+                'to' => $event->ends_on->toDateString(),
+                'scope' => match (true) {
+                    $event->company_id === null => 'Semua perusahaan',
+                    $event->department_id === null => $event->company->code,
+                    default => $event->department->name.' · '.$event->company->code,
+                },
+                'canDelete' => $user->can(Permission::ManageCalendarEvents->value)
+                    && ($user->isParentWide() || ($event->company_id !== null && $event->company_id === $user->company_id)),
+            ])
+            ->all();
+    }
+
+    /**
+     * What the add-event form may offer this user: every company and group-wide for a parent-wide
+     * account, only their own company for a bound one.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function eventForm(Request $request): ?array
+    {
+        $user = $request->user();
+
+        if (! $user->can(Permission::ManageCalendarEvents->value)) {
+            return null;
+        }
+
+        $companies = Company::query()
+            ->active()
+            ->when(! $user->isParentWide(), fn (Builder $query) => $query->whereKey($user->company_id))
+            ->orderBy('name')
+            ->get(['id', 'code', 'name']);
+
+        return [
+            'canBeGroupWide' => $user->isParentWide(),
+            'companies' => $companies,
+            'departments' => Department::acrossCompanies()
+                ->whereIn('company_id', $companies->pluck('id'))
+                ->orderBy('name')
+                ->get(['id', 'company_id', 'name']),
+        ];
     }
 
     /**
@@ -153,7 +324,7 @@ class AttendanceCalendarController extends Controller
      * range when a status filter is on.
      *
      * @param  Collection<int, Employee>  $employees
-     * @param  array<int, array<string, array{status: string, in: string|null, out: string|null, punches: int, minutes: int|null, duplicate: bool}>>  $records
+     * @param  array<int, array<string, array{status: string, in: string|null, out: string|null, punches: int, minutes: int|null, duplicate: bool, event: string|null}>>  $records
      * @param  list<string>  $statuses
      * @param  Collection<int, int>  $withScannerId  employee ids that have any scanner ID mapped
      * @return list<array<string, mixed>>
@@ -203,7 +374,7 @@ class AttendanceCalendarController extends Controller
     /**
      * Company totals per month, for the year view.
      *
-     * @param  array<int, array<string, array{status: string, in: string|null, out: string|null, punches: int, minutes: int|null, duplicate: bool}>>  $records
+     * @param  array<int, array<string, array{status: string, in: string|null, out: string|null, punches: int, minutes: int|null, duplicate: bool, event: string|null}>>  $records
      * @param  list<string>  $dates
      * @return list<array<string, mixed>>
      */

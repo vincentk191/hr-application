@@ -5,8 +5,11 @@ namespace App\Providers;
 use App\Actions\Fortify\ResetUserPassword;
 use App\Http\Responses\LoginResponse;
 use App\Http\Responses\TwoFactorLoginResponse;
+use App\Models\Employee;
+use App\Models\User;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
@@ -35,6 +38,7 @@ class FortifyServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureActions();
+        $this->configureAuthentication();
         $this->configureViews();
         $this->configureRateLimiting();
     }
@@ -45,6 +49,46 @@ class FortifyServiceProvider extends ServiceProvider
     private function configureActions(): void
     {
         Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
+    }
+
+    /**
+     * Who may sign in, and with what (CORE-AUT-002).
+     *
+     * The login field takes an email address or an employee ID. An employee ID is only accepted
+     * when it names exactly one account: numbers are unique within a company, not across the group,
+     * so an ID that two companies share is refused rather than guessed at, and that person signs in
+     * with their email instead. A deactivated account fails with the same message as a wrong password,
+     * so the form does not reveal which accounts exist.
+     */
+    private function configureAuthentication(): void
+    {
+        Fortify::authenticateUsing(function (Request $request): ?User {
+            $user = $this->resolveLogin(trim((string) $request->input(Fortify::username())));
+
+            if ($user === null || ! $user->is_active || ! Hash::check((string) $request->input('password'), $user->password)) {
+                return null;
+            }
+
+            return $user;
+        });
+    }
+
+    private function resolveLogin(string $login): ?User
+    {
+        if ($login === '') {
+            return null;
+        }
+
+        if (str_contains($login, '@')) {
+            return User::query()->where('email', Str::lower($login))->first();
+        }
+
+        $employees = Employee::acrossCompanies()
+            ->whereRaw('lower(employee_number) = ?', [Str::lower($login)])
+            ->whereNotNull('user_id')
+            ->get();
+
+        return $employees->count() === 1 ? $employees->first()->user : null;
     }
 
     /**

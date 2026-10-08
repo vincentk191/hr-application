@@ -28,7 +28,7 @@ class CreateUser extends CreateRecord
         $user = $this->record;
 
         // An administrator vouching for the address is the verification.
-        $user->forceFill(['email_verified_at' => now()])->save();
+        $user->forceFill(['email_verified_at' => now(), 'must_change_password' => true, 'is_active' => $this->data['is_active'] ?? true])->save();
 
         $this->applySelectedRoles($user);
     }

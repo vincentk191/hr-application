@@ -6,6 +6,7 @@ use App\Models\AttendanceEnrolMap;
 use App\Models\AttendanceImport;
 use App\Models\AttendanceUnmappedPunch;
 use App\Models\Employee;
+use App\Support\Attendance\AgentStatus;
 use App\Support\Attendance\CaptureStatus;
 use Carbon\CarbonImmutable;
 use Inertia\Inertia;
@@ -25,7 +26,7 @@ class AttendanceDeviceController extends Controller
 
     private const WAITING_LIMIT = 200;
 
-    public function index(CaptureStatus $status): Response
+    public function index(CaptureStatus $status, AgentStatus $agents): Response
     {
         $this->authorize('manage-attendance-device');
 
@@ -34,6 +35,7 @@ class AttendanceDeviceController extends Controller
 
         return Inertia::render('attendance/device', [
             'status' => $status->resolve(),
+            'agents' => $agents->all(),
             'timezone' => $timezone,
             'lastDeviceSn' => AttendanceImport::query()->latest('id')->value('device_sn'),
             'knownDevices' => $this->knownDevices(),

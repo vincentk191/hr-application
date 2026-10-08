@@ -223,3 +223,27 @@
         @apply bg-background text-foreground;
     }
 }
+
+/*
+ * Printing a report (the attendance calendar and recap use window.print() for "PDF"). Only the
+ * report should come out: the navigation and the page header around it are hidden, and the page is
+ * landscape because the month grid is wide.
+ */
+@media print {
+    @page {
+        size: landscape;
+        margin: 10mm;
+    }
+
+    [data-slot='sidebar'],
+    [data-slot='sidebar-gap'],
+    [data-slot='sidebar-container'],
+    header {
+        display: none !important;
+    }
+
+    [data-slot='sidebar-inset'] {
+        margin: 0 !important;
+        box-shadow: none !important;
+    }
+}

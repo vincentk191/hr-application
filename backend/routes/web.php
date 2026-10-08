@@ -1,11 +1,14 @@
 <?php
 
+use App\Http\Controllers\AttendanceAgentController;
 use App\Http\Controllers\AttendanceCalendarController;
 use App\Http\Controllers\AttendanceDeviceController;
 use App\Http\Controllers\AttendanceEnrolMapController;
 use App\Http\Controllers\AttendanceImportController;
 use App\Http\Controllers\AttendanceIssueController;
 use App\Http\Controllers\AttendancePunchController;
+use App\Http\Controllers\AttendanceRecapController;
+use App\Http\Controllers\CalendarEventController;
 use App\Http\Controllers\CompanySwitcherController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeeController;
@@ -42,9 +45,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('documents.download');
 
     Route::get('attendance/calendar', [AttendanceCalendarController::class, 'index'])->name('attendance.calendar');
+    Route::get('attendance/recap', [AttendanceRecapController::class, 'index'])->name('attendance.recap');
+    Route::get('attendance/calendar/export', [AttendanceCalendarController::class, 'export'])->name('attendance.calendar.export');
     Route::get('attendance/issues', [AttendanceIssueController::class, 'index'])->name('attendance.issues');
     Route::post('attendance/issues/resolve', [AttendanceIssueController::class, 'resolve'])->name('attendance.issues.resolve');
     Route::post('attendance/issues/reopen', [AttendanceIssueController::class, 'reopen'])->name('attendance.issues.reopen');
+    Route::post('calendar-events', [CalendarEventController::class, 'store'])->name('calendar-events.store');
+    Route::delete('calendar-events/{calendarEvent}', [CalendarEventController::class, 'destroy'])->name('calendar-events.destroy');
+    Route::post('attendance/agents/sync-now', [AttendanceAgentController::class, 'syncNow'])->name('attendance.agents.sync-now');
     Route::get('attendance/device', [AttendanceDeviceController::class, 'index'])->name('attendance.device');
     Route::post('attendance/imports', [AttendanceImportController::class, 'store'])->name('attendance.imports.store');
     Route::post('attendance/enrol-maps', [AttendanceEnrolMapController::class, 'store'])

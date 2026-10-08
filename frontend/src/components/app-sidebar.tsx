@@ -3,6 +3,7 @@ import {
     BookOpen,
     CalendarCheck,
     CalendarDays,
+    ClipboardList,
     Fingerprint,
     TriangleAlert,
     FolderGit2,
@@ -29,6 +30,7 @@ import {
     calendar as attendanceCalendar,
     device as attendanceDevice,
     issues as attendanceIssues,
+    recap as attendanceRecap,
 } from '@/routes/attendance';
 import {
     index as employeesIndex,
@@ -92,6 +94,11 @@ export function AppSidebar() {
                       title: 'Kalender absensi',
                       href: attendanceCalendar(),
                       icon: CalendarCheck,
+                  },
+                  {
+                      title: 'Rekap absensi',
+                      href: attendanceRecap(),
+                      icon: ClipboardList,
                   },
                   {
                       title: 'Masalah absensi',

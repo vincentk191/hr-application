@@ -16,7 +16,10 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Laravel\Fortify\TwoFactorAuthenticatable;
+use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
 /**
@@ -26,6 +29,9 @@ use Spatie\Permission\Traits\HasRoles;
  * @property string $email
  * @property Carbon|null $email_verified_at
  * @property string $password
+ * @property bool $is_active
+ * @property bool $must_change_password
+ * @property Carbon|null $last_login_at
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
  * @property Carbon|null $two_factor_confirmed_at
@@ -38,7 +44,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable implements FilamentUser, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasRoles, Notifiable, TwoFactorAuthenticatable;
+    use HasApiTokens, HasFactory, HasRoles, Notifiable, TwoFactorAuthenticatable;
 
     /**
      * Get the attributes that should be cast.
@@ -51,7 +57,35 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
+            'is_active' => 'boolean',
+            'must_change_password' => 'boolean',
+            'last_login_at' => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // A deactivated account loses access at once, not at its next login attempt.
+        static::saved(function (self $user): void {
+            if ($user->wasChanged('is_active') && ! $user->is_active) {
+                $user->revokeAccess();
+            }
+        });
+    }
+
+    /**
+     * Sign this account out everywhere and cancel its tokens (CORE-AUT-006): every browser session,
+     * the remember-me cookie, and any API token.
+     *
+     * Sessions are deleted from the sessions table, so this needs the database session driver — the
+     * one this application is configured for. With another driver it would silently do less.
+     */
+    public function revokeAccess(): void
+    {
+        DB::table('sessions')->where('user_id', $this->id)->delete();
+
+        $this->tokens()->delete();
+        $this->forceFill(['remember_token' => Str::random(60)])->saveQuietly();
     }
 
     /**

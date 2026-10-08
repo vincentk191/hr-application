@@ -74,7 +74,7 @@ class IssueDetector
     /**
      * What is wrong with one day, if anything.
      *
-     * @param  array{status: string, in: string|null, out: string|null, punches: int, minutes: int|null, duplicate: bool}  $record
+     * @param  array{status: string, in: string|null, out: string|null, punches: int, minutes: int|null, duplicate: bool, event: string|null}  $record
      * @return list<array{0: AttendanceIssueType, 1: string}>
      */
     private function typesFor(array $record, string $date, CarbonImmutable $now): array

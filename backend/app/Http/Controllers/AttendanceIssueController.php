@@ -10,9 +10,9 @@ use App\Models\Department;
 use App\Models\Employee;
 use App\Support\Attendance\CaptureStatus;
 use App\Support\Attendance\DailyAttendance;
+use App\Support\Attendance\DateRangeInput;
 use App\Support\Attendance\EmployeeRoster;
 use App\Support\Attendance\IssueDetector;
-use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -42,7 +42,7 @@ class AttendanceIssueController extends Controller
         abort_unless($request->user()->can(Permission::ViewAttendance->value), 403);
 
         $timezone = (string) config('attendance.device_timezone');
-        [$from, $to] = $this->range($request, $attendance->dataThrough($timezone), $timezone);
+        [$from, $to] = DateRangeInput::fromRequest($request, $attendance->dataThrough($timezone), $timezone, self::MAX_DAYS);
 
         $filters = [
             'from' => $from->toDateString(),
@@ -192,36 +192,5 @@ class AttendanceIssueController extends Controller
         }
 
         return $employees->all();
-    }
-
-    /**
-     * The range asked for, otherwise the month of the last data up to that day, kept within the
-     * longest range we read.
-     *
-     * @return array{0: CarbonImmutable, 1: CarbonImmutable}
-     */
-    private function range(Request $request, ?string $dataThrough, string $timezone): array
-    {
-        $valid = fn (string $value): bool => preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) === 1
-            && CarbonImmutable::canBeCreatedFromFormat($value, 'Y-m-d');
-
-        $latest = CarbonImmutable::parse($dataThrough ?? 'today', $timezone)->startOfDay();
-
-        $to = $valid($request->string('to')->toString())
-            ? CarbonImmutable::parse($request->string('to')->toString(), $timezone)->startOfDay()
-            : $latest;
-        $from = $valid($request->string('from')->toString())
-            ? CarbonImmutable::parse($request->string('from')->toString(), $timezone)->startOfDay()
-            : $to->startOfMonth();
-
-        if ($from->gt($to)) {
-            [$from, $to] = [$to, $from];
-        }
-
-        if ($from->diffInDays($to) > self::MAX_DAYS - 1) {
-            $from = $to->subDays(self::MAX_DAYS - 1);
-        }
-
-        return [$from, $to];
     }
 }

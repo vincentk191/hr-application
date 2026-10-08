@@ -172,7 +172,9 @@ function DayRow({
                     <span
                         className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[day.status]}`}
                     >
-                        {STATUS_LABEL[day.status]}
+                        {day.event
+                            ? `Libur: ${day.event}`
+                            : STATUS_LABEL[day.status]}
                     </span>
                 </td>
                 <td className="p-2 font-mono">{day.in ?? '—'}</td>

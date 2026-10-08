@@ -118,7 +118,7 @@ it('classifies a day by the documented order of rules', function (array $input, 
     'a weekend with a punch still counts' => [['workday' => false, 'in' => '09:00', 'out' => '12:00', 'count' => 2], AttendanceDayStatus::Late],
     'a day nobody at all scanned' => [['anyone' => false], AttendanceDayStatus::Off],
     'a day the log has not reached' => [['covered' => false], AttendanceDayStatus::NoData],
-    'a day the log has not reached, even with a leave record' => [['covered' => false, 'leave' => true], AttendanceDayStatus::NoData],
+    'a day the log has not reached, but approved leave is known' => [['covered' => false, 'leave' => true], AttendanceDayStatus::Leave],
 ]);
 
 // --- The grid ---

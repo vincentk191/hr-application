@@ -4,16 +4,22 @@ namespace App\Providers;
 
 use App\Enums\Permission;
 use App\Listeners\LogRoleChange;
+use App\Models\AttendanceAgent;
 use App\Models\User;
 use App\Support\Attendance\WorkSchedule;
 use App\Workflows\Definitions\LeaveRequestWorkflow;
 use App\Workflows\Definitions\OffboardingCaseWorkflow;
 use App\Workflows\WorkflowRegistry;
 use Carbon\CarbonImmutable;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Spatie\Permission\Events\RoleAttachedEvent;
@@ -37,6 +43,10 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->defineAttendanceGate();
+        $this->configureApiRateLimiting();
+        Event::listen(Login::class, fn (Login $event) => $event->user instanceof User
+            ? $event->user->forceFill(['last_login_at' => now()])->saveQuietly()
+            : null);
         $this->registerRoleAudit();
     }
 
@@ -52,6 +62,21 @@ class AppServiceProvider extends ServiceProvider
             fn (User $user): bool => $user->isParentWide()
                 && $user->checkPermissionTo(Permission::ManageAttendance->value),
         );
+    }
+
+    /**
+     * Throttle the ingest endpoint per token, so one runaway or abused agent cannot starve the rest
+     * and a leaked token cannot be used to hammer the database (CORE-AUT-007). Falls back to the
+     * caller's address when there is no token to key on.
+     */
+    protected function configureApiRateLimiting(): void
+    {
+        RateLimiter::for('attendance-ingest', function (Request $request): Limit {
+            $agent = Auth::guard('sanctum')->user();
+            $token = $agent instanceof AttendanceAgent ? $agent->currentAccessToken() : null;
+
+            return Limit::perMinute(120)->by((string) ($token?->getKey() ?? $request->ip()));
+        });
     }
 
     /**
