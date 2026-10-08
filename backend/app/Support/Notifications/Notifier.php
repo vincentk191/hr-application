@@ -21,8 +21,37 @@ use Illuminate\Notifications\DatabaseNotification;
 class Notifier
 {
     /**
-     * Tell whoever the request is now waiting on. Used when it is filed, when it is filed again after
-     * a correction, and when an earlier approver passes it on.
+     * A request has been filed, or filed again after a correction: tell whoever it now waits on, and
+     * tell every HR Admin that it exists. HR do not approve leave, but they see all of it, so each
+     * submission reaches them as information. Someone who is both the approver and HR is told once.
+     */
+    public function leaveSubmitted(LeaveRequest $leave, ?User $actor, bool $resubmitted = false): void
+    {
+        $leave->loadMissing('employee', 'workflow.steps');
+        $step = $leave->workflow?->steps->firstWhere('status', 'pending');
+        $approvers = $step instanceof WorkflowStep ? $this->approversOf($step, $leave->company_id) : new Collection;
+
+        $this->leaveAwaitingApproval($leave, $actor, $resubmitted);
+
+        $employee = $leave->employee->full_name;
+        $waitingOn = $step instanceof WorkflowStep ? $step->label : '—';
+
+        $notice = new InAppNotice(
+            'leave',
+            $resubmitted ? "{$leave->reference()} diajukan ulang oleh {$employee}" : "{$leave->reference()} diajukan oleh {$employee}",
+            "{$leave->leave_type->label()} · {$leave->start_on->toDateString()} – {$leave->end_on->toDateString()} · {$leave->days} hari kerja · menunggu {$waitingOn}",
+            route('leave-requests.index', ['open' => $leave->id], absolute: false),
+        );
+
+        foreach ($this->hrAdmins($leave->company_id) as $user) {
+            if ($user->isNot($actor) && ! $approvers->contains('id', $user->id)) {
+                $user->notify($notice);
+            }
+        }
+    }
+
+    /**
+     * Tell whoever the request is now waiting on.
      */
     public function leaveAwaitingApproval(LeaveRequest $leave, ?User $actor, bool $resubmitted = false): void
     {
@@ -39,7 +68,7 @@ class Notifier
             'leave',
             $resubmitted ? "{$leave->reference()} diajukan ulang" : "{$leave->reference()} menunggu persetujuan Anda",
             "{$employee} · {$leave->leave_type->label()} · {$leave->start_on->toDateString()} – {$leave->end_on->toDateString()} · {$leave->days} hari kerja",
-            route('leave-requests.index', absolute: false),
+            route('leave-requests.index', ['open' => $leave->id], absolute: false),
         );
 
         foreach ($this->approversOf($step, $leave->company_id) as $user) {
@@ -169,6 +198,16 @@ class Notifier
         }
 
         return User::role($step->approver_role)->where('is_active', true)->get()
+            ->filter(fn (User $user): bool => $user->canAccessCompany($companyId))
+            ->values();
+    }
+
+    /**
+     * @return Collection<int, User>
+     */
+    private function hrAdmins(int $companyId): Collection
+    {
+        return User::role('hr-admin')->where('is_active', true)->get()
             ->filter(fn (User $user): bool => $user->canAccessCompany($companyId))
             ->values();
     }

@@ -57,8 +57,8 @@ function fileLeave(User $actor, Employee $employee): LeaveRequest
     return LeaveRequest::latest('id')->firstOrFail();
 }
 
-it('builds a supervisor-then-HR chain and opens only the first step', function () {
-    [$employee] = employeeUnderSupervisor($this->company);
+it('sends a request to the employee\'s Atasan only, not on to HR', function () {
+    [$employee, $supervisorUser] = employeeUnderSupervisor($this->company);
     $hr = userWith(Role::HrAdmin, $this->company);
 
     $leave = fileLeave($hr, $employee);
@@ -66,30 +66,38 @@ it('builds a supervisor-then-HR chain and opens only the first step', function (
 
     expect($leave->days)->toBe(3)
         ->and($leave->workflow->stage())->toBe(LeaveRequestStage::Submitted)
-        ->and($steps)->toHaveCount(2)
+        ->and($steps)->toHaveCount(1)
         ->and($steps[0]->label)->toBe('Atasan langsung')
-        ->and($steps[0]->status)->toBe(WorkflowStepStatus::Pending)
-        ->and($steps[1]->label)->toBe('HR Admin')
-        // HR cannot act until the supervisor has, which is the whole point of the chain.
-        ->and($steps[1]->status)->toBe(WorkflowStepStatus::Locked);
+        ->and($steps[0]->approver_user_id)->toBe($supervisorUser->id)
+        ->and($steps[0]->status)->toBe(WorkflowStepStatus::Pending);
 });
 
-it('falls back to an HR-only chain when the employee has no supervisor', function () {
+it('goes straight to HR only when the employee has nobody who could approve', function () {
     $hr = userWith(Role::HrAdmin, $this->company);
-    $employee = Employee::factory()->forCompany($this->company)->create();
+    $noAtasan = Employee::factory()->forCompany($this->company)->create();
 
-    $leave = fileLeave($hr, $employee);
-
-    // An employee with nobody on record must still be approvable, not stuck.
+    // No Atasan on record.
+    $leave = fileLeave($hr, $noAtasan);
     expect($leave->workflow->steps)->toHaveCount(1)
-        ->and($leave->workflow->steps[0]->label)->toBe('HR Admin')
+        ->and($leave->workflow->steps[0]->approver_role)->toBe('hr-admin')
         ->and($leave->workflow->steps[0]->status)->toBe(WorkflowStepStatus::Pending);
+
+    // An Atasan with no login cannot decide anything.
+    $boss = Employee::factory()->forCompany($this->company)->create();
+    $loginless = Employee::factory()->forCompany($this->company)->reportingTo($boss)->create();
+    expect(fileLeave($hr, $loginless)->workflow->steps[0]->approver_role)->toBe('hr-admin');
+
+    // Nor can one whose account is deactivated.
+    $inactive = userWith(Role::Supervisor, $this->company);
+    $inactive->forceFill(['is_active' => false])->save();
+    $bossTwo = Employee::factory()->forCompany($this->company)->create(['user_id' => $inactive->id]);
+    $orphan = Employee::factory()->forCompany($this->company)->reportingTo($bossTwo)->create();
+    expect(fileLeave($hr, $orphan)->workflow->steps[0]->approver_role)->toBe('hr-admin');
 });
 
-it('keeps the request submitted until the whole chain has approved', function () {
+it('lets the Atasan alone settle the request', function () {
     [$employee, $supervisorUser] = employeeUnderSupervisor($this->company);
-    $hr = userWith(Role::HrAdmin, $this->company);
-    $leave = fileLeave($hr, $employee);
+    $leave = fileLeave(userWith(Role::HrAdmin, $this->company), $employee);
 
     $this->actingAs($supervisorUser)
         ->put(route('leave-requests.decision', $leave), ['decision' => 'approve'])
@@ -97,27 +105,56 @@ it('keeps the request submitted until the whole chain has approved', function ()
 
     $leave->refresh();
 
-    expect($leave->workflow->stage())->toBe(LeaveRequestStage::Submitted)
+    expect($leave->workflow->stage())->toBe(LeaveRequestStage::Approved)
         ->and($leave->workflow->steps[0]->status)->toBe(WorkflowStepStatus::Approved)
-        ->and($leave->workflow->steps[1]->status)->toBe(WorkflowStepStatus::Pending);
-
-    $this->actingAs($hr)
-        ->put(route('leave-requests.decision', $leave), ['decision' => 'approve'])
-        ->assertRedirect();
-
-    expect($leave->refresh()->workflow->stage())->toBe(LeaveRequestStage::Approved)
         ->and($leave->workflow->isComplete())->toBeTrue();
 });
 
-it('refuses a decision from someone who does not own the open step', function () {
+it('does not let HR Admin decide a request that belongs to someone else\'s Atasan', function () {
     [$employee] = employeeUnderSupervisor($this->company);
     $hr = userWith(Role::HrAdmin, $this->company);
     $leave = fileLeave($hr, $employee);
 
-    // The supervisor's step is open, so HR's turn has not come round yet.
     $this->actingAs($hr)
         ->put(route('leave-requests.decision', $leave), ['decision' => 'approve'])
         ->assertForbidden();
+    $this->actingAs($hr)
+        ->put(route('leave-requests.decision', $leave), ['decision' => 'reject', 'note' => 'Tidak'])
+        ->assertForbidden();
+
+    expect($leave->refresh()->workflow->stage())->toBe(LeaveRequestStage::Submitted)
+        ->and($leave->workflow->steps[0]->status)->toBe(WorkflowStepStatus::Pending);
+});
+
+it('still shows HR Admin every request, and marks none of them as theirs to decide', function () {
+    [$employee] = employeeUnderSupervisor($this->company);
+    $hr = userWith(Role::HrAdmin, $this->company);
+    fileLeave($hr, $employee);
+
+    $this->actingAs($hr)->get(route('leave-requests.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('requests', 1)
+            ->where('requests.0.canDecide', false)
+            ->where('requests.0.waitingOn', 'Atasan langsung')
+            ->where('waitingOnMe', 0));
+});
+
+it('has an HR Admin decide for the people who report to them', function () {
+    $hrBoss = userWith(Role::HrAdmin, $this->company);
+    $hrBossEmployee = Employee::factory()->forCompany($this->company)->create(['user_id' => $hrBoss->id]);
+    $employee = Employee::factory()->forCompany($this->company)->reportingTo($hrBossEmployee)->create();
+    $otherHr = userWith(Role::HrAdmin, $this->company);
+
+    $leave = fileLeave($otherHr, $employee);
+
+    expect($leave->workflow->steps)->toHaveCount(1)
+        ->and($leave->workflow->steps[0]->approver_user_id)->toBe($hrBoss->id);
+
+    // A different HR Admin cannot; the one the employee reports to can.
+    $this->actingAs($otherHr)->put(route('leave-requests.decision', $leave), ['decision' => 'approve'])->assertForbidden();
+    $this->actingAs($hrBoss)->put(route('leave-requests.decision', $leave), ['decision' => 'approve'])->assertRedirect();
+
+    expect($leave->refresh()->workflow->stage())->toBe(LeaveRequestStage::Approved);
 });
 
 it('requires a reason on a rejection', function () {
@@ -132,7 +169,7 @@ it('requires a reason on a rejection', function () {
     expect($leave->refresh()->workflow->stage())->toBe(LeaveRequestStage::Submitted);
 });
 
-it('stops the chain on a rejection rather than passing it to HR', function () {
+it('records a rejection with its reason', function () {
     [$employee, $supervisorUser] = employeeUnderSupervisor($this->company);
     $leave = fileLeave(userWith(Role::HrAdmin, $this->company), $employee);
 
@@ -147,9 +184,7 @@ it('stops the chain on a rejection rather than passing it to HR', function () {
 
     expect($leave->workflow->stage())->toBe(LeaveRequestStage::Rejected)
         ->and($leave->workflow->steps[0]->status)->toBe(WorkflowStepStatus::Rejected)
-        ->and($leave->workflow->steps[0]->note)->toBe('Tim sedang kekurangan orang')
-        // HR must never get a request the supervisor already turned down.
-        ->and($leave->workflow->steps[1]->status)->toBe(WorkflowStepStatus::Locked);
+        ->and($leave->workflow->steps[0]->note)->toBe('Tim sedang kekurangan orang');
 });
 
 it('refuses a second decision on a settled request', function () {

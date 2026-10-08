@@ -73,7 +73,7 @@ class ResubmitLeaveRequest
             return $leave;
         });
 
-        app(Notifier::class)->leaveAwaitingApproval($result->refresh(), $by, resubmitted: true);
+        app(Notifier::class)->leaveSubmitted($result->refresh(), $by, resubmitted: true);
 
         return $result;
     }

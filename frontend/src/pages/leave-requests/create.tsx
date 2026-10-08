@@ -171,6 +171,13 @@ export default function LeaveRequestCreate({
                                 <InputError message={errors['attachments.0']} />
                             </div>
 
+                            <p className="text-xs text-muted-foreground">
+                                Pengajuan dikirim ke atasan langsung karyawan
+                                untuk disetujui. HR Admin dapat melihat semua
+                                pengajuan dan diberi tahu, tetapi tidak
+                                menyetujuinya.
+                            </p>
+
                             <div className="flex gap-2">
                                 <Button type="submit" disabled={processing}>
                                     Kirim pengajuan

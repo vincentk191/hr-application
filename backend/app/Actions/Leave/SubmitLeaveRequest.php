@@ -54,37 +54,33 @@ class SubmitLeaveRequest
         });
 
         // After the transaction, so nobody is told about a request that then failed to save.
-        app(Notifier::class)->leaveAwaitingApproval($leave, $submittedBy);
+        app(Notifier::class)->leaveSubmitted($leave, $submittedBy);
 
         return $leave;
     }
 
     /**
-     * The approval chain: the employee's own supervisor first, then HR (context.md §9.6).
+     * The approval chain: the employee's own Atasan, and nobody else (context.md §9.6).
      *
-     * The supervisor step is bound to the person the dossier names, so the decision cannot
-     * drift to another supervisor; the HR step is left open to whoever holds the role, since
-     * any HR Admin may clear it. An employee with no supervisor on record goes straight to HR
-     * rather than becoming unapprovable.
+     * HR Admin is not an approver of leave; they see every request and are told of each one, but
+     * the decision is the Atasan's. The step is bound to the person the dossier names, so it cannot
+     * drift to another supervisor. When that person is themselves an HR Admin (the employee reports
+     * to HR) they decide it as the Atasan, like anyone else.
+     *
+     * One exception keeps a request from being stuck: an employee with no Atasan on record, or one
+     * with no login or a deactivated account, has nobody who could approve, so the request goes to
+     * HR Admin instead.
      *
      * @return list<StepBlueprint>
      */
     public function chain(Employee $employee): array
     {
-        $steps = [];
+        $supervisor = $employee->manager?->user;
 
-        $supervisorUserId = $employee->manager?->user_id;
-
-        if ($supervisorUserId !== null) {
-            $steps[] = StepBlueprint::forUserAsRole(
-                'Atasan langsung',
-                $supervisorUserId,
-                Role::Supervisor,
-            );
+        if ($supervisor !== null && $supervisor->is_active) {
+            return [StepBlueprint::forUser('Atasan langsung', $supervisor)];
         }
 
-        $steps[] = StepBlueprint::forRole('HR Admin', Role::HrAdmin);
-
-        return $steps;
+        return [StepBlueprint::forRole('HR Admin (tanpa atasan)', Role::HrAdmin)];
     }
 }

@@ -78,19 +78,23 @@ function notifPunch(Employee $employee, string $local): void
 
 // --- Leave ---
 
-it('tells the supervisor first, then HR, then the requester', function () {
+it('asks the Atasan to approve, lets HR know it exists, and tells the requester the outcome', function () {
     $leave = notifFileLeave($this->staffUser, $this->staff);
 
     expect(notifTitles($this->boss))->toBe(["{$leave->reference()} menunggu persetujuan Anda"])
-        ->and(notifTitles($this->hr))->toBe([])
         ->and(notifTitles($this->staffUser))->toBe([]);
+
+    // HR does not approve, but is told of every submission.
+    $info = $this->hr->notifications()->get();
+    expect($info)->toHaveCount(1)
+        ->and($info[0]->data['title'])->toBe("{$leave->reference()} diajukan oleh {$this->staff->full_name}")
+        ->and($info[0]->data['body'])->toContain('menunggu Atasan langsung')
+        ->and($info[0]->data['url'])->toBe("/leave-requests?open={$leave->id}");
 
     notifDecide($this->boss, $leave, 'approve');
 
-    expect(notifTitles($this->hr))->toBe(["{$leave->reference()} menunggu persetujuan Anda"])
-        ->and(notifTitles($this->boss))->toHaveCount(1);
-
-    notifDecide($this->hr, $leave, 'approve');
+    // Nothing more goes to HR: there is no second step.
+    expect(notifTitles($this->hr))->toHaveCount(1);
 
     $notice = $this->staffUser->notifications()->first();
     expect($notice->data['title'])->toBe("{$leave->reference()} disetujui")
@@ -108,8 +112,8 @@ it('tells the requester a rejection with the reason, and where to correct it', f
     expect($notice->data['title'])->toBe("{$leave->reference()} ditolak")
         ->and($notice->data['body'])->toContain('Tim kekurangan orang')
         ->and($notice->data['url'])->toBe("/leave-requests/{$leave->id}/edit");
-    // HR never gets a request the supervisor turned down.
-    expect(notifTitles($this->hr))->toBe([]);
+    // HR heard of it when it was filed, and hears nothing more when it is turned down.
+    expect(notifTitles($this->hr))->toHaveCount(1);
 });
 
 it('tells the approver again when a rejected request is sent round', function () {
@@ -238,15 +242,16 @@ it('lists only your own notifications and counts the unread in every page', func
     $this->actingAs($this->boss)->get(route('dashboard'))
         ->assertInertia(fn (Assert $page) => $page->where('notifications.unread', 1)->has('notifications.recent', 1));
 
+    // HR is told of the submission as information, so has their own notice, and only theirs.
     $this->actingAs($this->hr)->get(route('notifications.index'))
-        ->assertInertia(fn (Assert $page) => $page->where('list.total', 0));
+        ->assertInertia(fn (Assert $page) => $page->where('list.total', 1)->where('list.data.0.title', fn ($title) => str_contains($title, 'diajukan oleh')));
 });
 
 it('opens a notification: marks it read and goes where it points', function () {
     $leave = notifFileLeave($this->staffUser, $this->staff);
     $notice = $this->boss->notifications()->first();
 
-    $this->actingAs($this->boss)->get(route('notifications.open', $notice->id))->assertRedirect('/leave-requests');
+    $this->actingAs($this->boss)->get(route('notifications.open', $notice->id))->assertRedirect("/leave-requests?open={$leave->id}");
 
     expect($notice->refresh()->read_at)->not->toBeNull();
     $this->actingAs($this->boss)->get(route('notifications.index', ['filter' => 'unread']))
@@ -280,4 +285,26 @@ it('marks everything read in one go', function () {
     $this->actingAs($this->boss)->post(route('notifications.read-all'))->assertRedirect();
 
     expect($this->boss->unreadNotifications()->count())->toBe(0);
+});
+
+it('tells an HR Admin who is also the approver once, not twice', function () {
+    $loner = Employee::factory()->forCompany($this->company)->create(['user_id' => ($user = notifUser(Role::Employee, $this->company))->id]);
+
+    $leave = notifFileLeave($user, $loner);
+
+    expect(notifTitles($this->hr))->toBe(["{$leave->reference()} menunggu persetujuan Anda"]);
+});
+
+it('lets HR know again when a corrected request is sent round to the Atasan', function () {
+    $leave = notifFileLeave($this->staffUser, $this->staff);
+    notifDecide($this->boss, $leave, 'reject', 'Bentrok');
+
+    $this->actingAs($this->staffUser)->put(route('leave-requests.update', $leave), [
+        'leave_type' => 'annual', 'start_on' => '2026-11-02', 'end_on' => '2026-11-02',
+    ])->assertSessionHasNoErrors();
+
+    expect(notifTitles($this->hr))->toBe([
+        "{$leave->reference()} diajukan oleh {$this->staff->full_name}",
+        "{$leave->reference()} diajukan ulang oleh {$this->staff->full_name}",
+    ]);
 });

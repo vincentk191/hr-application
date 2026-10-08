@@ -29,7 +29,7 @@ listed in the checklist below. Nothing here is committed yet: changes are left f
 
 |                 |                                                                                                              |
 | --------------- | ------------------------------------------------------------------------------------------------------------ |
-| Tests           | 470 passing                                                                                                  |
+| Tests           | 474 passing                                                                                                  |
 | Static analysis | PHPStan level 7, 0 errors                                                                                    |
 | Phase 0         | **Complete** — company scoping, RBAC, workflow engine, account state and login rules                         |
 | Phase 1         | Directory (with CSV import/export), profile, add/edit, documents, admin panel done                           |
@@ -852,8 +852,8 @@ Progress Tracking analytics (Appendix C).
   push). A bell in the header shows the unread count and the latest eight, `/notifications` lists them
   all (all / unread), and choosing one marks it read and goes where it points. They are only ever the
   signed-in person's own, and a stored link that is not a path inside the app is never followed.
-  - **Leave:** filing or resubmitting tells whoever the request is now waiting on (the named supervisor,
-    or everyone holding the HR role in that company); a supervisor's approval tells HR; the final decision
+  - **Leave:** filing or resubmitting tells the Atasan the request is waiting on, and every HR Admin that it
+    exists (information only; an HR Admin who is the approver is told once); the decision
     tells the requester (and whoever filed it for them), with the reason and a link to correct a rejection.
     Nobody is told about what they just did, and deactivated accounts are skipped.
   - **Attendance issues:** a weekday-morning job (09:00 scanner time) tells each employee, and their
@@ -890,6 +890,17 @@ Progress Tracking analytics (Appendix C).
   stateful guard). There is no employee-app API yet.
 - **The Indonesian workbook copy** (`…_ID.xlsx`) is regenerated from the English one — if you
   edit the English file, regenerate it.
+- **A leave request is approved by the employee's Atasan, not by HR.** The approval chain is one step:
+  the Atasan named on the employee's record (`LeaveRequestPolicy` and the workflow step both bind the
+  decision to that one person). HR Admin sees every request in the company (the queue is view-only for
+  them) and is notified in-app of each submission and resubmission, with who it is waiting on, but cannot
+  approve or reject someone else's. Two cases put HR in the approver's seat: the employee **reports to an
+  HR Admin** (that person is their Atasan, so they decide it), and the employee has **no usable Atasan**
+  (none on record, no login, or a deactivated account), where the request goes to HR Admin so it is never
+  stuck. An HR Admin who is also the approver is told once. This replaces the earlier Atasan-then-HR chain;
+  requests already in flight keep the chain they were filed with. `context.md` §9.6 and the workbooks
+  (`REQ-DLG-004/005`, `ATT-LVE-003`, `CORE-NOT-004`, and new `REQ-WIZ-010`, `REQ-DSH-008`, `CORE-NOT-009`)
+  say the same.
 - **Leave requests can carry files, have a maximum length per type, and can be corrected and sent again.**
   - **Files:** optional, up to 5 per request (PDF, JPG or PNG, 5 MB each), stored on the private disk and
     served only through `leave-attachments.download`, which asks the leave request's policy (the

@@ -309,10 +309,9 @@ it('opens a fresh chain with the current supervisor when sent again', function (
 
     $steps = $leave->refresh()->workflow->steps;
 
-    expect($steps)->toHaveCount(2)
+    expect($steps)->toHaveCount(1)
         ->and($steps[0]->status->value)->toBe('pending')
         ->and($steps[0]->approver_user_id)->toBe($supervisorUser->id)
-        ->and($steps[1]->status->value)->toBe('locked')
         ->and($leave->workflow->comments->first()->body)->toBe('Tim kekurangan orang');
 });
 
