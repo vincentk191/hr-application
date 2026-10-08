@@ -6,6 +6,7 @@ use App\Enums\Permission as PermissionEnum;
 use App\Enums\Role as RoleEnum;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -41,15 +42,26 @@ class RoleForm
                     )),
                 CheckboxList::make('permission_names')
                     ->label('Izin')
-                    ->options(fn (): array => Permission::query()->orderBy('name')->pluck('name', 'name')
-                        ->map(fn (string $name): string => PermissionEnum::tryFrom($name)?->label() ?? $name)
+                    ->options(fn (?Role $record): array => Permission::query()->orderBy('name')->pluck('name', 'name')
+                        ->map(fn (string $name): string => (PermissionEnum::tryFrom($name)?->label() ?? $name)
+                            .($record !== null && in_array($name, self::lockedPermissionsFor($record), true) ? ' (terkunci)' : ''))
                         ->all())
                     ->afterStateHydrated(fn (CheckboxList $component, ?Role $record) => $component->state(
                         $record?->permissions->pluck('name')->all() ?? [],
                     ))
-                    ->disableOptionWhen(fn (string $value, ?Role $record): bool => $record !== null
-                        && in_array($value, self::lockedPermissionsFor($record), true))
-                    ->helperText('Perubahan berlaku pada pengguna dengan peran ini pada permintaan berikutnya.'),
+                    // A locked permission is kept ticked rather than disabled: Filament refuses to save
+                    // a form whose state contains a disabled option, which made every change to the
+                    // System Admin role fail. Unticking one puts it straight back, and the save adds
+                    // it again regardless (EditRole), so the lock does not rest on the browser.
+                    ->afterStateUpdated(function (array $state, Set $set, ?Role $record): void {
+                        $locked = $record === null ? [] : self::lockedPermissionsFor($record);
+
+                        if (array_diff($locked, $state) !== []) {
+                            $set('permission_names', array_values(array_unique([...$state, ...$locked])));
+                        }
+                    })
+                    ->live()
+                    ->helperText('Perubahan berlaku pada pengguna dengan peran ini pada permintaan berikutnya. Izin bertanda "terkunci" tidak dapat dicabut dari Admin Sistem, agar akses ke layar ini tidak hilang.'),
             ]);
     }
 }

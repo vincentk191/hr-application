@@ -208,8 +208,11 @@ it('leaves a voided scan out of the calendar too', function () {
     tabScan(Employee::factory()->forCompany($this->company)->create(), '2026-10-05 08:00:00');
     $this->actingAs($this->hr)->delete(route('punches.destroy', $only), ['reason' => 'Bukan scan Budi']);
 
-    $this->actingAs($this->hr)->get('/attendance/calendar?view=day&date=2026-10-05')
-        ->assertInertia(fn (Assert $page) => $page->where('rows.0.days.2026-10-05.status', 'absent'));
+    // Rows are ordered by name and the other employee's is random, so find Budi's by id.
+    $rows = $this->actingAs($this->hr)->get('/attendance/calendar?view=day&date=2026-10-05')
+        ->viewData('page')['props']['rows'];
+
+    expect(collect($rows)->firstWhere('id', $this->budi->id)['days']['2026-10-05']['status'])->toBe('absent');
 });
 
 it('refuses corrections to anyone without the permission, including the employee themselves', function () {

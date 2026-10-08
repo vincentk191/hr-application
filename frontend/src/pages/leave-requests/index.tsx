@@ -27,7 +27,17 @@ export default function LeaveRequestsIndex({
     requests: LeaveRequestRow[];
     waitingOnMe: number;
 }) {
-    const [selected, setSelected] = useState<LeaveRequestRow | null>(null);
+    // ?open=ID opens that request's dialog straight away, which is where a search result lands.
+    const [selected, setSelected] = useState<LeaveRequestRow | null>(() => {
+        const asked =
+            typeof window === 'undefined'
+                ? null
+                : Number(
+                      new URLSearchParams(window.location.search).get('open'),
+                  );
+
+        return requests.find((row) => row.id === asked) ?? null;
+    });
 
     // Re-read the selected row from props so the dialog reflects the latest state after a
     // decision, rather than the snapshot taken when it was opened.

@@ -92,8 +92,8 @@ class SearchController extends Controller
             ->with(['department:id,name', 'position:id,name'])
             ->where(fn (Builder $inner) => $inner
                 ->whereRaw("lower(full_name) like ? escape '!'", [$like])
-                ->orWhereRaw('lower(employee_number) like ? escape "!"', [$like])
-                ->orWhereRaw('lower(email) like ? escape "!"', [$like]))
+                ->orWhereRaw("lower(employee_number) like ? escape '!'", [$like])
+                ->orWhereRaw("lower(email) like ? escape '!'", [$like]))
             ->orderBy('full_name')
             ->limit(self::PER_GROUP)
             ->get();

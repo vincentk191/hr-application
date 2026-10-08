@@ -143,3 +143,47 @@ it('will not let the system admin role lose the permissions that keep the panel 
     expect($role->hasPermissionTo(Permission::ManageUsers->value))->toBeTrue()
         ->and($role->hasPermissionTo(Permission::AccessAdminPanel->value))->toBeTrue();
 });
+
+it('lets the system admin grant its own role every permission, and they then work', function () {
+    $admin = adminFor(Role::SystemAdmin);
+    $this->actingAs($admin);
+    $role = RoleModel::findByName(Role::SystemAdmin->value);
+    $all = Spatie\Permission\Models\Permission::pluck('name')->all();
+
+    Livewire::test(EditRole::class, ['record' => $role->getKey()])
+        ->fillForm(['permission_names' => $all])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+    expect($role->fresh()->permissions->pluck('name')->sort()->values()->all())->toBe(collect($all)->sort()->values()->all())
+        ->and($admin->fresh()->can('view-attendance'))->toBeTrue()
+        ->and($admin->fresh()->can('view-documents'))->toBeTrue();
+
+    $this->actingAs($admin->fresh())->get('/attendance/calendar')->assertOk();
+});
+
+it('puts a locked permission back if it is unticked, and says which ones are locked', function () {
+    $this->actingAs(adminFor(Role::SystemAdmin));
+    $role = RoleModel::findByName(Role::SystemAdmin->value);
+
+    Livewire::test(EditRole::class, ['record' => $role->getKey()])
+        ->assertSee('(terkunci)')
+        ->set('data.permission_names', ['view-attendance'])
+        ->assertSet('data.permission_names', ['view-attendance', 'manage-users', 'access-admin-panel'])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+    expect($role->fresh()->permissions->pluck('name')->sort()->values()->all())
+        ->toBe(['access-admin-panel', 'manage-users', 'view-attendance']);
+});
+
+it('shows no lock on the other roles', function () {
+    $this->actingAs(adminFor(Role::SystemAdmin));
+    $role = RoleModel::findByName(Role::HrAdmin->value);
+
+    Livewire::test(EditRole::class, ['record' => $role->getKey()])->assertDontSee('(terkunci)');
+});

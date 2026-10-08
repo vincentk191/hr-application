@@ -29,13 +29,13 @@ listed in the checklist below. Nothing here is committed yet: changes are left f
 
 |                 |                                                                                                              |
 | --------------- | ------------------------------------------------------------------------------------------------------------ |
-| Tests           | 456 passing                                                                                                  |
+| Tests           | 470 passing                                                                                                  |
 | Static analysis | PHPStan level 7, 0 errors                                                                                    |
 | Phase 0         | **Complete** — company scoping, RBAC, workflow engine, account state and login rules                         |
 | Phase 1         | Directory (with CSV import/export), profile, add/edit, documents, admin panel done                           |
 | Phase 2         | Scan-log import, ingest API + agents, calendar, holidays/events, recap/export, issues, timesheet corrections |
 | Also built      | Leave requests end to end — the first real workflow consumer                                                 |
-| Not built       | Recruitment and offboarding screens; global search, employee app, on-site sync agent                         |
+| Not built       | Recruitment and offboarding screens; employee app, on-site sync agent                                |
 
 ---
 
@@ -771,7 +771,7 @@ table, the checklist and the screens.
 | Screen     | Name                     | f   | P1  | Status | Notes                                                                                                     |
 | ---------- | ------------------------ | --- | --- | ------ | --------------------------------------------------------------------------------------------------------- |
 | `DAS-MAI`  | Home                     | 5   | 3   | ⬜     | Cross-module KPIs — needs the modules to exist first                                                      |
-| `CORE-SRC` | Global search & settings | 4   | 2   | ⬜     | Includes the Indonesian translation-file setup (004)                                                      |
+| `CORE-SRC` | Global search & settings | 4   | 3   | 🟡     | Global search is done (header box, Ctrl/⌘ K). The leave and holiday policy live in the admin panel and on the calendar; the Indonesian translation-file setup (004) is not done |
 | —          | Employee app (PWA)       | —   | —   | ⬜     | Manifest, service worker, install prompt, Web Push, Sanctum API. Workbook has no screen rows for this yet |
 
 ### Phase 7 — Deployment & VPN
@@ -828,6 +828,26 @@ Progress Tracking analytics (Appendix C).
   uploading a document or correcting a scan redirects, which would navigate the list away from
   under it, so those stay on the full page ("Buka profil penuh"). "Ubah data" and "Ajukan cuti"
   are links; "Ajukan cuti" opens the leave form and does not preselect the employee.
+- **The System Admin role can be given any permission** (admin panel, "Peran dan izin"): by default it
+  holds accounts, roles, companies and organisation, not attendance or documents, but ticking
+  `view-attendance`, `view-documents` and the rest and saving works, and takes effect on the next
+  request. Two permissions are locked on it, `manage-users` and `access-admin-panel`, so an
+  administrator cannot remove their own way back into the screen; they are labelled "(terkunci)", put
+  back if unticked, and added again on save. (They were once shown as disabled checkboxes, which made
+  every save of this role fail validation.)
+- **Global search** (`CORE-SRC`): a "Cari…" box in the header, or Ctrl/⌘ + K from anywhere (a search
+  icon on a phone). It searches as you type (two letters or more, after a short pause) across four
+  groups, five results each, and opens the one you choose; the arrow keys and Enter work too.
+  - **Halaman:** the app's own pages, only those the person may open.
+  - **Karyawan:** name, employee number or email, for roles that may open the directory.
+  - **Pengajuan cuti:** by reference (`REQ-0003`) or the employee's name, limited to what the queue
+    shows that person (everyone's for roles that can see employees, otherwise their own and the ones
+    they are asked to approve). A result opens the queue with that request's dialog already open.
+  - **Dokumen:** by title, only documents the person may read, using the document policy, so a
+    restricted document's title never appears to someone without `view-sensitive-data`.
+  It runs through the company scope like every other screen, matches case-insensitively, and treats
+  `%` and `_` as ordinary characters. It is a plain database search, not an index: fine at this scale,
+  and the place to change if it ever is not.
 - **Notifications are in-app only** (the database channel; a deliberate choice, nothing goes by email or
   push). A bell in the header shows the unread count and the latest eight, `/notifications` lists them
   all (all / unread), and choosing one marks it read and goes where it points. They are only ever the
