@@ -17,6 +17,8 @@ use App\Http\Controllers\EmployeeImportController;
 use App\Http\Controllers\LeaveAttachmentController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\LeaveRequestDecisionController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\SearchController;
 use Illuminate\Support\Facades\Route;
 
 // The app is internal and private-only (context.md §5.1), so the root is not a marketing
@@ -70,6 +72,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('employees/{employee}/punches', [AttendancePunchController::class, 'store'])->name('punches.store');
     Route::put('punches/{punch}', [AttendancePunchController::class, 'update'])->name('punches.update');
     Route::delete('punches/{punch}', [AttendancePunchController::class, 'destroy'])->name('punches.destroy');
+
+    Route::get('search', [SearchController::class, 'index'])->name('search');
+    Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
+    Route::get('notifications/{notification}', [NotificationController::class, 'open'])->name('notifications.open');
 
     Route::get('leave-requests', [LeaveRequestController::class, 'index'])->name('leave-requests.index');
     Route::get('leave-requests/create', [LeaveRequestController::class, 'create'])->name('leave-requests.create');

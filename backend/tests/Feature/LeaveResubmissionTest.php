@@ -3,6 +3,7 @@
 use App\Enums\LeaveType;
 use App\Enums\Role;
 use App\Filament\Pages\ManageLeaveLimits;
+use App\Models\CalendarEvent;
 use App\Models\Company;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
@@ -82,7 +83,7 @@ it('refuses a request longer than HR allows for its type', function () {
     app(LeaveLimits::class)->set(LeaveType::Annual, 3);
 
     fileOwnLeave($this->staffUser, $this->staff, ['start_on' => '2026-11-02', 'end_on' => '2026-11-06'])
-        ->assertSessionHasErrors(['end_on' => 'Cuti tahunan maksimal 3 hari per pengajuan; pengajuan ini 5 hari.']);
+        ->assertSessionHasErrors(['end_on' => 'Cuti tahunan maksimal 3 hari kerja per pengajuan; pengajuan ini 5 hari kerja.']);
     expect(LeaveRequest::count())->toBe(0);
 
     fileOwnLeave($this->staffUser, $this->staff, ['start_on' => '2026-11-02', 'end_on' => '2026-11-04'])->assertSessionHasNoErrors();
@@ -313,4 +314,74 @@ it('opens a fresh chain with the current supervisor when sent again', function (
         ->and($steps[0]->approver_user_id)->toBe($supervisorUser->id)
         ->and($steps[1]->status->value)->toBe('locked')
         ->and($leave->workflow->comments->first()->body)->toBe('Tim kekurangan orang');
+});
+
+// --- Working days (REQ-WIZ-005) ---
+
+it('counts working days: weekends and holidays are not leave days', function () {
+    // Friday 6 to Monday 9 November 2026 is two working days, not four.
+    fileOwnLeave($this->staffUser, $this->staff, ['start_on' => '2026-11-06', 'end_on' => '2026-11-09'])->assertSessionHasNoErrors();
+    expect(latestLeave()->days)->toBe(2);
+
+    CalendarEvent::create(['title' => 'Libur', 'kind' => 'holiday', 'starts_on' => '2026-11-18', 'ends_on' => '2026-11-18']);
+    fileOwnLeave($this->staffUser, $this->staff, ['start_on' => '2026-11-16', 'end_on' => '2026-11-20'])->assertSessionHasNoErrors();
+    expect(latestLeave()->days)->toBe(4);
+});
+
+it('only takes off the events that apply to the employee', function () {
+    $other = Employee::factory()->forCompany(Company::factory()->create())->create();
+    CalendarEvent::create(['title' => 'Libur perusahaan lain', 'kind' => 'holiday', 'starts_on' => '2026-11-17', 'ends_on' => '2026-11-17', 'company_id' => $other->company_id]);
+
+    fileOwnLeave($this->staffUser, $this->staff, ['start_on' => '2026-11-16', 'end_on' => '2026-11-20'])->assertSessionHasNoErrors();
+
+    expect(latestLeave()->days)->toBe(5);
+});
+
+it('refuses a request that covers no working day', function () {
+    fileOwnLeave($this->staffUser, $this->staff, ['start_on' => '2026-11-07', 'end_on' => '2026-11-08'])
+        ->assertSessionHasErrors(['end_on' => 'Tanggal yang dipilih tidak mencakup hari kerja (akhir pekan atau hari libur).']);
+
+    expect(LeaveRequest::count())->toBe(0);
+});
+
+it('measures the maximum in working days', function () {
+    app(LeaveLimits::class)->set(LeaveType::Annual, 3);
+
+    // Seven calendar days, but only five working days: still over three.
+    fileOwnLeave($this->staffUser, $this->staff, ['start_on' => '2026-11-02', 'end_on' => '2026-11-08'])->assertSessionHasErrors('end_on');
+    // Friday to Tuesday is four calendar days, two working days: within three.
+    fileOwnLeave($this->staffUser, $this->staff, ['start_on' => '2026-11-06', 'end_on' => '2026-11-10'])->assertSessionHasNoErrors();
+    expect(latestLeave()->days)->toBe(3);
+});
+
+it('recounts a corrected request in working days', function () {
+    fileOwnLeave($this->staffUser, $this->staff)->assertSessionHasNoErrors();
+    $leave = latestLeave();
+    decideLeave($this->hr, $leave, 'reject', 'Ubah tanggal');
+
+    resubmitLeave($this->staffUser, $leave, ['start_on' => '2026-11-06', 'end_on' => '2026-11-09'])->assertSessionHasNoErrors();
+
+    expect($leave->refresh()->days)->toBe(2);
+});
+
+it('recounts stored requests from the command, leaving approved ones unless asked', function () {
+    fileOwnLeave($this->staffUser, $this->staff, ['start_on' => '2026-11-06', 'end_on' => '2026-11-09'])->assertSessionHasNoErrors();
+    $waiting = latestLeave();
+    fileOwnLeave($this->staffUser, $this->staff, ['start_on' => '2026-11-16', 'end_on' => '2026-11-20'])->assertSessionHasNoErrors();
+    $approved = latestLeave();
+    decideLeave($this->hr, $approved, 'approve');
+
+    // The figures as they were counted before working days: calendar days.
+    $waiting->forceFill(['days' => 4])->save();
+    $approved->forceFill(['days' => 5])->save();
+    CalendarEvent::create(['title' => 'Libur', 'kind' => 'holiday', 'starts_on' => '2026-11-18', 'ends_on' => '2026-11-18']);
+
+    $this->artisan('leave:recount-days', ['--dry-run' => true])->assertSuccessful();
+    expect($waiting->refresh()->days)->toBe(4);
+
+    $this->artisan('leave:recount-days')->assertSuccessful();
+    expect($waiting->refresh()->days)->toBe(2)->and($approved->refresh()->days)->toBe(5);
+
+    $this->artisan('leave:recount-days', ['--all' => true])->assertSuccessful();
+    expect($approved->refresh()->days)->toBe(4);
 });

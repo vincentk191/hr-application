@@ -83,6 +83,11 @@ class StoreLeaveRequestRequest extends FormRequest
         ];
     }
 
+    protected function leaveEmployee(): ?Employee
+    {
+        return $this->employee();
+    }
+
     /**
      * The employee this request is for, resolved through the company scope and memoised so
      * validation and the controller cannot disagree about who it is.

@@ -4,6 +4,7 @@ namespace App\Support\Attendance;
 
 use App\Enums\AttendanceDayStatus;
 use App\Models\Employee;
+use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 
@@ -23,6 +24,7 @@ class AttendanceRecap
      * @return array{
      *     rows: list<array<string, mixed>>,
      *     departments: list<array<string, mixed>>,
+     *     periods: list<array<string, mixed>>,
      *     total: array<string, int|float>,
      *     dataThrough: string|null
      * }
@@ -50,9 +52,68 @@ class AttendanceRecap
         return [
             'rows' => $rows,
             'departments' => $this->byDepartment($rows),
+            'periods' => $this->byPeriod($result['records'], $result['dates']),
             'total' => $this->sum($rows),
             'dataThrough' => $result['dataThrough'],
         ];
+    }
+
+    /**
+     * Totals per period within the range, for everyone selected: per week for a range of a month or
+     * less, per month for a longer one. A period cut off by the range's edge is labelled with the
+     * dates it actually covers.
+     *
+     * @param  array<int, array<string, array{status: string, in: string|null, out: string|null, punches: int, minutes: int|null, duplicate: bool, event: string|null}>>  $records
+     * @param  list<string>  $dates
+     * @return list<array<string, mixed>>
+     */
+    private function byPeriod(array $records, array $dates): array
+    {
+        if ($dates === []) {
+            return [];
+        }
+
+        $weekly = count($dates) <= 31;
+        $buckets = [];
+
+        foreach ($dates as $date) {
+            $day = CarbonImmutable::parse($date);
+            $key = $weekly ? $day->startOfWeek()->toDateString() : $day->format('Y-m');
+            $buckets[$key][] = $date;
+        }
+
+        $periods = [];
+
+        foreach ($buckets as $bucketDates) {
+            $first = CarbonImmutable::parse($bucketDates[0]);
+            $last = CarbonImmutable::parse($bucketDates[count($bucketDates) - 1]);
+            $counts = $this->attendance->tally($records, $bucketDates);
+            $minutes = 0;
+
+            foreach ($records as $days) {
+                foreach ($bucketDates as $date) {
+                    $minutes += (int) ($days[$date]['minutes'] ?? 0);
+                }
+            }
+
+            $label = $weekly
+                ? $this->indonesian($first, 'j M').' – '.$this->indonesian($last, 'j M')
+                : $this->indonesian($first, 'F Y');
+
+            $periods[] = [
+                'label' => $label,
+                'from' => $first->toDateString(),
+                'to' => $last->toDateString(),
+                ...$this->figures($counts, $minutes),
+            ];
+        }
+
+        return $periods;
+    }
+
+    private function indonesian(CarbonImmutable $date, string $format): string
+    {
+        return $date->settings(['locale' => 'id'])->translatedFormat($format);
     }
 
     /**

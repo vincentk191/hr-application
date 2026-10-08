@@ -7,6 +7,7 @@ use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\User;
 use App\Support\Leave\LeaveAttachments;
+use App\Support\Notifications\Notifier;
 use App\Workflows\Definitions\LeaveRequestWorkflow;
 use App\Workflows\StepBlueprint;
 use App\Workflows\WorkflowEngine;
@@ -33,14 +34,14 @@ class SubmitLeaveRequest
      */
     public function handle(Employee $employee, array $attributes, User $submittedBy, array $files = []): LeaveRequest
     {
-        return DB::transaction(function () use ($employee, $attributes, $submittedBy, $files): LeaveRequest {
+        $leave = DB::transaction(function () use ($employee, $attributes, $submittedBy, $files): LeaveRequest {
             $request = LeaveRequest::create([
                 'company_id' => $employee->company_id,
                 'employee_id' => $employee->id,
                 'leave_type' => $attributes['leave_type'],
                 'start_on' => $attributes['start_on'],
                 'end_on' => $attributes['end_on'],
-                'days' => LeaveRequest::countDays($attributes['start_on'], $attributes['end_on']),
+                'days' => LeaveRequest::workingDays($attributes['start_on'], $attributes['end_on'], $employee),
                 'reason' => $attributes['reason'] ?? null,
                 'created_by_user_id' => $submittedBy->id,
             ]);
@@ -51,6 +52,11 @@ class SubmitLeaveRequest
 
             return $request;
         });
+
+        // After the transaction, so nobody is told about a request that then failed to save.
+        app(Notifier::class)->leaveAwaitingApproval($leave, $submittedBy);
+
+        return $leave;
     }
 
     /**

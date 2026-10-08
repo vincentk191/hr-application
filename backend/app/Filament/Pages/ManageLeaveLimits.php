@@ -60,7 +60,7 @@ class ManageLeaveLimits extends Page
         return $schema->components(array_map(
             fn (LeaveType $type): TextInput => TextInput::make($type->value)
                 ->label($type->label())
-                ->helperText('Hari maksimal per pengajuan. Kosongkan jika tanpa batas.')
+                ->helperText('Hari kerja maksimal per pengajuan. Kosongkan jika tanpa batas.')
                 ->numeric()
                 ->integer()
                 ->minValue(1)
@@ -72,7 +72,7 @@ class ManageLeaveLimits extends Page
     public function content(Schema $schema): Schema
     {
         return $schema->components([
-            Text::make('Pengajuan yang lebih panjang dari batas jenisnya ditolak saat diajukan atau diperbaiki. Hari dihitung kalender, termasuk akhir pekan. Pengajuan yang sudah ada tidak berubah.'),
+            Text::make('Pengajuan yang lebih panjang dari batas jenisnya ditolak saat diajukan atau diperbaiki. Hari dihitung sebagai hari kerja: akhir pekan dan hari libur tidak dihitung. Pengajuan yang sudah ada tidak berubah.'),
             Form::make([EmbeddedSchema::make('form')])
                 ->id('form')
                 ->livewireSubmitHandler('save')

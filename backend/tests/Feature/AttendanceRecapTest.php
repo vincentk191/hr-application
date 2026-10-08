@@ -259,3 +259,31 @@ it('offers the team and leave-type options on the calendar', function () {
 
     expect(collect($options['leaveTypes'])->pluck('value')->all())->toContain('sick', 'annual');
 });
+
+it('totals the range per week when it is a month or less, and per month when longer', function () {
+    $weeks = $this->actingAs($this->hr)->get('/attendance/recap?from=2026-10-01&to=2026-10-15')->viewData('page')['props']['periods'];
+
+    expect(collect($weeks)->pluck('from')->all())->toBe(['2026-10-01', '2026-10-05', '2026-10-12'])
+        ->and($weeks[0]['to'])->toBe('2026-10-04')
+        ->and($weeks[1]['label'])->toBe('5 Okt – 11 Okt');
+
+    $months = $this->actingAs($this->hr)->get('/attendance/recap?from=2026-09-15&to=2026-11-10')->viewData('page')['props']['periods'];
+
+    expect(collect($months)->pluck('label')->all())->toBe(['September 2026', 'Oktober 2026', 'November 2026'])
+        ->and($months[0]['from'])->toBe('2026-09-15')
+        ->and($months[2]['to'])->toBe('2026-11-10');
+});
+
+it('makes the period totals add up to the grand total, and exports them', function () {
+    recapData();
+
+    $props = $this->actingAs($this->hr)->get('/attendance/recap?from=2026-10-01&to=2026-10-31')->viewData('page')['props'];
+
+    foreach (['present', 'late', 'absent', 'leave', 'minutes'] as $key) {
+        expect(collect($props['periods'])->sum($key))->toBe($props['total'][$key]);
+    }
+
+    $csv = $this->actingAs($this->hr)->get('/attendance/recap?from=2026-10-01&to=2026-10-31&export=csv')->streamedContent();
+
+    expect($csv)->toContain('Per periode')->toContain('5 Okt – 11 Okt');
+});

@@ -5,13 +5,14 @@ namespace App\Http\Controllers;
 use App\Enums\LeaveRequestStage;
 use App\Http\Requests\DecideLeaveRequestRequest;
 use App\Models\LeaveRequest;
+use App\Support\Notifications\Notifier;
 use App\Workflows\WorkflowEngine;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 
 class LeaveRequestDecisionController extends Controller
 {
-    public function __construct(private WorkflowEngine $engine) {}
+    public function __construct(private WorkflowEngine $engine, private Notifier $notifier) {}
 
     /**
      * Approve or reject the open step (REQ-DLG-004 / REQ-DLG-005).
@@ -39,6 +40,7 @@ class LeaveRequestDecisionController extends Controller
             // step. blockingReasons() is what tells us which case this is.
             if ($this->engine->chainIsApproved($instance->refresh())) {
                 $this->engine->transitionTo($instance, LeaveRequestStage::Approved, $request->user());
+                $this->notifier->leaveDecided($leaveRequest, true, $request->note(), $request->user());
 
                 Inertia::flash('toast', [
                     'type' => 'success',
@@ -47,6 +49,8 @@ class LeaveRequestDecisionController extends Controller
 
                 return back();
             }
+
+            $this->notifier->leaveAwaitingApproval($leaveRequest->refresh(), $request->user());
 
             Inertia::flash('toast', [
                 'type' => 'success',
@@ -58,6 +62,7 @@ class LeaveRequestDecisionController extends Controller
 
         $this->engine->reject($step, $request->user(), $request->note());
         $this->engine->transitionTo($instance->refresh(), LeaveRequestStage::Rejected, $request->user());
+        $this->notifier->leaveDecided($leaveRequest, false, $request->note(), $request->user());
 
         Inertia::flash('toast', [
             'type' => 'success',

@@ -1,5 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { ChevronRight } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatMinutes } from '@/lib/attendance-status';
@@ -30,10 +32,13 @@ type Row = Figures & {
 
 type DepartmentTotal = Figures & { name: string | null; employees: number };
 
+type PeriodTotal = Figures & { label: string; from: string; to: string };
+
 type Props = {
     rows: Row[];
     truncated: boolean;
     departments: DepartmentTotal[];
+    periods: PeriodTotal[];
     total: Figures & { employees: number };
     filters: {
         from: string;
@@ -71,6 +76,58 @@ function FigureCells({ figures }: { figures: Figures }) {
     );
 }
 
+/**
+ * A recap section that folds away. The recap grows with the number of employees and the length of
+ * the range, so each table can be closed to get to the next one. While printing every section is
+ * open: a closed section would drop out of the report.
+ */
+function ReportSection({
+    title,
+    hint,
+    open,
+    printing,
+    onToggle,
+    children,
+}: {
+    title: string;
+    hint?: string;
+    open: boolean;
+    printing: boolean;
+    onToggle: () => void;
+    children: React.ReactNode;
+}) {
+    const shown = open || printing;
+
+    return (
+        <section className="rounded-xl border">
+            <h2 className="font-medium">
+                <button
+                    type="button"
+                    onClick={onToggle}
+                    aria-expanded={shown}
+                    className="flex w-full items-center gap-2 p-3 text-left print:cursor-default"
+                >
+                    <ChevronRight
+                        aria-hidden
+                        className={`size-4 transition-transform print:hidden ${
+                            shown ? 'rotate-90' : ''
+                        }`}
+                    />
+                    {title}
+                    {hint && (
+                        <span className="text-sm font-normal text-muted-foreground">
+                            ({hint})
+                        </span>
+                    )}
+                </button>
+            </h2>
+            {shown && <div className="overflow-x-auto">{children}</div>}
+        </section>
+    );
+}
+
+const PAGE_SIZES = [10, 25, 50, 100];
+
 const HEAD = (
     <>
         <th className="p-2 text-right font-medium">Hadir</th>
@@ -92,6 +149,7 @@ export default function AttendanceRecap({
     rows,
     truncated,
     departments,
+    periods,
     total,
     filters,
     options,
@@ -99,6 +157,38 @@ export default function AttendanceRecap({
     capture,
 }: Props) {
     const [search, setSearch] = useState(filters.search);
+    const [open, setOpen] = useState({
+        employees: true,
+        periods: true,
+        departments: true,
+    });
+    const [pageSize, setPageSize] = useState(25);
+    const [page, setPage] = useState(1);
+    // True while the browser is printing, so the report comes out whole: every section open and
+    // every employee listed, whatever page the screen is on.
+    const [printing, setPrinting] = useState(false);
+
+    useEffect(() => {
+        const before = () => flushSync(() => setPrinting(true));
+        const after = () => setPrinting(false);
+
+        window.addEventListener('beforeprint', before);
+        window.addEventListener('afterprint', after);
+
+        return () => {
+            window.removeEventListener('beforeprint', before);
+            window.removeEventListener('afterprint', after);
+        };
+    }, []);
+
+    const toggle = (key: keyof typeof open) =>
+        setOpen((current) => ({ ...current, [key]: !current[key] }));
+
+    const lastPage = Math.max(1, Math.ceil(rows.length / pageSize));
+    const currentPage = Math.min(page, lastPage);
+    const shownRows = printing
+        ? rows
+        : rows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
     const query = (changes: Partial<Props['filters']> = {}) => {
         const next = { ...filters, search, ...changes };
@@ -257,8 +347,13 @@ export default function AttendanceRecap({
                     ))}
                 </div>
 
-                <section className="overflow-x-auto rounded-xl border">
-                    <h2 className="p-3 font-medium">Per karyawan</h2>
+                <ReportSection
+                    title="Per karyawan"
+                    hint={`${total.employees} karyawan`}
+                    open={open.employees}
+                    printing={printing}
+                    onToggle={() => toggle('employees')}
+                >
                     <table className="w-full min-w-[48rem] table-fixed text-sm">
                         <thead className="bg-muted/50 text-left">
                             <tr>
@@ -279,7 +374,7 @@ export default function AttendanceRecap({
                                     </td>
                                 </tr>
                             )}
-                            {rows.map((row) => (
+                            {shownRows.map((row) => (
                                 <tr key={row.id} className="border-t">
                                     <td className="sticky left-0 z-10 bg-background p-2">
                                         <Link
@@ -305,7 +400,58 @@ export default function AttendanceRecap({
                             </tr>
                         </tfoot>
                     </table>
-                </section>
+                    {!printing && rows.length > PAGE_SIZES[0] && (
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-t p-3 text-sm print:hidden">
+                            <span className="text-muted-foreground">
+                                {(currentPage - 1) * pageSize + 1}–
+                                {Math.min(currentPage * pageSize, rows.length)}{' '}
+                                dari {rows.length}
+                            </span>
+                            <div className="flex items-center gap-2">
+                                <label className="flex items-center gap-1 text-muted-foreground">
+                                    Per halaman
+                                    <select
+                                        value={pageSize}
+                                        onChange={(event) => {
+                                            setPageSize(
+                                                Number(event.target.value),
+                                            );
+                                            setPage(1);
+                                        }}
+                                        className={selectClasses}
+                                    >
+                                        {PAGE_SIZES.map((size) => (
+                                            <option key={size} value={size}>
+                                                {size}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    type="button"
+                                    disabled={currentPage <= 1}
+                                    onClick={() => setPage(currentPage - 1)}
+                                >
+                                    ‹ Sebelumnya
+                                </Button>
+                                <span>
+                                    {currentPage} / {lastPage}
+                                </span>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    type="button"
+                                    disabled={currentPage >= lastPage}
+                                    onClick={() => setPage(currentPage + 1)}
+                                >
+                                    Berikutnya ›
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </ReportSection>
 
                 {truncated && (
                     <p className="text-sm text-muted-foreground">
@@ -315,8 +461,51 @@ export default function AttendanceRecap({
                     </p>
                 )}
 
-                <section className="overflow-x-auto rounded-xl border">
-                    <h2 className="p-3 font-medium">Per departemen</h2>
+                <ReportSection
+                    title="Per periode"
+                    hint={
+                        periods.length > 0 && periods[0].label.includes('–')
+                            ? 'per minggu'
+                            : 'per bulan'
+                    }
+                    open={open.periods}
+                    printing={printing}
+                    onToggle={() => toggle('periods')}
+                >
+                    <table className="w-full min-w-[48rem] table-fixed text-sm">
+                        <thead className="bg-muted/50 text-left">
+                            <tr>
+                                <th className="sticky left-0 z-10 w-48 bg-muted p-2 font-medium sm:w-1/4">
+                                    Periode
+                                </th>
+                                {HEAD}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {periods.map((period) => (
+                                <tr key={period.from} className="border-t">
+                                    <td className="sticky left-0 z-10 bg-background p-2">
+                                        <span className="font-medium">
+                                            {period.label}
+                                        </span>
+                                        <div className="text-xs text-muted-foreground">
+                                            {period.from} s/d {period.to}
+                                        </div>
+                                    </td>
+                                    <FigureCells figures={period} />
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </ReportSection>
+
+                <ReportSection
+                    title="Per departemen"
+                    hint={`${departments.length} departemen`}
+                    open={open.departments}
+                    printing={printing}
+                    onToggle={() => toggle('departments')}
+                >
                     <table className="w-full min-w-[48rem] table-fixed text-sm">
                         <thead className="bg-muted/50 text-left">
                             <tr>
@@ -346,7 +535,7 @@ export default function AttendanceRecap({
                             ))}
                         </tbody>
                     </table>
-                </section>
+                </ReportSection>
 
                 <p className="text-xs text-muted-foreground">
                     Angka dalam hari-orang. Jam kerja = scan pertama sampai

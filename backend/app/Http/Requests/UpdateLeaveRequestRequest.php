@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Concerns\ValidatesLeaveRequestFields;
+use App\Models\Employee;
 use App\Models\LeaveRequest;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
@@ -53,6 +54,14 @@ class UpdateLeaveRequestRequest extends FormRequest
                 }
             },
         ];
+    }
+
+    protected function leaveEmployee(): ?Employee
+    {
+        /** @var LeaveRequest $leave */
+        $leave = $this->route('leaveRequest');
+
+        return $leave->employee;
     }
 
     /**

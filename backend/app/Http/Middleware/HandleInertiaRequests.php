@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Enums\Permission;
+use App\Http\Controllers\NotificationController;
 use App\Models\Company;
 use App\Models\Employee;
 use App\Support\CompanyContext;
@@ -56,7 +57,30 @@ class HandleInertiaRequests extends Middleware
                     : Employee::acrossCompanies()->where('user_id', $request->user()->id)->value('id'),
             ],
             'companySwitcher' => fn (): ?array => $this->companySwitcher($request),
+            // The header bell: how many are unread and the latest few. Lazy, so a request that does not
+            // render a page (a redirect) never pays for it.
+            'notifications' => fn (): ?array => $this->notifications($request),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+        ];
+    }
+
+    /**
+     * @return array{unread: int, recent: array<int, array<string, mixed>>}|null
+     */
+    private function notifications(Request $request): ?array
+    {
+        $user = $request->user();
+
+        if ($user === null) {
+            return null;
+        }
+
+        return [
+            'unread' => $user->unreadNotifications()->count(),
+            'recent' => $user->notifications()->limit(8)->get()
+                ->map(fn ($notification): array => NotificationController::present($notification))
+                ->values()
+                ->all(),
         ];
     }
 

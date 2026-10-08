@@ -101,6 +101,25 @@ services:
             db:
                 condition: service_healthy
 
+    scheduler:
+        # Runs the scheduled commands (daily attendance and document notifications). schedule:work
+        # wakes once a minute and runs whatever is due, so no cron is needed in the container.
+        build:
+            context: .
+            target: dev
+        container_name: hr-app-scheduler
+        restart: unless-stopped
+        command: php artisan schedule:work
+        environment:
+            DB_HOST: db
+            DB_PORT: 5432
+        volumes:
+            - ./backend:/var/www/backend
+            - vendor:/var/www/backend/vendor
+        depends_on:
+            db:
+                condition: service_healthy
+
     vite:
         # The same image as `app`, because the Wayfinder Vite plugin runs `php artisan` on start.
         build:

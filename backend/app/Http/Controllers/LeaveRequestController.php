@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Actions\Leave\ResubmitLeaveRequest;
 use App\Actions\Leave\SubmitLeaveRequest;
-use App\Enums\Permission;
 use App\Enums\WorkflowStepStatus;
 use App\Http\Requests\StoreLeaveRequestRequest;
 use App\Http\Requests\UpdateLeaveRequestRequest;
@@ -14,7 +13,6 @@ use App\Models\User;
 use App\Models\WorkflowStep;
 use App\Support\Leave\LeaveLimits;
 use App\Support\Leave\LeaveRequestPresenter;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -36,13 +34,7 @@ class LeaveRequestController extends Controller
         $user = $request->user();
 
         $requests = LeaveRequest::query()
-            ->when(
-                ! $user->can(Permission::ViewEmployees->value),
-                fn (Builder $query) => $query->where(function (Builder $inner) use ($user): void {
-                    $inner->whereHas('employee', fn (Builder $employee) => $employee->where('user_id', $user->id))
-                        ->orWhereHas('workflow.steps', fn (Builder $step) => $step->where('approver_user_id', $user->id));
-                }),
-            )
+            ->visibleTo($user)
             ->with(['employee:id,full_name,employee_number,department_id,user_id', 'employee.department:id,name', 'workflow.steps.decidedBy:id,name', 'workflow.comments.author:id,name', 'attachments'])
             ->latest('id')
             ->get()

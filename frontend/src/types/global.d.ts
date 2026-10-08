@@ -1,5 +1,6 @@
 import type { Auth } from '@/types/auth';
 import type { CompanySwitcher } from '@/types/company';
+import type { NotificationSummary } from '@/types/notification';
 
 declare module 'react' {
     interface InputHTMLAttributes<T> {
@@ -13,6 +14,7 @@ declare module '@inertiajs/core' {
             name: string;
             auth: Auth;
             companySwitcher: CompanySwitcher | null;
+            notifications: NotificationSummary | null;
             sidebarOpen: boolean;
             [key: string]: unknown;
         };

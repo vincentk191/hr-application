@@ -3,6 +3,7 @@
 namespace App\Concerns;
 
 use App\Enums\LeaveType;
+use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Support\Leave\LeaveLimits;
 use Carbon\CarbonImmutable;
@@ -51,8 +52,14 @@ trait ValidatesLeaveRequestFields
     }
 
     /**
-     * Refuse a request longer than HR allows for its type. The days are counted the way the request
-     * counts them, so what is checked here is what would be stored.
+     * The employee the request is for, so its days can be counted for their company and department.
+     */
+    abstract protected function leaveEmployee(): ?Employee;
+
+    /**
+     * Refuse a request that covers no working day, and one longer than HR allows for its type. The
+     * days are counted the way the request counts them (working days), so what is checked here is
+     * what would be stored.
      */
     protected function checkLeaveLimit(Validator $validator): void
     {
@@ -63,26 +70,30 @@ trait ValidatesLeaveRequestFields
         }
 
         $type = LeaveType::tryFrom((string) $this->input('leave_type'));
+        $employee = $this->leaveEmployee();
 
-        if ($type === null) {
+        if ($type === null || $employee === null) {
+            return;
+        }
+
+        $days = LeaveRequest::workingDays(
+            CarbonImmutable::parse((string) $this->input('start_on')),
+            CarbonImmutable::parse((string) $this->input('end_on')),
+            $employee,
+        );
+
+        if ($days === 0) {
+            $validator->errors()->add('end_on', 'Tanggal yang dipilih tidak mencakup hari kerja (akhir pekan atau hari libur).');
+
             return;
         }
 
         $max = app(LeaveLimits::class)->maxDays($type);
 
-        if ($max === null) {
-            return;
-        }
-
-        $days = LeaveRequest::countDays(
-            CarbonImmutable::parse((string) $this->input('start_on')),
-            CarbonImmutable::parse((string) $this->input('end_on')),
-        );
-
-        if ($days > $max) {
+        if ($max !== null && $days > $max) {
             $validator->errors()->add(
                 'end_on',
-                "{$type->label()} maksimal {$max} hari per pengajuan; pengajuan ini {$days} hari.",
+                "{$type->label()} maksimal {$max} hari kerja per pengajuan; pengajuan ini {$days} hari kerja.",
             );
         }
     }

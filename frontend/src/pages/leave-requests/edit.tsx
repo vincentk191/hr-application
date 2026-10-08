@@ -102,7 +102,8 @@ export default function LeaveRequestEdit({
                                 </select>
                                 {maxDays != null && (
                                     <p className="text-xs text-muted-foreground">
-                                        Maksimal {maxDays} hari per pengajuan.
+                                        Maksimal {maxDays} hari kerja per
+                                        pengajuan.
                                     </p>
                                 )}
                                 <InputError message={errors.leave_type} />
@@ -134,6 +135,10 @@ export default function LeaveRequestEdit({
                                     <InputError message={errors.end_on} />
                                 </div>
                             </div>
+                            <p className="-mt-3 text-xs text-muted-foreground">
+                                Yang dihitung hanya hari kerja: akhir pekan dan
+                                hari libur tidak termasuk.
+                            </p>
 
                             <div className="grid gap-2">
                                 <Label htmlFor="reason">Catatan</Label>

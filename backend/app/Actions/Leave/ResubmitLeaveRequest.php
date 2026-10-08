@@ -6,6 +6,7 @@ use App\Enums\LeaveRequestStage;
 use App\Models\LeaveRequest;
 use App\Models\User;
 use App\Support\Leave\LeaveAttachments;
+use App\Support\Notifications\Notifier;
 use App\Workflows\WorkflowEngine;
 use Carbon\CarbonInterface;
 use Illuminate\Http\UploadedFile;
@@ -40,14 +41,14 @@ class ResubmitLeaveRequest
         array $removeAttachmentIds,
         User $by,
     ): LeaveRequest {
-        return DB::transaction(function () use ($leave, $attributes, $note, $newFiles, $removeAttachmentIds, $by): LeaveRequest {
+        $result = DB::transaction(function () use ($leave, $attributes, $note, $newFiles, $removeAttachmentIds, $by): LeaveRequest {
             $before = $this->summary($leave);
 
             $leave->update([
                 'leave_type' => $attributes['leave_type'],
                 'start_on' => $attributes['start_on'],
                 'end_on' => $attributes['end_on'],
-                'days' => LeaveRequest::countDays($attributes['start_on'], $attributes['end_on']),
+                'days' => LeaveRequest::workingDays($attributes['start_on'], $attributes['end_on'], $leave->employee),
                 'reason' => $attributes['reason'] ?? null,
             ]);
 
@@ -71,6 +72,10 @@ class ResubmitLeaveRequest
 
             return $leave;
         });
+
+        app(Notifier::class)->leaveAwaitingApproval($result->refresh(), $by, resubmitted: true);
+
+        return $result;
     }
 
     private function summary(LeaveRequest $leave): string

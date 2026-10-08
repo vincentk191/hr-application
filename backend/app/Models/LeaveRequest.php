@@ -5,9 +5,13 @@ namespace App\Models;
 use App\Concerns\BelongsToCompany;
 use App\Concerns\HasWorkflow;
 use App\Enums\LeaveType;
+use App\Enums\Permission;
+use App\Support\Attendance\WorkingDays;
 use Carbon\CarbonInterface;
 use Database\Factories\LeaveRequestFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -68,6 +72,25 @@ class LeaveRequest extends Model
     }
 
     /**
+     * The requests this person may see: all of them for roles that can see employees (the company
+     * scope still applies), otherwise their own and the ones they are asked to approve.
+     *
+     * @param  Builder<static>  $query
+     */
+    #[Scope]
+    protected function visibleTo(Builder $query, User $user): void
+    {
+        if ($user->can(Permission::ViewEmployees->value)) {
+            return;
+        }
+
+        $query->where(function (Builder $inner) use ($user): void {
+            $inner->whereHas('employee', fn (Builder $employee) => $employee->where('user_id', $user->id))
+                ->orWhereHas('workflow.steps', fn (Builder $step) => $step->where('approver_user_id', $user->id));
+        });
+    }
+
+    /**
      * @return HasMany<LeaveRequestAttachment, $this>
      */
     public function attachments(): HasMany
@@ -92,14 +115,15 @@ class LeaveRequest extends Model
     }
 
     /**
-     * Whole days inclusive of both ends.
+     * The working days a leave covers, both ends included (REQ-WIZ-005): Monday to Friday, less the
+     * holidays and company events that apply to this employee's company and department.
      *
-     * Calendar days for now. The design counts *working* days, excluding weekends and the
-     * holidays set on the attendance calendar (REQ-WIZ-005) — that needs ATT-WIZ, which does
-     * not exist yet, so this is deliberately the simpler rule until it does.
+     * It uses the same definition of a working day as the attendance calendar, so the two cannot
+     * disagree. The count is fixed when the request is filed; a holiday added afterwards does not
+     * change it (the `leave:recount-days` command does, on purpose).
      */
-    public static function countDays(CarbonInterface $startOn, CarbonInterface $endOn): int
+    public static function workingDays(CarbonInterface $startOn, CarbonInterface $endOn, Employee $employee): int
     {
-        return (int) $startOn->startOfDay()->diffInDays($endOn->startOfDay()) + 1;
+        return app(WorkingDays::class)->between($startOn, $endOn, $employee->company_id, $employee->department_id);
     }
 }

@@ -29,13 +29,13 @@ listed in the checklist below. Nothing here is committed yet: changes are left f
 
 |                 |                                                                                                              |
 | --------------- | ------------------------------------------------------------------------------------------------------------ |
-| Tests           | 433 passing                                                                                                  |
+| Tests           | 456 passing                                                                                                  |
 | Static analysis | PHPStan level 7, 0 errors                                                                                    |
 | Phase 0         | **Complete** — company scoping, RBAC, workflow engine, account state and login rules                         |
 | Phase 1         | Directory (with CSV import/export), profile, add/edit, documents, admin panel done                           |
 | Phase 2         | Scan-log import, ingest API + agents, calendar, holidays/events, recap/export, issues, timesheet corrections |
 | Also built      | Leave requests end to end — the first real workflow consumer                                                 |
-| Not built       | Recruitment and offboarding screens; notifications, global search, employee app, on-site sync agent          |
+| Not built       | Recruitment and offboarding screens; global search, employee app, on-site sync agent                         |
 
 ---
 
@@ -561,7 +561,7 @@ the 309 features, their sizes and priorities, and the test cases. This table is 
 | `EMP-PRF`  | Profile shell                          | 3   | 2   | 🟡     | Header stats + tabs (Overview, Absensi, Pengajuan, Dokumen, Tim). Opens as a side drawer from the directory. Change audit is on (003); "SOPs to acknowledge" stays dropped with the Knowledge Hub |
 | `EMP-DET`  | Profile — overview tab                 | 6   | 5   | ✅     | All five card groups render; bank, payroll and health are withheld from roles without `view-sensitive-data` (006) |
 | `EMP-DOC`  | Profile — documents tab                | 4   | 2   | ✅     | Upload, categorise, version, expiry flags and per-document restriction. Reminders are in-app only — see Known gaps |
-| `EMP-ATT`  | Profile — attendance tab               | 3   | 3   | 🟡     | Timesheet, manual add/change/void with reason + audit, recompute done. Totals by department/period are not |
+| `EMP-ATT`  | Profile — attendance tab               | 3   | 3   | ✅     | Timesheet (month and year), manual add/change/void with reason + audit, recompute, and totals by employee, department and period (the recap) |
 | `EMP-REQ`  | Profile — requests tab                 | 2   | 2   | ✅     | Real: lists the employee's leave requests and leave taken this year                                                                                   |
 | `CORE-USR` | User & role management                 | 6   | 5   | ✅     | Policies and Filament screens (users, roles, permissions); activate/deactivate, last login, temporary password, reset password and revoke sessions per user |
 | `CORE-ORG` | Departments, positions, reporting line | 4   | 4   | ✅     | Schema, policies, the downline resolver and Filament screens for departments and positions                                                                         |
@@ -691,10 +691,14 @@ How the import behaves, so it is not surprised by:
   reason. An account created or reset by an administrator carries a temporary password and can
   reach nothing but the security page until it is changed. The sessions are database-backed, which
   revoking relies on. Idle expiry is `SESSION_LIFETIME`.
-- **Not built yet:** totals per department or period on the timesheet (`EMP-ATT-003`), the year
-  view per employee, a notification to the employee and supervisor about an issue (needs the
-  notifications module), the on-site agent and listener, xlsx import, and weekend/holiday-aware
-  leave day counts.
+- **Totals by employee, department and period** (`EMP-ATT-003`) are all in: a person's month and
+  year on their profile, and the recap's per-employee, per-department and **per-period** tables for
+  any range (per week for a month or less, per month for longer, with partial periods labelled by the
+  dates they cover). The period rows sum to the grand total, and the CSV carries them.
+- **Each section of the recap folds away, and "Per karyawan" is paged** (10, 25, 50 or 100 a page, the
+  total row stays under every page). Folding and paging are only for the screen: printing opens every
+  section and lists every employee, so the printed report is whole. The CSV is always whole.
+- **Not built yet:** the on-site agent and listener, and xlsx import.
 
 | Screen    | Name                      | f   | P1  | Status | Notes                                                            |
 | --------- | ------------------------- | --- | --- | ------ | ---------------------------------------------------------------- |
@@ -702,7 +706,7 @@ How the import behaves, so it is not surprised by:
 | `ATT-CAL` | Attendance calendar       | 5   | 5   | 🟡     | Day / week / month / year, department/team/leave-type filters, status rules, holidays and approved leave shown ahead of the data, CSV export, printable recap. A separate live board is covered by the Day view |
 | `ATT-SID` | Calendar side panel       | 3   | 1   | ✅     | Headcount, out today / upcoming and the approvals link, from the same rows as the grid |
 | `ATT-WIZ` | Calendar event wizard     | 1   | 1   | ✅     | Holidays and company/department events, with audit. `WorkingDays` exists for leave day counts but is not wired in yet |
-| `EMP-ATT` | Profile — attendance tab  | 3   | 3   | 🟡     | Timesheet, manual add/change/void with reason + audit, recompute done. Totals by department/period are not |
+| `EMP-ATT` | Profile — attendance tab  | 3   | 3   | ✅     | Timesheet (month and year), manual add/change/void with reason + audit, recompute, and totals by employee, department and period (the recap) |
 
 ### Phase 3 — Requests (leave) + notifications
 
@@ -711,13 +715,13 @@ unapproved-absence detection needs approved-leave data.
 
 | Screen     | Name                   | f   | P1  | Status | Notes                                                      |
 | ---------- | ---------------------- | --- | --- | ------ | ---------------------------------------------------------- |
-| `REQ-WIZ`  | New leave request      | 9   | 9   | ⬜     | Working-day calc excluding weekends + calendar events (L). Optional attachments, per-type maximum days and resubmitting a rejected request are done |
+| `REQ-WIZ`  | New leave request      | 9   | 9   | 🟡     | Working-day count (weekends and calendar events excluded), optional attachments, per-type maximum days and resubmitting a rejected request are done |
 | `REQ-DSH`  | Requests queue         | 7   | 4   | ⬜     | "Waiting on" comes from the engine                         |
 | `REQ-DLG`  | Decision dialog        | 5   | 5   | ⬜     | Approve/reject — engine already does this                  |
 | `ATT-LVE`  | Absensi › Cuti         | 10  | 5   | ⬜     | Day picture, 14-day availability, headcount reconciliation |
 | `EMP-REQ`  | Profile — requests tab | 2   | 2   | ⬜     |                                                            |
-| `ATT-ISS`  | Attendance issues      | 6   | 4   | 🟡     | Five exception types, filters, bulk excuse with audit, reopen. Notify employee + supervisor waits on notifications |
-| `CORE-NOT` | Notifications          | 8   | 5   | ⬜     | In-app + email first; Web Push with the PWA                |
+| `ATT-ISS`  | Attendance issues      | 6   | 4   | 🟡     | Five exception types, filters, bulk excuse with audit, reopen. Employee and supervisor are notified the next morning |
+| `CORE-NOT` | Notifications          | 8   | 5   | 🟡     | In-app only, by decision: bell, list, leave / attendance / document notices. Email and Web Push (with the PWA) are not built |
 
 **Open rules to settle before building:** does a rejection require a reason (offboarding's
 does)? Which leave types require evidence? Is there an annual entitlement at all, or only
@@ -796,8 +800,8 @@ Progress Tracking analytics (Appendix C).
   viewer cannot see is omitted entirely. Downloads of restricted documents are written to the
   audit trail. Access is by role, not per person — there is no allow-list of named users.
 - **Expiry reminders are in-app only.** Lapsing documents (past their date or within 30 days)
-  show on the dashboard for roles that can view documents. Nothing is emailed or pushed; that
-  waits for the notifications module (Phase 3).
+  show on the dashboard for roles that can view documents, and document managers also get a
+  notification (see Notifications). Nothing is emailed or pushed.
 - **Documents are soft-deleted**: the record disappears but the files stay on disk.
 
 - **No test cases in the workbook** for `CORE-*` or `EMP-*` — the Pest suite covers them, but
@@ -824,6 +828,25 @@ Progress Tracking analytics (Appendix C).
   uploading a document or correcting a scan redirects, which would navigate the list away from
   under it, so those stay on the full page ("Buka profil penuh"). "Ubah data" and "Ajukan cuti"
   are links; "Ajukan cuti" opens the leave form and does not preselect the employee.
+- **Notifications are in-app only** (the database channel; a deliberate choice, nothing goes by email or
+  push). A bell in the header shows the unread count and the latest eight, `/notifications` lists them
+  all (all / unread), and choosing one marks it read and goes where it points. They are only ever the
+  signed-in person's own, and a stored link that is not a path inside the app is never followed.
+  - **Leave:** filing or resubmitting tells whoever the request is now waiting on (the named supervisor,
+    or everyone holding the HR role in that company); a supervisor's approval tells HR; the final decision
+    tells the requester (and whoever filed it for them), with the reason and a link to correct a rejection.
+    Nobody is told about what they just did, and deactivated accounts are skipped.
+  - **Attendance issues:** a weekday-morning job (09:00 scanner time) tells each employee, and their
+    supervisor, about the previous day's issues: one notice per person per day. Excused issues are skipped,
+    and a day the scan log has not reached raises nothing. The supervisor's link goes to the employee's
+    profile, because supervisors cannot open the attendance tab or the issues screen (that needs
+    `view-attendance`).
+  - **Documents:** a daily job (08:00) tells people who may manage documents when one enters its 30-day
+    warning window, and again when it expires; not every morning.
+  - **The jobs need the scheduler.** The compose file has a `scheduler` service running
+    `php artisan schedule:work`; without it only the leave notifications (sent when it happens) work. Run
+    `php artisan notifications:attendance-issues --date=YYYY-MM-DD` or `notifications:document-expiry` by
+    hand to send them now; both can be repeated safely.
 - **A leave request on the profile opens to its detail** (Pengajuan tab and the drawer's Cuti tab): the
   requester's note, and the approval chain with each reviewer, the date, and the note they left. The
   requester reads a rejection's reason here as well as in the queue's dialog; both read the same step
@@ -852,7 +875,7 @@ Progress Tracking analytics (Appendix C).
     served only through `leave-attachments.download`, which asks the leave request's policy (the
     requester, HR and anyone who can see the employee).
   - **Maximum days:** HR sets them in the admin panel under "Batas cuti" (needs `manage-leave-settings`,
-    given to HR Admin; changes are on the audit trail). It is per request, counted in calendar days like
+    given to HR Admin; changes are on the audit trail). It is per request, counted in working days like
     the request itself, and blank means no limit. It is checked when filing and when correcting, and
     does not touch requests already filed. It is not an annual entitlement; nothing tracks a balance.
   - **Correcting:** only a **rejected** request can be changed, by its requester or by HR for someone
@@ -866,8 +889,13 @@ Progress Tracking analytics (Appendix C).
     (`WorkflowEngine::reopen`), as written by that approver and dated when they decided. The requester's
     optional note, plus an automatic "Diubah dari … menjadi …" line, is added with the new submission.
     Every round stays visible, oldest first, under "Riwayat sebelumnya".
-- **Leave counts calendar days, not working days.** `REQ-WIZ-005` wants weekends and calendar
-  holidays excluded; `ATT-WIZ` and `WorkingDays` now exist, so this only needs wiring in. `LeaveRequest::countDays()` says so in place.
+- **Leave counts working days** (`REQ-WIZ-005`): Monday to Friday, less the holidays and events that
+  apply to the employee's company and department, using the same `WorkingDays` rule as the attendance
+  calendar. The count is fixed when the request is filed or corrected; a holiday added later does not
+  change it. A request that covers no working day is refused. The per-type maximum is in working days.
+  Requests filed before this were counted in calendar days; `php artisan leave:recount-days` (with
+  `--dry-run` to preview, and `--all` to include approved requests, which it leaves alone by default)
+  brings stored counts in line. "Leave taken this year" sums these counts.
 - **Middleware order is load-bearing.** `SubstituteBindings` is deliberately re-added after
   `SetActiveCompany` in `backend/bootstrap/app.php` so route model binding is company-scoped. Moving it
   back to its default slot silently lets a record from another company bind.
