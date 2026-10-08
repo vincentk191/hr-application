@@ -296,12 +296,16 @@ export default function EmployeesIndex({
                                         Departemen
                                     </th>
                                     <th className="p-3 font-medium">Jabatan</th>
-                                    <th className="p-3 font-medium">Atasan</th>
-                                    <th className="p-3 font-medium">
+                                    <th className="hidden p-3 font-medium md:table-cell">
+                                        Atasan
+                                    </th>
+                                    <th className="hidden p-3 font-medium md:table-cell">
                                         Bergabung
                                     </th>
                                     <th className="p-3 font-medium">Status</th>
-                                    <th className="p-3 font-medium">Akun</th>
+                                    <th className="hidden p-3 font-medium md:table-cell">
+                                        Akun
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -321,7 +325,7 @@ export default function EmployeesIndex({
                                         className="cursor-pointer border-t hover:bg-muted/40"
                                         onClick={() => setOpenId(employee.id)}
                                     >
-                                        <td className="p-3 font-mono text-xs">
+                                        <td className="p-3 font-mono text-xs whitespace-nowrap">
                                             {employee.number}
                                         </td>
                                         <td className="p-3 font-medium">
@@ -333,10 +337,10 @@ export default function EmployeesIndex({
                                         <td className="p-3">
                                             {employee.position ?? '—'}
                                         </td>
-                                        <td className="p-3">
+                                        <td className="hidden p-3 md:table-cell">
                                             {employee.manager ?? '—'}
                                         </td>
-                                        <td className="p-3">
+                                        <td className="hidden p-3 md:table-cell">
                                             {employee.joinedOn ?? '—'}
                                         </td>
                                         <td className="p-3">
@@ -350,7 +354,7 @@ export default function EmployeesIndex({
                                                 {employee.status}
                                             </Badge>
                                         </td>
-                                        <td className="p-3 text-muted-foreground">
+                                        <td className="hidden p-3 text-muted-foreground md:table-cell">
                                             {employee.hasLogin
                                                 ? 'Ada'
                                                 : 'Data saja'}

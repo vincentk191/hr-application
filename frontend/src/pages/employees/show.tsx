@@ -4,6 +4,7 @@ import { EmployeeAttendance } from '@/components/employee-attendance';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import { EmployeeDocuments } from '@/components/employee-documents';
 import { EmployeeTeamTab } from '@/components/employee-team';
+import { LeaveRequestDetail } from '@/components/leave-request-detail';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { edit } from '@/routes/employees';
@@ -13,18 +14,9 @@ import type {
     EmployeeDetail,
     EmployeeDocumentRow,
     EmployeeTeam,
+    LeaveRow,
     ValueOption,
 } from '@/types/employee';
-
-type LeaveRow = {
-    id: number;
-    reference: string;
-    type: string;
-    startOn: string;
-    endOn: string;
-    days: number;
-    stageLabel: string | null;
-};
 
 type Props = {
     employee: EmployeeDetail;
@@ -99,6 +91,52 @@ function Card({
             <h3 className="mb-2 font-medium">{title}</h3>
             <dl className="divide-y">{children}</dl>
         </section>
+    );
+}
+
+/**
+ * One leave request on the profile. Opening it shows the requester's note and each reviewer's
+ * decision with the note they left, which a rejected request needs the requester to be able to read.
+ */
+function RequestRow({ row }: { row: LeaveRow }) {
+    const [open, setOpen] = useState(false);
+
+    return (
+        <>
+            <tr
+                className="cursor-pointer border-t hover:bg-muted/40"
+                onClick={() => setOpen((value) => !value)}
+            >
+                <td className="p-3 font-medium">{row.reference}</td>
+                <td className="p-3">{row.type}</td>
+                <td className="p-3 whitespace-nowrap">
+                    {row.startOn} – {row.endOn}
+                </td>
+                <td className="p-3">{row.days}</td>
+                <td className="p-3">{row.stageLabel}</td>
+                <td className="p-3 text-right">
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        type="button"
+                        aria-expanded={open}
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            setOpen((value) => !value);
+                        }}
+                    >
+                        {open ? 'Tutup' : 'Detail'}
+                    </Button>
+                </td>
+            </tr>
+            {open && (
+                <tr className="bg-muted/30">
+                    <td colSpan={6} className="px-4 py-3">
+                        <LeaveRequestDetail row={row} />
+                    </td>
+                </tr>
+            )}
+        </>
     );
 }
 
@@ -208,7 +246,7 @@ export default function EmployeeShow({
                     </div>
                 </div>
 
-                <nav className="flex gap-1 border-b">
+                <nav className="flex flex-wrap gap-x-1 border-b">
                     {TABS.filter((item) => item.key !== 'team' || team).map(
                         (item) => (
                             <button
@@ -387,13 +425,14 @@ export default function EmployeeShow({
                                     <th className="p-3 font-medium">Tanggal</th>
                                     <th className="p-3 font-medium">Hari</th>
                                     <th className="p-3 font-medium">Status</th>
+                                    <th className="p-3" />
                                 </tr>
                             </thead>
                             <tbody>
                                 {requests.length === 0 && (
                                     <tr>
                                         <td
-                                            colSpan={5}
+                                            colSpan={6}
                                             className="p-6 text-center text-muted-foreground"
                                         >
                                             Belum ada pengajuan.
@@ -401,19 +440,7 @@ export default function EmployeeShow({
                                     </tr>
                                 )}
                                 {requests.map((row) => (
-                                    <tr key={row.id} className="border-t">
-                                        <td className="p-3 font-medium">
-                                            {row.reference}
-                                        </td>
-                                        <td className="p-3">{row.type}</td>
-                                        <td className="p-3 whitespace-nowrap">
-                                            {row.startOn} – {row.endOn}
-                                        </td>
-                                        <td className="p-3">{row.days}</td>
-                                        <td className="p-3">
-                                            {row.stageLabel}
-                                        </td>
-                                    </tr>
+                                    <RequestRow key={row.id} row={row} />
                                 ))}
                             </tbody>
                         </table>

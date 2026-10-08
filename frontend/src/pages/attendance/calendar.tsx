@@ -108,8 +108,12 @@ function DayTable({
                 <thead className="bg-muted/50 text-left">
                     <tr>
                         <th className="p-3 font-medium">Karyawan</th>
-                        <th className="p-3 font-medium">Jabatan</th>
-                        <th className="p-3 font-medium">Atasan</th>
+                        <th className="hidden p-3 font-medium md:table-cell">
+                            Jabatan
+                        </th>
+                        <th className="hidden p-3 font-medium md:table-cell">
+                            Atasan
+                        </th>
                         <th className="p-3 font-medium">Masuk</th>
                         <th className="p-3 font-medium">Pulang</th>
                         <th className="p-3 font-medium">Status</th>
@@ -131,14 +135,28 @@ function DayTable({
                                     <div className="text-xs text-muted-foreground">
                                         {row.department ?? row.number}
                                     </div>
+                                    <div className="text-xs text-muted-foreground md:hidden">
+                                        {[
+                                            row.position,
+                                            row.manager
+                                                ? `Atasan: ${row.manager}`
+                                                : null,
+                                        ]
+                                            .filter(Boolean)
+                                            .join(' · ')}
+                                    </div>
                                     {!row.hasScannerId && (
                                         <div className="text-[11px] text-amber-700 dark:text-amber-300">
                                             ID pemindai belum dipetakan
                                         </div>
                                     )}
                                 </td>
-                                <td className="p-3">{row.position ?? '—'}</td>
-                                <td className="p-3">{row.manager ?? '—'}</td>
+                                <td className="hidden p-3 md:table-cell">
+                                    {row.position ?? '—'}
+                                </td>
+                                <td className="hidden p-3 md:table-cell">
+                                    {row.manager ?? '—'}
+                                </td>
                                 <td className="p-3 tabular-nums">
                                     {record?.in ?? '—'}
                                 </td>

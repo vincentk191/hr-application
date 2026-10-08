@@ -259,10 +259,10 @@ export default function AttendanceRecap({
 
                 <section className="overflow-x-auto rounded-xl border">
                     <h2 className="p-3 font-medium">Per karyawan</h2>
-                    <table className="w-full table-fixed text-sm">
+                    <table className="w-full min-w-[48rem] table-fixed text-sm">
                         <thead className="bg-muted/50 text-left">
                             <tr>
-                                <th className="w-1/4 p-2 font-medium">
+                                <th className="sticky left-0 z-10 w-48 bg-muted p-2 font-medium sm:w-1/4">
                                     Karyawan
                                 </th>
                                 {HEAD}
@@ -281,7 +281,7 @@ export default function AttendanceRecap({
                             )}
                             {rows.map((row) => (
                                 <tr key={row.id} className="border-t">
-                                    <td className="p-2">
+                                    <td className="sticky left-0 z-10 bg-background p-2">
                                         <Link
                                             href={employeeShow(row.id)}
                                             className="font-medium hover:underline"
@@ -298,7 +298,7 @@ export default function AttendanceRecap({
                         </tbody>
                         <tfoot className="border-t-2 bg-muted/30 font-medium">
                             <tr>
-                                <td className="p-2">
+                                <td className="sticky left-0 z-10 bg-muted p-2">
                                     Total ({total.employees} karyawan)
                                 </td>
                                 <FigureCells figures={total} />
@@ -317,10 +317,10 @@ export default function AttendanceRecap({
 
                 <section className="overflow-x-auto rounded-xl border">
                     <h2 className="p-3 font-medium">Per departemen</h2>
-                    <table className="w-full table-fixed text-sm">
+                    <table className="w-full min-w-[48rem] table-fixed text-sm">
                         <thead className="bg-muted/50 text-left">
                             <tr>
-                                <th className="w-1/4 p-2 font-medium">
+                                <th className="sticky left-0 z-10 w-48 bg-muted p-2 font-medium sm:w-1/4">
                                     Departemen
                                 </th>
                                 {HEAD}
@@ -332,7 +332,7 @@ export default function AttendanceRecap({
                                     key={department.name ?? '—'}
                                     className="border-t"
                                 >
-                                    <td className="p-2">
+                                    <td className="sticky left-0 z-10 bg-background p-2">
                                         <span className="font-medium">
                                             {department.name ??
                                                 'Tanpa departemen'}

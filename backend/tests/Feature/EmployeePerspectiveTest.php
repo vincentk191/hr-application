@@ -3,6 +3,7 @@
 use App\Enums\Role;
 use App\Models\Company;
 use App\Models\Employee;
+use App\Models\LeaveRequest;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -94,4 +95,27 @@ it('lets an employee open their own profile but not the directory or someone els
 
 it('cannot edit their own profile', function () {
     $this->actingAs($this->user)->get(route('employees.edit', $this->mine))->assertForbidden();
+});
+
+it('lets an employee read the reviewer\'s note on their own rejected request from their profile', function () {
+    $hr = User::factory()->create(['company_id' => $this->company->id]);
+    $hr->assignRole(Role::HrAdmin->value);
+
+    submitLeaveFor($this->mine, $this->user);
+    $leave = LeaveRequest::query()->latest('id')->firstOrFail();
+
+    $this->actingAs($hr)->put(route('leave-requests.decision', $leave), [
+        'decision' => 'reject', 'note' => 'Bertabrakan dengan audit akhir tahun',
+    ])->assertRedirect();
+
+    $this->actingAs($this->user)->get(route('employees.show', $this->mine))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('requests.0.reason', 'Keperluan keluarga')
+            ->where('requests.0.steps.0.status', 'rejected')
+            ->where('requests.0.steps.0.note', 'Bertabrakan dengan audit akhir tahun')
+            ->where('requests.0.steps.0.decidedBy', $hr->name));
+
+    $this->actingAs($this->user)->getJson(route('employees.summary', $this->mine))
+        ->assertOk()
+        ->assertJsonPath('requests.0.steps.0.note', 'Bertabrakan dengan audit akhir tahun');
 });

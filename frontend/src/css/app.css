@@ -247,3 +247,14 @@
         box-shadow: none !important;
     }
 }
+
+/*
+ * mobile-tables: a table inside a horizontal scroller keeps its headings on one line on a phone, so
+ * they scroll instead of being squeezed into each other.
+ */
+@media (max-width: 639px) {
+    .overflow-x-auto > table th,
+    .overflow-x-auto table th {
+        white-space: nowrap;
+    }
+}

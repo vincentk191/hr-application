@@ -2,6 +2,7 @@ import { Link } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import { EmployeeTeamTab } from '@/components/employee-team';
+import { LeaveRequestDetail } from '@/components/leave-request-detail';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -199,7 +200,7 @@ function DrawerBody({
                 </div>
             </div>
 
-            <nav className="flex gap-1 overflow-x-auto border-b px-2">
+            <nav className="flex flex-wrap gap-x-1 border-b px-2">
                 {visibleTabs.map((item) => (
                     <button
                         key={item.key}
@@ -369,6 +370,8 @@ function DocumentsTab({ data }: { data: Summary }) {
 }
 
 function LeaveTab({ data }: { data: Summary }) {
+    const [openId, setOpenId] = useState<number | null>(null);
+
     if (data.requests.length === 0) {
         return (
             <p className="text-sm text-muted-foreground">
@@ -380,19 +383,35 @@ function LeaveTab({ data }: { data: Summary }) {
     return (
         <ul className="divide-y rounded-lg border text-sm">
             {data.requests.map((row) => (
-                <li
-                    key={row.id}
-                    className="flex items-center justify-between gap-3 p-3"
-                >
-                    <div>
-                        <p className="font-medium">
-                            {row.reference} · {row.type}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                            {row.startOn} – {row.endOn} · {row.days} hari
-                        </p>
-                    </div>
-                    <span>{row.stageLabel}</span>
+                <li key={row.id}>
+                    <button
+                        type="button"
+                        aria-expanded={openId === row.id}
+                        onClick={() =>
+                            setOpenId(openId === row.id ? null : row.id)
+                        }
+                        className="flex w-full items-center justify-between gap-3 p-3 text-left hover:bg-muted/40"
+                    >
+                        <span>
+                            <span className="block font-medium">
+                                {row.reference} · {row.type}
+                            </span>
+                            <span className="block text-xs text-muted-foreground">
+                                {row.startOn} – {row.endOn} · {row.days} hari
+                            </span>
+                        </span>
+                        <span className="text-right">
+                            {row.stageLabel}
+                            <span className="block text-xs text-muted-foreground">
+                                {openId === row.id ? 'Tutup' : 'Detail'}
+                            </span>
+                        </span>
+                    </button>
+                    {openId === row.id && (
+                        <div className="border-t bg-muted/30 p-3">
+                            <LeaveRequestDetail row={row} />
+                        </div>
+                    )}
                 </li>
             ))}
         </ul>

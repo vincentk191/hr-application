@@ -61,7 +61,7 @@ export function CompanySwitcher() {
     return (
         <Select value={selected} onValueChange={handleChange}>
             <SelectTrigger
-                className="w-[200px]"
+                className="w-[150px] sm:w-[200px]"
                 aria-label="Pilih perusahaan"
                 data-testid="company-switcher"
             >

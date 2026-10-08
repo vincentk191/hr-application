@@ -117,6 +117,15 @@ export type EmployeeTeam = {
     onLeaveToday: string[] | null;
 };
 
+export type LeaveStepRow = {
+    label: string;
+    status: 'locked' | 'pending' | 'approved' | 'rejected';
+    statusLabel: string;
+    note: string | null;
+    decidedBy: string | null;
+    decidedAt: string | null;
+};
+
 export type LeaveRow = {
     id: number;
     reference: string;
@@ -125,4 +134,7 @@ export type LeaveRow = {
     endOn: string;
     days: number;
     stageLabel: string | null;
+    reason: string | null;
+    submittedAt: string | null;
+    steps: LeaveStepRow[];
 };

@@ -310,8 +310,25 @@ export default function AttendanceIssues({
                     </p>
                 ) : (
                     <div className="overflow-x-auto rounded-xl border">
-                        <table className="w-full text-sm">
-                            <thead className="bg-muted/50 text-left">
+                        {canResolve && (
+                            <label className="flex items-center gap-2 border-b p-3 text-sm sm:hidden">
+                                <input
+                                    type="checkbox"
+                                    checked={allSelected}
+                                    disabled={selectable.length === 0}
+                                    onChange={() =>
+                                        setSelected(
+                                            allSelected
+                                                ? []
+                                                : selectable.map((i) => i.key),
+                                        )
+                                    }
+                                />
+                                Pilih semua
+                            </label>
+                        )}
+                        <table className="block w-full text-sm sm:table">
+                            <thead className="hidden bg-muted/50 text-left sm:table-header-group">
                                 <tr>
                                     {canResolve && (
                                         <th className="w-10 p-2">
@@ -345,14 +362,14 @@ export default function AttendanceIssues({
                                     <th className="p-2" />
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody className="block sm:table-row-group">
                                 {issues.map((issue) => (
                                     <tr
                                         key={issue.key}
-                                        className="border-t align-top"
+                                        className="block border-t px-1 py-2 align-top sm:table-row sm:p-0"
                                     >
                                         {canResolve && (
-                                            <td className="p-2">
+                                            <td className="block px-2 py-1 sm:table-cell sm:p-2">
                                                 {issue.resolution === null && (
                                                     <input
                                                         type="checkbox"
@@ -372,10 +389,10 @@ export default function AttendanceIssues({
                                                 )}
                                             </td>
                                         )}
-                                        <td className="p-2 whitespace-nowrap">
+                                        <td className="block px-2 pt-1 whitespace-nowrap sm:table-cell sm:p-2">
                                             {issue.date}
                                         </td>
-                                        <td className="p-2">
+                                        <td className="block px-2 py-1 sm:table-cell sm:p-2">
                                             <Link
                                                 href={employeeShow(
                                                     issue.employeeId,
@@ -389,14 +406,14 @@ export default function AttendanceIssues({
                                                     issue.number}
                                             </div>
                                         </td>
-                                        <td className="p-2">
+                                        <td className="block px-2 py-1 sm:table-cell sm:p-2">
                                             <span
                                                 className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${TYPE_STYLE[issue.type]}`}
                                             >
                                                 {issue.typeLabel}
                                             </span>
                                         </td>
-                                        <td className="p-2">
+                                        <td className="block px-2 py-1 sm:table-cell sm:p-2">
                                             {issue.detail}
                                             {issue.resolution && (
                                                 <div className="mt-1 text-xs text-muted-foreground">
@@ -408,7 +425,7 @@ export default function AttendanceIssues({
                                                 </div>
                                             )}
                                         </td>
-                                        <td className="p-2 text-right whitespace-nowrap">
+                                        <td className="block px-2 py-1 whitespace-nowrap sm:table-cell sm:p-2 sm:text-right">
                                             {issue.resolution === null ? (
                                                 <>
                                                     <Button

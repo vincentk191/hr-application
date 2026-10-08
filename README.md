@@ -29,7 +29,7 @@ listed in the checklist below. Nothing here is committed yet: changes are left f
 
 |                 |                                                                                                              |
 | --------------- | ------------------------------------------------------------------------------------------------------------ |
-| Tests           | 417 passing                                                                                                  |
+| Tests           | 418 passing                                                                                                  |
 | Static analysis | PHPStan level 7, 0 errors                                                                                    |
 | Phase 0         | **Complete** — company scoping, RBAC, workflow engine, account state and login rules                         |
 | Phase 1         | Directory (with CSV import/export), profile, add/edit, documents, admin panel done                           |
@@ -634,6 +634,13 @@ How the import behaves, so it is not surprised by:
     definition. Leave, late and absent in the year table are person-days. The filters (department,
     team, leave type, status) apply to all of these, and the CSV export of the year view carries the
     rate and working days.
+- **Layouts are checked at phone width (390 px).** The header shows only the current page's name and a
+  narrower company switcher; the profile's tabs wrap instead of running off screen; tables that scroll
+  sideways keep their headings on one line, with the name column pinned on the recap; the calendar's
+  Day view and the employee list drop their secondary columns (position and supervisor appear under the
+  name); month tiles show the count (and "n cuti") and leave the rest to the Day view; and the issues
+  screen becomes a list of cards. The dashboard's grey placeholder blocks are the starter kit's and
+  are not real content.
 - **An employee's Absensi tab has a Bulan / Tahun toggle.** Tahun is the whole year in one table: per
   month hadir, terlambat, pulang cepat, tidak hadir, cuti, working hours and the rate, with a total
   row and a bar per month; opening a month goes to its day-by-day timesheet. It is fetched the same
@@ -817,6 +824,10 @@ Progress Tracking analytics (Appendix C).
   uploading a document or correcting a scan redirects, which would navigate the list away from
   under it, so those stay on the full page ("Buka profil penuh"). "Ubah data" and "Ajukan cuti"
   are links; "Ajukan cuti" opens the leave form and does not preselect the employee.
+- **A leave request on the profile opens to its detail** (Pengajuan tab and the drawer's Cuti tab): the
+  requester's note, and the approval chain with each reviewer, the date, and the note they left. The
+  requester reads a rejection's reason here as well as in the queue's dialog; both read the same step
+  notes. Anyone who can see the profile's requests sees these notes.
 - **The "Tim" tab** (drawer and full profile) shows a slice of the reporting line, not the whole
   chart: the supervisor and their supervisor above, the colleagues who share that supervisor
   beside (the person highlighted), and the person's own direct reports below. "Jumlah tim" counts

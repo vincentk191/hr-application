@@ -15,6 +15,7 @@ use App\Models\EmployeeDocumentVersion;
 use App\Models\LeaveRequest;
 use App\Models\Position;
 use App\Models\User;
+use App\Models\WorkflowStep;
 use App\Support\Attendance\DailyAttendance;
 use App\Support\Attendance\EmployeeTimesheet;
 use App\Support\CsvDownload;
@@ -204,7 +205,7 @@ class EmployeeController extends Controller
             'documents' => $this->documentsFor($user, $employee),
             'requests' => LeaveRequest::query()
                 ->where('employee_id', $employee->id)
-                ->with('workflow')
+                ->with('workflow.steps.decidedBy:id,name')
                 ->latest('id')
                 ->get()
                 ->map(fn (LeaveRequest $leave): array => [
@@ -215,6 +216,18 @@ class EmployeeController extends Controller
                     'endOn' => $leave->end_on->toDateString(),
                     'days' => $leave->days,
                     'stageLabel' => $leave->workflow?->stage()->label(),
+                    'reason' => $leave->reason,
+                    'submittedAt' => $leave->created_at?->toDateString(),
+                    // The reviewer's note travels with the step: a rejection always carries one, and
+                    // the requester is the person it is written for.
+                    'steps' => $leave->workflow?->steps->map(fn (WorkflowStep $step): array => [
+                        'label' => $step->label,
+                        'status' => $step->status->value,
+                        'statusLabel' => $step->status->label(),
+                        'note' => $step->note,
+                        'decidedBy' => $step->decidedBy?->name,
+                        'decidedAt' => $step->decided_at?->toDateString(),
+                    ])->values()->all() ?? [],
                 ]),
             // Leave taken this year. No entitlement balance is modelled (context.md §10), so
             // this is a count of days taken, not a remaining figure.

@@ -177,7 +177,7 @@ export function MonthSummary({
                 )}
             </div>
 
-            <div className="grid grid-cols-7 gap-1.5">
+            <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
                 {Array.from({ length: lead }, (_, index) => (
                     <span key={`lead-${index}`} />
                 ))}
@@ -196,7 +196,7 @@ export function MonthSummary({
                             type="button"
                             onClick={() => onOpen(day.date)}
                             title={day.holiday ?? undefined}
-                            className={`flex min-h-20 flex-col justify-between rounded-md border p-1.5 text-left hover:ring-2 hover:ring-ring ${
+                            className={`flex min-h-14 min-w-0 flex-col justify-between overflow-hidden rounded-md border p-1 text-left hover:ring-2 hover:ring-ring sm:min-h-20 sm:p-1.5 ${
                                 low
                                     ? 'border-destructive bg-destructive/15'
                                     : muted
@@ -213,20 +213,25 @@ export function MonthSummary({
                         >
                             <span className="text-xs">{day.day}</span>
                             {day.holiday !== null ? (
-                                <span className="text-[11px] leading-tight font-medium">
+                                <span className="truncate text-[9px] leading-tight font-medium sm:text-[11px]">
                                     {day.holiday}
                                 </span>
                             ) : (
                                 <span>
-                                    <span className="block text-lg leading-none font-semibold tabular-nums">
+                                    <span className="block text-base leading-none font-semibold tabular-nums sm:text-lg">
                                         {counted || day.attended > 0
                                             ? day.attended
                                             : day.isWorkday || !day.covered
                                               ? '—'
                                               : ''}
                                     </span>
+                                    {day.leave > 0 && (
+                                        <span className="block text-[9px] leading-tight text-muted-foreground sm:hidden">
+                                            {day.leave} cuti
+                                        </span>
+                                    )}
                                     {(day.leave > 0 || day.late > 0) && (
-                                        <span className="block text-[10px] leading-tight text-muted-foreground">
+                                        <span className="hidden text-[10px] leading-tight text-muted-foreground sm:block">
                                             {[
                                                 day.leave > 0
                                                     ? `${day.leave} cuti`
@@ -348,16 +353,38 @@ export function YearSummary({
             />
 
             <div className="overflow-x-auto rounded-lg border">
-                <table className="w-full text-sm">
+                <table className="w-full text-xs sm:text-sm">
                     <thead className="bg-muted/50 text-left">
                         <tr>
-                            <th className="p-3 font-medium">Bulan</th>
-                            <th className="p-3 font-medium">Tingkat</th>
-                            <th className="p-3 font-medium">Hari kerja</th>
-                            <th className="p-3 font-medium">Hari cuti</th>
-                            <th className="p-3 font-medium">Keterlambatan</th>
-                            <th className="p-3 font-medium">
-                                Tanpa keterangan
+                            <th className="px-2 py-3 font-medium sm:p-3">
+                                Bulan
+                            </th>
+                            <th className="px-2 py-3 font-medium sm:p-3">
+                                Tingkat
+                            </th>
+                            <th className="p-2 font-medium sm:p-3">
+                                <span className="sm:hidden">Kerja</span>
+                                <span className="hidden sm:inline">
+                                    Hari kerja
+                                </span>
+                            </th>
+                            <th className="p-2 font-medium sm:p-3">
+                                <span className="sm:hidden">Cuti</span>
+                                <span className="hidden sm:inline">
+                                    Hari cuti
+                                </span>
+                            </th>
+                            <th className="p-2 font-medium sm:p-3">
+                                <span className="sm:hidden">Telat</span>
+                                <span className="hidden sm:inline">
+                                    Keterlambatan
+                                </span>
+                            </th>
+                            <th className="p-2 font-medium sm:p-3">
+                                <span className="sm:hidden">Absen</span>
+                                <span className="hidden sm:inline">
+                                    Tanpa keterangan
+                                </span>
                             </th>
                         </tr>
                     </thead>
@@ -368,26 +395,26 @@ export function YearSummary({
                                 className="cursor-pointer border-t hover:bg-muted/40"
                                 onClick={() => onOpen(month.firstDate)}
                             >
-                                <td className="p-3 font-medium">
+                                <td className="px-2 py-3 font-medium sm:p-3">
                                     {month.label}
                                 </td>
-                                <td className="p-3 tabular-nums">
+                                <td className="px-2 py-3 tabular-nums sm:p-3">
                                     {month.rate === null
                                         ? '—'
                                         : `${month.rate}%`}
                                 </td>
-                                <td className="p-3 tabular-nums">
+                                <td className="px-2 py-3 tabular-nums sm:p-3">
                                     {month.workdays}
                                 </td>
-                                <td className="p-3 tabular-nums">
+                                <td className="px-2 py-3 tabular-nums sm:p-3">
                                     {month.rate === null
                                         ? '—'
                                         : month.leaveDays}
                                 </td>
-                                <td className="p-3 tabular-nums">
+                                <td className="px-2 py-3 tabular-nums sm:p-3">
                                     {month.rate === null ? '—' : month.late}
                                 </td>
-                                <td className="p-3 tabular-nums">
+                                <td className="px-2 py-3 tabular-nums sm:p-3">
                                     {month.rate === null ? '—' : month.absent}
                                 </td>
                             </tr>
@@ -395,18 +422,27 @@ export function YearSummary({
                     </tbody>
                     <tfoot>
                         <tr className="border-t bg-muted/30 font-medium">
-                            <td className="p-3">Tahun berjalan</td>
-                            <td className="p-3 tabular-nums">
+                            <td className="px-2 py-3 sm:p-3">
+                                <span className="sm:hidden">Total</span>
+                                <span className="hidden sm:inline">
+                                    Tahun berjalan
+                                </span>
+                            </td>
+                            <td className="px-2 py-3 tabular-nums sm:p-3">
                                 {overall === null ? '—' : `${overall}%`}
                             </td>
-                            <td className="p-3 tabular-nums">
+                            <td className="px-2 py-3 tabular-nums sm:p-3">
                                 {total.workdays}
                             </td>
-                            <td className="p-3 tabular-nums">
+                            <td className="px-2 py-3 tabular-nums sm:p-3">
                                 {total.leaveDays}
                             </td>
-                            <td className="p-3 tabular-nums">{total.late}</td>
-                            <td className="p-3 tabular-nums">{total.absent}</td>
+                            <td className="px-2 py-3 tabular-nums sm:p-3">
+                                {total.late}
+                            </td>
+                            <td className="px-2 py-3 tabular-nums sm:p-3">
+                                {total.absent}
+                            </td>
                         </tr>
                     </tfoot>
                 </table>
