@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\ManageLeaveLimits;
 use App\Filament\Pages\ManageWorkingHours;
 use App\Filament\Resources\ActivityLogs\ActivityLogResource;
 use App\Filament\Resources\AttendanceAgents\AttendanceAgentResource;
@@ -42,7 +43,7 @@ class AdminPanelProvider extends PanelProvider
      */
     private function extraPages(): array
     {
-        return $this->servesPanel() ? [ManageWorkingHours::class] : [];
+        return $this->servesPanel() ? [ManageWorkingHours::class, ManageLeaveLimits::class] : [];
     }
 
     private function servesPanel(): bool

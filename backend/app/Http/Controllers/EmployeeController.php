@@ -20,6 +20,7 @@ use App\Support\Attendance\DailyAttendance;
 use App\Support\Attendance\EmployeeTimesheet;
 use App\Support\CsvDownload;
 use App\Support\Employees\TeamSlice;
+use App\Support\Leave\LeaveRequestPresenter;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -205,7 +206,7 @@ class EmployeeController extends Controller
             'documents' => $this->documentsFor($user, $employee),
             'requests' => LeaveRequest::query()
                 ->where('employee_id', $employee->id)
-                ->with('workflow.steps.decidedBy:id,name')
+                ->with(['workflow.steps.decidedBy:id,name', 'workflow.comments.author:id,name', 'attachments', 'employee:id,user_id'])
                 ->latest('id')
                 ->get()
                 ->map(fn (LeaveRequest $leave): array => [
@@ -228,6 +229,7 @@ class EmployeeController extends Controller
                         'decidedBy' => $step->decidedBy?->name,
                         'decidedAt' => $step->decided_at?->toDateString(),
                     ])->values()->all() ?? [],
+                    ...LeaveRequestPresenter::extras($leave, $user),
                 ]),
             // Leave taken this year. No entitlement balance is modelled (context.md §10), so
             // this is a count of days taken, not a remaining figure.

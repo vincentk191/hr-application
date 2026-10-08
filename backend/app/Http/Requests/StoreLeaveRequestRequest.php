@@ -2,15 +2,16 @@
 
 namespace App\Http\Requests;
 
-use App\Enums\LeaveType;
+use App\Concerns\ValidatesLeaveRequestFields;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class StoreLeaveRequestRequest extends FormRequest
 {
+    use ValidatesLeaveRequestFields;
+
     private ?Employee $resolvedEmployee = null;
 
     private bool $employeeResolved = false;
@@ -30,10 +31,7 @@ class StoreLeaveRequestRequest extends FormRequest
             // CompanyScope, which would let an employee from another company pass validation
             // and then fail at the lookup. The scoped resolution in after() is the only check.
             'employee_id' => ['required', 'integer'],
-            'leave_type' => ['required', Rule::enum(LeaveType::class)],
-            'start_on' => ['required', 'date'],
-            'end_on' => ['required', 'date', 'after_or_equal:start_on'],
-            'reason' => ['nullable', 'string', 'max:2000'],
+            ...$this->leaveFieldRules(),
         ];
     }
 
@@ -44,6 +42,8 @@ class StoreLeaveRequestRequest extends FormRequest
     {
         return [
             function (Validator $validator): void {
+                $this->checkLeaveLimit($validator);
+
                 if ($validator->errors()->has('employee_id')) {
                     return;
                 }
@@ -78,11 +78,8 @@ class StoreLeaveRequestRequest extends FormRequest
     public function messages(): array
     {
         return [
+            ...$this->leaveFieldMessages(),
             'employee_id.required' => 'Pilih karyawan.',
-            'leave_type.required' => 'Pilih jenis cuti.',
-            'start_on.required' => 'Isi hari pertama.',
-            'end_on.required' => 'Isi hari terakhir.',
-            'end_on.after_or_equal' => 'Hari terakhir tidak boleh sebelum hari pertama.',
         ];
     }
 

@@ -2,15 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Leave\ResubmitLeaveRequest;
 use App\Actions\Leave\SubmitLeaveRequest;
-use App\Enums\LeaveType;
 use App\Enums\Permission;
 use App\Enums\WorkflowStepStatus;
 use App\Http\Requests\StoreLeaveRequestRequest;
+use App\Http\Requests\UpdateLeaveRequestRequest;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\User;
 use App\Models\WorkflowStep;
+use App\Support\Leave\LeaveLimits;
+use App\Support\Leave\LeaveRequestPresenter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -40,7 +43,7 @@ class LeaveRequestController extends Controller
                         ->orWhereHas('workflow.steps', fn (Builder $step) => $step->where('approver_user_id', $user->id));
                 }),
             )
-            ->with(['employee:id,full_name,employee_number,department_id', 'employee.department:id,name', 'workflow.steps'])
+            ->with(['employee:id,full_name,employee_number,department_id,user_id', 'employee.department:id,name', 'workflow.steps.decidedBy:id,name', 'workflow.comments.author:id,name', 'attachments'])
             ->latest('id')
             ->get()
             ->map(fn (LeaveRequest $leave): array => $this->present($leave, $user));
@@ -63,7 +66,7 @@ class LeaveRequestController extends Controller
         $canFileForOthers = $user->can('createOnBehalf', LeaveRequest::class);
 
         return Inertia::render('leave-requests/create', [
-            'leaveTypes' => LeaveType::options(),
+            'leaveTypes' => app(LeaveLimits::class)->options(),
             'canFileForOthers' => $canFileForOthers,
             'employees' => Employee::query()
                 ->active()
@@ -88,11 +91,55 @@ class LeaveRequestController extends Controller
                 'reason' => $request->validated()['reason'] ?? null,
             ],
             $request->user(),
+            array_values((array) $request->file('attachments', [])),
         );
 
         Inertia::flash('toast', [
             'type' => 'success',
             'message' => "Pengajuan {$leave->reference()} terkirim.",
+        ]);
+
+        return to_route('leave-requests.index');
+    }
+
+    /**
+     * The form for correcting a rejected request, filled with what was sent and showing what the
+     * approvers said.
+     */
+    public function edit(Request $request, LeaveRequest $leaveRequest): Response
+    {
+        $this->authorize('update', $leaveRequest);
+
+        $leaveRequest->load(['employee:id,full_name,employee_number,user_id', 'workflow.steps.decidedBy:id,name', 'workflow.comments.author:id,name', 'attachments']);
+
+        return Inertia::render('leave-requests/edit', [
+            'leaveTypes' => app(LeaveLimits::class)->options(),
+            'request' => [
+                ...$this->present($leaveRequest, $request->user()),
+                'leaveType' => $leaveRequest->leave_type->value,
+            ],
+        ]);
+    }
+
+    public function update(UpdateLeaveRequestRequest $request, LeaveRequest $leaveRequest, ResubmitLeaveRequest $resubmit): RedirectResponse
+    {
+        $resubmit->handle(
+            $leaveRequest,
+            [
+                'leave_type' => $request->validated()['leave_type'],
+                'start_on' => $request->date('start_on'),
+                'end_on' => $request->date('end_on'),
+                'reason' => $request->validated()['reason'] ?? null,
+            ],
+            $request->validated('note'),
+            array_values((array) $request->file('attachments', [])),
+            array_map('intval', (array) $request->input('remove_attachments', [])),
+            $request->user(),
+        );
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => "Pengajuan {$leaveRequest->reference()} diajukan ulang dan menunggu persetujuan.",
         ]);
 
         return to_route('leave-requests.index');
@@ -129,7 +176,10 @@ class LeaveRequestController extends Controller
                 'status' => $step->status->value,
                 'statusLabel' => $step->status->label(),
                 'note' => $step->note,
+                'decidedBy' => $step->decidedBy?->name,
+                'decidedAt' => $step->decided_at?->toDateString(),
             ])->values() ?? [],
+            ...LeaveRequestPresenter::extras($leave, $user),
         ];
     }
 }

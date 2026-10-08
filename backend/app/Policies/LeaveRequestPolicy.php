@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Enums\LeaveRequestStage;
 use App\Enums\Permission;
 use App\Models\LeaveRequest;
 use App\Models\User;
@@ -46,6 +47,25 @@ class LeaveRequestPolicy
     public function createOnBehalf(User $user): bool
     {
         return $user->can(Permission::CreateEmployees->value);
+    }
+
+    /**
+     * Correct a rejected request and send it round again. The requester may, and so may HR filing
+     * for someone without a login; nobody may touch a request that is waiting or settled, because
+     * changing it under an approver's feet would void what they are looking at.
+     */
+    public function update(User $user, LeaveRequest $leaveRequest): bool
+    {
+        if ($leaveRequest->workflow?->current_stage !== LeaveRequestStage::Rejected->value) {
+            return false;
+        }
+
+        if ($leaveRequest->employee?->user_id === $user->id) {
+            return true;
+        }
+
+        return $user->can('createOnBehalf', LeaveRequest::class)
+            && $user->canAccessCompany($leaveRequest->company_id);
     }
 
     /**

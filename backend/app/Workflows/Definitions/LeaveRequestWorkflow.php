@@ -44,7 +44,9 @@ class LeaveRequestWorkflow implements WorkflowDefinition
         return [
             Stage::Submitted->value => [Stage::Approved->value, Stage::Rejected->value],
             Stage::Approved->value => [],
-            Stage::Rejected->value => [],
+            // A rejected request can be corrected by its requester and sent again, which opens a
+            // fresh chain; what the approvers said before is kept as comments (ResubmitLeaveRequest).
+            Stage::Rejected->value => [Stage::Submitted->value],
         ];
     }
 

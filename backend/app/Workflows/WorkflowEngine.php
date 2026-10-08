@@ -89,6 +89,41 @@ class WorkflowEngine
     }
 
     /**
+     * Send a settled instance round again: keep what the approvers said, build a fresh chain, and
+     * move back to the given stage.
+     *
+     * The notes left on the old steps are copied into the comment thread first, written by the
+     * person who left them and dated when they decided, because rebuilding the chain discards the
+     * steps they were stored on. Nothing an approver wrote is lost by a resubmission.
+     *
+     * @param  list<StepBlueprint>  $steps
+     */
+    public function reopen(WorkflowInstance $instance, array $steps, WorkflowStage&BackedEnum $stage, User $actor): WorkflowInstance
+    {
+        return DB::transaction(function () use ($instance, $steps, $stage, $actor): WorkflowInstance {
+            foreach ($instance->steps()->get() as $step) {
+                if (! $step->status->isDecided() || trim((string) $step->note) === '') {
+                    continue;
+                }
+
+                $comment = new WorkflowComment([
+                    'user_id' => $step->decided_by_user_id ?? $actor->id,
+                    'stage' => $step->status->value,
+                    'body' => (string) $step->note,
+                ]);
+                $decidedAt = $step->decided_at ?? now();
+                $comment->created_at = Carbon::instance($decidedAt);
+                $comment->updated_at = Carbon::instance($decidedAt);
+                $instance->comments()->save($comment);
+            }
+
+            $this->setChain($instance, $steps);
+
+            return $this->transitionTo($instance->refresh(), $stage, $actor);
+        });
+    }
+
+    /**
      * Move to a new stage (CORE-WFL-001/004).
      *
      * @throws InvalidTransition the definition does not allow this move at all

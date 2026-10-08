@@ -1,3 +1,5 @@
+import type { LeaveAttachmentRow, LeaveHistoryRow } from '@/types/leave';
+
 export type EmployeeRow = {
     id: number;
     number: string;
@@ -137,4 +139,7 @@ export type LeaveRow = {
     reason: string | null;
     submittedAt: string | null;
     steps: LeaveStepRow[];
+    attachments: LeaveAttachmentRow[];
+    history: LeaveHistoryRow[];
+    canResubmit: boolean;
 };

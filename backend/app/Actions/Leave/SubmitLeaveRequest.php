@@ -6,10 +6,12 @@ use App\Enums\Role;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\User;
+use App\Support\Leave\LeaveAttachments;
 use App\Workflows\Definitions\LeaveRequestWorkflow;
 use App\Workflows\StepBlueprint;
 use App\Workflows\WorkflowEngine;
 use Carbon\CarbonInterface;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -27,10 +29,11 @@ class SubmitLeaveRequest
 
     /**
      * @param  array{leave_type: string, start_on: CarbonInterface, end_on: CarbonInterface, reason: ?string}  $attributes
+     * @param  list<UploadedFile>  $files  supporting documents, optional
      */
-    public function handle(Employee $employee, array $attributes, User $submittedBy): LeaveRequest
+    public function handle(Employee $employee, array $attributes, User $submittedBy, array $files = []): LeaveRequest
     {
-        return DB::transaction(function () use ($employee, $attributes, $submittedBy): LeaveRequest {
+        return DB::transaction(function () use ($employee, $attributes, $submittedBy, $files): LeaveRequest {
             $request = LeaveRequest::create([
                 'company_id' => $employee->company_id,
                 'employee_id' => $employee->id,
@@ -42,7 +45,9 @@ class SubmitLeaveRequest
                 'created_by_user_id' => $submittedBy->id,
             ]);
 
-            $this->engine->start($request, $this->definition, $this->chainFor($employee), $submittedBy);
+            app(LeaveAttachments::class)->store($request, $files, $submittedBy);
+
+            $this->engine->start($request, $this->definition, $this->chain($employee), $submittedBy);
 
             return $request;
         });
@@ -58,7 +63,7 @@ class SubmitLeaveRequest
      *
      * @return list<StepBlueprint>
      */
-    private function chainFor(Employee $employee): array
+    public function chain(Employee $employee): array
     {
         $steps = [];
 

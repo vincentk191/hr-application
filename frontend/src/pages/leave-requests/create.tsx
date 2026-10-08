@@ -1,4 +1,5 @@
 import { Form, Head } from '@inertiajs/react';
+import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,6 +33,9 @@ export default function LeaveRequestCreate({
     employees: EmployeeOption[];
     canFileForOthers: boolean;
 }) {
+    const [type, setType] = useState('');
+    const maxDays = leaveTypes.find((item) => item.value === type)?.maxDays;
+
     return (
         <>
             <Head title="Buat pengajuan cuti" />
@@ -80,7 +84,10 @@ export default function LeaveRequestCreate({
                                 <select
                                     id="leave_type"
                                     name="leave_type"
-                                    defaultValue=""
+                                    value={type}
+                                    onChange={(event) =>
+                                        setType(event.target.value)
+                                    }
                                     className={selectClasses}
                                 >
                                     <option value="">Pilih jenis…</option>
@@ -93,6 +100,11 @@ export default function LeaveRequestCreate({
                                         </option>
                                     ))}
                                 </select>
+                                {maxDays != null && (
+                                    <p className="text-xs text-muted-foreground">
+                                        Maksimal {maxDays} hari per pengajuan.
+                                    </p>
+                                )}
                                 <InputError message={errors.leave_type} />
                             </div>
 
@@ -130,6 +142,28 @@ export default function LeaveRequestCreate({
                                     className="rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
                                 />
                                 <InputError message={errors.reason} />
+                            </div>
+
+                            <div className="grid gap-2">
+                                <Label htmlFor="attachments">
+                                    Lampiran{' '}
+                                    <span className="text-muted-foreground">
+                                        (opsional)
+                                    </span>
+                                </Label>
+                                <Input
+                                    id="attachments"
+                                    name="attachments[]"
+                                    type="file"
+                                    multiple
+                                    accept=".pdf,.jpg,.jpeg,.png"
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Mis. surat dokter. PDF, JPG, atau PNG,
+                                    maksimal 5 berkas @ 5 MB.
+                                </p>
+                                <InputError message={errors.attachments} />
+                                <InputError message={errors['attachments.0']} />
                             </div>
 
                             <div className="flex gap-2">

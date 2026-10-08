@@ -14,6 +14,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeDocumentController;
 use App\Http\Controllers\EmployeeImportController;
+use App\Http\Controllers\LeaveAttachmentController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\LeaveRequestDecisionController;
 use Illuminate\Support\Facades\Route;
@@ -73,6 +74,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('leave-requests', [LeaveRequestController::class, 'index'])->name('leave-requests.index');
     Route::get('leave-requests/create', [LeaveRequestController::class, 'create'])->name('leave-requests.create');
     Route::post('leave-requests', [LeaveRequestController::class, 'store'])->name('leave-requests.store');
+    Route::get('leave-requests/{leaveRequest}/edit', [LeaveRequestController::class, 'edit'])->name('leave-requests.edit');
+    Route::put('leave-requests/{leaveRequest}', [LeaveRequestController::class, 'update'])->name('leave-requests.update');
+    Route::get('leave-attachments/{attachment}', [LeaveAttachmentController::class, 'download'])->name('leave-attachments.download');
     Route::put('leave-requests/{leaveRequest}/decision', [LeaveRequestDecisionController::class, 'update'])
         ->name('leave-requests.decision');
 });

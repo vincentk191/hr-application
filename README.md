@@ -29,7 +29,7 @@ listed in the checklist below. Nothing here is committed yet: changes are left f
 
 |                 |                                                                                                              |
 | --------------- | ------------------------------------------------------------------------------------------------------------ |
-| Tests           | 418 passing                                                                                                  |
+| Tests           | 433 passing                                                                                                  |
 | Static analysis | PHPStan level 7, 0 errors                                                                                    |
 | Phase 0         | **Complete** — company scoping, RBAC, workflow engine, account state and login rules                         |
 | Phase 1         | Directory (with CSV import/export), profile, add/edit, documents, admin panel done                           |
@@ -711,7 +711,7 @@ unapproved-absence detection needs approved-leave data.
 
 | Screen     | Name                   | f   | P1  | Status | Notes                                                      |
 | ---------- | ---------------------- | --- | --- | ------ | ---------------------------------------------------------- |
-| `REQ-WIZ`  | New leave request      | 9   | 9   | ⬜     | Working-day calc excluding weekends + calendar events (L)  |
+| `REQ-WIZ`  | New leave request      | 9   | 9   | ⬜     | Working-day calc excluding weekends + calendar events (L). Optional attachments, per-type maximum days and resubmitting a rejected request are done |
 | `REQ-DSH`  | Requests queue         | 7   | 4   | ⬜     | "Waiting on" comes from the engine                         |
 | `REQ-DLG`  | Decision dialog        | 5   | 5   | ⬜     | Approve/reject — engine already does this                  |
 | `ATT-LVE`  | Absensi › Cuti         | 10  | 5   | ⬜     | Day picture, 14-day availability, headcount reconciliation |
@@ -847,6 +847,25 @@ Progress Tracking analytics (Appendix C).
   stateful guard). There is no employee-app API yet.
 - **The Indonesian workbook copy** (`…_ID.xlsx`) is regenerated from the English one — if you
   edit the English file, regenerate it.
+- **Leave requests can carry files, have a maximum length per type, and can be corrected and sent again.**
+  - **Files:** optional, up to 5 per request (PDF, JPG or PNG, 5 MB each), stored on the private disk and
+    served only through `leave-attachments.download`, which asks the leave request's policy (the
+    requester, HR and anyone who can see the employee).
+  - **Maximum days:** HR sets them in the admin panel under "Batas cuti" (needs `manage-leave-settings`,
+    given to HR Admin; changes are on the audit trail). It is per request, counted in calendar days like
+    the request itself, and blank means no limit. It is checked when filing and when correcting, and
+    does not touch requests already filed. It is not an annual entitlement; nothing tracks a balance.
+  - **Correcting:** only a **rejected** request can be changed, by its requester or by HR for someone
+    without a login (`LeaveRequestPolicy::update`). "Ubah & ajukan ulang" (on the queue's dialog, the
+    profile's Pengajuan tab and the drawer) opens a form showing the approvers' notes. Submitting it
+    updates the request, builds a fresh approval chain (with the supervisor as he or she is *now*) and
+    returns it to "Diajukan", so it is waiting in the approvers' queue again. A waiting or approved request
+    cannot be changed under the approver.
+  - **History is kept.** Rebuilding the chain would drop the notes stored on the old steps, so the
+    engine copies each decided step's note into the request's comment thread first
+    (`WorkflowEngine::reopen`), as written by that approver and dated when they decided. The requester's
+    optional note, plus an automatic "Diubah dari … menjadi …" line, is added with the new submission.
+    Every round stays visible, oldest first, under "Riwayat sebelumnya".
 - **Leave counts calendar days, not working days.** `REQ-WIZ-005` wants weekends and calendar
   holidays excluded; `ATT-WIZ` and `WorkingDays` now exist, so this only needs wiring in. `LeaveRequest::countDays()` says so in place.
 - **Middleware order is load-bearing.** `SubstituteBindings` is deliberately re-added after

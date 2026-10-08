@@ -65,6 +65,7 @@ enum Role: string
                 Permission::ViewAttendance,
                 Permission::CorrectAttendance,
                 Permission::ManageCalendarEvents,
+                Permission::ManageLeaveSettings,
             ],
             // Sees its scope and decides; does not administer records.
             self::Management => [

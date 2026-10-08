@@ -1,4 +1,4 @@
-import { Form } from '@inertiajs/react';
+import { Form, Link } from '@inertiajs/react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,11 @@ import {
 } from '@/components/ui/dialog';
 import InputError from '@/components/input-error';
 import { Label } from '@/components/ui/label';
-import { decision } from '@/routes/leave-requests';
+import {
+    LeaveAttachments,
+    LeaveHistory,
+} from '@/components/leave-request-detail';
+import { decision, edit } from '@/routes/leave-requests';
 import type { LeaveRequestRow } from '@/types/leave';
 
 /**
@@ -72,6 +76,12 @@ export function LeaveDecisionDialog({
                         </dd>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
+                        <dt className="text-muted-foreground">Lampiran</dt>
+                        <dd className="col-span-2">
+                            <LeaveAttachments files={request.attachments} />
+                        </dd>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
                         <dt className="text-muted-foreground">
                             Alur persetujuan
                         </dt>
@@ -102,7 +112,23 @@ export function LeaveDecisionDialog({
                             ))}
                         </dd>
                     </div>
+                    {request.history.length > 0 && (
+                        <div className="grid grid-cols-3 gap-2">
+                            <dt className="text-muted-foreground">Riwayat</dt>
+                            <dd className="col-span-2">
+                                <LeaveHistory history={request.history} />
+                            </dd>
+                        </div>
+                    )}
                 </dl>
+
+                {request.canResubmit && (
+                    <Button asChild variant="outline" className="w-fit">
+                        <Link href={edit(request.id).url}>
+                            Ubah &amp; ajukan ulang
+                        </Link>
+                    </Button>
+                )}
 
                 {request.canDecide ? (
                     <Form
