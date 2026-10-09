@@ -16,6 +16,8 @@ declare module '@inertiajs/core' {
             companySwitcher: CompanySwitcher | null;
             branding: Branding | null;
             notifications: NotificationSummary | null;
+            /** Requests waiting on the signed-in person: the badge on "Pengajuan". */
+            pendingForMe: number;
             sidebarOpen: boolean;
             [key: string]: unknown;
         };

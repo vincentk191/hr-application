@@ -63,6 +63,8 @@ const TYPE_STYLE: Record<string, string> = {
         'bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-200',
     duplicate_punch:
         'bg-slate-200 text-slate-800 dark:bg-slate-700/50 dark:text-slate-200',
+    scan_on_leave:
+        'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200',
 };
 
 /** The profile's attendance tab, opened on the month the issue is in. */
@@ -268,6 +270,15 @@ export default function AttendanceIssues({
                     ))}
                 </div>
 
+                {canResolve &&
+                    selected.length === 0 &&
+                    selectable.length > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                            Centang satu atau beberapa masalah untuk menandainya
+                            dimaklumi.
+                        </p>
+                    )}
+
                 {canResolve && selected.length > 0 && (
                     <div className="surface flex flex-wrap items-start gap-2 bg-muted/40 p-3">
                         <span className="self-center text-sm font-medium">
@@ -444,7 +455,15 @@ export default function AttendanceIssues({
                                                             variant="ghost"
                                                         >
                                                             <Link
-                                                                href={createLeave()}
+                                                                href={createLeave(
+                                                                    {
+                                                                        query: {
+                                                                            employee:
+                                                                                issue.employeeId,
+                                                                            date: issue.date,
+                                                                        },
+                                                                    },
+                                                                )}
                                                             >
                                                                 Buat pengajuan
                                                             </Link>
@@ -477,8 +496,8 @@ export default function AttendanceIssues({
                     {truncated ? ' (hanya 500 pertama yang ditampilkan)' : ''}.
                     Masalah hilang sendiri setelah penyebabnya diperbaiki; yang
                     dimaklumi tercatat beserta alasan dan siapa yang
-                    menandainya. Pemberitahuan ke karyawan dan atasan menunggu
-                    modul notifikasi.
+                    menandainya. Karyawan dan atasannya diberi tahu keesokan
+                    paginya.
                 </p>
             </div>
         </>

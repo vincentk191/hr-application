@@ -137,7 +137,7 @@ it('lets an employee find their own document but not a colleague\'s', function (
 
 it('offers the pages the person may open, and not the ones they may not', function () {
     expect(collect(searchFor($this->hr, 'absensi')['pages'])->pluck('title')->all())
-        ->toContain('Kalender absensi', 'Rekap absensi', 'Masalah absensi');
+        ->toContain('Kalender', 'Rekap absensi', 'Masalah absensi');
 
     $staff = searchUser(Role::Employee, $this->company);
 

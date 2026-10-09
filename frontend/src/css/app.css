@@ -147,6 +147,41 @@
     h2 {
         letter-spacing: -0.02em;
     }
+
+    /*
+     * A checkbox you can see. The browser's own is a dim square on a dark page, which hid the
+     * selection boxes on the issues screen; this one has a clear outline and fills with the accent.
+     */
+    input[type='checkbox'] {
+        appearance: none;
+        flex: none;
+        width: 1.125rem;
+        height: 1.125rem;
+        border: 2px solid var(--muted-foreground);
+        border-radius: 0.3rem;
+        background-color: transparent;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-size: 100% 100%;
+        vertical-align: middle;
+        cursor: pointer;
+    }
+
+    input[type='checkbox']:checked {
+        border-color: var(--color-primary);
+        background-color: var(--color-primary);
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
+    }
+
+    input[type='checkbox']:focus-visible {
+        outline: 2px solid var(--color-ring);
+        outline-offset: 2px;
+    }
+
+    input[type='checkbox']:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+    }
 }
 
 @layer components {

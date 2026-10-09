@@ -7,6 +7,7 @@ use App\Models\AttendanceEnrolMap;
 use App\Models\AttendanceImport;
 use App\Models\AttendancePunch;
 use App\Models\AttendanceUnmappedPunch;
+use App\Models\CalendarEvent;
 use App\Models\Company;
 use App\Models\Employee;
 use App\Models\User;
@@ -341,6 +342,40 @@ it('reports data as current when it runs through the previous working day', func
     'Saturday, Friday captured' => ['2026-10-10 09:00:00', '2026-10-09 17:00:00', 'current'],
     'Monday morning, Thursday captured' => ['2026-10-12 09:00:00', '2026-10-08 17:00:00', 'late'],
 ]);
+
+it('does not call the data late over a holiday that covers the whole group', function () {
+    mapPin('1042', $this->employee);
+    app(IngestPunches::class)->handle([[
+        'sn' => 'SN1', 'pin' => '1042', 'scan_at' => CarbonImmutable::parse('2026-10-09 17:00:00', 'Asia/Jakarta')->utc(),
+        'verify_mode' => null, 'inout_mode' => null,
+    ]], 'manual-file');
+    $tuesday = CarbonImmutable::parse('2026-10-13 09:00:00', 'Asia/Jakarta');
+
+    // Monday the 12th is a holiday for everyone: nobody scanned, and nobody was meant to.
+    expect(app(CaptureStatus::class)->resolve($tuesday)['state'])->toBe('late');
+
+    CalendarEvent::create(['title' => 'Libur', 'kind' => 'holiday', 'starts_on' => '2026-10-12', 'ends_on' => '2026-10-12']);
+
+    $status = app(CaptureStatus::class)->resolve($tuesday);
+
+    expect($status['state'])->toBe('current')
+        ->and($status['expectedThrough'])->toBe('2026-10-09');
+});
+
+it('keeps expecting data over a holiday that only covers one company or department', function () {
+    mapPin('1042', $this->employee);
+    app(IngestPunches::class)->handle([[
+        'sn' => 'SN1', 'pin' => '1042', 'scan_at' => CarbonImmutable::parse('2026-10-09 17:00:00', 'Asia/Jakarta')->utc(),
+        'verify_mode' => null, 'inout_mode' => null,
+    ]], 'manual-file');
+
+    CalendarEvent::create(['company_id' => $this->company->id, 'title' => 'Libur perusahaan', 'kind' => 'holiday', 'starts_on' => '2026-10-12', 'ends_on' => '2026-10-12']);
+
+    $status = app(CaptureStatus::class)->resolve(CarbonImmutable::parse('2026-10-13 09:00:00', 'Asia/Jakarta'));
+
+    expect($status['state'])->toBe('late')
+        ->and($status['expectedThrough'])->toBe('2026-10-12');
+});
 
 it('reports never when nothing has been loaded', function () {
     expect(app(CaptureStatus::class)->resolve()['state'])->toBe('never');

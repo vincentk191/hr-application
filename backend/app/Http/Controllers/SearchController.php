@@ -59,7 +59,7 @@ class SearchController extends Controller
             ['Pengajuan', 'leave-requests.index', true],
             ['Buat pengajuan', 'leave-requests.create', true],
             ['Notifikasi', 'notifications.index', true],
-            ['Kalender absensi', 'attendance.calendar', $user->can(Permission::ViewAttendance->value)],
+            ['Kalender', 'attendance.calendar', $user->can(Permission::ViewAttendance->value), 'absensi cuti libur'],
             ['Rekap absensi', 'attendance.recap', $user->can(Permission::ViewAttendance->value)],
             ['Masalah absensi', 'attendance.issues', $user->can(Permission::ViewAttendance->value)],
             ['Data absensi', 'attendance.device', $user->can('manage-attendance-device')],
@@ -68,8 +68,12 @@ class SearchController extends Controller
 
         $items = [];
 
-        foreach ($pages as [$title, $route, $allowed]) {
-            if ($allowed && str_contains(mb_strtolower($title), $query)) {
+        foreach ($pages as $page) {
+            [$title, $route, $allowed] = $page;
+            // Extra words that also find the page: the calendar is also where to look for absence and leave.
+            $keywords = $page[3] ?? '';
+
+            if ($allowed && str_contains(mb_strtolower($title.' '.$keywords), $query)) {
                 $items[] = ['id' => $route, 'title' => $title, 'subtitle' => null, 'url' => route($route, absolute: false)];
             }
         }

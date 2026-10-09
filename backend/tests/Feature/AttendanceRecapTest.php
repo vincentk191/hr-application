@@ -173,7 +173,7 @@ it('exports the calendar as the grid that was on screen, with a letter and times
 
     $csv = $this->actingAs($this->hr)->get('/attendance/calendar/export?view=week&date=2026-10-05')->assertOk()->streamedContent();
 
-    expect($csv)->toContain('Kalender absensi')
+    expect($csv)->toContain('Kalender')
         ->and($csv)->toContain('2026-10-05')
         ->and($csv)->toContain('H 08:00-17:00')   // Budi on time
         ->and($csv)->toContain('T 09:00-17:00')   // Sari late

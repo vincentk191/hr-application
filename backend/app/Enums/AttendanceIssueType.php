@@ -12,6 +12,7 @@ enum AttendanceIssueType: string
     case Late = 'late';
     case EarlyLeave = 'early_leave';
     case DuplicatePunch = 'duplicate_punch';
+    case ScanOnLeave = 'scan_on_leave';
 
     /**
      * The Indonesian label shown in the dashboard.
@@ -24,6 +25,7 @@ enum AttendanceIssueType: string
             self::Late => 'Terlambat',
             self::EarlyLeave => 'Pulang cepat',
             self::DuplicatePunch => 'Scan ganda',
+            self::ScanOnLeave => 'Scan saat cuti',
         };
     }
 }

@@ -13,4 +13,6 @@ export type NavItem = {
     isActive?: boolean;
     /** Leaves the Inertia app (a full page load), e.g. the Filament admin panel. */
     external?: boolean;
+    /** A count shown as a red pill next to the title; hidden at zero. */
+    badge?: number;
 };

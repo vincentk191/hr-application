@@ -13,7 +13,7 @@ The full spec lives outside this repo in `../docs/`:
 | Document                                                | What it is                                                         |
 | ------------------------------------------------------- | ------------------------------------------------------------------ |
 | `../docs/context.md`                                    | The living spec: scope, architecture, decisions, process flows     |
-| `../docs/HR_Dashboard_Features_and_Test_Scenarios.xlsx` | **Master** screen / feature / test list — 57 screens, 309 features |
+| `../docs/HR_Dashboard_Features_and_Test_Scenarios.xlsx` | **Master** screen / feature / test list — 57 screens, 318 feature rows (10 of them removed, see `ATT-LVE`) |
 | `../docs/dev-concepts.md`                               | Learning log: one entry per Laravel concept this app uses, and why |
 | `../ATTENDANCE-SYNC.md`                                 | The Fingerspot scanner pipeline design and probe runbook           |
 
@@ -29,12 +29,12 @@ listed in the checklist below. Nothing here is committed yet: changes are left f
 
 |                 |                                                                                                              |
 | --------------- | ------------------------------------------------------------------------------------------------------------ |
-| Tests           | 497 passing                                                                                                  |
+| Tests           | 517 passing                                                                                                  |
 | Static analysis | PHPStan level 7, 0 errors                                                                                    |
 | Phase 0         | **Complete** — company scoping, RBAC, workflow engine, account state and login rules                         |
 | Phase 1         | Directory (with CSV import/export), profile, add/edit, documents, admin panel done                           |
 | Phase 2         | Scan-log import, ingest API + agents, calendar, holidays/events, recap/export, issues, timesheet corrections |
-| Also built      | Leave requests end to end — the first real workflow consumer                                                 |
+| Phase 3         | Pengajuan end to end (types, timeframe, attachments, queue with filters/export/badge), leave on the calendar's side panel, in-app notices |
 | Not built       | Recruitment and offboarding screens; employee app, on-site sync agent                                |
 
 ---
@@ -537,9 +537,9 @@ Originally planned on spatie/laravel-model-states; dropped 2026-10-05 — reason
 ## Development checklist
 
 57 screens from the workbook, grouped into phases. **The workbook is the master** — it holds
-the 309 features, their sizes and priorities, and the test cases. This table is the map.
+the 318 feature rows, their sizes and priorities, and the test cases. This table is the map.
 
-`f` = feature count · `P1` = must-have count · status: ✅ done · 🟡 partial · ⬜ not started
+`f` = feature count · `P1` = must-have count · status: ✅ done · 🟡 partial · ⬜ not started · ➖ removed (folded into another screen)
 
 ### Phase 0 — Foundations ✅
 
@@ -590,8 +590,9 @@ How the import behaves, so it is not surprised by:
   zone. Wrong zone, and every punch shifts by the difference.
 - **"Data sampai" matters.** While capture is manual the data is only as fresh as the last
   upload, so nothing built on it may read the days after it as absence. The status shows
-  Terkini / Terlambat against the previous working day; public holidays are not known yet, so a
-  holiday can show as late. The dashboard shows a card to the people who load the log, but only
+  Terkini / Terlambat against the previous working day, which skips weekends and any holiday or
+  event that covers the whole group (one for a single company or department does not count, since
+  the others still scan). The dashboard shows a card to the people who load the log, but only
   when something needs doing.
 - **Open to parent-wide accounts holding `manage-attendance` only** (HR Admin by default). The
   scanner serves the whole group, so a company-pinned HR admin cannot load or map.
@@ -602,7 +603,7 @@ How the import behaves, so it is not surprised by:
   real export differs, adapt the alias lists in `App\Support\Attendance\ScanLogParser`.
   `backend/tests/Fixtures/scanlog-sample.csv` is a sample to try the page with (PINs 1001–1005
   and an unknown 9999).
-- **The calendar (`/attendance/calendar`, "Kalender absensi")** derives each person's day from the
+- **The calendar (`/attendance/calendar`, "Kalender")** derives each person's day from the
   raw punches every time; nothing is stored, so a late upload or a corrected mapping changes it
   immediately. It needs the `view-attendance` permission (HR Admin by default) and follows the
   company switcher. The rules, in order, are in `DayClassifier`:
@@ -611,9 +612,11 @@ How the import behaves, so it is not surprised by:
      shows on weekends too, matching the day count on the request);
   2. a holiday or event covering the person is **off**; a day nobody at all scanned on is also
      off, as a fallback for a holiday nobody entered;
-  3. any punch makes the day present / late / early-leave, even on leave or a weekend;
-  4. approved leave is leave, and otherwise a non-workday is off;
-  5. someone with **no scanner ID mapped** on that date is no data, not absent — nothing could
+  3. **approved leave beats a punch**: someone on approved leave is on leave whatever the scanner
+     says, and the scan is raised as a "Scan saat cuti" issue rather than hidden;
+  4. otherwise any punch makes the day present / late / early-leave, even on a weekend;
+  5. otherwise approved leave is leave, and a non-workday is off;
+  6. someone with **no scanner ID mapped** on that date is no data, not absent — nothing could
      have been recorded for them. Rows say "ID pemindai belum dipetakan".
   Only then is a workday with no scan an absence.
 - **The Day view is a list, not a grid:** one row per person with Jabatan, Atasan, Masuk (first scan),
@@ -634,6 +637,16 @@ How the import behaves, so it is not surprised by:
     definition. Leave, late and absent in the year table are person-days. The filters (department,
     team, leave type, status) apply to all of these, and the CSV export of the year view carries the
     rate and working days.
+- **The calendar's side panel has one list of who is on leave** (`ATT-SID-004`..`006`): "Sedang cuti
+  hari / minggu / bulan / tahun ini". It follows the view, so it is the day on Day, the week on Week, the
+  month on Month and the year on Year, and moving to another day redraws it (when the range is not the
+  current one the title names it, "Cuti · Senin, 12 Oktober 2026"). The rule is **at least one day**:
+  anyone with a single day of approved leave inside the range appears, including leave that began
+  before it or runs past it, and someone with several leaves is counted once. Pending and rejected
+  requests are not listed. It is drawn from the same people as the grid, so department, team, search and
+  status narrow it too, and a chosen request kind narrows the leave itself. It stops at 50 entries and
+  says how many more. This replaced the separate "out today", "upcoming" and "waiting on you" panels
+  (see the decision under "Known gaps").
 - **Layouts are checked at phone width (390 px).** The header shows only the current page's name and a
   narrower company switcher; the profile's tabs wrap instead of running off screen; tables that scroll
   sideways keep their headings on one line, with the name column pinned on the recap; the calendar's
@@ -662,9 +675,10 @@ How the import behaves, so it is not surprised by:
   new `manual` punch. All of it is on the audit trail. An employee sees their own timesheet but
   cannot correct it.
 - **Issues** (`/attendance/issues`, "Masalah absensi") are never stored: they are read off the same
-  derived days as the calendar, so correcting a scan or approving leave makes one disappear. Five
+  derived days as the calendar, so correcting a scan or approving leave makes one disappear. Six
   kinds: late, early leave, no check-out (a single scan on a day that is over), absent without
-  approved leave, and doubled scans (two within 2 minutes). Only the decision to **excuse** one is
+  approved leave, doubled scans (two within 2 minutes), and a scan on a day of approved leave (on leave
+  the day is leave and nothing else is raised for it). Only the decision to **excuse** one is
   stored (`attendance_issue_resolutions`), with a mandatory reason and who made it, and it can be
   reopened. Excusing is bulk-capable and refused for the whole batch if any employee is outside
   the user's reach. Ranges are capped at 62 days.
@@ -703,12 +717,12 @@ How the import behaves, so it is not surprised by:
 | Screen    | Name                      | f   | P1  | Status | Notes                                                            |
 | --------- | ------------------------- | --- | --- | ------ | ---------------------------------------------------------------- |
 | `ATT-DEV` | Device integration health | 6   | 5   | 🟡     | Manual CSV import, enrol-ID mapping, capture status, the token-only ingest endpoint, agent registry/health and "sync now" done. The on-site agent and listener themselves (002, 006) are not built here |
-| `ATT-CAL` | Attendance calendar       | 5   | 5   | 🟡     | Day / week / month / year, department/team/leave-type filters, status rules, holidays and approved leave shown ahead of the data, CSV export, printable recap. A separate live board is covered by the Day view |
-| `ATT-SID` | Calendar side panel       | 3   | 1   | ✅     | Headcount, out today / upcoming and the approvals link, from the same rows as the grid |
-| `ATT-WIZ` | Calendar event wizard     | 1   | 1   | ✅     | Holidays and company/department events, with audit. `WorkingDays` exists for leave day counts but is not wired in yet |
+| `ATT-CAL` | Calendar ("Kalender")     | 5   | 5   | 🟡     | Day / week / month / year, department/team/leave-type filters, status rules, holidays and approved leave shown ahead of the data, CSV export, printable recap. A separate live board is covered by the Day view |
+| `ATT-SID` | Calendar side panel       | 6   | 3   | ✅     | Headcount summary, holidays and events, and the single on-leave panel (day / week / month / year, at-least-one-day rule), all from the same rows and filters as the grid |
+| `ATT-WIZ` | Calendar event wizard     | 1   | 1   | ✅     | Holidays and company/department events, with audit. `WorkingDays` feeds the leave day counts, so a holiday is not a leave day |
 | `EMP-ATT` | Profile — attendance tab  | 3   | 3   | ✅     | Timesheet (month and year), manual add/change/void with reason + audit, recompute, and totals by employee, department and period (the recap) |
 
-### Phase 3 — Requests (leave) + notifications
+### Phase 3 — Requests (Pengajuan) + notifications
 
 The first real consumer of the workflow engine. `ATT-ISS` lands here, not in Phase 2, because
 unapproved-absence detection needs approved-leave data.
@@ -716,16 +730,16 @@ unapproved-absence detection needs approved-leave data.
 | Screen     | Name                   | f   | P1  | Status | Notes                                                      |
 | ---------- | ---------------------- | --- | --- | ------ | ---------------------------------------------------------- |
 | `REQ-WIZ`  | New leave request      | 9   | 9   | 🟡     | Working-day count (weekends and calendar events excluded), optional attachments, per-type maximum days and resubmitting a rejected request are done |
-| `REQ-DSH`  | Requests queue         | 7   | 4   | ⬜     | "Waiting on" comes from the engine                         |
-| `REQ-DLG`  | Decision dialog        | 5   | 5   | ⬜     | Approve/reject — engine already does this                  |
-| `ATT-LVE`  | Absensi › Cuti         | 10  | 5   | ⬜     | Day picture, 14-day availability, headcount reconciliation |
-| `EMP-REQ`  | Profile — requests tab | 2   | 2   | ⬜     |                                                            |
-| `ATT-ISS`  | Attendance issues      | 6   | 4   | 🟡     | Five exception types, filters, bulk excuse with audit, reopen. Employee and supervisor are notified the next morning |
+| `REQ-DSH`  | Requests queue         | 7   | 4   | ✅     | "Waiting on" comes from the engine; filters (status, kind, department, month), "Menunggu Anda", CSV export, summary line, "Diajukan" column and a count badge on the menu item |
+| `REQ-DLG`  | Decision dialog        | 5   | 5   | ✅     | Approve/reject with a required reason on rejection; only the Atasan (or HR when there is none) decides |
+| `ATT-LVE`  | Absensi › Cuti         | 10  | 5   | ➖     | Built, then folded into the calendar on 2026-10-09: the on-leave side panel (`ATT-SID-004`) and the Pengajuan queue cover it. The 14-working-day chart, present-per-department bars and head-count reconciliation were dropped |
+| `EMP-REQ`  | Profile — requests tab | 2   | 2   | ✅     | The employee's requests, opening to their detail            |
+| `ATT-ISS`  | Attendance issues      | 7   | 5   | 🟡     | Six exception types (incl. a scan on approved leave), filters, bulk excuse with audit, reopen. Employee and supervisor are notified the next morning |
 | `CORE-NOT` | Notifications          | 8   | 5   | 🟡     | In-app only, by decision: bell, list, leave / attendance / document notices. Email and Web Push (with the PWA) are not built |
 
-**Open rules to settle before building:** does a rejection require a reason (offboarding's
-does)? Which leave types require evidence? Is there an annual entitlement at all, or only
-leave-taken? _(The last one was settled: leave-taken only — no balance.)_
+**Open rules:** which kinds of request require evidence (attachments are optional today)?
+_Settled: a rejection requires a reason, and there is no annual entitlement — leave-taken only, no
+balance._
 
 ### Phase 4 — Recruitment
 
@@ -827,7 +841,8 @@ Progress Tracking analytics (Appendix C).
   profile) and has Profil, Dokumen, Cuti, Absensi and Tim tabs. **It is read-only on purpose:**
   uploading a document or correcting a scan redirects, which would navigate the list away from
   under it, so those stay on the full page ("Buka profil penuh"). "Ubah data" and "Ajukan cuti"
-  are links; "Ajukan cuti" opens the leave form and does not preselect the employee.
+  are links; "Buat pengajuan" opens the request form with the employee already chosen (the issues
+  screen's "Buat pengajuan" also fills in the day, via `?employee=` and `?date=`).
 - **The System Admin role can be given any permission** (admin panel, "Peran dan izin"): by default it
   holds accounts, roles, companies and organisation, not attendance or documents, but ticking
   `view-attendance`, `view-documents` and the rest and saving works, and takes effect on the next
@@ -918,8 +933,21 @@ Progress Tracking analytics (Appendix C).
   (none on record, no login, or a deactivated account), where the request goes to HR Admin so it is never
   stuck. An HR Admin who is also the approver is told once. This replaces the earlier Atasan-then-HR chain;
   requests already in flight keep the chain they were filed with. `context.md` §9.6 and the workbooks
-  (`REQ-DLG-004/005`, `ATT-LVE-003`, `CORE-NOT-004`, and new `REQ-WIZ-010`, `REQ-DSH-008`, `CORE-NOT-009`)
+  (`REQ-DLG-004/005`, `ATT-LVE-003` (since removed), `CORE-NOT-004`, and new `REQ-WIZ-010`, `REQ-DSH-008`, `CORE-NOT-009`)
   say the same.
+- **There is no separate Cuti screen; leave is on the calendar.** Decided 2026-10-09 after the Cuti
+  page (`ATT-LVE`) was built, because nearly all of it already existed: its day header and department
+  chips were the calendar's summary and filters, its waiting list was the Pengajuan queue with the
+  "Menunggu" filter, and its approved-leave list was the calendar's Day view with the "Cuti" status. What
+  is left is the on-leave side panel (above). Dropped outright: the 14-working-day availability chart
+  (only an example in the design), present-per-department bars, and the head-count reconciliation.
+  Waiting requests are worked from Pengajuan, which keeps its menu badge. The calendar itself is renamed
+  **Kalender** (sidebar, page title, breadcrumb, CSV heading and file name `kalender-…`) because it now
+  holds more than attendance; global search still finds it by "absensi", "cuti" or "libur", and the
+  address stays `/attendance/calendar`. Like the rest of the calendar the panel needs `view-attendance`,
+  so a plain Atasan does not see it. A person on approved leave who still scanned that day is on
+  leave in the grid and the panel (approved leave wins), and the scan appears in Masalah absensi as
+  "Scan saat cuti" for HR to look at.
 - **"Pengajuan" is the name for all of it, and the kinds are data.** The screens say Pengajuan, not
   Pengajuan cuti. The kinds (`request_types`: name, a code made once from the first name, a maximum
   number of working days, an order, and whether it is offered) are managed in the admin panel under

@@ -158,6 +158,35 @@ it('does not raise an absence for a day on approved leave', function () {
     expect(issueTypesFor($this->budi))->toBe([]);
 });
 
+it('raises a scan on approved leave as its own issue, and nothing else for that day', function () {
+    coverDay($this->company, '2026-10-05');
+    coverDay($this->company, '2026-10-06');
+
+    $this->actingAs($this->hr)->post(route('leave-requests.store'), [
+        'employee_id' => $this->budi->id, 'leave_type' => 'annual', 'start_on' => '2026-10-05', 'end_on' => '2026-10-06', 'reason' => 'Perlu',
+    ])->assertRedirect();
+    $this->actingAs($this->hr)->put(route('leave-requests.decision', LeaveRequest::latest('id')->first()), ['decision' => 'approve'])->assertRedirect();
+
+    // The 5th: late and gone early. The 6th: a single scan, which would otherwise be a missing check-out.
+    issueScan($this->budi, '2026-10-05 09:30:00');
+    issueScan($this->budi, '2026-10-05 15:00:00');
+    issueScan($this->budi, '2026-10-06 08:00:00');
+
+    $mine = collect(issues('?from=2026-10-05&to=2026-10-06&state=all')->viewData('page')['props']['issues'])->where('employeeId', $this->budi->id);
+
+    expect($mine->pluck('type', 'date')->all())->toBe(['2026-10-06' => 'scan_on_leave', '2026-10-05' => 'scan_on_leave'])
+        ->and($mine->firstWhere('date', '2026-10-05')['detail'])->toContain('09:30–15:00')
+        ->and($mine->firstWhere('date', '2026-10-06')['typeLabel'])->toBe('Scan saat cuti');
+
+    // It can be excused like any other issue.
+    $this->actingAs($this->hr)->post(route('attendance.issues.resolve'), [
+        'reason' => 'Dipanggil masuk, cuti diganti',
+        'items' => [['employee_id' => $this->budi->id, 'date' => '2026-10-05', 'type' => 'scan_on_leave']],
+    ])->assertRedirect();
+
+    expect(issueTypesFor($this->budi, '?from=2026-10-05&to=2026-10-06&state=open'))->toBe(['scan_on_leave' => 1]);
+});
+
 it('only calls a single scan a missing check-out once the person could have left', function () {
     $this->travelTo(CarbonImmutable::parse('2026-10-07 10:00', 'Asia/Jakarta'));
     coverDay($this->company, '2026-10-07');

@@ -137,13 +137,17 @@ export type CalendarDaySummary = {
     holiday: string | null;
 };
 
+/** One approved leave inside the range on screen, for the calendar's side panel. */
 export type LeaveEntry = {
     id: number;
     employeeId: number;
     name: string | null;
+    department: string | null;
     type: string;
     from: string;
     to: string;
+    /** "09:00–11:00" when the request names a time of day. */
+    timeframe: string | null;
 };
 
 export type CalendarEventRow = {

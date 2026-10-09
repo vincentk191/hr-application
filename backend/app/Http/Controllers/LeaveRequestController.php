@@ -7,16 +7,23 @@ use App\Actions\Leave\SubmitLeaveRequest;
 use App\Enums\WorkflowStepStatus;
 use App\Http\Requests\StoreLeaveRequestRequest;
 use App\Http\Requests\UpdateLeaveRequestRequest;
+use App\Models\Department;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
+use App\Models\RequestType;
 use App\Models\User;
 use App\Models\WorkflowStep;
+use App\Support\CsvDownload;
 use App\Support\Leave\LeaveLimits;
 use App\Support\Leave\LeaveRequestPresenter;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class LeaveRequestController extends Controller
 {
@@ -32,19 +39,93 @@ class LeaveRequestController extends Controller
         $this->authorize('viewAny', LeaveRequest::class);
 
         $user = $request->user();
+        $filters = $this->filters($request);
 
-        $requests = LeaveRequest::query()
-            ->visibleTo($user)
-            ->with(['employee:id,full_name,employee_number,department_id,user_id', 'employee.department:id,name', 'workflow.steps.decidedBy:id,name', 'workflow.comments.author:id,name', 'attachments', 'type'])
-            ->latest('id')
-            ->get()
-            ->map(fn (LeaveRequest $leave): array => $this->present($leave, $user));
+        $requests = $this->filtered($user, $filters);
 
         return Inertia::render('leave-requests/index', [
             'requests' => $requests,
-            // The nav badge counts what is waiting on this person (REQ-DSH-007).
+            'filters' => $filters,
+            'options' => [
+                'types' => RequestType::query()->ordered()->get(['code', 'label'])
+                    ->map(fn (RequestType $type): array => ['value' => $type->code, 'label' => $type->label])->values(),
+                'departments' => Department::orderBy('name')->get(['id', 'name']),
+            ],
+            // What is waiting on this person, and what was approved this month (REQ-DSH-001).
             'waitingOnMe' => WorkflowStep::waitingOn($user)->count(),
+            'approvedThisMonth' => LeaveRequest::query()->visibleTo($user)
+                ->whereHas('workflow', fn (Builder $query) => $query->where('current_stage', 'approved')
+                    ->where('completed_at', '>=', now()->startOfMonth()))
+                ->count(),
         ]);
+    }
+
+    /**
+     * The queue as a CSV (REQ-DSH-006): the same filters, the same rows, as on screen.
+     */
+    public function export(Request $request): StreamedResponse
+    {
+        $this->authorize('viewAny', LeaveRequest::class);
+
+        $rows = collect($this->filtered($request->user(), $this->filters($request)))->map(fn (array $row): array => [
+            $row['reference'], $row['employee'], $row['department'], $row['type'], $row['startOn'], $row['endOn'],
+            $row['timeframe'], $row['days'], $row['stageLabel'], $row['waitingOn'], $row['submittedAt'],
+        ]);
+
+        return CsvDownload::stream('pengajuan-'.now()->format('Y-m-d').'.csv', [
+            ['Pengajuan', 'Karyawan', 'Departemen', 'Jenis', 'Dari', 'Sampai', 'Jam', 'Hari kerja', 'Status', 'Menunggu', 'Diajukan'],
+            ...$rows,
+        ]);
+    }
+
+    /**
+     * What the queue is narrowed by, read from the query string. Anything unrecognised is dropped, so
+     * a stale or hand-edited link just shows the whole queue.
+     *
+     * @return array{status: string, type: string|null, department: int|null, month: string|null}
+     */
+    private function filters(Request $request): array
+    {
+        $type = $request->string('type')->toString();
+        $month = $request->string('month')->toString();
+
+        return [
+            'status' => in_array($request->string('status')->toString(), ['mine', 'waiting', 'approved', 'rejected'], true)
+                ? $request->string('status')->toString()
+                : 'all',
+            'type' => $type !== '' && RequestType::query()->where('code', $type)->exists() ? $type : null,
+            'department' => $request->integer('department') ?: null,
+            'month' => preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $month) === 1 ? $month : null,
+        ];
+    }
+
+    /**
+     * @param  array{status: string, type: string|null, department: int|null, month: string|null}  $filters
+     * @return array<int, array<string, mixed>>
+     */
+    private function filtered(User $user, array $filters): array
+    {
+        $monthStart = $filters['month'] === null ? null : CarbonImmutable::createFromFormat('Y-m-d', $filters['month'].'-01');
+
+        return LeaveRequest::query()
+            ->visibleTo($user)
+            ->with(['employee:id,full_name,employee_number,department_id,user_id', 'employee.department:id,name', 'workflow.steps.decidedBy:id,name', 'workflow.comments.author:id,name', 'attachments', 'type'])
+            ->when($filters['type'] !== null, fn (Builder $query) => $query->where('leave_type', $filters['type']))
+            ->when($filters['department'] !== null, fn (Builder $query) => $query->whereHas('employee', fn (Builder $employee) => $employee->where('department_id', $filters['department'])))
+            // A month catches any request whose days touch it.
+            ->when($monthStart !== null, fn (Builder $query) => $query
+                ->whereDate('start_on', '<=', $monthStart->endOfMonth()->toDateString())
+                ->whereDate('end_on', '>=', $monthStart->toDateString()))
+            ->when(in_array($filters['status'], ['waiting', 'approved', 'rejected'], true), fn (Builder $query) => $query->whereHas(
+                'workflow',
+                fn (Builder $workflow) => $workflow->where('current_stage', $filters['status'] === 'waiting' ? 'submitted' : $filters['status']),
+            ))
+            ->latest('id')
+            ->get()
+            ->map(fn (LeaveRequest $leave): array => $this->present($leave, $user))
+            ->when($filters['status'] === 'mine', fn (Collection $rows) => $rows->filter(fn (array $row): bool => $row['canDecide'])->values())
+            ->values()
+            ->all();
     }
 
     /**
@@ -57,7 +138,14 @@ class LeaveRequestController extends Controller
         $user = $request->user();
         $canFileForOthers = $user->can('createOnBehalf', LeaveRequest::class);
 
+        $date = $request->string('date')->toString();
+
         return Inertia::render('leave-requests/create', [
+            // Opened from an employee's profile or an issue, the form comes filled in: who, and which day.
+            'prefill' => [
+                'employeeId' => $request->integer('employee') ?: null,
+                'date' => preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) === 1 && CarbonImmutable::canBeCreatedFromFormat($date, 'Y-m-d') ? $date : null,
+            ],
             'leaveTypes' => app(LeaveLimits::class)->options(),
             'canFileForOthers' => $canFileForOthers,
             'employees' => Employee::query()

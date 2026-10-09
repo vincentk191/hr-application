@@ -18,18 +18,19 @@ const selectClasses =
     'border-input bg-card focus-visible:ring-ring h-10 rounded-xl border px-3 text-sm focus-visible:ring-1 focus-visible:outline-none disabled:opacity-60';
 
 /**
- * The new leave request form (REQ-WIZ), as a single page rather than the design's three
- * columns — enough to exercise the workflow, not yet the designed screen.
+ * The new request form (REQ-WIZ), as a single page rather than the design's three columns.
  *
- * Working days are not computed here: the design counts working days excluding weekends and
- * calendar holidays (REQ-WIZ-005), which needs the attendance calendar. Until then the server
- * counts whole calendar days.
+ * Working days are counted by the server (weekends and calendar holidays excluded, REQ-WIZ-005).
+ * The form can open already filled in with `?employee=` and `?date=`, which is how the profile and
+ * the issues screen send someone here.
  */
 export default function LeaveRequestCreate({
     leaveTypes,
     employees,
     canFileForOthers,
+    prefill,
 }: {
+    prefill: { employeeId: number | null; date: string | null };
     leaveTypes: LeaveTypeOption[];
     employees: EmployeeOption[];
     canFileForOthers: boolean;
@@ -57,7 +58,11 @@ export default function LeaveRequestCreate({
                                     defaultValue={
                                         employees.length === 1
                                             ? employees[0].id
-                                            : ''
+                                            : (employees.find(
+                                                  (employee) =>
+                                                      employee.id ===
+                                                      prefill.employeeId,
+                                              )?.id ?? '')
                                     }
                                     className={selectClasses}
                                 >
@@ -121,6 +126,7 @@ export default function LeaveRequestCreate({
                                         id="start_on"
                                         name="start_on"
                                         type="date"
+                                        defaultValue={prefill.date ?? ''}
                                     />
                                     <InputError message={errors.start_on} />
                                 </div>
@@ -132,6 +138,7 @@ export default function LeaveRequestCreate({
                                         id="end_on"
                                         name="end_on"
                                         type="date"
+                                        defaultValue={prefill.date ?? ''}
                                     />
                                     <InputError message={errors.end_on} />
                                 </div>

@@ -7,6 +7,7 @@ use App\Enums\Role;
 use App\Http\Controllers\NotificationController;
 use App\Models\Company;
 use App\Models\Employee;
+use App\Models\WorkflowStep;
 use App\Support\Branding;
 use App\Support\CompanyContext;
 use Illuminate\Http\Request;
@@ -62,6 +63,8 @@ class HandleInertiaRequests extends Middleware
             ],
             'companySwitcher' => fn (): ?array => $this->companySwitcher($request),
             // The colour and logo for the company being viewed (or the group colour when viewing all).
+            // How many requests wait on this person: the badge on the "Pengajuan" menu item.
+            'pendingForMe' => fn (): int => $request->user() === null ? 0 : WorkflowStep::waitingOn($request->user())->count(),
             'branding' => fn (): ?array => $request->user() === null ? null : app(Branding::class)->current(),
             // The header bell: how many are unread and the latest few. Lazy, so a request that does not
             // render a page (a redirect) never pays for it.

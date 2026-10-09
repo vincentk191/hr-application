@@ -111,7 +111,10 @@ it('classifies a day by the documented order of rules', function (array $input, 
     'still at work today is not early leave' => [['in' => '07:55', 'out' => '12:00', 'count' => 2, 'working' => true], AttendanceDayStatus::Present],
     'nobody came, workday, no leave' => [[], AttendanceDayStatus::Absent],
     'nobody came, on approved leave' => [['leave' => true], AttendanceDayStatus::Leave],
-    'came in despite approved leave' => [['leave' => true, 'in' => '08:00', 'out' => '17:00', 'count' => 2], AttendanceDayStatus::Present],
+    'came in despite approved leave: leave wins' => [['leave' => true, 'in' => '08:00', 'out' => '17:00', 'count' => 2], AttendanceDayStatus::Leave],
+    'a lone scan on approved leave: leave wins' => [['leave' => true, 'in' => '08:00', 'out' => '08:00', 'count' => 1], AttendanceDayStatus::Leave],
+    'a weekend scan on approved leave: leave wins' => [['leave' => true, 'workday' => false, 'in' => '09:00', 'out' => '12:00', 'count' => 2], AttendanceDayStatus::Leave],
+    'a scan after the log, on leave: still leave' => [['leave' => true, 'covered' => false, 'in' => '08:00', 'count' => 1], AttendanceDayStatus::Leave],
     'no scanner ID mapped, on a workday inside the data' => [['scannerId' => false], AttendanceDayStatus::NoData],
     'no scanner ID mapped, but approved leave is known' => [['scannerId' => false, 'leave' => true], AttendanceDayStatus::Leave],
     'no scanner ID mapped, on a weekend' => [['scannerId' => false, 'workday' => false], AttendanceDayStatus::Off],
@@ -326,6 +329,104 @@ it('computes the side panel from the same rows and filters as the grid', functio
         ->where('summary.counts.present', 0)
         ->where('summary.counts.late', 1)
         ->where('summary.employees', 1));
+});
+
+/**
+ * Approved (or, with $decision null, still waiting) leave for an employee, filed by HR.
+ */
+function leaveFor(Employee $employee, string $from, ?string $to = null, ?string $decision = 'approve', string $type = 'annual'): LeaveRequest
+{
+    test()->actingAs(test()->hr)->post(route('leave-requests.store'), [
+        'employee_id' => $employee->id, 'leave_type' => $type, 'start_on' => $from, 'end_on' => $to ?? $from, 'reason' => 'Perlu',
+    ])->assertSessionHasNoErrors();
+
+    $leave = LeaveRequest::query()->latest('id')->firstOrFail();
+
+    if ($decision !== null) {
+        test()->actingAs(test()->hr)->put(route('leave-requests.decision', $leave), ['decision' => $decision, 'note' => $decision === 'reject' ? 'Tidak' : null])->assertRedirect();
+    }
+
+    return $leave->refresh();
+}
+
+/**
+ * @return list<string> the names in the side panel's leave list
+ */
+function onLeaveNames(string $query): array
+{
+    return collect(calendar($query)->viewData('page')['props']['onLeave']['entries'])->pluck('name')->all();
+}
+
+it('lists who is on leave on the day being viewed, and follows the day', function () {
+    $siti = Employee::factory()->forCompany($this->company)->create(['full_name' => 'Siti', 'joined_on' => '2020-01-01']);
+    leaveFor($this->budi, '2026-10-06');
+    leaveFor($siti, '2026-10-08');
+
+    expect(onLeaveNames('?view=day&date=2026-10-06'))->toBe(['Budi'])
+        ->and(onLeaveNames('?view=day&date=2026-10-07'))->toBe([])
+        ->and(onLeaveNames('?view=day&date=2026-10-08'))->toBe(['Siti']);
+});
+
+it('lists anyone with at least one day of leave in the week, month or year being viewed', function () {
+    $siti = Employee::factory()->forCompany($this->company)->create(['full_name' => 'Siti', 'joined_on' => '2020-01-01']);
+    leaveFor($this->budi, '2026-10-06');
+    // Runs from the previous week into this one: one day of it falls in the week of the 5th.
+    leaveFor($siti, '2026-10-01', '2026-10-05');
+    $nextMonth = Employee::factory()->forCompany($this->company)->create(['full_name' => 'Bulan Depan', 'joined_on' => '2020-01-01']);
+    leaveFor($nextMonth, '2026-11-03');
+
+    expect(onLeaveNames('?view=week&date=2026-10-05'))->toBe(['Siti', 'Budi'])
+        ->and(onLeaveNames('?view=week&date=2026-10-12'))->toBe([])
+        ->and(onLeaveNames('?view=month&date=2026-10-15'))->toBe(['Siti', 'Budi'])
+        ->and(onLeaveNames('?view=year&date=2026-10-15'))->toBe(['Siti', 'Budi', 'Bulan Depan']);
+
+    // Someone away for three days is one person, not three.
+    leaveFor($this->budi, '2026-10-13', '2026-10-15');
+    expect(calendar('?view=month&date=2026-10-15')->viewData('page')['props']['onLeave']['people'])->toBe(2);
+});
+
+it('leaves out leave that is waiting, rejected, or someone else\'s company', function () {
+    $siti = Employee::factory()->forCompany($this->company)->create(['full_name' => 'Siti', 'joined_on' => '2020-01-01']);
+    $dewi = Employee::factory()->forCompany($this->company)->create(['full_name' => 'Dewi', 'joined_on' => '2020-01-01']);
+    leaveFor($this->budi, '2026-10-06', decision: null);
+    leaveFor($siti, '2026-10-06', decision: 'reject');
+    leaveFor($dewi, '2026-10-06');
+
+    $otherCompany = Company::factory()->create();
+    $stranger = Employee::factory()->forCompany($otherCompany)->create(['full_name' => 'Orang Lain', 'joined_on' => '2020-01-01']);
+    $this->actingAs(calendarUser(Role::HrAdmin, $otherCompany))->post(route('leave-requests.store'), [
+        'employee_id' => $stranger->id, 'leave_type' => 'annual', 'start_on' => '2026-10-06', 'end_on' => '2026-10-06',
+    ])->assertSessionHasNoErrors();
+
+    expect(onLeaveNames('?view=day&date=2026-10-06'))->toBe(['Dewi']);
+});
+
+it('narrows the leave list with the calendar\'s filters', function () {
+    $ops = Department::factory()->forCompany($this->company)->create();
+    $sari = Employee::factory()->inDepartment($ops)->create(['full_name' => 'Sari', 'joined_on' => '2020-01-01']);
+    leaveFor($this->budi, '2026-10-06', type: 'sick');
+    leaveFor($sari, '2026-10-06');
+
+    expect(onLeaveNames('?view=day&date=2026-10-06'))->toBe(['Budi', 'Sari'])
+        ->and(onLeaveNames('?view=day&date=2026-10-06&departments[]='.$ops->id))->toBe(['Sari'])
+        ->and(onLeaveNames('?view=day&date=2026-10-06&leave_type=sick'))->toBe(['Budi'])
+        ->and(onLeaveNames('?view=day&date=2026-10-06&search=sar'))->toBe(['Sari']);
+});
+
+it('cuts a long leave list off and says how many more there are', function () {
+    foreach (range(1, 52) as $number) {
+        leaveFor(Employee::factory()->forCompany($this->company)->create(['full_name' => sprintf('Orang %02d', $number), 'joined_on' => '2020-01-01']), '2026-10-06');
+    }
+
+    $panel = calendar('?view=day&date=2026-10-06')->viewData('page')['props']['onLeave'];
+
+    expect($panel['entries'])->toHaveCount(50)
+        ->and($panel['more'])->toBe(2)
+        ->and($panel['people'])->toBe(52);
+});
+
+it('no longer carries the old out-today, upcoming and approvals panels', function () {
+    calendar('?view=day&date=2026-10-06')->assertInertia(fn (Assert $page) => $page->missing('side')->has('onLeave'));
 });
 
 // --- Access and tenancy ---

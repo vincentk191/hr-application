@@ -243,7 +243,13 @@ function DrawerBody({
                 )}
                 {data.canCreateLeave && employee.isActive && (
                     <Button asChild variant="outline">
-                        <Link href={createLeave().url}>Buat pengajuan</Link>
+                        <Link
+                            href={createLeave({
+                                query: { employee: employee.id },
+                            })}
+                        >
+                            Buat pengajuan
+                        </Link>
                     </Button>
                 )}
                 <Button asChild className="ml-auto">

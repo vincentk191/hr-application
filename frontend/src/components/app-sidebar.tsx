@@ -49,7 +49,7 @@ const mainNavItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
-    const { auth } = usePage().props;
+    const { auth, pendingForMe } = usePage().props;
 
     // The admin panel is outside the Inertia app, so it is a plain link, and only offered to
     // people the server says may open it.
@@ -70,11 +70,13 @@ export function AppSidebar() {
                   },
               ]
             : []),
-        ...mainNavItems.slice(1),
+        ...mainNavItems
+            .slice(1)
+            .map((item) => ({ ...item, badge: pendingForMe })),
         ...(auth.canViewAttendance
             ? [
                   {
-                      title: 'Kalender absensi',
+                      title: 'Kalender',
                       href: attendanceCalendar(),
                       icon: CalendarCheck,
                   },

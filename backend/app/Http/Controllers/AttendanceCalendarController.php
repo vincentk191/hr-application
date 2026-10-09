@@ -11,7 +11,6 @@ use App\Models\Department;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\RequestType;
-use App\Models\WorkflowStep;
 use App\Support\Attendance\CaptureStatus;
 use App\Support\Attendance\DailyAttendance;
 use App\Support\Attendance\EmployeeRoster;
@@ -45,7 +44,11 @@ class AttendanceCalendarController extends Controller
      */
     private const MAX_ROWS = 500;
 
-    private const UPCOMING_DAYS = 14;
+    /**
+     * The leave list in the side panel is cut off here and says how many more there are: a year
+     * can hold more leave than a panel can show.
+     */
+    private const ON_LEAVE_LIMIT = 50;
 
     public function index(Request $request, DailyAttendance $attendance, WorkSchedule $schedule, CaptureStatus $capture, EmployeeRoster $roster): Response
     {
@@ -64,7 +67,7 @@ class AttendanceCalendarController extends Controller
                 : [],
             'months' => $data['view'] === 'year' ? $this->months($data['records'], $data['result']['dates'], $data['result']['dataThrough'], $schedule, $attendance) : [],
             'summary' => $this->summary($attendance->tally($data['records'], $data['result']['dates']), count($data['rows'])),
-            'side' => $this->sidePanel($request, $data['timezone']),
+            'onLeave' => $this->onLeave($data['rows'], $data['from'], $data['to'], $data['filters']['leaveType']),
             'events' => $this->events($request, $data['from'], $data['to']),
             'eventForm' => $this->eventForm($request),
             'filters' => $data['filters'],
@@ -104,7 +107,7 @@ class AttendanceCalendarController extends Controller
 
         /** @var list<array<int, string|int|float|null>> $lines */
         $lines = [
-            ['Kalender absensi', $label, 'Data sampai '.($data['result']['dataThrough'] ?? '-')],
+            ['Kalender', $label, 'Data sampai '.($data['result']['dataThrough'] ?? '-')],
             [],
         ];
 
@@ -134,7 +137,7 @@ class AttendanceCalendarController extends Controller
             $lines[] = ['Keterangan: H hadir, T terlambat, P pulang cepat, A tidak hadir, C cuti, · libur / tidak ada scan, ? belum ada data'];
         }
 
-        return CsvDownload::stream('kalender-absensi-'.$data['from']->toDateString().'-'.$data['to']->toDateString().'.csv', $lines);
+        return CsvDownload::stream('kalender-'.$data['from']->toDateString().'-'.$data['to']->toDateString().'.csv', $lines);
     }
 
     /**
@@ -494,36 +497,42 @@ class AttendanceCalendarController extends Controller
     }
 
     /**
-     * Out today, coming up, and what is waiting on this person (ATT-SID-002).
+     * Who is on leave in the range on screen (ATT-SID-002): anyone with at least one day of approved
+     * leave inside it. It follows the view, so on the Day view it is that day, on Week that week, and
+     * so on, and it is drawn from the same people as the grid, so every filter narrows it too. A
+     * chosen leave kind narrows the leave itself, not only the people.
      *
-     * @return array{outToday: array<int, array<string, mixed>>, upcoming: array<int, array<string, mixed>>, pendingApprovals: int}
+     * @param  list<array<string, mixed>>  $rows  the people the grid shows
+     * @return array{people: int, entries: array<int, array<string, mixed>>, more: int}
      */
-    private function sidePanel(Request $request, string $timezone): array
+    private function onLeave(array $rows, CarbonImmutable $from, CarbonImmutable $to, ?string $leaveType): array
     {
-        $today = CarbonImmutable::now($timezone)->toDateString();
-        $horizon = CarbonImmutable::now($timezone)->addDays(self::UPCOMING_DAYS)->toDateString();
+        $people = collect($rows)->keyBy('id');
 
-        $approved = fn () => LeaveRequest::query()
-            ->with('employee:id,full_name')
-            ->whereHas('workflow', fn ($query) => $query->where('current_stage', 'approved'));
-
-        $present = fn (LeaveRequest $leave): array => [
-            'id' => $leave->id,
-            'employeeId' => $leave->employee_id,
-            'name' => $leave->employee?->full_name,
-            'type' => $leave->typeLabel(),
-            'from' => $leave->start_on->toDateString(),
-            'to' => $leave->end_on->toDateString(),
-        ];
+        $leaves = LeaveRequest::query()
+            ->with('type')
+            ->whereIn('employee_id', $people->keys()->all())
+            ->when($leaveType !== null, fn (Builder $query) => $query->where('leave_type', $leaveType))
+            ->whereHas('workflow', fn (Builder $query) => $query->where('current_stage', 'approved'))
+            ->whereDate('start_on', '<=', $to->toDateString())
+            ->whereDate('end_on', '>=', $from->toDateString())
+            ->orderBy('start_on')
+            ->orderBy('id')
+            ->get();
 
         return [
-            'outToday' => $approved()
-                ->whereDate('start_on', '<=', $today)->whereDate('end_on', '>=', $today)
-                ->orderBy('end_on')->limit(10)->get()->map($present)->all(),
-            'upcoming' => $approved()
-                ->whereDate('start_on', '>', $today)->whereDate('start_on', '<=', $horizon)
-                ->orderBy('start_on')->limit(10)->get()->map($present)->all(),
-            'pendingApprovals' => WorkflowStep::waitingOn($request->user())->count(),
+            'people' => $leaves->pluck('employee_id')->unique()->count(),
+            'entries' => $leaves->take(self::ON_LEAVE_LIMIT)->map(fn (LeaveRequest $leave): array => [
+                'id' => $leave->id,
+                'employeeId' => $leave->employee_id,
+                'name' => $people[$leave->employee_id]['name'],
+                'department' => $people[$leave->employee_id]['department'],
+                'type' => $leave->typeLabel(),
+                'from' => $leave->start_on->toDateString(),
+                'to' => $leave->end_on->toDateString(),
+                'timeframe' => $leave->timeframe(),
+            ])->values()->all(),
+            'more' => max(0, $leaves->count() - self::ON_LEAVE_LIMIT),
         ];
     }
 

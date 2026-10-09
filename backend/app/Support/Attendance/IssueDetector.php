@@ -81,6 +81,17 @@ class IssueDetector
     {
         $found = [];
 
+        // Approved leave wins over a scan, so the day is leave; what is left to say is that someone
+        // scanned anyway. Nothing else (late, a lone scan) means anything on a day off.
+        if ($record['status'] === AttendanceDayStatus::Leave->value) {
+            if ($record['punches'] > 0) {
+                $times = $record['out'] === null ? $record['in'] : "{$record['in']}–{$record['out']}";
+                $found[] = [AttendanceIssueType::ScanOnLeave, "Ada scan ({$times}) pada hari cuti yang disetujui"];
+            }
+
+            return $found;
+        }
+
         if ($record['status'] === AttendanceDayStatus::Absent->value) {
             $found[] = [AttendanceIssueType::UnapprovedAbsence, 'Hari kerja tanpa scan dan tanpa cuti yang disetujui'];
         }

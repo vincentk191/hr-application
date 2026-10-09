@@ -16,9 +16,11 @@ use App\Enums\AttendanceDayStatus;
  *  2. A holiday or company event is off for the people it covers (ATT-WIZ). A day nobody at all
  *     scanned in is also treated as off, as a fallback for a holiday no one has entered: without
  *     it every such day would mark the whole company absent.
- *  3. A punch beats everything else: someone who scanned in was there, even on leave or a weekend.
- *  4. Otherwise approved leave is leave (weekends included), and a non-workday is off.
- *  5. Someone with no scanner ID mapped on that date cannot have been recorded at all, so no
+ *  3. Approved leave beats a punch: approved leave is approved leave, so someone on it is on leave
+ *     whatever the scanner says. The scan is not hidden, it is raised as an issue (IssueDetector).
+ *  4. Otherwise a punch makes the day present / late / early-leave, even on a weekend.
+ *  5. Otherwise approved leave is leave (weekends included), and a non-workday is off.
+ *  6. Someone with no scanner ID mapped on that date cannot have been recorded at all, so no
  *     punch tells us nothing: that is "no data", never absence. Only someone who could have
  *     scanned, on a workday inside the data, and did not, is absent.
  */
@@ -52,6 +54,10 @@ class DayClassifier
             }
 
             return $onApprovedLeave ? AttendanceDayStatus::Leave : AttendanceDayStatus::NoData;
+        }
+
+        if ($onApprovedLeave && $firstIn !== null) {
+            return AttendanceDayStatus::Leave;
         }
 
         if ($firstIn !== null) {

@@ -14,7 +14,6 @@ import { device } from '@/routes/attendance';
 import { calendar } from '@/routes/attendance';
 import { recap } from '@/routes/attendance';
 import { exportMethod as exportRoute } from '@/routes/attendance/calendar';
-import { index as leaveRequestsIndex } from '@/routes/leave-requests';
 import { show as employeeShow } from '@/routes/employees';
 import type { BreadcrumbItem } from '@/types';
 import type {
@@ -52,11 +51,7 @@ type Props = {
     };
     events: CalendarEventRow[];
     eventForm: EventFormOptions | null;
-    side: {
-        outToday: LeaveEntry[];
-        upcoming: LeaveEntry[];
-        pendingApprovals: number;
-    };
+    onLeave: { people: number; entries: LeaveEntry[]; more: number };
     filters: CalendarFilters;
     options: {
         departments: Option[];
@@ -185,23 +180,51 @@ function DayTable({
     );
 }
 
-function LeaveList({
-    title,
-    entries,
-    empty,
+const PERIOD: Record<CalendarView, string> = {
+    day: 'hari',
+    week: 'minggu',
+    month: 'bulan',
+    year: 'tahun',
+};
+
+/**
+ * Who is on leave in the range on screen (ATT-SID-002): the day, week, month or year being viewed,
+ * for the people the filters select. A person appears when at least one day of their approved leave
+ * falls inside the range, so moving the date or changing the view redraws the list.
+ */
+function OnLeavePanel({
+    view,
+    label,
+    today,
+    range,
+    onLeave,
 }: {
-    title: string;
-    entries: LeaveEntry[];
-    empty: string;
+    view: CalendarView;
+    label: string;
+    today: string;
+    range: { from: string; to: string };
+    onLeave: Props['onLeave'];
 }) {
+    const isCurrent = range.from <= today && today <= range.to;
+
     return (
         <section className="surface p-4">
-            <h3 className="font-medium">{title}</h3>
-            {entries.length === 0 ? (
-                <p className="mt-2 text-sm text-muted-foreground">{empty}</p>
+            <h3 className="font-medium">
+                {isCurrent
+                    ? `Sedang cuti ${PERIOD[view]} ini`
+                    : `Cuti · ${label}`}
+            </h3>
+            <p className="text-xs text-muted-foreground">
+                {onLeave.people} orang
+                {isCurrent ? ` · ${label}` : ''}
+            </p>
+            {onLeave.entries.length === 0 ? (
+                <p className="mt-2 text-sm text-muted-foreground">
+                    Tidak ada yang cuti.
+                </p>
             ) : (
                 <ul className="mt-2 divide-y text-sm">
-                    {entries.map((entry) => (
+                    {onLeave.entries.map((entry) => (
                         <li key={entry.id} className="py-2">
                             <Link
                                 href={employeeShow(entry.employeeId)}
@@ -209,22 +232,35 @@ function LeaveList({
                             >
                                 {entry.name}
                             </Link>
+                            {entry.department && (
+                                <span className="text-xs text-muted-foreground">
+                                    {' '}
+                                    · {entry.department}
+                                </span>
+                            )}
                             <div className="text-xs text-muted-foreground">
                                 {entry.type} · {entry.from}
                                 {entry.to !== entry.from
                                     ? ` – ${entry.to}`
                                     : ''}
+                                {entry.timeframe ? ` · ${entry.timeframe}` : ''}
                             </div>
                         </li>
                     ))}
                 </ul>
+            )}
+            {onLeave.more > 0 && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                    +{onLeave.more} lainnya. Persempit dengan filter atau pindah
+                    ke tampilan yang lebih pendek.
+                </p>
             )}
         </section>
     );
 }
 
 /**
- * The attendance calendar (ATT-CAL) with its side panel (ATT-SID). Everything — the grid, the
+ * The calendar (ATT-CAL) with its side panel (ATT-SID). Everything — the grid, the
  * headcount and the filters — comes from one server query, so changing the range or a filter
  * redraws all of it together.
  *
@@ -242,7 +278,8 @@ export default function AttendanceCalendar(props: Props) {
         truncated,
         months,
         summary,
-        side,
+        onLeave,
+        range,
         filters,
         options,
         dataThrough,
@@ -302,7 +339,7 @@ export default function AttendanceCalendar(props: Props) {
 
     return (
         <>
-            <Head title="Kalender absensi" />
+            <Head title="Kalender" />
 
             <div className="flex flex-col gap-4 p-4">
                 {capture.state !== 'current' && (
@@ -504,7 +541,7 @@ export default function AttendanceCalendar(props: Props) {
                         <option value="">Semua jenis pengajuan</option>
                         {options.leaveTypes.map((type) => (
                             <option key={type.value} value={type.value}>
-                                Cuti {type.label}
+                                {type.label}
                             </option>
                         ))}
                     </select>
@@ -625,30 +662,13 @@ export default function AttendanceCalendar(props: Props) {
                             defaultDate={anchor}
                         />
 
-                        <LeaveList
-                            title="Sedang cuti hari ini"
-                            entries={side.outToday}
-                            empty="Tidak ada."
+                        <OnLeavePanel
+                            view={view}
+                            label={nav.label}
+                            today={nav.today}
+                            range={range}
+                            onLeave={onLeave}
                         />
-                        <LeaveList
-                            title="Cuti mendatang (14 hari)"
-                            entries={side.upcoming}
-                            empty="Tidak ada."
-                        />
-
-                        <section className="surface p-4">
-                            <h3 className="font-medium">
-                                Menunggu persetujuan Anda
-                            </h3>
-                            <p className="mt-1 text-sm">
-                                <Link
-                                    href={leaveRequestsIndex()}
-                                    className="text-primary underline-offset-4 hover:underline"
-                                >
-                                    {side.pendingApprovals} pengajuan
-                                </Link>
-                            </p>
-                        </section>
                     </aside>
                 </div>
             </div>
@@ -658,6 +678,6 @@ export default function AttendanceCalendar(props: Props) {
 
 AttendanceCalendar.layout = {
     breadcrumbs: [
-        { title: 'Kalender absensi', href: calendar() },
+        { title: 'Kalender', href: calendar() },
     ] satisfies BreadcrumbItem[],
 };

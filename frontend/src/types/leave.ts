@@ -65,3 +65,12 @@ export type EmployeeOption = {
     id: number;
     label: string;
 };
+
+/** What the requests queue is narrowed by (REQ-DSH). */
+export type LeaveRequestFilters = {
+    status: 'all' | 'mine' | 'waiting' | 'approved' | 'rejected';
+    type: string | null;
+    department: number | null;
+    /** "YYYY-MM". */
+    month: string | null;
+};
