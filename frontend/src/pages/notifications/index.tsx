@@ -31,7 +31,7 @@ export default function NotificationsIndex({ list, filter }: Props) {
 
             <div className="flex max-w-3xl flex-col gap-4 p-4">
                 <div className="flex flex-wrap items-center gap-2">
-                    <div className="flex rounded-md border text-sm">
+                    <div className="seg">
                         {(
                             [
                                 ['all', 'Semua'],
@@ -41,11 +41,7 @@ export default function NotificationsIndex({ list, filter }: Props) {
                             <Link
                                 key={value}
                                 href={index({ query: { filter: value } }).url}
-                                className={`px-3 py-1.5 ${
-                                    filter === value
-                                        ? 'bg-muted font-medium'
-                                        : 'text-muted-foreground'
-                                }`}
+                                data-on={filter === value}
                             >
                                 {label}
                             </Link>
@@ -68,13 +64,13 @@ export default function NotificationsIndex({ list, filter }: Props) {
                 </div>
 
                 {list.data.length === 0 ? (
-                    <p className="rounded-xl border p-6 text-center text-sm text-muted-foreground">
+                    <p className="surface p-6 text-center text-sm text-muted-foreground">
                         {filter === 'unread'
                             ? 'Tidak ada notifikasi yang belum dibaca.'
                             : 'Belum ada notifikasi.'}
                     </p>
                 ) : (
-                    <ul className="divide-y rounded-xl border">
+                    <ul className="surface divide-y">
                         {list.data.map((notice) => (
                             <li key={notice.id}>
                                 <Link

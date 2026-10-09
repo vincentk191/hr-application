@@ -142,7 +142,7 @@ it('offers the pages the person may open, and not the ones they may not', functi
     $staff = searchUser(Role::Employee, $this->company);
 
     expect(searchFor($staff, 'absensi'))->not->toHaveKey('pages')
-        ->and(collect(searchFor($staff, 'cuti')['pages'])->pluck('title')->all())->toBe(['Pengajuan cuti', 'Ajukan cuti']);
+        ->and(collect(searchFor($staff, 'pengajuan')['pages'])->pluck('title')->all())->toBe(['Pengajuan', 'Buat pengajuan']);
 });
 
 it('is for signed-in people only', function () {

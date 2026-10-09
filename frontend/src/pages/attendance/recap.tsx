@@ -56,7 +56,7 @@ type Props = {
 };
 
 const selectClasses =
-    'border-input bg-background h-9 rounded-md border px-3 text-sm';
+    'border-input bg-card h-10 rounded-xl border px-3 text-sm';
 
 function FigureCells({ figures }: { figures: Figures }) {
     return (
@@ -99,7 +99,7 @@ function ReportSection({
     const shown = open || printing;
 
     return (
-        <section className="rounded-xl border">
+        <section className="surface">
             <h2 className="font-medium">
                 <button
                     type="button"
@@ -223,7 +223,7 @@ export default function AttendanceRecap({
 
             <div className="flex flex-col gap-4 p-4">
                 {capture.state !== 'current' && (
-                    <p className="rounded-xl border border-amber-500/60 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+                    <p className="surface border-amber-500/60 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
                         Log pemindai{' '}
                         {capture.state === 'never'
                             ? 'belum pernah diunggah'
@@ -336,11 +336,10 @@ export default function AttendanceRecap({
                                           ],
                                 })
                             }
-                            className={`rounded-full border px-3 py-1 text-xs ${
-                                filters.departments.includes(department.id)
-                                    ? 'bg-muted font-medium'
-                                    : 'text-muted-foreground'
-                            }`}
+                            className="chip"
+                            data-on={filters.departments.includes(
+                                department.id,
+                            )}
                         >
                             {department.name}
                         </button>

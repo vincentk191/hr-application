@@ -11,6 +11,7 @@ import type {
 type Detail = {
     id: number;
     reason: string | null;
+    timeframe: string | null;
     submittedAt: string | null;
     steps: WorkflowStepSummary[];
     attachments: LeaveAttachmentRow[];
@@ -93,6 +94,13 @@ export function LeaveHistory({ history }: { history: LeaveHistoryRow[] }) {
 export function LeaveRequestDetail({ row }: { row: Detail }) {
     return (
         <div className="flex flex-col gap-3 text-sm">
+            {row.timeframe && (
+                <div>
+                    <p className="text-xs text-muted-foreground">Jam</p>
+                    <p>{row.timeframe}</p>
+                </div>
+            )}
+
             <div>
                 <p className="text-xs text-muted-foreground">
                     Catatan pemohon

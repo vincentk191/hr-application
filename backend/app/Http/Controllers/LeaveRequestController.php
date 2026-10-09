@@ -35,7 +35,7 @@ class LeaveRequestController extends Controller
 
         $requests = LeaveRequest::query()
             ->visibleTo($user)
-            ->with(['employee:id,full_name,employee_number,department_id,user_id', 'employee.department:id,name', 'workflow.steps.decidedBy:id,name', 'workflow.comments.author:id,name', 'attachments'])
+            ->with(['employee:id,full_name,employee_number,department_id,user_id', 'employee.department:id,name', 'workflow.steps.decidedBy:id,name', 'workflow.comments.author:id,name', 'attachments', 'type'])
             ->latest('id')
             ->get()
             ->map(fn (LeaveRequest $leave): array => $this->present($leave, $user));
@@ -81,6 +81,7 @@ class LeaveRequestController extends Controller
                 'start_on' => $request->date('start_on'),
                 'end_on' => $request->date('end_on'),
                 'reason' => $request->validated()['reason'] ?? null,
+                ...$request->timeframe(),
             ],
             $request->user(),
             array_values((array) $request->file('attachments', [])),
@@ -105,10 +106,12 @@ class LeaveRequestController extends Controller
         $leaveRequest->load(['employee:id,full_name,employee_number,user_id', 'workflow.steps.decidedBy:id,name', 'workflow.comments.author:id,name', 'attachments']);
 
         return Inertia::render('leave-requests/edit', [
-            'leaveTypes' => app(LeaveLimits::class)->options(),
+            'leaveTypes' => app(LeaveLimits::class)->options($leaveRequest->leave_type),
             'request' => [
                 ...$this->present($leaveRequest, $request->user()),
-                'leaveType' => $leaveRequest->leave_type->value,
+                'leaveType' => $leaveRequest->leave_type,
+                'startTime' => $leaveRequest->start_time,
+                'endTime' => $leaveRequest->end_time,
             ],
         ]);
     }
@@ -122,6 +125,7 @@ class LeaveRequestController extends Controller
                 'start_on' => $request->date('start_on'),
                 'end_on' => $request->date('end_on'),
                 'reason' => $request->validated()['reason'] ?? null,
+                ...$request->timeframe(),
             ],
             $request->validated('note'),
             array_values((array) $request->file('attachments', [])),
@@ -152,7 +156,8 @@ class LeaveRequestController extends Controller
             'reference' => $leave->reference(),
             'employee' => $leave->employee?->full_name,
             'department' => $leave->employee?->department?->name,
-            'type' => $leave->leave_type->label(),
+            'type' => $leave->typeLabel(),
+            'timeframe' => $leave->timeframe(),
             'startOn' => $leave->start_on->toDateString(),
             'endOn' => $leave->end_on->toDateString(),
             'days' => $leave->days,

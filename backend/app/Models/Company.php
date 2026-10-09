@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * One of the parent group's operating companies.
@@ -21,11 +22,13 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property string $code
  * @property string $name
+ * @property string|null $brand_color
+ * @property string|null $logo_path
  * @property bool $is_active
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['code', 'name', 'is_active'])]
+#[Fillable(['code', 'name', 'brand_color', 'logo_path', 'is_active'])]
 class Company extends Model
 {
     /** @use HasFactory<CompanyFactory> */
@@ -39,6 +42,15 @@ class Company extends Model
         return [
             'is_active' => 'boolean',
         ];
+    }
+
+    /**
+     * Where the logo is served from, or null when there is none. Logos sit on the public disk, like
+     * profile pictures: they are shown on every page and are not private.
+     */
+    public function logoUrl(): ?string
+    {
+        return $this->logo_path === null ? null : Storage::disk('public')->url($this->logo_path);
     }
 
     /**

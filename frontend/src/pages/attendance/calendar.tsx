@@ -96,14 +96,14 @@ function DayTable({
 
     if (rows.length === 0) {
         return (
-            <p className="rounded-xl border p-6 text-center text-sm text-muted-foreground">
+            <p className="surface p-6 text-center text-sm text-muted-foreground">
                 Tidak ada karyawan yang cocok.
             </p>
         );
     }
 
     return (
-        <div className="overflow-x-auto rounded-xl border">
+        <div className="surface overflow-x-auto">
             <table className="w-full text-sm">
                 <thead className="bg-muted/50 text-left">
                     <tr>
@@ -195,7 +195,7 @@ function LeaveList({
     empty: string;
 }) {
     return (
-        <section className="rounded-xl border p-4">
+        <section className="surface p-4">
             <h3 className="font-medium">{title}</h3>
             {entries.length === 0 ? (
                 <p className="mt-2 text-sm text-muted-foreground">{empty}</p>
@@ -306,7 +306,7 @@ export default function AttendanceCalendar(props: Props) {
 
             <div className="flex flex-col gap-4 p-4">
                 {capture.state !== 'current' && (
-                    <p className="rounded-xl border border-amber-500/60 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+                    <p className="surface border-amber-500/60 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
                         {capture.state === 'never'
                             ? 'Belum ada log pemindai yang diunggah.'
                             : `Log pemindai terakhir sampai ${dataThrough}; seharusnya sampai ${capture.expectedThrough}.`}{' '}
@@ -327,17 +327,13 @@ export default function AttendanceCalendar(props: Props) {
                 )}
 
                 <div className="flex flex-wrap items-center gap-2">
-                    <div className="flex rounded-md border">
+                    <div className="seg">
                         {VIEWS.map((item) => (
                             <button
                                 key={item.value}
                                 type="button"
                                 onClick={() => go({ view: item.value })}
-                                className={`px-3 py-1.5 text-sm ${
-                                    view === item.value
-                                        ? 'bg-muted font-medium'
-                                        : 'text-muted-foreground'
-                                }`}
+                                data-on={view === item.value}
                             >
                                 {item.label}
                             </button>
@@ -370,7 +366,9 @@ export default function AttendanceCalendar(props: Props) {
                         </Button>
                     </div>
 
-                    <h1 className="text-lg font-semibold">{nav.label}</h1>
+                    <h2 className="text-xl font-extrabold tracking-tight">
+                        {nav.label}
+                    </h2>
 
                     <div className="ml-auto flex gap-2 print:hidden">
                         <Button asChild variant="outline" size="sm">
@@ -426,11 +424,10 @@ export default function AttendanceCalendar(props: Props) {
                                     },
                                 })
                             }
-                            className={`rounded-full border px-3 py-1 text-xs ${
-                                filters.departments.includes(department.id)
-                                    ? 'bg-muted font-medium'
-                                    : 'text-muted-foreground'
-                            }`}
+                            className="chip"
+                            data-on={filters.departments.includes(
+                                department.id,
+                            )}
                         >
                             {department.name}
                         </button>
@@ -482,7 +479,7 @@ export default function AttendanceCalendar(props: Props) {
                                 },
                             })
                         }
-                        className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                        className="h-8 rounded-xl border border-input bg-card px-2 text-xs"
                     >
                         <option value="">Semua tim</option>
                         {options.teams.map((lead) => (
@@ -493,7 +490,7 @@ export default function AttendanceCalendar(props: Props) {
                     </select>
 
                     <select
-                        aria-label="Jenis cuti"
+                        aria-label="Jenis pengajuan"
                         value={filters.leaveType ?? ''}
                         onChange={(event) =>
                             go({
@@ -502,9 +499,9 @@ export default function AttendanceCalendar(props: Props) {
                                 },
                             })
                         }
-                        className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                        className="h-8 rounded-xl border border-input bg-card px-2 text-xs"
                     >
-                        <option value="">Semua jenis cuti</option>
+                        <option value="">Semua jenis pengajuan</option>
                         {options.leaveTypes.map((type) => (
                             <option key={type.value} value={type.value}>
                                 Cuti {type.label}
@@ -586,7 +583,7 @@ export default function AttendanceCalendar(props: Props) {
                     </div>
 
                     <aside className="flex flex-col gap-3">
-                        <section className="rounded-xl border p-4">
+                        <section className="surface p-4">
                             <h2 className="font-medium">Ringkasan</h2>
                             <p className="text-xs text-muted-foreground">
                                 {summary.employees} karyawan · rentang{' '}
@@ -639,7 +636,7 @@ export default function AttendanceCalendar(props: Props) {
                             empty="Tidak ada."
                         />
 
-                        <section className="rounded-xl border p-4">
+                        <section className="surface p-4">
                             <h3 className="font-medium">
                                 Menunggu persetujuan Anda
                             </h3>

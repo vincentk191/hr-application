@@ -38,7 +38,7 @@ export function CompanySwitcher() {
                 className="flex items-center gap-2 text-sm font-medium"
                 data-testid="company-switcher-locked"
             >
-                <Building2 className="size-4 text-muted-foreground" />
+                <Building2 className="hidden size-4 text-muted-foreground sm:block" />
                 <span>{company?.name ?? companies[0].name}</span>
             </div>
         );
@@ -61,11 +61,11 @@ export function CompanySwitcher() {
     return (
         <Select value={selected} onValueChange={handleChange}>
             <SelectTrigger
-                className="h-11 w-[132px] rounded-full bg-card px-3 text-xs font-semibold tracking-wide uppercase sm:w-[190px] sm:px-4 sm:text-sm"
+                className="h-11 w-[150px] rounded-full bg-card px-3 text-xs font-semibold tracking-wide uppercase sm:w-[260px] sm:px-4 sm:text-sm"
                 aria-label="Pilih perusahaan"
                 data-testid="company-switcher"
             >
-                <Building2 className="size-4 text-muted-foreground" />
+                <Building2 className="hidden size-4 text-muted-foreground sm:block" />
                 <SelectValue />
             </SelectTrigger>
             <SelectContent>

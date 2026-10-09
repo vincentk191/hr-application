@@ -206,13 +206,14 @@ class EmployeeController extends Controller
             'documents' => $this->documentsFor($user, $employee),
             'requests' => LeaveRequest::query()
                 ->where('employee_id', $employee->id)
-                ->with(['workflow.steps.decidedBy:id,name', 'workflow.comments.author:id,name', 'attachments', 'employee:id,user_id'])
+                ->with(['workflow.steps.decidedBy:id,name', 'workflow.comments.author:id,name', 'attachments', 'employee:id,user_id', 'type'])
                 ->latest('id')
                 ->get()
                 ->map(fn (LeaveRequest $leave): array => [
                     'id' => $leave->id,
                     'reference' => $leave->reference(),
-                    'type' => $leave->leave_type->label(),
+                    'type' => $leave->typeLabel(),
+                    'timeframe' => $leave->timeframe(),
                     'startOn' => $leave->start_on->toDateString(),
                     'endOn' => $leave->end_on->toDateString(),
                     'days' => $leave->days,

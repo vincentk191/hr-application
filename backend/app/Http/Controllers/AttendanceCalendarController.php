@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Enums\AttendanceDayStatus;
-use App\Enums\LeaveType;
 use App\Enums\Permission;
 use App\Models\AttendanceEnrolMap;
 use App\Models\CalendarEvent;
@@ -11,6 +10,7 @@ use App\Models\Company;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
+use App\Models\RequestType;
 use App\Models\WorkflowStep;
 use App\Support\Attendance\CaptureStatus;
 use App\Support\Attendance\DailyAttendance;
@@ -71,7 +71,10 @@ class AttendanceCalendarController extends Controller
             'options' => [
                 'departments' => Department::orderBy('name')->get(['id', 'name']),
                 'teams' => $roster->teamLeads(),
-                'leaveTypes' => LeaveType::options(),
+                'leaveTypes' => RequestType::query()->ordered()->get()
+                    ->map(fn (RequestType $type): array => ['value' => $type->code, 'label' => $type->label])
+                    ->values()
+                    ->all(),
                 'statuses' => array_map(fn (AttendanceDayStatus $status): array => [
                     'value' => $status->value,
                     'label' => $status->label(),
@@ -174,7 +177,7 @@ class AttendanceCalendarController extends Controller
         $anchor = $this->anchor($request, $attendance->dataThrough($timezone), $timezone);
         [$from, $to] = $this->range($view, $anchor);
 
-        $leaveType = LeaveType::tryFrom($request->string('leave_type')->toString());
+        $leaveType = RequestType::query()->where('code', $request->string('leave_type')->toString())->value('code');
 
         $filters = [
             'departments' => array_values(array_filter(array_map('intval', (array) $request->input('departments', [])))),
@@ -184,7 +187,7 @@ class AttendanceCalendarController extends Controller
             )),
             'search' => trim((string) $request->string('search')),
             'team' => $request->integer('team') ?: null,
-            'leaveType' => $leaveType?->value,
+            'leaveType' => $leaveType,
         ];
 
         $employees = $roster->between($from, $to, $filters['departments'], $filters['search'], $filters['team'], $filters['leaveType']);
@@ -508,7 +511,7 @@ class AttendanceCalendarController extends Controller
             'id' => $leave->id,
             'employeeId' => $leave->employee_id,
             'name' => $leave->employee?->full_name,
-            'type' => $leave->leave_type->label(),
+            'type' => $leave->typeLabel(),
             'from' => $leave->start_on->toDateString(),
             'to' => $leave->end_on->toDateString(),
         ];

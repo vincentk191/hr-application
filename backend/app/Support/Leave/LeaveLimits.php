@@ -2,46 +2,47 @@
 
 namespace App\Support\Leave;
 
-use App\Enums\LeaveType;
-use App\Support\AppSettings;
+use App\Models\RequestType;
 
 /**
- * The longest a single request of each leave type may be, as set by HR in the admin panel.
+ * The longest a single request of each type may be, as set by HR on the type itself in the admin
+ * panel (Jenis pengajuan).
  *
- * A type with no limit set has none: the earlier design tracked leave taken, not an entitlement, and
- * nothing is invented here. The limit is per request, counted the way the request counts its days.
+ * A type with no limit has none: the design tracks leave taken, not an entitlement, and nothing is
+ * invented here. The limit is per request, counted the way the request counts its days.
  */
 class LeaveLimits
 {
-    public function __construct(private AppSettings $settings) {}
-
-    public static function key(LeaveType $type): string
+    public function maxDays(string $code): ?int
     {
-        return 'leave.max_days.'.$type->value;
+        $value = RequestType::query()->where('code', $code)->value('max_days');
+
+        return is_numeric($value) && (int) $value > 0 ? (int) $value : null;
     }
 
-    public function maxDays(LeaveType $type): ?int
+    public function set(string $code, ?int $days): void
     {
-        $value = $this->settings->get(self::key($type));
-
-        return is_int($value) && $value > 0 ? $value : null;
-    }
-
-    public function set(LeaveType $type, ?int $days): void
-    {
-        $this->settings->set(self::key($type), $days !== null && $days > 0 ? $days : null);
+        RequestType::query()->where('code', $code)->update(['max_days' => $days !== null && $days > 0 ? $days : null]);
     }
 
     /**
-     * The leave types for a form, each with its limit.
+     * The types a form may offer, each with its limit: the ones switched on, in the administrators'
+     * order, plus the one a request being corrected already has even if it has since been switched off.
      *
-     * @return list<array{value: string, label: string, maxDays: int|null}>
+     * @return array<int, array{value: string, label: string, maxDays: int|null}>
      */
-    public function options(): array
+    public function options(?string $alsoCode = null): array
     {
-        return array_map(
-            fn (LeaveType $type): array => ['value' => $type->value, 'label' => $type->label(), 'maxDays' => $this->maxDays($type)],
-            LeaveType::cases(),
-        );
+        return RequestType::query()
+            ->where(fn ($query) => $query->where('is_active', true)->when($alsoCode !== null, fn ($inner) => $inner->orWhere('code', $alsoCode)))
+            ->ordered()
+            ->get()
+            ->map(fn (RequestType $type): array => [
+                'value' => $type->code,
+                'label' => $type->label,
+                'maxDays' => $type->max_days > 0 ? $type->max_days : null,
+            ])
+            ->values()
+            ->all();
     }
 }

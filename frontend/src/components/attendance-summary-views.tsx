@@ -67,7 +67,7 @@ export function WeekSummary({
     const scale = Math.max(...days.map(expectedOf), 1);
 
     return (
-        <section className="flex flex-col gap-4 rounded-xl border p-4">
+        <section className="surface flex flex-col gap-4 p-4">
             <div className="flex items-baseline gap-2">
                 <span className="text-4xl font-semibold tabular-nums">
                     {average ?? '—'}
@@ -168,7 +168,7 @@ export function MonthSummary({
             : (new Date(`${days[0].date}T00:00:00`).getDay() + 6) % 7;
 
     return (
-        <section className="flex flex-col gap-3 rounded-xl border p-4">
+        <section className="surface flex flex-col gap-3 p-4">
             <div className="grid grid-cols-7 gap-1.5 text-center text-xs text-muted-foreground">
                 {['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'].map(
                     (name) => (
@@ -296,7 +296,7 @@ export function YearSummary({
     );
 
     return (
-        <section className="flex flex-col gap-4 rounded-xl border p-4">
+        <section className="surface flex flex-col gap-4 p-4">
             <div className="flex items-baseline gap-2">
                 <span className="text-4xl font-semibold tabular-nums">
                     {overall === null ? '—' : `${overall}%`}

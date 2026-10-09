@@ -31,7 +31,7 @@ type Props = {
 };
 
 const selectClasses =
-    'border-input bg-background h-9 rounded-md border px-3 text-sm';
+    'border-input bg-card h-10 rounded-xl border px-3 text-sm';
 
 /** Date and time as the scanner shows them, in the scanner's own timezone. */
 function formatDateTime(iso: string | null): string {
@@ -52,7 +52,7 @@ function StatusCard({ status }: { status: CaptureStatus }) {
     }[status.state];
 
     return (
-        <section className="rounded-xl border p-4">
+        <section className="surface p-4">
             <div className="flex flex-wrap items-center gap-3">
                 <h2 className="font-medium">Status data absensi</h2>
                 <Badge variant={badge.variant}>{badge.label}</Badge>
@@ -94,7 +94,7 @@ function StatusCard({ status }: { status: CaptureStatus }) {
  */
 function AgentsCard({ agents }: { agents: SyncAgent[] }) {
     return (
-        <section className="rounded-xl border p-4">
+        <section className="surface p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="font-medium">Agen sinkronisasi</h2>
                 {agents.length > 0 && (
@@ -166,7 +166,7 @@ function UploadCard({
             action={storeImport().url}
             method="post"
             resetOnSuccess={['file']}
-            className="grid gap-3 rounded-xl border p-4 sm:grid-cols-2"
+            className="surface grid gap-3 p-4 sm:grid-cols-2"
         >
             {({ processing, errors }) => (
                 <>
@@ -301,7 +301,7 @@ function AddMapCard({
             action={storeMap().url}
             method="post"
             resetOnSuccess
-            className="flex flex-col gap-3 rounded-xl border p-4"
+            className="surface flex flex-col gap-3 p-4"
         >
             {({ processing, errors }) => (
                 <>
@@ -411,7 +411,7 @@ export default function AttendanceDevice({
                     knownDevices={knownDevices}
                 />
 
-                <section className="rounded-xl border">
+                <section className="surface">
                     <div className="p-4">
                         <h2 className="font-medium">
                             ID menunggu pemetaan ({waiting.length})
@@ -460,7 +460,7 @@ export default function AttendanceDevice({
 
                 <AddMapCard lastDeviceSn={lastDeviceSn} employees={employees} />
 
-                <section className="rounded-xl border">
+                <section className="surface">
                     <h2 className="p-4 font-medium">
                         Pemetaan ID ({maps.length})
                     </h2>
@@ -536,7 +536,7 @@ export default function AttendanceDevice({
                     )}
                 </section>
 
-                <section className="rounded-xl border">
+                <section className="surface">
                     <h2 className="p-4 font-medium">
                         Riwayat impor{' '}
                         <span className="text-sm font-normal text-muted-foreground">

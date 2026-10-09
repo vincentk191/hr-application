@@ -38,7 +38,10 @@ export function UserChip() {
                         )}
                     </span>
                     <Avatar className="size-11 overflow-hidden rounded-full">
-                        <AvatarImage src={auth.user.avatar} alt={auth.user.name} />
+                        <AvatarImage
+                            src={auth.user.avatar}
+                            alt={auth.user.name}
+                        />
                         <AvatarFallback className="bg-foreground text-sm font-semibold text-background">
                             {getInitials(auth.user.name)}
                         </AvatarFallback>

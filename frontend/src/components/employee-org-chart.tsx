@@ -91,14 +91,14 @@ export function EmployeeOrgChart({
 
     if (employees.length === 0) {
         return (
-            <p className="rounded-xl border p-6 text-center text-sm text-muted-foreground">
+            <p className="surface p-6 text-center text-sm text-muted-foreground">
                 Tidak ada karyawan.
             </p>
         );
     }
 
     return (
-        <div className="overflow-x-auto rounded-xl border p-6">
+        <div className="surface overflow-x-auto p-6">
             <div className="flex w-max min-w-full items-start justify-center gap-10">
                 {roots.map((root) => (
                     <ul key={root.id} className="org-tree">

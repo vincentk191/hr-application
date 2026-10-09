@@ -2,7 +2,6 @@
 
 namespace Database\Factories;
 
-use App\Enums\LeaveType;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -25,7 +24,7 @@ class LeaveRequestFactory extends Factory
             'company_id' => fn (array $attributes): int => Employee::acrossCompanies()
                 ->whereKey($attributes['employee_id'])
                 ->value('company_id'),
-            'leave_type' => LeaveType::Annual,
+            'leave_type' => 'annual',
             'start_on' => $start,
             'end_on' => $end,
             'days' => 3,

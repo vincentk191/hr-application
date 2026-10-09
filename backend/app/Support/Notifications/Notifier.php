@@ -39,7 +39,7 @@ class Notifier
         $notice = new InAppNotice(
             'leave',
             $resubmitted ? "{$leave->reference()} diajukan ulang oleh {$employee}" : "{$leave->reference()} diajukan oleh {$employee}",
-            "{$leave->leave_type->label()} · {$leave->start_on->toDateString()} – {$leave->end_on->toDateString()} · {$leave->days} hari kerja · menunggu {$waitingOn}",
+            "{$leave->typeLabel()}{$this->timeframeSuffix($leave)} · {$leave->start_on->toDateString()} – {$leave->end_on->toDateString()} · {$leave->days} hari kerja · menunggu {$waitingOn}",
             route('leave-requests.index', ['open' => $leave->id], absolute: false),
         );
 
@@ -67,7 +67,7 @@ class Notifier
         $notice = new InAppNotice(
             'leave',
             $resubmitted ? "{$leave->reference()} diajukan ulang" : "{$leave->reference()} menunggu persetujuan Anda",
-            "{$employee} · {$leave->leave_type->label()} · {$leave->start_on->toDateString()} – {$leave->end_on->toDateString()} · {$leave->days} hari kerja",
+            "{$employee} · {$leave->typeLabel()}{$this->timeframeSuffix($leave)} · {$leave->start_on->toDateString()} – {$leave->end_on->toDateString()} · {$leave->days} hari kerja",
             route('leave-requests.index', ['open' => $leave->id], absolute: false),
         );
 
@@ -90,7 +90,7 @@ class Notifier
             ->unique('id')
             ->reject(fn (User $user): bool => $user->is($actor) || ! $user->is_active);
 
-        $body = "{$leave->leave_type->label()} · {$leave->start_on->toDateString()} – {$leave->end_on->toDateString()}"
+        $body = "{$leave->typeLabel()}{$this->timeframeSuffix($leave)} · {$leave->start_on->toDateString()} – {$leave->end_on->toDateString()}"
             .(! $approved && $note !== null && trim($note) !== '' ? " · “{$note}”" : '');
 
         foreach ($recipients as $user) {
@@ -200,6 +200,11 @@ class Notifier
         return User::role($step->approver_role)->where('is_active', true)->get()
             ->filter(fn (User $user): bool => $user->canAccessCompany($companyId))
             ->values();
+    }
+
+    private function timeframeSuffix(LeaveRequest $leave): string
+    {
+        return $leave->timeframe() === null ? '' : " ({$leave->timeframe()})";
     }
 
     /**

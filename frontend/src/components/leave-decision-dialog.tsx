@@ -67,6 +67,12 @@ export function LeaveDecisionDialog({
                             {request.startOn} – {request.endOn}
                         </dd>
                     </div>
+                    {request.timeframe && (
+                        <div className="grid grid-cols-3 gap-2">
+                            <dt className="text-muted-foreground">Jam</dt>
+                            <dd className="col-span-2">{request.timeframe}</dd>
+                        </div>
+                    )}
                     <div className="grid grid-cols-3 gap-2">
                         <dt className="text-muted-foreground">Catatan</dt>
                         <dd className="col-span-2">
@@ -156,7 +162,7 @@ export function LeaveDecisionDialog({
                                         id="note"
                                         name="note"
                                         rows={3}
-                                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+                                        className="w-full rounded-xl border border-input bg-card px-3 py-2 text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
                                     />
                                     <InputError message={errors.note} />
                                     <InputError message={errors.decision} />

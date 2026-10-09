@@ -164,7 +164,7 @@ export default function AttendanceIssues({
 
             <div className="flex flex-col gap-4 p-4">
                 {capture.state !== 'current' && (
-                    <p className="rounded-xl border border-amber-500/60 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+                    <p className="surface border-amber-500/60 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
                         Log pemindai{' '}
                         {capture.state === 'never'
                             ? 'belum pernah diunggah'
@@ -208,17 +208,13 @@ export default function AttendanceIssues({
                         />
                     </div>
 
-                    <div className="flex rounded-md border">
+                    <div className="seg">
                         {STATES.map((state) => (
                             <button
                                 key={state.value}
                                 type="button"
                                 onClick={() => go({ state: state.value })}
-                                className={`px-3 py-1.5 text-sm ${
-                                    filters.state === state.value
-                                        ? 'bg-muted font-medium'
-                                        : 'text-muted-foreground'
-                                }`}
+                                data-on={filters.state === state.value}
                             >
                                 {state.label}
                             </button>
@@ -262,11 +258,10 @@ export default function AttendanceIssues({
                                     ),
                                 })
                             }
-                            className={`rounded-full border px-3 py-1 text-xs ${
-                                filters.departments.includes(department.id)
-                                    ? 'bg-muted font-medium'
-                                    : 'text-muted-foreground'
-                            }`}
+                            className="chip"
+                            data-on={filters.departments.includes(
+                                department.id,
+                            )}
                         >
                             {department.name}
                         </button>
@@ -274,7 +269,7 @@ export default function AttendanceIssues({
                 </div>
 
                 {canResolve && selected.length > 0 && (
-                    <div className="flex flex-wrap items-start gap-2 rounded-xl border bg-muted/40 p-3">
+                    <div className="surface flex flex-wrap items-start gap-2 bg-muted/40 p-3">
                         <span className="self-center text-sm font-medium">
                             {selected.length} dipilih
                         </span>
@@ -305,11 +300,11 @@ export default function AttendanceIssues({
                 )}
 
                 {issues.length === 0 ? (
-                    <p className="rounded-xl border p-6 text-center text-sm text-muted-foreground">
+                    <p className="surface p-6 text-center text-sm text-muted-foreground">
                         Tidak ada masalah pada rentang ini.
                     </p>
                 ) : (
-                    <div className="overflow-x-auto rounded-xl border">
+                    <div className="surface overflow-x-auto">
                         {canResolve && (
                             <label className="flex items-center gap-2 border-b p-3 text-sm sm:hidden">
                                 <input
@@ -451,7 +446,7 @@ export default function AttendanceIssues({
                                                             <Link
                                                                 href={createLeave()}
                                                             >
-                                                                Ajukan cuti
+                                                                Buat pengajuan
                                                             </Link>
                                                         </Button>
                                                     )}

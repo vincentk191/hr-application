@@ -1,6 +1,7 @@
 import { Form, Head } from '@inertiajs/react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
+import { TimeframeFields } from '@/components/timeframe-fields';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,12 +10,12 @@ import type { BreadcrumbItem } from '@/types';
 import type { EmployeeOption, LeaveTypeOption } from '@/types/leave';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Pengajuan cuti', href: '/leave-requests' },
+    { title: 'Pengajuan', href: '/leave-requests' },
     { title: 'Buat pengajuan', href: '/leave-requests/create' },
 ];
 
 const selectClasses =
-    'border-input bg-background focus-visible:ring-ring h-10 rounded-md border px-3 text-sm focus-visible:ring-1 focus-visible:outline-none disabled:opacity-60';
+    'border-input bg-card focus-visible:ring-ring h-10 rounded-xl border px-3 text-sm focus-visible:ring-1 focus-visible:outline-none disabled:opacity-60';
 
 /**
  * The new leave request form (REQ-WIZ), as a single page rather than the design's three
@@ -38,7 +39,7 @@ export default function LeaveRequestCreate({
 
     return (
         <>
-            <Head title="Buat pengajuan cuti" />
+            <Head title="Buat pengajuan" />
 
             <div className="max-w-xl p-4">
                 <Form
@@ -80,7 +81,9 @@ export default function LeaveRequestCreate({
                             </div>
 
                             <div className="grid gap-2">
-                                <Label htmlFor="leave_type">Jenis cuti</Label>
+                                <Label htmlFor="leave_type">
+                                    Jenis pengajuan
+                                </Label>
                                 <select
                                     id="leave_type"
                                     name="leave_type"
@@ -133,6 +136,8 @@ export default function LeaveRequestCreate({
                                     <InputError message={errors.end_on} />
                                 </div>
                             </div>
+                            <TimeframeFields errors={errors} />
+
                             <p className="-mt-3 text-xs text-muted-foreground">
                                 Yang dihitung hanya hari kerja: akhir pekan dan
                                 hari libur tidak termasuk.
@@ -144,7 +149,7 @@ export default function LeaveRequestCreate({
                                     id="reason"
                                     name="reason"
                                     rows={3}
-                                    className="rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+                                    className="rounded-xl border border-input bg-card px-3 py-2 text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
                                 />
                                 <InputError message={errors.reason} />
                             </div>

@@ -24,7 +24,7 @@ type ExpiringDocuments = {
  */
 function ExpiringDocumentsCard({ data }: { data: ExpiringDocuments }) {
     return (
-        <section className="rounded-xl border p-4">
+        <section className="surface p-4">
             <h2 className="font-medium">Dokumen segera berakhir</h2>
 
             {data.total === 0 ? (
@@ -97,7 +97,7 @@ function AttendanceStatusCard({
     }
 
     return (
-        <section className="rounded-xl border p-4">
+        <section className="surface p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="font-medium">Data absensi perlu diperbarui</h2>
                 <Link
@@ -142,17 +142,17 @@ export default function Dashboard({
                     <ExpiringDocumentsCard data={expiringDocuments} />
                 )}
                 <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-                    <div className="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
+                    <div className="surface relative aspect-video overflow-hidden border-sidebar-border/70 dark:border-sidebar-border">
                         <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
                     </div>
-                    <div className="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
+                    <div className="surface relative aspect-video overflow-hidden border-sidebar-border/70 dark:border-sidebar-border">
                         <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
                     </div>
-                    <div className="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
+                    <div className="surface relative aspect-video overflow-hidden border-sidebar-border/70 dark:border-sidebar-border">
                         <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
                     </div>
                 </div>
-                <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border border-sidebar-border/70 md:min-h-min dark:border-sidebar-border">
+                <div className="surface relative min-h-[100vh] flex-1 overflow-hidden border-sidebar-border/70 md:min-h-min dark:border-sidebar-border">
                     <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
                 </div>
             </div>

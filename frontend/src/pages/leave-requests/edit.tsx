@@ -1,6 +1,7 @@
 import { Form, Head } from '@inertiajs/react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
+import { TimeframeFields } from '@/components/timeframe-fields';
 import { LeaveHistory } from '@/components/leave-request-detail';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +11,7 @@ import type { BreadcrumbItem } from '@/types';
 import type { LeaveRequestRow, LeaveTypeOption } from '@/types/leave';
 
 const selectClasses =
-    'border-input bg-background focus-visible:ring-ring h-10 rounded-md border px-3 text-sm focus-visible:ring-1 focus-visible:outline-none disabled:opacity-60';
+    'border-input bg-card focus-visible:ring-ring h-10 rounded-xl border px-3 text-sm focus-visible:ring-1 focus-visible:outline-none disabled:opacity-60';
 
 /**
  * Correct a rejected leave request and send it for approval again. What the approvers wrote stays
@@ -22,7 +23,11 @@ export default function LeaveRequestEdit({
     request,
 }: {
     leaveTypes: LeaveTypeOption[];
-    request: LeaveRequestRow & { leaveType: string };
+    request: LeaveRequestRow & {
+        leaveType: string;
+        startTime: string | null;
+        endTime: string | null;
+    };
 }) {
     const [type, setType] = useState(request.leaveType);
     const [removed, setRemoved] = useState<number[]>([]);
@@ -37,9 +42,7 @@ export default function LeaveRequestEdit({
 
             <div className="flex max-w-xl flex-col gap-5 p-4">
                 <div>
-                    <h1 className="text-lg font-medium">
-                        Ubah {request.reference}
-                    </h1>
+                    <p className="label-mono">Ubah {request.reference}</p>
                     <p className="text-sm text-muted-foreground">
                         {request.employee} · setelah dikirim, pengajuan menunggu
                         persetujuan HR lagi.
@@ -47,7 +50,7 @@ export default function LeaveRequestEdit({
                 </div>
 
                 {(rejection.length > 0 || request.history.length > 0) && (
-                    <section className="flex flex-col gap-3 rounded-xl border p-4 text-sm">
+                    <section className="surface flex flex-col gap-3 p-4 text-sm">
                         <h2 className="font-medium">
                             Catatan dari persetujuan
                         </h2>
@@ -81,7 +84,9 @@ export default function LeaveRequestEdit({
                             <input type="hidden" name="_method" value="put" />
 
                             <div className="grid gap-2">
-                                <Label htmlFor="leave_type">Jenis cuti</Label>
+                                <Label htmlFor="leave_type">
+                                    Jenis pengajuan
+                                </Label>
                                 <select
                                     id="leave_type"
                                     name="leave_type"
@@ -135,6 +140,12 @@ export default function LeaveRequestEdit({
                                     <InputError message={errors.end_on} />
                                 </div>
                             </div>
+                            <TimeframeFields
+                                errors={errors}
+                                defaultStart={request.startTime}
+                                defaultEnd={request.endTime}
+                            />
+
                             <p className="-mt-3 text-xs text-muted-foreground">
                                 Yang dihitung hanya hari kerja: akhir pekan dan
                                 hari libur tidak termasuk.
@@ -147,7 +158,7 @@ export default function LeaveRequestEdit({
                                     name="reason"
                                     rows={3}
                                     defaultValue={request.reason ?? ''}
-                                    className="rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+                                    className="rounded-xl border border-input bg-card px-3 py-2 text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
                                 />
                                 <InputError message={errors.reason} />
                             </div>
@@ -228,7 +239,7 @@ export default function LeaveRequestEdit({
                                     id="note"
                                     name="note"
                                     rows={3}
-                                    className="rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+                                    className="rounded-xl border border-input bg-card px-3 py-2 text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
                                 />
                                 <InputError message={errors.note} />
                             </div>
@@ -251,7 +262,7 @@ export default function LeaveRequestEdit({
 
 LeaveRequestEdit.layout = {
     breadcrumbs: [
-        { title: 'Pengajuan cuti', href: '/leave-requests' },
+        { title: 'Pengajuan', href: '/leave-requests' },
         { title: 'Ubah pengajuan', href: '#' },
     ] satisfies BreadcrumbItem[],
 };

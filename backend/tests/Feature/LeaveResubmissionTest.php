@@ -1,8 +1,6 @@
 <?php
 
-use App\Enums\LeaveType;
 use App\Enums\Role;
-use App\Filament\Pages\ManageLeaveLimits;
 use App\Models\CalendarEvent;
 use App\Models\Company;
 use App\Models\Employee;
@@ -14,8 +12,6 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia as Assert;
-use Livewire\Livewire;
-use Spatie\Activitylog\Models\Activity;
 
 /**
  * Leave requests: supporting files, the maximum days HR sets per type, and correcting a rejected
@@ -80,7 +76,7 @@ function resubmitLeave(User $as, LeaveRequest $leave, array $overrides = []): Te
 // --- Maximum days per type ---
 
 it('refuses a request longer than HR allows for its type', function () {
-    app(LeaveLimits::class)->set(LeaveType::Annual, 3);
+    app(LeaveLimits::class)->set('annual', 3);
 
     fileOwnLeave($this->staffUser, $this->staff, ['start_on' => '2026-11-02', 'end_on' => '2026-11-06'])
         ->assertSessionHasErrors(['end_on' => 'Cuti tahunan maksimal 3 hari kerja per pengajuan; pengajuan ini 5 hari kerja.']);
@@ -91,44 +87,19 @@ it('refuses a request longer than HR allows for its type', function () {
 });
 
 it('leaves a type with no limit unlimited, and limits each type on its own', function () {
-    app(LeaveLimits::class)->set(LeaveType::Marriage, 2);
+    app(LeaveLimits::class)->set('marriage', 2);
 
     fileOwnLeave($this->staffUser, $this->staff, ['leave_type' => 'annual', 'start_on' => '2026-11-02', 'end_on' => '2026-11-27'])->assertSessionHasNoErrors();
     fileOwnLeave($this->staffUser, $this->staff, ['leave_type' => 'marriage', 'start_on' => '2026-12-01', 'end_on' => '2026-12-05'])->assertSessionHasErrors('end_on');
 });
 
 it('offers the form each type\'s limit', function () {
-    app(LeaveLimits::class)->set(LeaveType::Sick, 14);
+    app(LeaveLimits::class)->set('sick', 14);
 
     $this->actingAs($this->staffUser)->get(route('leave-requests.create'))
         ->assertInertia(fn (Assert $page) => $page
             ->where('leaveTypes', fn ($types) => collect($types)->firstWhere('value', 'sick')['maxDays'] === 14
                 && collect($types)->firstWhere('value', 'annual')['maxDays'] === null));
-});
-
-it('lets HR set the limits from the admin panel, on the audit trail, and nobody else', function () {
-    $this->actingAs($this->hr);
-
-    Livewire::test(ManageLeaveLimits::class)
-        ->fillForm(['sick' => 14, 'annual' => 12, 'maternity' => null])
-        ->call('save')
-        ->assertHasNoFormErrors();
-
-    expect(app(LeaveLimits::class)->maxDays(LeaveType::Sick))->toBe(14)
-        ->and(app(LeaveLimits::class)->maxDays(LeaveType::Annual))->toBe(12)
-        ->and(app(LeaveLimits::class)->maxDays(LeaveType::Maternity))->toBeNull();
-
-    $log = Activity::where('log_name', 'settings')->latest('id')->first();
-    expect($log->properties['after']['sick'])->toBe(14)->and($log->causer_id)->toBe($this->hr->id);
-
-    Livewire::test(ManageLeaveLimits::class)
-        ->fillForm(['sick' => 0])
-        ->call('save')
-        ->assertHasFormErrors(['sick']);
-
-    expect(ManageLeaveLimits::canAccess())->toBeTrue();
-    $this->actingAs($this->staffUser);
-    expect(ManageLeaveLimits::canAccess())->toBeFalse();
 });
 
 // --- Attachments ---
@@ -232,7 +203,7 @@ it('records what changed with the new submission', function () {
 });
 
 it('applies the maximum days to a corrected request too', function () {
-    app(LeaveLimits::class)->set(LeaveType::Annual, 2);
+    app(LeaveLimits::class)->set('annual', 2);
     fileOwnLeave($this->staffUser, $this->staff)->assertSessionHasNoErrors();
     $leave = latestLeave();
     decideLeave($this->hr, $leave, 'reject', 'Tidak');
@@ -344,7 +315,7 @@ it('refuses a request that covers no working day', function () {
 });
 
 it('measures the maximum in working days', function () {
-    app(LeaveLimits::class)->set(LeaveType::Annual, 3);
+    app(LeaveLimits::class)->set('annual', 3);
 
     // Seven calendar days, but only five working days: still over three.
     fileOwnLeave($this->staffUser, $this->staff, ['start_on' => '2026-11-02', 'end_on' => '2026-11-08'])->assertSessionHasErrors('end_on');

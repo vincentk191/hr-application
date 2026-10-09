@@ -4,7 +4,6 @@ namespace App\Models;
 
 use App\Concerns\BelongsToCompany;
 use App\Concerns\HasWorkflow;
-use App\Enums\LeaveType;
 use App\Enums\Permission;
 use App\Support\Attendance\WorkingDays;
 use Carbon\CarbonInterface;
@@ -27,9 +26,11 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property int $company_id
  * @property int $employee_id
- * @property LeaveType $leave_type
+ * @property string $leave_type the code of its RequestType
  * @property Carbon $start_on
  * @property Carbon $end_on
+ * @property string|null $start_time
+ * @property string|null $end_time
  * @property int $days
  * @property string|null $reason
  * @property int|null $created_by_user_id
@@ -42,6 +43,8 @@ use Illuminate\Support\Carbon;
     'leave_type',
     'start_on',
     'end_on',
+    'start_time',
+    'end_time',
     'days',
     'reason',
     'created_by_user_id',
@@ -57,7 +60,6 @@ class LeaveRequest extends Model
     protected function casts(): array
     {
         return [
-            'leave_type' => LeaveType::class,
             'start_on' => 'date',
             'end_on' => 'date',
         ];
@@ -88,6 +90,33 @@ class LeaveRequest extends Model
             $inner->whereHas('employee', fn (Builder $employee) => $employee->where('user_id', $user->id))
                 ->orWhereHas('workflow.steps', fn (Builder $step) => $step->where('approver_user_id', $user->id));
         });
+    }
+
+    /**
+     * @return BelongsTo<RequestType, $this>
+     */
+    public function type(): BelongsTo
+    {
+        return $this->belongsTo(RequestType::class, 'leave_type', 'code');
+    }
+
+    /**
+     * The type's name as it is now. A request keeps working if its type was removed (which only
+     * happens to types nobody used), falling back to the code.
+     */
+    public function typeLabel(): string
+    {
+        $type = $this->type;
+
+        return $type instanceof RequestType ? $type->label : $this->leave_type;
+    }
+
+    /**
+     * The optional time of day, "09:00–11:00", or null for a request about whole days only.
+     */
+    public function timeframe(): ?string
+    {
+        return $this->start_time !== null && $this->end_time !== null ? "{$this->start_time}–{$this->end_time}" : null;
     }
 
     /**

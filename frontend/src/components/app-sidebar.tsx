@@ -42,7 +42,7 @@ const mainNavItems: NavItem[] = [
         icon: LayoutGrid,
     },
     {
-        title: 'Pengajuan cuti',
+        title: 'Pengajuan',
         href: leaveRequestsIndex(),
         icon: CalendarDays,
     },

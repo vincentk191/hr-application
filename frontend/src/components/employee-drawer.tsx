@@ -40,7 +40,7 @@ type Summary = {
 const TABS = [
     { key: 'profile', label: 'Profil' },
     { key: 'documents', label: 'Dokumen' },
-    { key: 'leave', label: 'Cuti' },
+    { key: 'leave', label: 'Pengajuan' },
     { key: 'attendance', label: 'Absensi' },
     { key: 'team', label: 'Tim' },
 ] as const;
@@ -53,8 +53,8 @@ function Field({ label, value }: { label: string; value: unknown }) {
 
     return (
         <div className="grid grid-cols-[9rem_1fr] gap-2 border-t py-2 text-sm">
-            <dt className="text-muted-foreground">{label}</dt>
-            <dd className="break-words">{display as string}</dd>
+            <dt className="label-mono pt-0.5">{label}</dt>
+            <dd className="font-medium break-words">{display as string}</dd>
         </div>
     );
 }
@@ -179,6 +179,10 @@ function DrawerBody({
 
     return (
         <>
+            <div className="label-mono flex items-center justify-between border-b px-4 py-3 pr-14">
+                <span>Dosir · dibuka dari daftar</span>
+                <span className="hidden sm:inline">Esc untuk menutup</span>
+            </div>
             <div className="flex items-start gap-4 border-b p-4 pr-12">
                 <EmployeeAvatar
                     name={employee.name}
@@ -186,13 +190,15 @@ function DrawerBody({
                     className="size-16"
                 />
                 <div className="min-w-0">
-                    <p className="font-mono text-xs text-muted-foreground">
+                    <p className="font-mono text-[11px] font-medium tracking-wider text-primary uppercase">
                         {employee.number}
                         {employee.companyCode
                             ? ` · ${employee.companyCode}`
                             : ''}
                     </p>
-                    <h2 className="text-lg font-semibold">{employee.name}</h2>
+                    <h2 className="text-2xl font-extrabold tracking-tight">
+                        {employee.name}
+                    </h2>
                     <p className="text-sm text-muted-foreground">
                         {employee.position ?? '—'}
                         {employee.department ? ` · ${employee.department}` : ''}
@@ -200,17 +206,13 @@ function DrawerBody({
                 </div>
             </div>
 
-            <nav className="flex flex-wrap gap-x-1 border-b px-2">
+            <nav className="pill-tabs px-2">
                 {visibleTabs.map((item) => (
                     <button
                         key={item.key}
                         type="button"
                         onClick={() => setTab(item.key)}
-                        className={`-mb-px border-b-2 px-3 py-2 text-sm whitespace-nowrap ${
-                            active === item.key
-                                ? 'border-foreground font-medium'
-                                : 'border-transparent text-muted-foreground'
-                        }`}
+                        data-on={active === item.key}
                     >
                         {item.label}
                     </button>
@@ -233,7 +235,7 @@ function DrawerBody({
                 )}
             </div>
 
-            <div className="flex flex-wrap gap-2 border-t p-4">
+            <div className="flex flex-wrap gap-2 border-t bg-card p-4">
                 {data.canUpdate && (
                     <Button asChild variant="outline">
                         <Link href={edit(employee.id).url}>Ubah data</Link>
@@ -241,7 +243,7 @@ function DrawerBody({
                 )}
                 {data.canCreateLeave && employee.isActive && (
                     <Button asChild variant="outline">
-                        <Link href={createLeave().url}>Ajukan cuti</Link>
+                        <Link href={createLeave().url}>Buat pengajuan</Link>
                     </Button>
                 )}
                 <Button asChild className="ml-auto">
@@ -257,21 +259,21 @@ function ProfileTab({ data }: { data: Summary }) {
 
     return (
         <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-3 gap-2 text-sm">
-                <div className="rounded-lg border p-3">
-                    <p className="text-xs text-muted-foreground">Bergabung</p>
-                    <p className="font-medium">{employee.joinedOn ?? '—'}</p>
-                </div>
-                <div className="rounded-lg border p-3">
-                    <p className="text-xs text-muted-foreground">
-                        Cuti tahun ini
+            <div className="grid grid-cols-3 divide-x overflow-hidden rounded-xl border text-sm">
+                <div className="p-3">
+                    <p className="label-mono">Bergabung</p>
+                    <p className="text-lg font-extrabold tracking-tight">
+                        {employee.joinedOn ?? '—'}
                     </p>
-                    <p className="font-medium">
+                </div>
+                <div className="p-3">
+                    <p className="label-mono">Cuti tahun ini</p>
+                    <p className="text-lg font-extrabold tracking-tight">
                         {data.leaveTakenThisYear} hari
                     </p>
                 </div>
-                <div className="rounded-lg border p-3">
-                    <p className="text-xs text-muted-foreground">Status</p>
+                <div className="p-3">
+                    <p className="label-mono">Status</p>
                     <Badge
                         variant={employee.isActive ? 'default' : 'secondary'}
                     >
@@ -375,7 +377,7 @@ function LeaveTab({ data }: { data: Summary }) {
     if (data.requests.length === 0) {
         return (
             <p className="text-sm text-muted-foreground">
-                Belum ada pengajuan cuti.
+                Belum ada pengajuan.
             </p>
         );
     }
@@ -397,7 +399,11 @@ function LeaveTab({ data }: { data: Summary }) {
                                 {row.reference} · {row.type}
                             </span>
                             <span className="block text-xs text-muted-foreground">
-                                {row.startOn} – {row.endOn} · {row.days} hari
+                                {row.startOn} – {row.endOn}
+                                {row.timeframe
+                                    ? ` · ${row.timeframe}`
+                                    : ''} ·{' '}
+                                {row.days} hari
                             </span>
                         </span>
                         <span className="text-right">

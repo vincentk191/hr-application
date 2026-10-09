@@ -8,7 +8,7 @@ import { destroy, store } from '@/routes/calendar-events';
 import type { CalendarEventRow, EventFormOptions } from '@/types/attendance';
 
 const selectClasses =
-    'border-input bg-background h-9 w-full rounded-md border px-3 text-sm';
+    'border-input bg-card h-10 w-full rounded-xl border px-3 text-sm';
 
 function AddEventForm({
     options,
@@ -152,7 +152,7 @@ export function CalendarEvents({
     const [adding, setAdding] = useState(false);
 
     return (
-        <section className="rounded-xl border p-4">
+        <section className="surface p-4">
             <div className="flex items-center justify-between gap-2">
                 <h3 className="font-medium">Hari libur & acara</h3>
                 {options && (

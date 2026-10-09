@@ -20,7 +20,7 @@ export type EmployeeFormOptions = {
 };
 
 const selectClasses =
-    'border-input bg-background h-9 rounded-md border px-3 text-sm';
+    'border-input bg-card h-10 rounded-xl border px-3 text-sm';
 
 function Section({
     title,
@@ -32,7 +32,7 @@ function Section({
     children: React.ReactNode;
 }) {
     return (
-        <section className="rounded-xl border p-4">
+        <section className="surface p-4">
             <h2 className="font-medium">{title}</h2>
             {description && (
                 <p className="mb-3 text-sm text-muted-foreground">

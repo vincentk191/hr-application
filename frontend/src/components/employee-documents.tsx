@@ -11,7 +11,7 @@ import { store as storeVersion } from '@/routes/documents/versions';
 import type { EmployeeDocumentRow, ValueOption } from '@/types/employee';
 
 const selectClasses =
-    'border-input bg-background h-9 rounded-md border px-3 text-sm';
+    'border-input bg-card h-10 rounded-xl border px-3 text-sm';
 
 const ACCEPT = '.pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx';
 
@@ -136,7 +136,7 @@ function DocumentCard({
     const current = document.versions[0];
 
     return (
-        <li className="rounded-xl border p-4">
+        <li className="surface p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex flex-col gap-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -352,7 +352,7 @@ export function EmployeeDocuments({
                     action={store(employeeId).url}
                     method="post"
                     resetOnSuccess
-                    className="grid gap-3 rounded-xl border p-4 sm:grid-cols-2"
+                    className="surface grid gap-3 p-4 sm:grid-cols-2"
                 >
                     {({ processing, errors }) => (
                         <>
@@ -390,7 +390,7 @@ export function EmployeeDocuments({
             )}
 
             {documents.length === 0 ? (
-                <p className="rounded-xl border p-6 text-center text-sm text-muted-foreground">
+                <p className="surface p-6 text-center text-sm text-muted-foreground">
                     Belum ada dokumen.
                 </p>
             ) : (

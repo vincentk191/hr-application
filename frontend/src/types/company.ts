@@ -1,3 +1,13 @@
+/**
+ * What the app wears for the company being viewed (shared on every page). The colour is "#rrggbb" or
+ * null for the default look; the logo is null for the combined view.
+ */
+export type Branding = {
+    name: string | null;
+    color: string | null;
+    logoUrl: string | null;
+};
+
 export type CompanyOption = {
     id: number;
     code: string;

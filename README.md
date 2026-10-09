@@ -29,7 +29,7 @@ listed in the checklist below. Nothing here is committed yet: changes are left f
 
 |                 |                                                                                                              |
 | --------------- | ------------------------------------------------------------------------------------------------------------ |
-| Tests           | 474 passing                                                                                                  |
+| Tests           | 497 passing                                                                                                  |
 | Static analysis | PHPStan level 7, 0 errors                                                                                    |
 | Phase 0         | **Complete** — company scoping, RBAC, workflow engine, account state and login rules                         |
 | Phase 1         | Directory (with CSV import/export), profile, add/edit, documents, admin panel done                           |
@@ -835,12 +835,31 @@ Progress Tracking analytics (Appendix C).
   administrator cannot remove their own way back into the screen; they are labelled "(terkunci)", put
   back if unticked, and added again on save. (They were once shown as disabled checkboxes, which made
   every save of this role fail validation.)
+- **Each company can have its own colour and logo** (admin panel, Perusahaan). The company form takes a
+  colour (six-digit hex) and a logo (PNG, JPG, SVG or WebP, 2 MB, on the public disk like profile
+  pictures); the list shows both. A "Warna 'Semua perusahaan'" button on the list sets the colour for the
+  combined view, which belongs to no company and so is a setting (`branding.group_color`, on the audit
+  trail). The app wears them: looking at one company, its colour replaces the red accent (buttons, the
+  current menu item, focus rings; the text on it switches to black or white for contrast) and its logo
+  sits beside "HR DASHBOARD" in the top bar; looking at all of them, the group colour and no logo. Anything
+  unset keeps the default look, and a company-bound account always sees its own company's. A stored colour
+  that is not a valid hex is ignored, never written into the page's styles.
+- **The look is one set of tokens, not per-page styling** (`frontend/src/css/app.css`). Archivo for text
+  and JetBrains Mono for small captions; a warm light-grey page with white rounded surfaces, black for
+  emphasis (the chosen view, status pills, the avatar) and one red for the thing to do and the place you
+  are. Dark mode follows the same tokens. Reusable classes: `surface` (a card), `label-mono` (caption),
+  `seg` (a pill switcher), `pill-tabs`, `chip`. Table headings are captions by default. The shell is a top
+  bar (menu button, name, search, company, notifications, who you are with their role) over a side menu and
+  the page, whose name comes from its breadcrumbs. The sign-in screens are a black panel and a hard-edged
+  form. To change the palette or the type, change the tokens; to restyle a control, change its class once.
+  Layouts were taken from reference screens for styling only; their content was not used. The dashboard's
+  striped placeholder boxes are the starter kit's and still unfilled.
 - **Global search** (`CORE-SRC`): a "Cari…" box in the header, or Ctrl/⌘ + K from anywhere (a search
   icon on a phone). It searches as you type (two letters or more, after a short pause) across four
   groups, five results each, and opens the one you choose; the arrow keys and Enter work too.
   - **Halaman:** the app's own pages, only those the person may open.
   - **Karyawan:** name, employee number or email, for roles that may open the directory.
-  - **Pengajuan cuti:** by reference (`REQ-0003`) or the employee's name, limited to what the queue
+  - **Pengajuan:** by reference (`REQ-0003`) or the employee's name, limited to what the queue
     shows that person (everyone's for roles that can see employees, otherwise their own and the ones
     they are asked to approve). A result opens the queue with that request's dialog already open.
   - **Dokumen:** by title, only documents the person may read, using the document policy, so a
@@ -901,14 +920,30 @@ Progress Tracking analytics (Appendix C).
   requests already in flight keep the chain they were filed with. `context.md` §9.6 and the workbooks
   (`REQ-DLG-004/005`, `ATT-LVE-003`, `CORE-NOT-004`, and new `REQ-WIZ-010`, `REQ-DSH-008`, `CORE-NOT-009`)
   say the same.
+- **"Pengajuan" is the name for all of it, and the kinds are data.** The screens say Pengajuan, not
+  Pengajuan cuti. The kinds (`request_types`: name, a code made once from the first name, a maximum
+  number of working days, an order, and whether it is offered) are managed in the admin panel under
+  **Jenis pengajuan** (needs `manage-leave-settings`, HR Admin by default; changes are on the audit
+  trail). HR can add one, rename it, change its limit and order, switch it off, or remove it. The six the
+  app started with (cuti sakit, tahunan, melahirkan, pernikahan / lamaran, duka, tanpa gaji) were created
+  by the migration, with any limits set earlier carried over. A request keeps the code of its type, so:
+  **renaming** a type changes the label on every request at once; **switching off** a type stops it being
+  offered for new requests while the old ones keep working, and a rejected request can still be corrected
+  as that type; and a type that requests were filed under **cannot be removed**, only switched off, so
+  nothing is left without a name. Old requests' tables and APIs still call the field `leave_type`.
+- **A request can name a time of day.** Each request form has an optional "Tambahkan jam" box; ticked, it
+  asks for a start and an end time (24-hour, end after start), which are stored with the request and shown in
+  the queue, the dialog, the profile and the notification. Unticked, nothing is stored, whatever was sent. It
+  describes the request only: working days are still counted from the dates, and attendance does not treat
+  the hours specially (a scan on the day still beats the request). It applies to every type.
 - **Leave requests can carry files, have a maximum length per type, and can be corrected and sent again.**
   - **Files:** optional, up to 5 per request (PDF, JPG or PNG, 5 MB each), stored on the private disk and
     served only through `leave-attachments.download`, which asks the leave request's policy (the
     requester, HR and anyone who can see the employee).
-  - **Maximum days:** HR sets them in the admin panel under "Batas cuti" (needs `manage-leave-settings`,
-    given to HR Admin; changes are on the audit trail). It is per request, counted in working days like
-    the request itself, and blank means no limit. It is checked when filing and when correcting, and
-    does not touch requests already filed. It is not an annual entitlement; nothing tracks a balance.
+  - **Maximum days:** HR sets it on the type itself (admin panel, "Jenis pengajuan"). It is per request,
+    counted in working days like the request itself, and blank means no limit. It is checked when filing
+    and when correcting, and does not touch requests already filed. It is not an annual entitlement;
+    nothing tracks a balance.
   - **Correcting:** only a **rejected** request can be changed, by its requester or by HR for someone
     without a login (`LeaveRequestPolicy::update`). "Ubah & ajukan ulang" (on the queue's dialog, the
     profile's Pengajuan tab and the drawer) opens a form showing the approvers' notes. Submitting it

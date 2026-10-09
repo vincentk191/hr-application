@@ -38,7 +38,7 @@ export default function EmployeesImport({
 
             <div className="flex max-w-3xl flex-col gap-4 p-4">
                 <div>
-                    <h1 className="text-lg font-medium">Impor karyawan</h1>
+                    <p className="label-mono">Impor dari CSV</p>
                     <p className="text-sm text-muted-foreground">
                         {company
                             ? `Karyawan baru ditambahkan ke ${company}.`
@@ -50,7 +50,7 @@ export default function EmployeesImport({
                     action={store().url}
                     method="post"
                     resetOnSuccess={['file']}
-                    className="grid gap-3 rounded-xl border p-4"
+                    className="surface grid gap-3 p-4"
                 >
                     {({ processing, errors }) => (
                         <>
@@ -94,7 +94,7 @@ export default function EmployeesImport({
 
                 {result && <ResultCard result={result} />}
 
-                <section className="rounded-xl border p-4 text-sm text-muted-foreground">
+                <section className="surface p-4 text-sm text-muted-foreground">
                     <h2 className="font-medium text-foreground">Aturan</h2>
                     <ul className="mt-2 list-disc space-y-1 pl-5">
                         <li>
@@ -129,7 +129,7 @@ export default function EmployeesImport({
 
 function ResultCard({ result }: { result: ImportResult }) {
     return (
-        <section className="rounded-xl border p-4">
+        <section className="surface p-4">
             <h2 className="font-medium">
                 {result.dryRun
                     ? 'Hasil pemeriksaan (belum disimpan)'
@@ -156,6 +156,6 @@ function ResultCard({ result }: { result: ImportResult }) {
 EmployeesImport.layout = {
     breadcrumbs: [
         { title: 'Karyawan', href: index() },
-        { title: 'Impor', href: importMethod() },
+        { title: 'Impor karyawan', href: importMethod() },
     ] satisfies BreadcrumbItem[],
 };

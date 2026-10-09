@@ -295,7 +295,7 @@ function PeriodToggle({
     onChange: (period: 'month' | 'year') => void;
 }) {
     return (
-        <div className="flex w-fit rounded-md border text-sm">
+        <div className="seg">
             {(
                 [
                     ['month', 'Bulan'],
@@ -306,11 +306,7 @@ function PeriodToggle({
                     key={value}
                     type="button"
                     onClick={() => period !== value && onChange(value)}
-                    className={`px-3 py-1.5 ${
-                        period === value
-                            ? 'bg-muted font-medium'
-                            : 'text-muted-foreground'
-                    }`}
+                    data-on={period === value}
                 >
                     {label}
                 </button>
@@ -405,7 +401,7 @@ function YearView({
                 ))}
             </div>
 
-            <div className="overflow-x-auto rounded-xl border">
+            <div className="surface overflow-x-auto">
                 <table className="w-full text-sm">
                     <thead className="bg-muted/50 text-left">
                         <tr>
@@ -523,7 +519,7 @@ export function EmployeeAttendance({
 
     if (attendance === null) {
         return (
-            <p className="rounded-xl border p-6 text-sm text-muted-foreground">
+            <p className="surface p-6 text-sm text-muted-foreground">
                 Anda tidak memiliki akses ke data absensi karyawan ini.
             </p>
         );
@@ -531,7 +527,7 @@ export function EmployeeAttendance({
 
     if (attendance === undefined) {
         return (
-            <p className="rounded-xl border p-6 text-sm text-muted-foreground">
+            <p className="surface p-6 text-sm text-muted-foreground">
                 Memuat absensi…
             </p>
         );
@@ -628,7 +624,7 @@ export function EmployeeAttendance({
                 </div>
             </dl>
 
-            <div className="overflow-x-auto rounded-xl border">
+            <div className="surface overflow-x-auto">
                 <table className="w-full text-sm">
                     <thead className="bg-muted/50 text-left">
                         <tr>

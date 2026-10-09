@@ -7,6 +7,7 @@ use App\Enums\Role;
 use App\Http\Controllers\NotificationController;
 use App\Models\Company;
 use App\Models\Employee;
+use App\Support\Branding;
 use App\Support\CompanyContext;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -60,6 +61,8 @@ class HandleInertiaRequests extends Middleware
                     : Employee::acrossCompanies()->where('user_id', $request->user()->id)->value('id'),
             ],
             'companySwitcher' => fn (): ?array => $this->companySwitcher($request),
+            // The colour and logo for the company being viewed (or the group colour when viewing all).
+            'branding' => fn (): ?array => $request->user() === null ? null : app(Branding::class)->current(),
             // The header bell: how many are unread and the latest few. Lazy, so a request that does not
             // render a page (a redirect) never pays for it.
             'notifications' => fn (): ?array => $this->notifications($request),

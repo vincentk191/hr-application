@@ -61,8 +61,8 @@ function Field({ label, value }: { label: string; value: unknown }) {
 
     return (
         <div className="grid grid-cols-2 gap-2 py-1.5 text-sm">
-            <dt className="text-muted-foreground">{label}</dt>
-            <dd>{display as string}</dd>
+            <dt className="label-mono pt-0.5">{label}</dt>
+            <dd className="font-medium">{display as string}</dd>
         </div>
     );
 }
@@ -70,8 +70,10 @@ function Field({ label, value }: { label: string; value: unknown }) {
 /** Shown in place of a sensitive card the viewer may not read (EMP-DET-006). */
 function RestrictedCard({ title }: { title: string }) {
     return (
-        <section className="rounded-xl border p-4">
-            <h3 className="mb-2 font-medium">{title}</h3>
+        <section className="surface p-4">
+            <h3 className="mb-2 text-base font-extrabold tracking-tight">
+                {title}
+            </h3>
             <p className="text-sm text-muted-foreground">
                 Data ini dibatasi dan tidak dapat Anda lihat.
             </p>
@@ -87,8 +89,10 @@ function Card({
     children: React.ReactNode;
 }) {
     return (
-        <section className="rounded-xl border p-4">
-            <h3 className="mb-2 font-medium">{title}</h3>
+        <section className="surface p-4">
+            <h3 className="mb-2 text-base font-extrabold tracking-tight">
+                {title}
+            </h3>
             <dl className="divide-y">{children}</dl>
         </section>
     );
@@ -111,6 +115,11 @@ function RequestRow({ row }: { row: LeaveRow }) {
                 <td className="p-3">{row.type}</td>
                 <td className="p-3 whitespace-nowrap">
                     {row.startOn} – {row.endOn}
+                    {row.timeframe && (
+                        <span className="block text-xs text-muted-foreground">
+                            {row.timeframe}
+                        </span>
+                    )}
                 </td>
                 <td className="p-3">{row.days}</td>
                 <td className="p-3">{row.stageLabel}</td>
@@ -192,10 +201,7 @@ export default function EmployeeShow({
                             className="size-20"
                         />
                         <div>
-                            <h1 className="text-xl font-semibold">
-                                {employee.name}
-                            </h1>
-                            <p className="text-sm text-muted-foreground">
+                            <p className="label-mono text-sm">
                                 {employee.number}
                                 {employee.position
                                     ? ` · ${employee.position}`
@@ -219,16 +225,14 @@ export default function EmployeeShow({
                 {/* Profile header stats. "Leave taken", never a remaining balance — no
                     entitlement is modelled (context.md §10). */}
                 <div className="grid gap-3 sm:grid-cols-3">
-                    <div className="rounded-xl border p-4">
-                        <p className="text-xs text-muted-foreground">
-                            Cuti terpakai tahun ini
-                        </p>
-                        <p className="text-2xl font-semibold">
+                    <div className="surface p-4">
+                        <p className="label-mono">Cuti terpakai tahun ini</p>
+                        <p className="text-3xl font-extrabold tracking-tight">
                             {leaveTakenThisYear} hari
                         </p>
                     </div>
-                    <div className="rounded-xl border p-4">
-                        <p className="text-xs text-muted-foreground">Status</p>
+                    <div className="surface p-4">
+                        <p className="label-mono">Status</p>
                         <Badge
                             variant={
                                 employee.isActive ? 'default' : 'secondary'
@@ -238,26 +242,22 @@ export default function EmployeeShow({
                             {employee.status}
                         </Badge>
                     </div>
-                    <div className="rounded-xl border p-4">
-                        <p className="text-xs text-muted-foreground">Atasan</p>
+                    <div className="surface p-4">
+                        <p className="label-mono">Atasan</p>
                         <p className="mt-1 font-medium">
                             {employee.manager ?? '—'}
                         </p>
                     </div>
                 </div>
 
-                <nav className="flex flex-wrap gap-x-1 border-b">
+                <nav className="pill-tabs">
                     {TABS.filter((item) => item.key !== 'team' || team).map(
                         (item) => (
                             <button
                                 key={item.key}
                                 type="button"
                                 onClick={() => setTab(item.key)}
-                                className={`-mb-px border-b-2 px-3 py-2 text-sm ${
-                                    tab === item.key
-                                        ? 'border-foreground font-medium'
-                                        : 'border-transparent text-muted-foreground'
-                                }`}
+                                data-on={tab === item.key}
                             >
                                 {item.label}
                             </button>
@@ -414,7 +414,7 @@ export default function EmployeeShow({
                 )}
 
                 {tab === 'requests' && (
-                    <div className="overflow-x-auto rounded-xl border">
+                    <div className="surface overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead className="bg-muted/50 text-left">
                                 <tr>

@@ -1,7 +1,6 @@
 <?php
 
 use App\Enums\LeaveRequestStage;
-use App\Enums\LeaveType;
 use App\Enums\Role;
 use App\Enums\WorkflowStepStatus;
 use App\Models\Company;
@@ -48,7 +47,7 @@ function fileLeave(User $actor, Employee $employee): LeaveRequest
 {
     test()->actingAs($actor)->post(route('leave-requests.store'), [
         'employee_id' => $employee->id,
-        'leave_type' => LeaveType::Annual->value,
+        'leave_type' => 'annual',
         'start_on' => '2026-11-02',
         'end_on' => '2026-11-04',
         'reason' => 'Acara keluarga',
@@ -209,7 +208,7 @@ it('stops a plain employee filing leave for someone else', function () {
         ->from(route('leave-requests.create'))
         ->post(route('leave-requests.store'), [
             'employee_id' => $employee->id,
-            'leave_type' => LeaveType::Annual->value,
+            'leave_type' => 'annual',
             'start_on' => '2026-11-02',
             'end_on' => '2026-11-04',
         ])
@@ -252,7 +251,7 @@ it('refuses leave filed for an employee in another company', function () {
         ->from(route('leave-requests.create'))
         ->post(route('leave-requests.store'), [
             'employee_id' => $foreign->id,
-            'leave_type' => LeaveType::Annual->value,
+            'leave_type' => 'annual',
             'start_on' => '2026-11-02',
             'end_on' => '2026-11-04',
         ])
@@ -269,7 +268,7 @@ it('rejects an end date before the start date', function () {
         ->from(route('leave-requests.create'))
         ->post(route('leave-requests.store'), [
             'employee_id' => $employee->id,
-            'leave_type' => LeaveType::Annual->value,
+            'leave_type' => 'annual',
             'start_on' => '2026-11-04',
             'end_on' => '2026-11-02',
         ])

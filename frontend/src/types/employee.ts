@@ -137,6 +137,7 @@ export type LeaveRow = {
     days: number;
     stageLabel: string | null;
     reason: string | null;
+    timeframe: string | null;
     submittedAt: string | null;
     steps: LeaveStepRow[];
     attachments: LeaveAttachmentRow[];

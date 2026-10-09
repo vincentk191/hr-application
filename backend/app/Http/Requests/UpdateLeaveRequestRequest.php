@@ -27,7 +27,7 @@ class UpdateLeaveRequestRequest extends FormRequest
     public function rules(): array
     {
         return [
-            ...$this->leaveFieldRules(),
+            ...$this->leaveFieldRules($this->currentLeave()->leave_type),
             // What changed, for the approvers: kept in the request's history with the new submission.
             'note' => ['nullable', 'string', 'max:2000'],
             'remove_attachments' => ['nullable', 'array'],
@@ -56,12 +56,17 @@ class UpdateLeaveRequestRequest extends FormRequest
         ];
     }
 
-    protected function leaveEmployee(): ?Employee
+    private function currentLeave(): LeaveRequest
     {
         /** @var LeaveRequest $leave */
         $leave = $this->route('leaveRequest');
 
-        return $leave->employee;
+        return $leave;
+    }
+
+    protected function leaveEmployee(): ?Employee
+    {
+        return $this->currentLeave()->employee;
     }
 
     /**

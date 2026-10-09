@@ -39,6 +39,8 @@ export type LeaveRequestRow = {
     endOn: string;
     days: number;
     reason: string | null;
+    /** "09:00–11:00" when the request names a time of day. */
+    timeframe: string | null;
     submittedAt: string | null;
     stage: 'submitted' | 'approved' | 'rejected' | null;
     stageLabel: string | null;

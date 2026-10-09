@@ -1,5 +1,5 @@
 import type { Auth } from '@/types/auth';
-import type { CompanySwitcher } from '@/types/company';
+import type { Branding, CompanySwitcher } from '@/types/company';
 import type { NotificationSummary } from '@/types/notification';
 
 declare module 'react' {
@@ -14,6 +14,7 @@ declare module '@inertiajs/core' {
             name: string;
             auth: Auth;
             companySwitcher: CompanySwitcher | null;
+            branding: Branding | null;
             notifications: NotificationSummary | null;
             sidebarOpen: boolean;
             [key: string]: unknown;

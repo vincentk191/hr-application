@@ -338,3 +338,30 @@
         white-space: nowrap;
     }
 }
+
+/* The sign-in form is the one place with hard edges: square fields and a black button. Outside the
+   layers on purpose, so it beats the utility classes the shared Input and Button carry. */
+.auth-form label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+}
+
+.auth-form input:not([type='checkbox']) {
+    height: 3rem;
+    border: 2px solid var(--foreground);
+    border-radius: 0;
+    background: var(--card);
+    box-shadow: none;
+}
+
+.auth-form button[type='submit'] {
+    height: 3rem;
+    border-radius: 0;
+    background: var(--foreground);
+    color: var(--background);
+    box-shadow: none;
+}

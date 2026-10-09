@@ -29,7 +29,7 @@ class SubmitLeaveRequest
     ) {}
 
     /**
-     * @param  array{leave_type: string, start_on: CarbonInterface, end_on: CarbonInterface, reason: ?string}  $attributes
+     * @param  array{leave_type: string, start_on: CarbonInterface, end_on: CarbonInterface, reason: ?string, start_time?: ?string, end_time?: ?string}  $attributes
      * @param  list<UploadedFile>  $files  supporting documents, optional
      */
     public function handle(Employee $employee, array $attributes, User $submittedBy, array $files = []): LeaveRequest
@@ -41,6 +41,8 @@ class SubmitLeaveRequest
                 'leave_type' => $attributes['leave_type'],
                 'start_on' => $attributes['start_on'],
                 'end_on' => $attributes['end_on'],
+                'start_time' => $attributes['start_time'] ?? null,
+                'end_time' => $attributes['end_time'] ?? null,
                 'days' => LeaveRequest::workingDays($attributes['start_on'], $attributes['end_on'], $employee),
                 'reason' => $attributes['reason'] ?? null,
                 'created_by_user_id' => $submittedBy->id,

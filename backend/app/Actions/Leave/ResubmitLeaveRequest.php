@@ -29,7 +29,7 @@ class ResubmitLeaveRequest
     ) {}
 
     /**
-     * @param  array{leave_type: string, start_on: CarbonInterface, end_on: CarbonInterface, reason: ?string}  $attributes
+     * @param  array{leave_type: string, start_on: CarbonInterface, end_on: CarbonInterface, reason: ?string, start_time?: ?string, end_time?: ?string}  $attributes
      * @param  list<UploadedFile>  $newFiles
      * @param  array<int, int>  $removeAttachmentIds
      */
@@ -48,6 +48,8 @@ class ResubmitLeaveRequest
                 'leave_type' => $attributes['leave_type'],
                 'start_on' => $attributes['start_on'],
                 'end_on' => $attributes['end_on'],
+                'start_time' => $attributes['start_time'] ?? null,
+                'end_time' => $attributes['end_time'] ?? null,
                 'days' => LeaveRequest::workingDays($attributes['start_on'], $attributes['end_on'], $leave->employee),
                 'reason' => $attributes['reason'] ?? null,
             ]);
@@ -80,6 +82,8 @@ class ResubmitLeaveRequest
 
     private function summary(LeaveRequest $leave): string
     {
-        return "{$leave->leave_type->label()}, {$leave->start_on->toDateString()} – {$leave->end_on->toDateString()} ({$leave->days} hari)";
+        $time = $leave->timeframe() === null ? '' : ", jam {$leave->timeframe()}";
+
+        return "{$leave->typeLabel()}, {$leave->start_on->toDateString()} – {$leave->end_on->toDateString()}{$time} ({$leave->days} hari)";
     }
 }

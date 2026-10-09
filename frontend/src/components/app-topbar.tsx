@@ -1,9 +1,11 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
+import { useEffect } from 'react';
 import { CompanySwitcher } from '@/components/company-switcher';
 import { GlobalSearch } from '@/components/global-search';
 import { NotificationBell } from '@/components/notification-bell';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { UserChip } from '@/components/user-chip';
+import { applyBrandColor } from '@/lib/branding';
 import { dashboard } from '@/routes';
 
 /**
@@ -11,10 +13,26 @@ import { dashboard } from '@/routes';
  * company, notifications and the person signed in. The side menu sits beneath it.
  */
 export function AppTopbar() {
+    const { branding } = usePage().props;
+
+    // Wear the colour of the company being looked at, and take it off again when there is none.
+    useEffect(() => {
+        applyBrandColor(branding?.color);
+    }, [branding?.color]);
+
     return (
         <header className="sticky top-0 z-30 flex h-(--topbar-h) shrink-0 items-center gap-2 border-b bg-card px-3 sm:gap-4 sm:px-6">
             <SidebarTrigger className="-ml-1 shrink-0" />
 
+            {branding?.logoUrl && (
+                <Link href={dashboard()} className="shrink-0">
+                    <img
+                        src={branding.logoUrl}
+                        alt={branding.name ?? 'Logo perusahaan'}
+                        className="h-9 max-w-32 object-contain sm:max-w-40"
+                    />
+                </Link>
+            )}
             <Link
                 href={dashboard()}
                 className="hidden shrink-0 text-lg font-extrabold tracking-tight uppercase sm:block"

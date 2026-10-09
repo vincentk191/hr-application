@@ -2,7 +2,6 @@
 
 namespace App\Providers\Filament;
 
-use App\Filament\Pages\ManageLeaveLimits;
 use App\Filament\Pages\ManageWorkingHours;
 use App\Filament\Resources\ActivityLogs\ActivityLogResource;
 use App\Filament\Resources\AttendanceAgents\AttendanceAgentResource;
@@ -10,6 +9,7 @@ use App\Filament\Resources\AttendanceIngestRequests\AttendanceIngestRequestResou
 use App\Filament\Resources\Companies\CompanyResource;
 use App\Filament\Resources\Departments\DepartmentResource;
 use App\Filament\Resources\Positions\PositionResource;
+use App\Filament\Resources\RequestTypes\RequestTypeResource;
 use App\Filament\Resources\Roles\RoleResource;
 use App\Filament\Resources\Users\UserResource;
 use App\Http\Middleware\AuthenticateAdminPanel;
@@ -43,7 +43,7 @@ class AdminPanelProvider extends PanelProvider
      */
     private function extraPages(): array
     {
-        return $this->servesPanel() ? [ManageWorkingHours::class, ManageLeaveLimits::class] : [];
+        return $this->servesPanel() ? [ManageWorkingHours::class] : [];
     }
 
     private function servesPanel(): bool
@@ -77,6 +77,7 @@ class AdminPanelProvider extends PanelProvider
             CompanyResource::class,
             DepartmentResource::class,
             PositionResource::class,
+            RequestTypeResource::class,
             RoleResource::class,
             UserResource::class,
         ];

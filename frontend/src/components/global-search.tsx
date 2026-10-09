@@ -170,7 +170,7 @@ export function GlobalSearch() {
                 >
                     <DialogTitle className="sr-only">Cari</DialogTitle>
                     <DialogDescription className="sr-only">
-                        Cari halaman, karyawan, pengajuan cuti, dan dokumen.
+                        Cari halaman, karyawan, pengajuan, dan dokumen.
                     </DialogDescription>
 
                     <div className="flex items-center gap-2 border-b px-3">

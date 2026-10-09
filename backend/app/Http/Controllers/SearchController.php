@@ -56,8 +56,8 @@ class SearchController extends Controller
         $pages = [
             ['Dashboard', 'dashboard', true],
             ['Karyawan', 'employees.index', $user->can(Permission::ViewEmployees->value)],
-            ['Pengajuan cuti', 'leave-requests.index', true],
-            ['Ajukan cuti', 'leave-requests.create', true],
+            ['Pengajuan', 'leave-requests.index', true],
+            ['Buat pengajuan', 'leave-requests.create', true],
             ['Notifikasi', 'notifications.index', true],
             ['Kalender absensi', 'attendance.calendar', $user->can(Permission::ViewAttendance->value)],
             ['Rekap absensi', 'attendance.recap', $user->can(Permission::ViewAttendance->value)],
@@ -130,11 +130,11 @@ class SearchController extends Controller
 
         return [
             'key' => 'leave',
-            'label' => 'Pengajuan cuti',
+            'label' => 'Pengajuan',
             'items' => $found->map(fn (LeaveRequest $leave): array => [
                 'id' => (string) $leave->id,
                 'title' => "{$leave->reference()} · {$leave->employee->full_name}",
-                'subtitle' => "{$leave->leave_type->label()} · {$leave->start_on->toDateString()} – {$leave->end_on->toDateString()}",
+                'subtitle' => "{$leave->typeLabel()} · {$leave->start_on->toDateString()} – {$leave->end_on->toDateString()}",
                 'url' => route('leave-requests.index', ['open' => $leave->id], absolute: false),
             ])->values()->all(),
         ];

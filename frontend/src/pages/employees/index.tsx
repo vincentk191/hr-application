@@ -132,23 +132,19 @@ export default function EmployeesIndex({
                             })
                         }
                         aria-label="Urutkan"
-                        className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                        className="h-10 rounded-xl border border-input bg-card px-3 text-sm"
                     >
                         <option value="name">Nama</option>
                         <option value="joined">Terbaru bergabung</option>
                     </select>
 
-                    <div className="flex rounded-md border">
+                    <div className="seg">
                         {VIEWS.map((view) => (
                             <button
                                 key={view.value}
                                 type="button"
                                 onClick={() => apply({ view: view.value })}
-                                className={`px-3 py-1.5 text-sm ${
-                                    filters.view === view.value
-                                        ? 'bg-muted font-medium'
-                                        : 'text-muted-foreground'
-                                }`}
+                                data-on={filters.view === view.value}
                             >
                                 {view.label}
                             </button>
@@ -177,11 +173,8 @@ export default function EmployeesIndex({
                             key={status.value}
                             type="button"
                             onClick={() => toggleStatus(status.value)}
-                            className={`rounded-full border px-3 py-1 text-xs ${
-                                filters.statuses.includes(status.value)
-                                    ? 'bg-foreground text-background'
-                                    : 'text-muted-foreground'
-                            }`}
+                            className="chip"
+                            data-on={filters.statuses.includes(status.value)}
                         >
                             {status.label}
                         </button>
@@ -244,7 +237,7 @@ export default function EmployeesIndex({
                                 onClick={(event) =>
                                     openInDrawer(event, employee.id, setOpenId)
                                 }
-                                className="flex items-start gap-3 rounded-xl border p-4 hover:bg-muted/50"
+                                className="surface flex items-start gap-3 p-4 hover:bg-muted/50"
                             >
                                 <EmployeeAvatar
                                     name={employee.name}
@@ -278,7 +271,7 @@ export default function EmployeesIndex({
                             </Link>
                         ))}
                         {employees.length === 0 && (
-                            <p className="col-span-full rounded-xl border p-6 text-center text-sm text-muted-foreground">
+                            <p className="surface col-span-full p-6 text-center text-sm text-muted-foreground">
                                 Tidak ada karyawan.
                             </p>
                         )}
@@ -286,7 +279,7 @@ export default function EmployeesIndex({
                 )}
 
                 {filters.view === 'list' && (
-                    <div className="overflow-x-auto rounded-xl border">
+                    <div className="surface overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead className="bg-muted/50 text-left">
                                 <tr>

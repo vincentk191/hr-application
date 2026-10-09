@@ -8,7 +8,7 @@ import type { BreadcrumbItem } from '@/types';
 import type { LeaveRequestRow } from '@/types/leave';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Pengajuan cuti', href: '/leave-requests' },
+    { title: 'Pengajuan', href: '/leave-requests' },
 ];
 
 function stageVariant(stage: LeaveRequestRow['stage']) {
@@ -47,7 +47,7 @@ export default function LeaveRequestsIndex({
 
     return (
         <>
-            <Head title="Pengajuan cuti" />
+            <Head title="Pengajuan" />
 
             <div className="flex flex-col gap-4 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -62,7 +62,7 @@ export default function LeaveRequestsIndex({
                     </Button>
                 </div>
 
-                <div className="overflow-x-auto rounded-xl border">
+                <div className="surface overflow-x-auto">
                     <table className="w-full text-sm">
                         <thead className="bg-muted/50 text-left">
                             <tr>
@@ -82,7 +82,7 @@ export default function LeaveRequestsIndex({
                                         colSpan={7}
                                         className="p-6 text-center text-muted-foreground"
                                     >
-                                        Belum ada pengajuan cuti.
+                                        Belum ada pengajuan.
                                     </td>
                                 </tr>
                             )}
