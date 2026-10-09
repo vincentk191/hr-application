@@ -13,6 +13,8 @@ export type User = {
 export type Auth = {
     user: User;
     canAccessAdminPanel: boolean;
+    /** The role shown under the name in the header. */
+    roleLabel: string | null;
     canViewEmployees: boolean;
     /** May load scanner logs and map scanner IDs (parent-wide accounts with the permission). */
     canManageAttendance: boolean;

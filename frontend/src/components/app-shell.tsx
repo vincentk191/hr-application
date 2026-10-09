@@ -17,5 +17,10 @@ export function AppShell({ children, variant = 'sidebar' }: Props) {
         );
     }
 
-    return <SidebarProvider defaultOpen={isOpen}>{children}</SidebarProvider>;
+    // Stacked: the top bar, then the menu and the page side by side beneath it.
+    return (
+        <SidebarProvider defaultOpen={isOpen} className="flex-col">
+            {children}
+        </SidebarProvider>
+    );
 }

@@ -6,23 +6,22 @@ import {
     Fingerprint,
     TriangleAlert,
     LayoutGrid,
+    Settings,
     ShieldCheck,
     UserRound,
     Users,
 } from 'lucide-react';
-import AppLogo from '@/components/app-logo';
 import { NavMain } from '@/components/nav-main';
-import { NavUser } from '@/components/nav-user';
 import {
     Sidebar,
     SidebarContent,
     SidebarFooter,
-    SidebarHeader,
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import { edit as editProfile } from '@/routes/profile';
 import {
     calendar as attendanceCalendar,
     device as attendanceDevice,
@@ -113,25 +112,29 @@ export function AppSidebar() {
     ];
 
     return (
-        <Sidebar collapsible="icon" variant="inset">
-            <SidebarHeader>
+        <Sidebar
+            collapsible="offcanvas"
+            variant="sidebar"
+            className="top-(--topbar-h)! h-auto!"
+        >
+            <SidebarContent className="pt-4">
+                <NavMain items={navItems} />
+            </SidebarContent>
+
+            <SidebarFooter className="border-t p-3">
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <SidebarMenuButton size="lg" asChild>
-                            <Link href={dashboard()} prefetch>
-                                <AppLogo />
+                        <SidebarMenuButton
+                            asChild
+                            className="h-11 rounded-xl px-3 text-[15px] font-medium text-muted-foreground"
+                        >
+                            <Link href={editProfile()} prefetch>
+                                <Settings />
+                                <span>Pengaturan</span>
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
-            </SidebarHeader>
-
-            <SidebarContent>
-                <NavMain items={navItems} />
-            </SidebarContent>
-
-            <SidebarFooter>
-                <NavUser />
             </SidebarFooter>
         </Sidebar>
     );

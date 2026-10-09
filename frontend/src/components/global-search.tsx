@@ -130,7 +130,7 @@ export function GlobalSearch() {
             <Button
                 variant="outline"
                 size="sm"
-                className="hidden h-9 w-56 justify-start gap-2 text-muted-foreground sm:flex"
+                className="hidden h-11 w-full max-w-md justify-start gap-3 rounded-full bg-background px-4 text-muted-foreground shadow-none sm:flex"
                 onClick={() => setOpen(true)}
                 aria-label="Cari"
             >

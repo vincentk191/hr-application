@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Enums\Permission;
+use App\Enums\Role;
 use App\Http\Controllers\NotificationController;
 use App\Models\Company;
 use App\Models\Employee;
@@ -47,6 +48,8 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
                 // Drives the sidebar's link to the admin panel; the panel enforces access itself.
                 'canAccessAdminPanel' => $request->user()?->canAccessAdminPanel() ?? false,
+                // The role under the name in the header, e.g. "Admin HR".
+                'roleLabel' => $this->roleLabel($request),
                 // What the sidebar offers: the directory only to roles that may open it, and a
                 // link to the signed-in person's own profile if they have one.
                 'canViewAttendance' => $request->user()?->can(Permission::ViewAttendance->value) ?? false,
@@ -62,6 +65,13 @@ class HandleInertiaRequests extends Middleware
             'notifications' => fn (): ?array => $this->notifications($request),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
+    }
+
+    private function roleLabel(Request $request): ?string
+    {
+        $name = $request->user()?->getRoleNames()->first();
+
+        return $name === null ? null : (Role::tryFrom($name)?->label() ?? $name);
     }
 
     /**
