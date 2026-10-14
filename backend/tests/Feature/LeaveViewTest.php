@@ -87,7 +87,7 @@ it('filters the queue by status, type, department and month', function () {
         ->and($ids(queue('?status=rejected')))->toBe([$rejected->id])
         ->and($ids(queue('?status=waiting')))->toBe([$waiting->id])
         ->and($ids(queue('?type=sick')))->toBe([$rejected->id])
-        ->and($ids(queue('?department='.$this->office->id)))->toBe([$waiting->id])
+        ->and($ids(queue('?department='.urlencode($this->office->name))))->toBe([$waiting->id])
         ->and($ids(queue('?month=2026-11')))->toBe([$waiting->id])
         ->and($ids(queue('?month=2026-10')))->toBe(collect([$approved->id, $rejected->id])->sort()->values()->all());
 });

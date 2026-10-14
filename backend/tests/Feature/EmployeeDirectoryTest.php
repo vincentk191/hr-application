@@ -40,6 +40,15 @@ it('searches by name and by employee number', function () {
             ->where('employees.0.name', 'Siti Aminah'));
 });
 
+it('names the company each employee belongs to', function () {
+    $this->company->update(['name' => 'Maunarific']);
+    Employee::factory()->forCompany($this->company)->create();
+
+    $this->actingAs($this->hr)
+        ->get(route('employees.index'))
+        ->assertInertia(fn (Assert $page) => $page->where('employees.0.company', 'Maunarific'));
+});
+
 it('filters by department and by status', function () {
     $warehouse = Department::factory()->forCompany($this->company)->create();
     Employee::factory()->inDepartment($warehouse)->create();
@@ -47,12 +56,31 @@ it('filters by department and by status', function () {
     Employee::factory()->forCompany($this->company)->inactive()->create();
 
     $this->actingAs($this->hr)
-        ->get(route('employees.index', ['departments' => [$warehouse->id]]))
+        ->get(route('employees.index', ['departments' => [$warehouse->name]]))
         ->assertInertia(fn (Assert $page) => $page->has('employees', 1));
 
     $this->actingAs($this->hr)
         ->get(route('employees.index', ['statuses' => [EmploymentStatus::Inactive->value]]))
         ->assertInertia(fn (Assert $page) => $page->has('employees', 1));
+});
+
+it('lists a department once however many companies have it, and filters across them', function () {
+    $other = Company::factory()->create();
+    $group = User::factory()->create(['company_id' => null]);
+    $group->assignRole(Role::HrAdmin->value);
+
+    $here = Department::factory()->forCompany($this->company)->create(['name' => 'Gudang']);
+    $there = Department::factory()->forCompany($other)->create(['name' => 'Gudang']);
+    Department::factory()->forCompany($other)->create(['name' => 'Finance']);
+    Employee::factory()->inDepartment($here)->create();
+    Employee::factory()->inDepartment($there)->create();
+    Employee::factory()->forCompany($other)->create();
+
+    $this->actingAs($group)
+        ->get(route('employees.index', ['departments' => ['Gudang']]))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('departments', ['Finance', 'Gudang'])
+            ->has('employees', 2));
 });
 
 it('reports the filtered count against the company total', function () {

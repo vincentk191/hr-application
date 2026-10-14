@@ -70,7 +70,7 @@ export type EmployeeOption = {
 export type LeaveRequestFilters = {
     status: 'all' | 'mine' | 'waiting' | 'approved' | 'rejected';
     type: string | null;
-    department: number | null;
+    department: string | null;
     /** "YYYY-MM". */
     month: string | null;
 };

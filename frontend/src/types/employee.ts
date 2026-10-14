@@ -6,6 +6,8 @@ export type EmployeeRow = {
     name: string;
     /** Public URL of the profile picture, or null to fall back to initials. */
     photoUrl: string | null;
+    /** The operating company the employee belongs to. */
+    company: string | null;
     department: string | null;
     position: string | null;
     manager: string | null;
@@ -63,8 +65,8 @@ export type EmployeeDetail = EmployeeRow & {
 
 export type EmployeeFilters = {
     search: string;
-    departments: number[];
-    positions: number[];
+    departments: string[];
+    positions: string[];
     statuses: string[];
     sort: 'name' | 'joined';
     view: 'list' | 'grid' | 'chart';

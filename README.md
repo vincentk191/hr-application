@@ -13,7 +13,7 @@ The full spec lives outside this repo in `../docs/`:
 | Document                                                | What it is                                                         |
 | ------------------------------------------------------- | ------------------------------------------------------------------ |
 | `../docs/context.md`                                    | The living spec: scope, architecture, decisions, process flows     |
-| `../docs/HR_Dashboard_Features_and_Test_Scenarios.xlsx` | **Master** screen / feature / test list — 57 screens, 318 feature rows (10 of them removed, see `ATT-LVE`) |
+| `../docs/HR_Dashboard_Features_and_Test_Scenarios.xlsx` | **Master** screen / feature / test list — 57 screens, 324 feature rows (10 of them removed, see `ATT-LVE`), 258 test cases |
 | `../docs/dev-concepts.md`                               | Learning log: one entry per Laravel concept this app uses, and why |
 | `../ATTENDANCE-SYNC.md`                                 | The Fingerspot scanner pipeline design and probe runbook           |
 
@@ -29,7 +29,7 @@ listed in the checklist below. Nothing here is committed yet: changes are left f
 
 |                 |                                                                                                              |
 | --------------- | ------------------------------------------------------------------------------------------------------------ |
-| Tests           | 517 passing                                                                                                  |
+| Tests           | 518 passing                                                                                                  |
 | Static analysis | PHPStan level 7, 0 errors                                                                                    |
 | Phase 0         | **Complete** — company scoping, RBAC, workflow engine, account state and login rules                         |
 | Phase 1         | Directory (with CSV import/export), profile, add/edit, documents, admin panel done                           |
@@ -537,7 +537,7 @@ Originally planned on spatie/laravel-model-states; dropped 2026-10-05 — reason
 ## Development checklist
 
 57 screens from the workbook, grouped into phases. **The workbook is the master** — it holds
-the 318 feature rows, their sizes and priorities, and the test cases. This table is the map.
+the 324 feature rows, their sizes and priorities, and the 258 test cases. This table is the map.
 
 `f` = feature count · `P1` = must-have count · status: ✅ done · 🟡 partial · ⬜ not started · ➖ removed (folded into another screen)
 
@@ -818,8 +818,11 @@ Progress Tracking analytics (Appendix C).
   notification (see Notifications). Nothing is emailed or pushed.
 - **Documents are soft-deleted**: the record disappears but the files stay on disk.
 
-- **No test cases in the workbook** for `CORE-*` or `EMP-*` — the Pest suite covers them, but
-  the workbook's coverage figures do not reflect that. Only Recruitment has test-case rows.
+- **The workbook's test cases cover the built screens too** (added 2026-10-09): 128 cases for `CORE-*`,
+  `EMP-*`, `ATT-*` and `REQ-*`, each with steps and an expected result, in both languages. Their Notes
+  column names the Pest test file that automates them, and their status reads "Not Run" until someone
+  logs a manual run on the Test Runs sheet. Recruitment and offboarding cases are still the original
+  prototype ones.
 - **The admin panel covers companies, users, role permissions, departments, positions and a
   read-only audit log.** The panel needs the `access-admin-panel` permission **and** a
   parent-wide account. It has no login page of its own: a guest is sent to the app's `/login`
@@ -834,7 +837,13 @@ Progress Tracking analytics (Appendix C).
 - **Profile pictures sit on the public disk** (`storage/app/public/employee-photos`, served at
   `/storage`) under random file names. They are reachable by anyone who has the URL, unlike the
   rest of the dossier. If that is not acceptable, they need a private disk and an authorised
-  route. The container image has no GD extension, so there is no server-side resizing.
+  route. The container image has no GD extension, so there is no server-side resizing. Instead the
+  browser shrinks and converts the picture before it is sent: the longest side is brought down to
+  640 px and it is saved as WebP at quality 0.8, so a phone photo of a few MB goes up as under 100 KB
+  (`lib/compress-image.ts`, used by the form's `PhotoInput`). If the browser cannot do it, or the result
+  would not be smaller, the original goes up as before and the server's rules (JPG / PNG / WebP,
+  2 MB) apply. Because that happens in the browser, the server itself does not re-encode: a picture
+  sent some other way is stored as sent, and pictures uploaded before this stay as they were.
 - **The profile opens as a side drawer from the directory.** Clicking a row, card or org-chart node
   slides the profile in over the list instead of navigating (Ctrl/Cmd/Shift-click still opens the
   full page). The drawer reads `GET /employees/{id}/summary` (JSON, same authorisation as the

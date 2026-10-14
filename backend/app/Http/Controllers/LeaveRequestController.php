@@ -16,6 +16,7 @@ use App\Models\WorkflowStep;
 use App\Support\CsvDownload;
 use App\Support\Leave\LeaveLimits;
 use App\Support\Leave\LeaveRequestPresenter;
+use App\Support\OrganisationNames;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -49,7 +50,7 @@ class LeaveRequestController extends Controller
             'options' => [
                 'types' => RequestType::query()->ordered()->get(['code', 'label'])
                     ->map(fn (RequestType $type): array => ['value' => $type->code, 'label' => $type->label])->values(),
-                'departments' => Department::orderBy('name')->get(['id', 'name']),
+                'departments' => OrganisationNames::departments(),
             ],
             // What is waiting on this person, and what was approved this month (REQ-DSH-001).
             'waitingOnMe' => WorkflowStep::waitingOn($user)->count(),
@@ -82,25 +83,26 @@ class LeaveRequestController extends Controller
      * What the queue is narrowed by, read from the query string. Anything unrecognised is dropped, so
      * a stale or hand-edited link just shows the whole queue.
      *
-     * @return array{status: string, type: string|null, department: int|null, month: string|null}
+     * @return array{status: string, type: string|null, department: string|null, month: string|null}
      */
     private function filters(Request $request): array
     {
         $type = $request->string('type')->toString();
         $month = $request->string('month')->toString();
+        $department = $request->string('department')->toString();
 
         return [
             'status' => in_array($request->string('status')->toString(), ['mine', 'waiting', 'approved', 'rejected'], true)
                 ? $request->string('status')->toString()
                 : 'all',
             'type' => $type !== '' && RequestType::query()->where('code', $type)->exists() ? $type : null,
-            'department' => $request->integer('department') ?: null,
+            'department' => in_array($department, OrganisationNames::departments(), true) ? $department : null,
             'month' => preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $month) === 1 ? $month : null,
         ];
     }
 
     /**
-     * @param  array{status: string, type: string|null, department: int|null, month: string|null}  $filters
+     * @param  array{status: string, type: string|null, department: string|null, month: string|null}  $filters
      * @return array<int, array<string, mixed>>
      */
     private function filtered(User $user, array $filters): array
@@ -111,7 +113,7 @@ class LeaveRequestController extends Controller
             ->visibleTo($user)
             ->with(['employee:id,full_name,employee_number,department_id,user_id', 'employee.department:id,name', 'workflow.steps.decidedBy:id,name', 'workflow.comments.author:id,name', 'attachments', 'type'])
             ->when($filters['type'] !== null, fn (Builder $query) => $query->where('leave_type', $filters['type']))
-            ->when($filters['department'] !== null, fn (Builder $query) => $query->whereHas('employee', fn (Builder $employee) => $employee->where('department_id', $filters['department'])))
+            ->when($filters['department'] !== null, fn (Builder $query) => $query->whereHas('employee', fn (Builder $employee) => $employee->whereHas('department', fn (Builder $department) => $department->where('name', $filters['department']))))
             // A month catches any request whose days touch it.
             ->when($monthStart !== null, fn (Builder $query) => $query
                 ->whereDate('start_on', '<=', $monthStart->endOfMonth()->toDateString())

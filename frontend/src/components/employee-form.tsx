@@ -1,6 +1,7 @@
 import { Form } from '@inertiajs/react';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import InputError from '@/components/input-error';
+import { PhotoInput } from '@/components/photo-input';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -118,15 +119,7 @@ export function EmployeeForm({
                             />
                             <div className="grid flex-1 gap-2">
                                 <Label htmlFor="photo">Unggah foto</Label>
-                                <Input
-                                    id="photo"
-                                    name="photo"
-                                    type="file"
-                                    accept="image/jpeg,image/png,image/webp"
-                                />
-                                <p className="text-xs text-muted-foreground">
-                                    JPG, PNG, atau WebP, maksimal 2 MB.
-                                </p>
+                                <PhotoInput id="photo" name="photo" />
                                 <InputError message={errors.photo} />
                                 {employee?.photoUrl && (
                                     <label className="flex items-center gap-2 text-sm">

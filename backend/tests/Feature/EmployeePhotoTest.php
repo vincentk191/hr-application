@@ -27,7 +27,11 @@ beforeEach(function () {
  */
 function fakePhoto(string $name, int $kilobytes = 20): UploadedFile
 {
-    $mime = str_ends_with($name, '.png') ? 'image/png' : 'image/jpeg';
+    $mime = match (true) {
+        str_ends_with($name, '.png') => 'image/png',
+        str_ends_with($name, '.webp') => 'image/webp',
+        default => 'image/jpeg',
+    };
 
     return UploadedFile::fake()->create($name, $kilobytes, $mime);
 }
@@ -56,6 +60,17 @@ it('stores an uploaded photo and exposes its URL to the directory', function () 
         ->get(route('employees.index'))
         ->assertInertia(fn (Assert $page) => $page
             ->where('employees.0.photoUrl', Storage::disk('public')->url($employee->photo_path)));
+});
+
+it('keeps the WebP file the browser sends after shrinking the picture', function () {
+    $this->actingAs($this->hr)
+        ->post(route('employees.store'), newEmployeePayload(['photo' => fakePhoto('dewi.webp', 60)]))
+        ->assertRedirect();
+
+    $path = Employee::firstWhere('employee_number', 'EMP-7001')->photo_path;
+
+    expect($path)->toEndWith('.webp');
+    Storage::disk('public')->assertExists($path);
 });
 
 it('gives a null photoUrl when there is no picture', function () {

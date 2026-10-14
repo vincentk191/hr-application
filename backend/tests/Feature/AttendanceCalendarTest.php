@@ -299,7 +299,7 @@ it('filters by department, search and status', function () {
     scan($sari, '2026-10-05 09:30:00');
     scan($sari, '2026-10-05 17:00:00');
 
-    calendar('?view=day&date=2026-10-05&departments[]='.$ops->id)
+    calendar('?view=day&date=2026-10-05&departments[]='.urlencode($ops->name))
         ->assertInertia(fn (Assert $page) => $page->has('rows', 1)->where('rows.0.name', 'Sari'));
 
     calendar('?view=day&date=2026-10-05&search=Bud')
@@ -325,7 +325,7 @@ it('computes the side panel from the same rows and filters as the grid', functio
         ->where('summary.attended', 2)
         ->where('summary.employees', 2));
 
-    calendar('?view=day&date=2026-10-05&departments[]='.$ops->id)->assertInertia(fn (Assert $page) => $page
+    calendar('?view=day&date=2026-10-05&departments[]='.urlencode($ops->name))->assertInertia(fn (Assert $page) => $page
         ->where('summary.counts.present', 0)
         ->where('summary.counts.late', 1)
         ->where('summary.employees', 1));
@@ -408,7 +408,7 @@ it('narrows the leave list with the calendar\'s filters', function () {
     leaveFor($sari, '2026-10-06');
 
     expect(onLeaveNames('?view=day&date=2026-10-06'))->toBe(['Budi', 'Sari'])
-        ->and(onLeaveNames('?view=day&date=2026-10-06&departments[]='.$ops->id))->toBe(['Sari'])
+        ->and(onLeaveNames('?view=day&date=2026-10-06&departments[]='.urlencode($ops->name)))->toBe(['Sari'])
         ->and(onLeaveNames('?view=day&date=2026-10-06&leave_type=sick'))->toBe(['Budi'])
         ->and(onLeaveNames('?view=day&date=2026-10-06&search=sar'))->toBe(['Sari']);
 });

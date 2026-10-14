@@ -21,6 +21,7 @@ use App\Support\Attendance\EmployeeTimesheet;
 use App\Support\CsvDownload;
 use App\Support\Employees\TeamSlice;
 use App\Support\Leave\LeaveRequestPresenter;
+use App\Support\OrganisationNames;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -47,15 +48,15 @@ class EmployeeController extends Controller
         $filters = $this->filtersFrom($request);
 
         $employees = $this->filteredQuery($filters)
-            ->with(['department:id,name', 'position:id,name', 'manager:id,full_name'])
+            ->with(['company:id,name', 'department:id,name', 'position:id,name', 'manager:id,full_name'])
             ->get();
 
         return Inertia::render('employees/index', [
             'employees' => $employees->map(fn (Employee $employee): array => $this->summarise($employee)),
             'filters' => $filters,
             'total' => Employee::count(),
-            'departments' => Department::orderBy('name')->get(['id', 'name']),
-            'positions' => Position::orderBy('name')->get(['id', 'name']),
+            'departments' => OrganisationNames::departments(),
+            'positions' => OrganisationNames::positions(),
             'statuses' => array_map(
                 fn (EmploymentStatus $status): array => ['value' => $status->value, 'label' => $status->label()],
                 EmploymentStatus::cases(),
@@ -68,14 +69,14 @@ class EmployeeController extends Controller
      * The directory's filters as read from the query string, shared by the list and its export so
      * the file always matches what is on screen.
      *
-     * @return array{search: string, departments: array<int, int>, positions: array<int, int>, statuses: list<mixed>, sort: string, view: string}
+     * @return array{search: string, departments: list<string>, positions: list<string>, statuses: list<mixed>, sort: string, view: string}
      */
     private function filtersFrom(Request $request): array
     {
         return [
             'search' => trim((string) $request->string('search')),
-            'departments' => array_filter(array_map('intval', (array) $request->input('departments', []))),
-            'positions' => array_filter(array_map('intval', (array) $request->input('positions', []))),
+            'departments' => OrganisationNames::fromInput($request->input('departments')),
+            'positions' => OrganisationNames::fromInput($request->input('positions')),
             'statuses' => array_values(array_intersect(
                 (array) $request->input('statuses', []),
                 array_column(EmploymentStatus::cases(), 'value'),
@@ -90,7 +91,7 @@ class EmployeeController extends Controller
     }
 
     /**
-     * @param  array{search: string, departments: array<int, int>, positions: array<int, int>, statuses: list<mixed>, sort: string, view: string}  $filters
+     * @param  array{search: string, departments: list<string>, positions: list<string>, statuses: list<mixed>, sort: string, view: string}  $filters
      * @return Builder<Employee>
      */
     private function filteredQuery(array $filters): Builder
@@ -101,8 +102,8 @@ class EmployeeController extends Controller
                     ->where('full_name', 'like', "%{$filters['search']}%")
                     ->orWhere('employee_number', 'like', "%{$filters['search']}%"),
             ))
-            ->when($filters['departments'] !== [], fn (Builder $query) => $query->whereIn('department_id', $filters['departments']))
-            ->when($filters['positions'] !== [], fn (Builder $query) => $query->whereIn('position_id', $filters['positions']))
+            ->when($filters['departments'] !== [], fn (Builder $query) => $query->whereHas('department', fn (Builder $department) => $department->whereIn('name', $filters['departments'])))
+            ->when($filters['positions'] !== [], fn (Builder $query) => $query->whereHas('position', fn (Builder $position) => $position->whereIn('name', $filters['positions'])))
             ->when($filters['statuses'] !== [], fn (Builder $query) => $query->whereIn('employment_status', $filters['statuses']))
             ->when($filters['sort'] === 'joined', fn (Builder $query) => $query->orderByDesc('joined_on'))
             ->when($filters['sort'] === 'name', fn (Builder $query) => $query->orderBy('full_name'));
@@ -350,6 +351,7 @@ class EmployeeController extends Controller
             'number' => $employee->employee_number,
             'name' => $employee->full_name,
             'photoUrl' => $employee->photoUrl(),
+            'company' => $employee->company?->name,
             'department' => $employee->department?->name,
             'position' => $employee->position?->name,
             'manager' => $employee->manager?->full_name,

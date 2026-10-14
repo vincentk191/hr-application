@@ -169,7 +169,7 @@ export type EventFormOptions = {
 export type StatusOption = { value: DayStatus; label: string; code: string };
 
 export type CalendarFilters = {
-    departments: number[];
+    departments: string[];
     statuses: DayStatus[];
     search: string;
     team: number | null;

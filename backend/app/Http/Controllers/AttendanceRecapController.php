@@ -11,6 +11,7 @@ use App\Support\Attendance\DailyAttendance;
 use App\Support\Attendance\DateRangeInput;
 use App\Support\Attendance\EmployeeRoster;
 use App\Support\CsvDownload;
+use App\Support\OrganisationNames;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -42,7 +43,7 @@ class AttendanceRecapController extends Controller
         $filters = [
             'from' => $from->toDateString(),
             'to' => $to->toDateString(),
-            'departments' => array_values(array_filter(array_map('intval', (array) $request->input('departments', [])))),
+            'departments' => OrganisationNames::fromInput($request->input('departments')),
             'team' => $request->integer('team') ?: null,
             'search' => trim((string) $request->string('search')),
         ];
@@ -62,7 +63,7 @@ class AttendanceRecapController extends Controller
             'total' => $result['total'] + ['employees' => count($result['rows'])],
             'filters' => $filters,
             'options' => [
-                'departments' => Department::orderBy('name')->get(['id', 'name']),
+                'departments' => OrganisationNames::departments(),
                 'teams' => $roster->teamLeads(),
             ],
             'dataThrough' => $result['dataThrough'],

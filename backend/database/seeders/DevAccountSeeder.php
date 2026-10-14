@@ -101,6 +101,9 @@ class DevAccountSeeder extends Seeder
 
         $this->seedEmployeePerspective($first);
 
+        // Then give every company the full Management → Supervisor → Employee line.
+        $this->call(OrgHierarchySeeder::class);
+
         $this->command->newLine();
         $this->command->line('  All accounts use the password: password');
         $this->command->line('  group@hr.test         HR Admin, parent-wide   (switcher unlocked)');

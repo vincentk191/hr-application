@@ -202,7 +202,7 @@ it('exports the filtered directory, matches the import columns and leaves out se
     $all = $this->actingAs($this->hr)->get(route('employees.export'))->assertOk()->streamedContent();
     expect($all)->toContain('K-1', 'K-2', 'BOSS', 'ID karyawan')->not->toContain('OTHER')->not->toContain('7777777')->not->toContain('BCA');
 
-    $filtered = $this->actingAs($this->hr)->get(route('employees.export', ['departments' => [$this->warehouse->id]]))->streamedContent();
+    $filtered = $this->actingAs($this->hr)->get(route('employees.export', ['departments' => [$this->warehouse->name]]))->streamedContent();
     expect($filtered)->toContain('K-1', 'Gudang')->not->toContain('K-2');
     expect(Activity::where('description', 'Ekspor direktori karyawan ke CSV')->count())->toBe(2);
 });

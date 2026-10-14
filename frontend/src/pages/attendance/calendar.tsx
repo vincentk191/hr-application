@@ -1,4 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import {
     MonthSummary,
@@ -6,7 +7,13 @@ import {
     YearSummary,
 } from '@/components/attendance-summary-views';
 import { CalendarEvents } from '@/components/calendar-events';
+import { MultiSelectFilter } from '@/components/multi-select-filter';
 import { Button } from '@/components/ui/button';
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { STATUS_STYLE } from '@/lib/attendance-status';
 import { printReport } from '@/lib/print';
@@ -31,7 +38,6 @@ import type {
     StatusCounts,
     StatusOption,
 } from '@/types/attendance';
-import type { Option } from '@/types/employee';
 
 type Props = {
     view: CalendarView;
@@ -54,7 +60,7 @@ type Props = {
     onLeave: { people: number; entries: LeaveEntry[]; more: number };
     filters: CalendarFilters;
     options: {
-        departments: Option[];
+        departments: string[];
         statuses: StatusOption[];
         teams: { id: number; full_name: string }[];
         leaveTypes: { value: string; label: string }[];
@@ -187,6 +193,98 @@ const PERIOD: Record<CalendarView, string> = {
     year: 'tahun',
 };
 
+type OnLeaveEntry = Props['onLeave']['entries'][number];
+
+/** One person's leave entries, kept together so someone with several stays a single row. */
+type LeavePerson = {
+    employeeId: number;
+    name: string | null;
+    department: string | null;
+    entries: OnLeaveEntry[];
+};
+
+function groupByPerson(entries: OnLeaveEntry[]): LeavePerson[] {
+    const people = new Map<number, LeavePerson>();
+
+    for (const entry of entries) {
+        const person = people.get(entry.employeeId);
+
+        if (person) {
+            person.entries.push(entry);
+        } else {
+            people.set(entry.employeeId, {
+                employeeId: entry.employeeId,
+                name: entry.name,
+                department: entry.department,
+                entries: [entry],
+            });
+        }
+    }
+
+    return [...people.values()];
+}
+
+function leaveLine(entry: OnLeaveEntry): string {
+    return `${entry.type} · ${entry.from}${entry.to !== entry.from ? ` – ${entry.to}` : ''}${
+        entry.timeframe ? ` · ${entry.timeframe}` : ''
+    }`;
+}
+
+/**
+ * A person on leave. With one entry it reads as a plain row; with several (a week, month or year
+ * of leave can hold many per person) the entries fold under a single line giving the count and
+ * the overall span, so the list stays one row per person.
+ */
+function OnLeavePerson({ person }: { person: LeavePerson }) {
+    const [first, ...rest] = person.entries;
+    const from = person.entries.map((entry) => entry.from).sort()[0];
+    const to = person.entries
+        .map((entry) => entry.to)
+        .sort()
+        .at(-1);
+
+    return (
+        <li className="py-2">
+            <Link
+                href={employeeShow(person.employeeId)}
+                className="font-medium hover:underline"
+            >
+                {person.name}
+            </Link>
+            {person.department && (
+                <span className="text-xs text-muted-foreground">
+                    {' '}
+                    · {person.department}
+                </span>
+            )}
+
+            {rest.length === 0 ? (
+                <div className="text-xs text-muted-foreground">
+                    {leaveLine(first)}
+                </div>
+            ) : (
+                <Collapsible className="group/leave">
+                    <CollapsibleTrigger className="flex items-center gap-1 text-left text-xs text-muted-foreground hover:text-foreground">
+                        <ChevronRight
+                            aria-hidden
+                            className="size-3.5 shrink-0 transition-transform group-data-[state=open]/leave:rotate-90"
+                        />
+                        {person.entries.length} cuti · {from}
+                        {to !== from ? ` – ${to}` : ''}
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                        <ul className="mt-1 ml-1.5 flex flex-col gap-1 border-l pl-3 text-xs text-muted-foreground">
+                            {person.entries.map((entry) => (
+                                <li key={entry.id}>{leaveLine(entry)}</li>
+                            ))}
+                        </ul>
+                    </CollapsibleContent>
+                </Collapsible>
+            )}
+        </li>
+    );
+}
+
 /**
  * Who is on leave in the range on screen (ATT-SID-002): the day, week, month or year being viewed,
  * for the people the filters select. A person appears when at least one day of their approved leave
@@ -224,28 +322,11 @@ function OnLeavePanel({
                 </p>
             ) : (
                 <ul className="mt-2 divide-y text-sm">
-                    {onLeave.entries.map((entry) => (
-                        <li key={entry.id} className="py-2">
-                            <Link
-                                href={employeeShow(entry.employeeId)}
-                                className="font-medium hover:underline"
-                            >
-                                {entry.name}
-                            </Link>
-                            {entry.department && (
-                                <span className="text-xs text-muted-foreground">
-                                    {' '}
-                                    · {entry.department}
-                                </span>
-                            )}
-                            <div className="text-xs text-muted-foreground">
-                                {entry.type} · {entry.from}
-                                {entry.to !== entry.from
-                                    ? ` – ${entry.to}`
-                                    : ''}
-                                {entry.timeframe ? ` · ${entry.timeframe}` : ''}
-                            </div>
-                        </li>
+                    {groupByPerson(onLeave.entries).map((person) => (
+                        <OnLeavePerson
+                            key={person.employeeId}
+                            person={person}
+                        />
                     ))}
                 </ul>
             )}
@@ -330,7 +411,7 @@ export default function AttendanceCalendar(props: Props) {
     const exportUrl = `${exportRoute().url}?${new URLSearchParams([
         ['view', view],
         ['date', anchor],
-        ...filters.departments.map((id) => ['departments[]', String(id)]),
+        ...filters.departments.map((name) => ['departments[]', name]),
         ...filters.statuses.map((status) => ['statuses[]', status]),
         ['search', filters.search],
         ['team', filters.team === null ? '' : String(filters.team)],
@@ -447,28 +528,14 @@ export default function AttendanceCalendar(props: Props) {
                         />
                     </form>
 
-                    {options.departments.map((department) => (
-                        <button
-                            key={department.id}
-                            type="button"
-                            onClick={() =>
-                                go({
-                                    filters: {
-                                        departments: toggle(
-                                            filters.departments,
-                                            department.id,
-                                        ),
-                                    },
-                                })
-                            }
-                            className="chip"
-                            data-on={filters.departments.includes(
-                                department.id,
-                            )}
-                        >
-                            {department.name}
-                        </button>
-                    ))}
+                    <MultiSelectFilter
+                        label="Departemen"
+                        options={options.departments}
+                        selected={filters.departments}
+                        onChange={(departments) =>
+                            go({ filters: { departments } })
+                        }
+                    />
 
                     <span className="mx-1 hidden h-5 border-l sm:block" />
 

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { create, exportMethod, index } from '@/routes/leave-requests';
 import type { BreadcrumbItem } from '@/types';
-import type { Option, ValueOption } from '@/types/employee';
+import type { ValueOption } from '@/types/employee';
 import type { LeaveRequestFilters, LeaveRequestRow } from '@/types/leave';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -39,7 +39,7 @@ export default function LeaveRequestsIndex({
 }: {
     requests: LeaveRequestRow[];
     filters: LeaveRequestFilters;
-    options: { types: ValueOption[]; departments: Option[] };
+    options: { types: ValueOption[]; departments: string[] };
     waitingOnMe: number;
     approvedThisMonth: number;
 }) {
@@ -69,7 +69,7 @@ export default function LeaveRequestsIndex({
     }
 
     if (filters.department) {
-        exportQuery.set('department', String(filters.department));
+        exportQuery.set('department', filters.department);
     }
 
     if (filters.month) {
@@ -158,16 +158,14 @@ export default function LeaveRequestsIndex({
                         value={filters.department ?? ''}
                         onChange={(event) =>
                             go({
-                                department: event.target.value
-                                    ? Number(event.target.value)
-                                    : null,
+                                department: event.target.value || null,
                             })
                         }
                     >
                         <option value="">Semua departemen</option>
                         {options.departments.map((department) => (
-                            <option key={department.id} value={department.id}>
-                                {department.name}
+                            <option key={department} value={department}>
+                                {department}
                             </option>
                         ))}
                     </select>

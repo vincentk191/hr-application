@@ -19,7 +19,7 @@ use Illuminate\Support\Collection;
 class EmployeeRoster
 {
     /**
-     * @param  list<int>  $departments
+     * @param  list<string>  $departments
      * @return Collection<int, Employee>
      */
     public function between(CarbonInterface $from, CarbonInterface $to, array $departments = [], string $search = '', ?int $teamLead = null, ?string $leaveType = null): Collection
@@ -28,7 +28,7 @@ class EmployeeRoster
             ->with(['department:id,name', 'position:id,name', 'manager:id,full_name'])
             ->where(fn (Builder $query) => $query->whereNull('joined_on')->orWhereDate('joined_on', '<=', $to->toDateString()))
             ->where(fn (Builder $query) => $query->whereNull('exited_on')->orWhereDate('exited_on', '>=', $from->toDateString()))
-            ->when($departments !== [], fn (Builder $query) => $query->whereIn('department_id', $departments))
+            ->when($departments !== [], fn (Builder $query) => $query->whereHas('department', fn (Builder $department) => $department->whereIn('name', $departments)))
             ->when($search !== '', fn (Builder $query) => $query->where(
                 fn (Builder $inner) => $inner
                     ->where('full_name', 'like', "%{$search}%")

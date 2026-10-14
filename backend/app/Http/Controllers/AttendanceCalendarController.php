@@ -17,6 +17,7 @@ use App\Support\Attendance\EmployeeRoster;
 use App\Support\Attendance\WorkSchedule;
 use App\Support\CompanyContext;
 use App\Support\CsvDownload;
+use App\Support\OrganisationNames;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -72,7 +73,7 @@ class AttendanceCalendarController extends Controller
             'eventForm' => $this->eventForm($request),
             'filters' => $data['filters'],
             'options' => [
-                'departments' => Department::orderBy('name')->get(['id', 'name']),
+                'departments' => OrganisationNames::departments(),
                 'teams' => $roster->teamLeads(),
                 'leaveTypes' => RequestType::query()->ordered()->get()
                     ->map(fn (RequestType $type): array => ['value' => $type->code, 'label' => $type->label])
@@ -183,7 +184,7 @@ class AttendanceCalendarController extends Controller
         $leaveType = RequestType::query()->where('code', $request->string('leave_type')->toString())->value('code');
 
         $filters = [
-            'departments' => array_values(array_filter(array_map('intval', (array) $request->input('departments', [])))),
+            'departments' => OrganisationNames::fromInput($request->input('departments')),
             'statuses' => array_values(array_intersect(
                 (array) $request->input('statuses', []),
                 array_column(AttendanceDayStatus::cases(), 'value'),

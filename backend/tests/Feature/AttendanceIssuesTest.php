@@ -232,7 +232,7 @@ it('filters by type, department and state, and counts per type', function () {
     issues($base.'&types[]=late')->assertInertia(fn (Assert $page) => $page
         ->has('issues', 1)->where('issues.0.name', 'Budi')->where('counts.early_leave', 1)->etc());
 
-    issues($base.'&departments[]='.$ops->id)->assertInertia(fn (Assert $page) => $page
+    issues($base.'&departments[]='.urlencode($ops->name))->assertInertia(fn (Assert $page) => $page
         ->has('issues', 1)->where('issues.0.name', 'Sari')->etc());
 });
 

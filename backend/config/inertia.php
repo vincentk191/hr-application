@@ -33,6 +33,24 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | DevTools
+    |--------------------------------------------------------------------------
+    |
+    | Inertia's DevTools records every page render and works out which source line each
+    | prop was set on. That reads and scans the controller's file once per prop and writes an
+    | entry to storage, and on the Docker dev stack (a Windows bind mount, where every file
+    | operation costs milliseconds) it made a calendar page take two seconds instead of a few
+    | hundred milliseconds. Unset keeps the package default (on while APP_ENV=local); the dev
+    | stack sets INERTIA_DEVTOOLS_ENABLED=false. Turn it back on to debug props.
+    |
+    */
+
+    'devtools' => [
+        'enabled' => env('INERTIA_DEVTOOLS_ENABLED'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Pages
     |--------------------------------------------------------------------------
     |

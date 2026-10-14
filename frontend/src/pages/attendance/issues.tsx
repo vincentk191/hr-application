@@ -1,6 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
+import { MultiSelectFilter } from '@/components/multi-select-filter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { issues as issuesRoute } from '@/routes/attendance';
@@ -9,7 +10,6 @@ import { create as createLeave } from '@/routes/leave-requests';
 import { show as employeeShow } from '@/routes/employees';
 import type { BreadcrumbItem } from '@/types';
 import type { CaptureStatus } from '@/types/attendance';
-import type { Option } from '@/types/employee';
 
 type Issue = {
     key: string;
@@ -35,12 +35,12 @@ type Props = {
         from: string;
         to: string;
         types: string[];
-        departments: number[];
+        departments: string[];
         state: State;
     };
     options: {
         types: { value: string; label: string }[];
-        departments: Option[];
+        departments: string[];
     };
     dataThrough: string | null;
     capture: CaptureStatus;
@@ -248,26 +248,12 @@ export default function AttendanceIssues({
 
                     <span className="mx-1 hidden h-5 border-l sm:block" />
 
-                    {options.departments.map((department) => (
-                        <button
-                            key={department.id}
-                            type="button"
-                            onClick={() =>
-                                go({
-                                    departments: toggle(
-                                        filters.departments,
-                                        department.id,
-                                    ),
-                                })
-                            }
-                            className="chip"
-                            data-on={filters.departments.includes(
-                                department.id,
-                            )}
-                        >
-                            {department.name}
-                        </button>
-                    ))}
+                    <MultiSelectFilter
+                        label="Departemen"
+                        options={options.departments}
+                        selected={filters.departments}
+                        onChange={(departments) => go({ departments })}
+                    />
                 </div>
 
                 {canResolve &&

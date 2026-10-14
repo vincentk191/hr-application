@@ -109,7 +109,7 @@ it('agrees with the calendar for the same days', function () {
     recapData();
 
     $recap = $this->actingAs($this->hr)->get('/attendance/recap?from=2026-10-05&to=2026-10-06')->viewData('page')['props']['total'];
-    $calendar = $this->actingAs($this->hr)->get('/attendance/calendar?view=week&date=2026-10-05&departments[]='.$this->ops->id.'&departments[]='.$this->fin->id)
+    $calendar = $this->actingAs($this->hr)->get('/attendance/calendar?view=week&date=2026-10-05&departments[]='.urlencode($this->ops->name).'&departments[]='.urlencode($this->fin->name))
         ->viewData('page')['props']['summary']['counts'];
 
     // The calendar's week also counts 7-9 October (no data) and the weekend; compare what is judged.
@@ -125,7 +125,7 @@ it('narrows by department, search and period', function () {
 
     $names = fn (string $query) => collect($this->actingAs($this->hr)->get($base.$query)->viewData('page')['props']['rows'])->pluck('name')->all();
 
-    expect($names('&departments[]='.$this->fin->id))->toBe(['Dewi'])
+    expect($names('&departments[]='.urlencode($this->fin->name)))->toBe(['Dewi'])
         ->and($names('&search=Sar'))->toBe(['Sari'])
         ->and(collect($this->actingAs($this->hr)->get('/attendance/recap?from=2026-10-05&to=2026-10-05')->viewData('page')['props']['rows'])->sum('absent'))->toBe(0);
 });
@@ -185,7 +185,7 @@ it('exports the calendar as the grid that was on screen, with a letter and times
 it('exports the same filtered rows as the page shows', function () {
     recapData();
 
-    $csv = $this->actingAs($this->hr)->get('/attendance/calendar/export?view=week&date=2026-10-05&departments[]='.$this->fin->id)
+    $csv = $this->actingAs($this->hr)->get('/attendance/calendar/export?view=week&date=2026-10-05&departments[]='.urlencode($this->fin->name))
         ->streamedContent();
 
     expect($csv)->toContain('Dewi')->not->toContain('Budi')->not->toContain('Sari');

@@ -6,13 +6,13 @@ use App\Enums\AttendanceIssueType;
 use App\Enums\Permission;
 use App\Http\Requests\ResolveAttendanceIssuesRequest;
 use App\Models\AttendanceIssueResolution;
-use App\Models\Department;
 use App\Models\Employee;
 use App\Support\Attendance\CaptureStatus;
 use App\Support\Attendance\DailyAttendance;
 use App\Support\Attendance\DateRangeInput;
 use App\Support\Attendance\EmployeeRoster;
 use App\Support\Attendance\IssueDetector;
+use App\Support\OrganisationNames;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -51,7 +51,7 @@ class AttendanceIssueController extends Controller
                 (array) $request->input('types', []),
                 array_map(fn (AttendanceIssueType $type): string => $type->value, AttendanceIssueType::cases()),
             )),
-            'departments' => array_values(array_filter(array_map('intval', (array) $request->input('departments', [])))),
+            'departments' => OrganisationNames::fromInput($request->input('departments')),
             'state' => in_array($request->string('state')->toString(), ['open', 'resolved', 'all'], true)
                 ? $request->string('state')->toString()
                 : 'open',
@@ -84,7 +84,7 @@ class AttendanceIssueController extends Controller
             'filters' => $filters,
             'options' => [
                 'types' => array_map(fn (AttendanceIssueType $type): array => ['value' => $type->value, 'label' => $type->label()], AttendanceIssueType::cases()),
-                'departments' => Department::orderBy('name')->get(['id', 'name']),
+                'departments' => OrganisationNames::departments(),
             ],
             'dataThrough' => $attendance->dataThrough($timezone),
             'capture' => $capture->resolve(),

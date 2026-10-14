@@ -3,6 +3,8 @@ import { useState } from 'react';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import { EmployeeDrawer } from '@/components/employee-drawer';
 import { EmployeeOrgChart } from '@/components/employee-org-chart';
+import { MultiSelectFilter } from '@/components/multi-select-filter';
+import { Pagination, usePagination } from '@/components/pagination';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,7 +20,6 @@ import type { BreadcrumbItem } from '@/types';
 import type {
     EmployeeFilters,
     EmployeeRow,
-    Option,
     ValueOption,
 } from '@/types/employee';
 
@@ -30,8 +31,8 @@ type Props = {
     employees: EmployeeRow[];
     filters: EmployeeFilters;
     total: number;
-    departments: Option[];
-    positions: Option[];
+    departments: string[];
+    positions: string[];
     statuses: ValueOption[];
     canCreate: boolean;
 };
@@ -61,6 +62,9 @@ export default function EmployeesIndex({
 }: Props) {
     const [search, setSearch] = useState(filters.search);
     const [openId, setOpenId] = useState<number | null>(null);
+    // The directory arrives whole; the list and grid page through it, the org chart needs it all.
+    const pagination = usePagination(employees.length);
+    const pageOfEmployees = pagination.slice(employees);
 
     const apply = (changes: Partial<EmployeeFilters>) => {
         router.get(
@@ -68,15 +72,6 @@ export default function EmployeesIndex({
             { ...filters, search, ...changes },
             { preserveState: true, preserveScroll: true, replace: true },
         );
-    };
-
-    const toggle = (key: 'departments' | 'positions', id: number) => {
-        const current = filters[key];
-        apply({
-            [key]: current.includes(id)
-                ? current.filter((value) => value !== id)
-                : [...current, id],
-        });
     };
 
     const toggleStatus = (value: string) => {
@@ -91,8 +86,8 @@ export default function EmployeesIndex({
     const exportUrl = `${exportMethod().url}?${new URLSearchParams([
         ['search', search],
         ['sort', filters.sort],
-        ...filters.departments.map((id) => ['departments[]', String(id)]),
-        ...filters.positions.map((id) => ['positions[]', String(id)]),
+        ...filters.departments.map((name) => ['departments[]', name]),
+        ...filters.positions.map((name) => ['positions[]', name]),
         ...filters.statuses.map((value) => ['statuses[]', value]),
     ]).toString()}`;
 
@@ -180,17 +175,17 @@ export default function EmployeesIndex({
                         </button>
                     ))}
 
-                    <Dropdown
+                    <MultiSelectFilter
                         label="Departemen"
                         options={departments}
                         selected={filters.departments}
-                        onToggle={(id) => toggle('departments', id)}
+                        onChange={(departments) => apply({ departments })}
                     />
-                    <Dropdown
+                    <MultiSelectFilter
                         label="Jabatan"
                         options={positions}
                         selected={filters.positions}
-                        onToggle={(id) => toggle('positions', id)}
+                        onChange={(positions) => apply({ positions })}
                     />
                 </div>
 
@@ -229,133 +224,162 @@ export default function EmployeesIndex({
                 )}
 
                 {filters.view === 'grid' && (
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                        {employees.map((employee) => (
-                            <Link
-                                key={employee.id}
-                                href={show(employee.id).url}
-                                onClick={(event) =>
-                                    openInDrawer(event, employee.id, setOpenId)
-                                }
-                                className="surface flex items-start gap-3 p-4 hover:bg-muted/50"
-                            >
-                                <EmployeeAvatar
-                                    name={employee.name}
-                                    photoUrl={employee.photoUrl}
-                                    className="size-14"
-                                />
-                                <div className="flex min-w-0 flex-col gap-1">
-                                    <span className="truncate font-medium">
-                                        {employee.name}
-                                    </span>
-                                    <span className="font-mono text-xs text-muted-foreground">
-                                        {employee.number}
-                                    </span>
-                                    <span className="text-sm text-muted-foreground">
-                                        {employee.position ?? '—'}
-                                        {employee.department
-                                            ? ` · ${employee.department}`
-                                            : ''}
-                                    </span>
-                                    <Badge
-                                        variant={
-                                            employee.isActive
-                                                ? 'default'
-                                                : 'secondary'
-                                        }
-                                        className="mt-2 w-fit"
-                                    >
-                                        {employee.status}
-                                    </Badge>
-                                </div>
-                            </Link>
-                        ))}
-                        {employees.length === 0 && (
-                            <p className="surface col-span-full p-6 text-center text-sm text-muted-foreground">
-                                Tidak ada karyawan.
-                            </p>
-                        )}
-                    </div>
+                    <>
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            {pageOfEmployees.map((employee) => (
+                                <Link
+                                    key={employee.id}
+                                    href={show(employee.id).url}
+                                    onClick={(event) =>
+                                        openInDrawer(
+                                            event,
+                                            employee.id,
+                                            setOpenId,
+                                        )
+                                    }
+                                    className="surface flex items-start gap-3 p-4 hover:bg-muted/50"
+                                >
+                                    <EmployeeAvatar
+                                        name={employee.name}
+                                        photoUrl={employee.photoUrl}
+                                        className="size-14"
+                                    />
+                                    <div className="flex min-w-0 flex-col gap-1">
+                                        <span className="truncate font-medium">
+                                            {employee.name}
+                                        </span>
+                                        <span className="font-mono text-xs text-muted-foreground">
+                                            {employee.number}
+                                            {employee.company
+                                                ? ` · ${employee.company}`
+                                                : ''}
+                                        </span>
+                                        <span className="text-sm text-muted-foreground">
+                                            {employee.position ?? '—'}
+                                            {employee.department
+                                                ? ` · ${employee.department}`
+                                                : ''}
+                                        </span>
+                                        <Badge
+                                            variant={
+                                                employee.isActive
+                                                    ? 'default'
+                                                    : 'secondary'
+                                            }
+                                            className="mt-2 w-fit"
+                                        >
+                                            {employee.status}
+                                        </Badge>
+                                    </div>
+                                </Link>
+                            ))}
+                            {employees.length === 0 && (
+                                <p className="surface col-span-full p-6 text-center text-sm text-muted-foreground">
+                                    Tidak ada karyawan.
+                                </p>
+                            )}
+                        </div>
+                        <div className="surface empty:hidden">
+                            <Pagination pagination={pagination} />
+                        </div>
+                    </>
                 )}
 
                 {filters.view === 'list' && (
-                    <div className="surface overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead className="bg-muted/50 text-left">
-                                <tr>
-                                    <th className="p-3 font-medium">ID</th>
-                                    <th className="p-3 font-medium">Nama</th>
-                                    <th className="p-3 font-medium">
-                                        Departemen
-                                    </th>
-                                    <th className="p-3 font-medium">Jabatan</th>
-                                    <th className="hidden p-3 font-medium md:table-cell">
-                                        Atasan
-                                    </th>
-                                    <th className="hidden p-3 font-medium md:table-cell">
-                                        Bergabung
-                                    </th>
-                                    <th className="p-3 font-medium">Status</th>
-                                    <th className="hidden p-3 font-medium md:table-cell">
-                                        Akun
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {employees.length === 0 && (
+                    <div className="surface">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead className="bg-muted/50 text-left">
                                     <tr>
-                                        <td
-                                            colSpan={8}
-                                            className="p-6 text-center text-muted-foreground"
-                                        >
-                                            Tidak ada karyawan.
-                                        </td>
+                                        <th className="p-3 font-medium">ID</th>
+                                        <th className="p-3 font-medium">
+                                            Nama
+                                        </th>
+                                        <th className="p-3 font-medium">
+                                            Perusahaan
+                                        </th>
+                                        <th className="p-3 font-medium">
+                                            Departemen
+                                        </th>
+                                        <th className="p-3 font-medium">
+                                            Jabatan
+                                        </th>
+                                        <th className="hidden p-3 font-medium md:table-cell">
+                                            Atasan
+                                        </th>
+                                        <th className="hidden p-3 font-medium md:table-cell">
+                                            Bergabung
+                                        </th>
+                                        <th className="p-3 font-medium">
+                                            Status
+                                        </th>
+                                        <th className="hidden p-3 font-medium md:table-cell">
+                                            Akun
+                                        </th>
                                     </tr>
-                                )}
-                                {employees.map((employee) => (
-                                    <tr
-                                        key={employee.id}
-                                        className="cursor-pointer border-t hover:bg-muted/40"
-                                        onClick={() => setOpenId(employee.id)}
-                                    >
-                                        <td className="p-3 font-mono text-xs whitespace-nowrap">
-                                            {employee.number}
-                                        </td>
-                                        <td className="p-3 font-medium">
-                                            {employee.name}
-                                        </td>
-                                        <td className="p-3">
-                                            {employee.department ?? '—'}
-                                        </td>
-                                        <td className="p-3">
-                                            {employee.position ?? '—'}
-                                        </td>
-                                        <td className="hidden p-3 md:table-cell">
-                                            {employee.manager ?? '—'}
-                                        </td>
-                                        <td className="hidden p-3 md:table-cell">
-                                            {employee.joinedOn ?? '—'}
-                                        </td>
-                                        <td className="p-3">
-                                            <Badge
-                                                variant={
-                                                    employee.isActive
-                                                        ? 'default'
-                                                        : 'secondary'
-                                                }
+                                </thead>
+                                <tbody>
+                                    {employees.length === 0 && (
+                                        <tr>
+                                            <td
+                                                colSpan={9}
+                                                className="p-6 text-center text-muted-foreground"
                                             >
-                                                {employee.status}
-                                            </Badge>
-                                        </td>
-                                        <td className="hidden p-3 text-muted-foreground md:table-cell">
-                                            {employee.hasLogin
-                                                ? 'Ada'
-                                                : 'Data saja'}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                                Tidak ada karyawan.
+                                            </td>
+                                        </tr>
+                                    )}
+                                    {pageOfEmployees.map((employee) => (
+                                        <tr
+                                            key={employee.id}
+                                            className="cursor-pointer border-t hover:bg-muted/40"
+                                            onClick={() =>
+                                                setOpenId(employee.id)
+                                            }
+                                        >
+                                            <td className="p-3 font-mono text-xs whitespace-nowrap">
+                                                {employee.number}
+                                            </td>
+                                            <td className="p-3 font-medium">
+                                                {employee.name}
+                                            </td>
+                                            <td className="p-3">
+                                                {employee.company ?? '—'}
+                                            </td>
+                                            <td className="p-3">
+                                                {employee.department ?? '—'}
+                                            </td>
+                                            <td className="p-3">
+                                                {employee.position ?? '—'}
+                                            </td>
+                                            <td className="hidden p-3 md:table-cell">
+                                                {employee.manager ?? '—'}
+                                            </td>
+                                            <td className="hidden p-3 md:table-cell">
+                                                {employee.joinedOn ?? '—'}
+                                            </td>
+                                            <td className="p-3">
+                                                <Badge
+                                                    variant={
+                                                        employee.isActive
+                                                            ? 'default'
+                                                            : 'secondary'
+                                                    }
+                                                >
+                                                    {employee.status}
+                                                </Badge>
+                                            </td>
+                                            <td className="hidden p-3 text-muted-foreground md:table-cell">
+                                                {employee.hasLogin
+                                                    ? 'Ada'
+                                                    : 'Data saja'}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        <Pagination pagination={pagination} />
                     </div>
                 )}
             </div>
@@ -366,56 +390,6 @@ export default function EmployeesIndex({
                 onClose={() => setOpenId(null)}
             />
         </>
-    );
-}
-
-/** A small multi-select, enough for the directory's two list filters. */
-function Dropdown({
-    label,
-    options,
-    selected,
-    onToggle,
-}: {
-    label: string;
-    options: Option[];
-    selected: number[];
-    onToggle: (id: number) => void;
-}) {
-    const [open, setOpen] = useState(false);
-
-    return (
-        <div className="relative">
-            <button
-                type="button"
-                onClick={() => setOpen((value) => !value)}
-                className="rounded-md border px-3 py-1 text-xs"
-            >
-                {label}
-                {selected.length > 0 && ` (${selected.length})`}
-            </button>
-            {open && (
-                <div className="absolute z-20 mt-1 max-h-64 w-56 overflow-auto rounded-md border bg-background p-2 shadow-md">
-                    {options.length === 0 && (
-                        <p className="p-2 text-xs text-muted-foreground">
-                            Belum ada data.
-                        </p>
-                    )}
-                    {options.map((option) => (
-                        <label
-                            key={option.id}
-                            className="flex cursor-pointer items-center gap-2 rounded p-1.5 text-sm hover:bg-muted"
-                        >
-                            <input
-                                type="checkbox"
-                                checked={selected.includes(option.id)}
-                                onChange={() => onToggle(option.id)}
-                            />
-                            {option.name}
-                        </label>
-                    ))}
-                </div>
-            )}
-        </div>
     );
 }
 

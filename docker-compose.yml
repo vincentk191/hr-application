@@ -62,6 +62,9 @@ services:
             # browser-reachable URL this container cannot use. See backend/config/inertia.php.
             INERTIA_SSR_ENABLED: 'false'
             INERTIA_SSR_HOT_URL: http://vite:5173
+            # Inertia DevTools records every render and scans controller sources for prop lines; over
+            # the Windows bind mount that costs 1-2s on the heavier pages. Set to 'true' to debug props.
+            INERTIA_DEVTOOLS_ENABLED: 'false'
             # `artisan serve` is single-worker by default, so one slow request blocks the next.
             PHP_CLI_SERVER_WORKERS: '4'
         ports:
