@@ -42,10 +42,12 @@ class UpdateLeaveRequestRequest extends FormRequest
     {
         return [
             function (Validator $validator): void {
-                $this->checkLeaveLimit($validator);
-
                 /** @var LeaveRequest $leave */
                 $leave = $this->route('leaveRequest');
+
+                $this->checkLeaveLimit($validator);
+                $this->checkBackdating($validator, $leave->start_on);
+
                 $removing = count(array_filter((array) $this->input('remove_attachments', []), fn ($id): bool => $leave->attachments->contains('id', (int) $id)));
                 $adding = count((array) $this->file('attachments', []));
 

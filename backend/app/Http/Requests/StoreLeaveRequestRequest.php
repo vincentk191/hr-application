@@ -43,6 +43,7 @@ class StoreLeaveRequestRequest extends FormRequest
         return [
             function (Validator $validator): void {
                 $this->checkLeaveLimit($validator);
+                $this->checkBackdating($validator);
 
                 if ($validator->errors()->has('employee_id')) {
                     return;
@@ -58,14 +59,12 @@ class StoreLeaveRequestRequest extends FormRequest
                     return;
                 }
 
-                // Filing for someone else is an HR action (REQ-DSH-005). Filing for yourself
-                // needs no extra permission.
-                $isSelf = $employee->user_id !== null && $employee->user_id === $this->user()?->id;
-
-                if (! $isSelf && $this->user()?->cannot('createOnBehalf', LeaveRequest::class)) {
+                // Filing for someone else is for HR Admin (anyone in the company) and Management
+                // (their downline) only (REQ-DSH-005). Filing for yourself needs no extra permission.
+                if ($this->user()?->cannot('fileFor', [LeaveRequest::class, $employee])) {
                     $validator->errors()->add(
                         'employee_id',
-                        'Anda hanya dapat mengajukan cuti untuk diri sendiri.',
+                        'Anda tidak dapat mengajukan pengajuan untuk karyawan ini.',
                     );
                 }
             },

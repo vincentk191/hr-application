@@ -7,6 +7,7 @@ use App\Models\LeaveRequest;
 use App\Models\RequestType;
 use App\Support\Leave\LeaveLimits;
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -85,6 +86,41 @@ trait ValidatesLeaveRequestFields
      * The employee the request is for, so its days can be counted for their company and department.
      */
     abstract protected function leaveEmployee(): ?Employee;
+
+    /**
+     * Refuse a start date in the past (REQ-WIZ-014): today (Asia/Jakarta) is always fine; earlier is
+     * for HR Admin and Management, or within the kind's "boleh mundur" calendar days. A correction
+     * that leaves the start date as it was is not a new backdated request, so it passes.
+     */
+    protected function checkBackdating(Validator $validator, ?CarbonInterface $unchangedStart = null): void
+    {
+        foreach (['leave_type', 'start_on'] as $field) {
+            if ($validator->errors()->has($field)) {
+                return;
+            }
+        }
+
+        $start = CarbonImmutable::parse((string) $this->input('start_on'))->startOfDay();
+        $today = CarbonImmutable::parse(CarbonImmutable::now((string) config('attendance.device_timezone'))->format('Y-m-d'));
+
+        if ($start >= $today || ($unchangedStart !== null && $start->isSameDay($unchangedStart))) {
+            return;
+        }
+
+        if ($this->user()?->can('backdate', LeaveRequest::class) === true) {
+            return;
+        }
+
+        $type = RequestType::query()->where('code', (string) $this->input('leave_type'))->first();
+        $allowed = $type === null ? null : app(LeaveLimits::class)->backDays($type->code);
+        $daysBack = (int) $start->diffInDays($today);
+
+        if ($allowed === null) {
+            $validator->errors()->add('start_on', 'Hari pertama tidak boleh sebelum hari ini.');
+        } elseif ($daysBack > $allowed) {
+            $validator->errors()->add('start_on', "{$type->label} hanya boleh dimulai paling lama {$allowed} hari ke belakang.");
+        }
+    }
 
     /**
      * Refuse a request that covers no working day, and one longer than HR allows for its type. The

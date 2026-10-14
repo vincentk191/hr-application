@@ -55,7 +55,7 @@ class SearchController extends Controller
     {
         $pages = [
             ['Dashboard', 'dashboard', true],
-            ['Karyawan', 'employees.index', $user->can(Permission::ViewEmployees->value)],
+            ['Karyawan', 'employees.index', $user->can('viewAny', Employee::class)],
             ['Pengajuan', 'leave-requests.index', true],
             ['Buat pengajuan', 'leave-requests.create', true],
             ['Notifikasi', 'notifications.index', true],
@@ -93,6 +93,7 @@ class SearchController extends Controller
         $like = $this->like($query);
 
         $found = Employee::query()
+            ->visibleTo($user)
             ->with(['department:id,name', 'position:id,name'])
             ->where(fn (Builder $inner) => $inner
                 ->whereRaw("lower(full_name) like ? escape '!'", [$like])

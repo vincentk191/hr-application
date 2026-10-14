@@ -299,9 +299,12 @@ export function EmployeeForm({
                         />
                         <TextField
                             name="national_id"
-                            label="NIK"
+                            label="NIK (16 digit, dipakai karyawan untuk mendaftar)"
                             defaultValue={employee?.contact.national_id}
                             error={errors.national_id}
+                            inputMode="numeric"
+                            maxLength={16}
+                            required
                         />
                         <TextField
                             name="emergency_contact_name"

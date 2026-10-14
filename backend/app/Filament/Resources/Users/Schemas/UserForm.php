@@ -23,7 +23,6 @@ class UserForm
                 TextInput::make('email')
                     ->label('Email')
                     ->email()
-                    ->required()
                     ->maxLength(255)
                     ->unique(ignoreRecord: true),
                 Toggle::make('is_active')

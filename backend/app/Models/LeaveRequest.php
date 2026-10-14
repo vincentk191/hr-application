@@ -4,8 +4,8 @@ namespace App\Models;
 
 use App\Concerns\BelongsToCompany;
 use App\Concerns\HasWorkflow;
-use App\Enums\Permission;
 use App\Support\Attendance\WorkingDays;
+use App\Support\ReportingLine;
 use Carbon\CarbonInterface;
 use Database\Factories\LeaveRequestFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -74,20 +74,23 @@ class LeaveRequest extends Model
     }
 
     /**
-     * The requests this person may see: all of them for roles that can see employees (the company
-     * scope still applies), otherwise their own and the ones they are asked to approve.
+     * The requests this person may see: all of them for holders of the company-wide permission (the
+     * company scope still applies), otherwise those of themselves and their downline, and the ones
+     * they are asked to approve (CORE-RBA-004).
      *
      * @param  Builder<static>  $query
      */
     #[Scope]
     protected function visibleTo(Builder $query, User $user): void
     {
-        if ($user->can(Permission::ViewEmployees->value)) {
+        $ids = app(ReportingLine::class)->visibleIds($user);
+
+        if ($ids === null) {
             return;
         }
 
-        $query->where(function (Builder $inner) use ($user): void {
-            $inner->whereHas('employee', fn (Builder $employee) => $employee->where('user_id', $user->id))
+        $query->where(function (Builder $inner) use ($user, $ids): void {
+            $inner->whereIn('employee_id', $ids)
                 ->orWhereHas('workflow.steps', fn (Builder $step) => $step->where('approver_user_id', $user->id));
         });
     }

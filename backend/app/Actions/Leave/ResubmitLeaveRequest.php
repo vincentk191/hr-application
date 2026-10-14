@@ -75,7 +75,9 @@ class ResubmitLeaveRequest
             return $leave;
         });
 
-        app(Notifier::class)->leaveSubmitted($result->refresh(), $by, resubmitted: true);
+        if (! $this->submit->approveIfFiledByAtasan($result->refresh(), $by)) {
+            app(Notifier::class)->leaveSubmitted($result, $by, resubmitted: true);
+        }
 
         return $result;
     }

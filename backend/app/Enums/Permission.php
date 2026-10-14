@@ -14,6 +14,7 @@ enum Permission: string
     case ManageUsers = 'manage-users';
     case ManageOrganisation = 'manage-organisation';
     case ViewEmployees = 'view-employees';
+    case ViewAllEmployees = 'view-all-employees';
     case CreateEmployees = 'create-employees';
     case UpdateEmployees = 'update-employees';
     case AccessAdminPanel = 'access-admin-panel';
@@ -36,6 +37,7 @@ enum Permission: string
             self::ManageUsers => 'Kelola pengguna dan peran',
             self::ManageOrganisation => 'Kelola departemen dan jabatan',
             self::ViewEmployees => 'Lihat data karyawan',
+            self::ViewAllEmployees => 'Lihat seluruh karyawan (bukan hanya bawahan sendiri)',
             self::CreateEmployees => 'Tambah karyawan',
             self::UpdateEmployees => 'Ubah data karyawan',
             self::AccessAdminPanel => 'Akses panel admin',

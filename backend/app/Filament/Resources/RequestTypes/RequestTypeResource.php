@@ -84,6 +84,13 @@ class RequestTypeResource extends Resource
                 ->integer()
                 ->minValue(1)
                 ->maxValue(365),
+            TextInput::make('max_back_days')
+                ->label('Boleh mundur (hari)')
+                ->helperText('Berapa hari kalender ke belakang pengajuan jenis ini boleh dimulai, mis. 3 untuk cuti sakit. Kosongkan jika tidak boleh mundur. Admin HR dan Manajemen tidak dibatasi.')
+                ->numeric()
+                ->integer()
+                ->minValue(1)
+                ->maxValue(365),
             TextInput::make('sort_order')
                 ->label('Urutan')
                 ->helperText('Yang lebih kecil tampil lebih dulu di formulir.')
@@ -105,6 +112,7 @@ class RequestTypeResource extends Resource
                 TextColumn::make('label')->label('Nama')->searchable()->sortable(),
                 TextColumn::make('code')->label('Kode')->color('gray'),
                 TextColumn::make('max_days')->label('Maks. hari kerja')->placeholder('Tanpa batas')->sortable(),
+                TextColumn::make('max_back_days')->label('Boleh mundur')->placeholder('Tidak')->suffix(' hari')->sortable(),
                 TextColumn::make('requests_count')
                     ->label('Dipakai')
                     ->state(fn (RequestType $record): int => LeaveRequest::acrossCompanies()->where('leave_type', $record->code)->count()),

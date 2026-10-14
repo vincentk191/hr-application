@@ -118,6 +118,8 @@ it('lets an employee see their own timesheet but not correct it', function () {
 
 it('withholds the timesheet from a role that may view the profile but not attendance', function () {
     $supervisor = tabUser(Role::Supervisor, $this->company);
+    $boss = Employee::factory()->forCompany($this->company)->create(['user_id' => $supervisor->id]);
+    $this->budi->update(['manager_id' => $boss->id]);
 
     $this->actingAs($supervisor)->get(route('employees.show', $this->budi))
         ->assertInertia(fn (Assert $page) => $page->where('attendance', null));

@@ -48,7 +48,7 @@ class AttendanceRecapController extends Controller
             'search' => trim((string) $request->string('search')),
         ];
 
-        $employees = $roster->between($from, $to, $filters['departments'], $filters['search'], $filters['team']);
+        $employees = $roster->between($from, $to, $filters['departments'], $filters['search'], $filters['team'], viewer: $request->user());
         $result = $recap->build($from, $to, $employees);
 
         if ($request->string('export')->toString() === 'csv') {
@@ -63,8 +63,8 @@ class AttendanceRecapController extends Controller
             'total' => $result['total'] + ['employees' => count($result['rows'])],
             'filters' => $filters,
             'options' => [
-                'departments' => OrganisationNames::departments(),
-                'teams' => $roster->teamLeads(),
+                'departments' => OrganisationNames::departments($request->user()),
+                'teams' => $roster->teamLeads($request->user()),
             ],
             'dataThrough' => $result['dataThrough'],
             'capture' => $capture->resolve(),

@@ -8,14 +8,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { store } from '@/routes/login';
+import { register } from '@/routes';
 import { request } from '@/routes/password';
 
 type Props = {
     status?: string;
     canResetPassword: boolean;
+    canRegister: boolean;
 };
 
-export default function Login({ status, canResetPassword }: Props) {
+export default function Login({ status, canResetPassword, canRegister }: Props) {
     return (
         <>
             <Head title="Masuk" />
@@ -89,6 +91,15 @@ export default function Login({ status, canResetPassword }: Props) {
                                 Masuk
                             </Button>
                         </div>
+
+                        {canRegister && (
+                            <div className="text-center text-sm text-muted-foreground">
+                                Belum punya akun?{' '}
+                                <TextLink href={register()} tabIndex={6}>
+                                    Daftar
+                                </TextLink>
+                            </div>
+                        )}
                     </>
                 )}
             </Form>

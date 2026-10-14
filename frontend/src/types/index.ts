@@ -4,4 +4,5 @@ export type * from './employee';
 export type * from './leave';
 export type * from './navigation';
 export type * from './notification';
+export type * from './profile-change';
 export type * from './ui';

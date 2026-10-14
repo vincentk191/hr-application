@@ -84,6 +84,8 @@ class ImportEmployees
         $existing = Employee::acrossCompanies()->where('company_id', $companyId)->pluck('id', 'employee_number')
             ->mapWithKeys(fn (int $id, string $number): array => [mb_strtolower($number) => $id])->all();
 
+        $takenNiks = Employee::acrossCompanies()->whereNotNull('national_id')->pluck('national_id')->flip()->all();
+
         $valid = [];
         $duplicates = 0;
 
@@ -103,6 +105,15 @@ class ImportEmployees
 
                 continue;
             }
+
+            // NIK is unique across the group: against what is already stored and against the file.
+            if (isset($takenNiks[$row['national_id']])) {
+                $errors[] = "Baris {$row['line']}: NIK {$row['national_id']} sudah terdaftar pada karyawan lain.";
+
+                continue;
+            }
+
+            $takenNiks[$row['national_id']] = true;
 
             $valid[$key] = ['line' => $row['line'], 'manager' => $row['manager'], 'record' => $record];
         }
@@ -295,8 +306,10 @@ class ImportEmployees
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'max:50'],
             'address' => ['nullable', 'max:1000'],
-            'national_id' => ['nullable', 'max:50'],
+            'national_id' => ['required', 'regex:/^\d{16}$/'],
         ], [
+            'national_id.required' => 'NIK kosong.',
+            'national_id.regex' => 'NIK harus 16 digit angka (jika Excel mengubahnya menjadi 3,17E+15, format kolomnya sebagai teks).',
             'employee_number.max' => 'ID karyawan terlalu panjang.',
             'full_name.max' => 'nama terlalu panjang.',
             'email.email' => 'email tidak valid.',

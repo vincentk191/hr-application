@@ -57,7 +57,7 @@ class AttendanceIssueController extends Controller
                 : 'open',
         ];
 
-        $employees = $roster->between($from, $to, $filters['departments']);
+        $employees = $roster->between($from, $to, $filters['departments'], viewer: $request->user());
         $found = $detector->detect($from, $to, $employees);
 
         $inState = array_values(array_filter($found, fn (array $issue): bool => match ($filters['state']) {
@@ -84,7 +84,7 @@ class AttendanceIssueController extends Controller
             'filters' => $filters,
             'options' => [
                 'types' => array_map(fn (AttendanceIssueType $type): array => ['value' => $type->value, 'label' => $type->label()], AttendanceIssueType::cases()),
-                'departments' => OrganisationNames::departments(),
+                'departments' => OrganisationNames::departments($request->user()),
             ],
             'dataThrough' => $attendance->dataThrough($timezone),
             'capture' => $capture->resolve(),

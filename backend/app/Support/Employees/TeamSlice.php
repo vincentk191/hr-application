@@ -3,6 +3,7 @@
 namespace App\Support\Employees;
 
 use App\Models\Employee;
+use App\Models\User;
 use App\Support\Attendance\DailyAttendance;
 use App\Support\Attendance\EmployeeRoster;
 use Carbon\CarbonImmutable;
@@ -40,16 +41,18 @@ class TeamSlice
      *     onLeaveToday: array<int, string>|null
      * }
      */
-    public function for(Employee $employee, bool $withAttendance): array
+    public function for(Employee $employee, bool $withAttendance, ?User $viewer = null): array
     {
-        $supervisor = $employee->manager_id === null ? null : Employee::query()->with('position:id,name')->find($employee->manager_id);
-        $grand = $supervisor?->manager_id === null ? null : Employee::query()->with('position:id,name')->find($supervisor->manager_id);
+        $supervisor = $employee->manager_id === null ? null : $this->visible($viewer)->find($employee->manager_id);
+        $grand = $supervisor?->manager_id === null ? null : $this->visible($viewer)->find($supervisor->manager_id);
 
         $peers = $supervisor === null
             ? collect([$employee->loadMissing('position:id,name')])
-            : $this->active()->where('manager_id', $supervisor->id)->orWhereKey($employee->id)->orderBy('full_name')->get();
+            : $this->visible($viewer)->active()
+                ->where(fn (Builder $query) => $query->where('manager_id', $supervisor->id)->orWhereKey($employee->id))
+                ->orderBy('full_name')->get();
 
-        $reports = $this->active()->where('manager_id', $employee->id)->orderBy('full_name')->get();
+        $reports = $this->active()->when($viewer !== null, fn (Builder $query) => $query->visibleTo($viewer))->where('manager_id', $employee->id)->orderBy('full_name')->get();
 
         $team = $reports->isNotEmpty() ? $reports : $peers;
         [$present, $onLeave] = $withAttendance ? $this->today($team) : [null, null];
@@ -72,6 +75,17 @@ class TeamSlice
     private function active(): Builder
     {
         return Employee::query()->with('position:id,name')->active();
+    }
+
+    /**
+     * Employees the viewer may see, so the slice never names someone above or beside them.
+     *
+     * @return Builder<Employee>
+     */
+    private function visible(?User $viewer): Builder
+    {
+        return Employee::query()->with('position:id,name')
+            ->when($viewer !== null, fn (Builder $query) => $query->visibleTo($viewer));
     }
 
     /**

@@ -22,12 +22,13 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string $code
  * @property string $label
  * @property int|null $max_days
+ * @property int|null $max_back_days
  * @property bool $is_active
  * @property int $sort_order
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['code', 'label', 'max_days', 'is_active', 'sort_order'])]
+#[Fillable(['code', 'label', 'max_days', 'max_back_days', 'is_active', 'sort_order'])]
 class RequestType extends Model
 {
     use LogsActivity;
@@ -49,6 +50,7 @@ class RequestType extends Model
         return [
             'is_active' => 'boolean',
             'max_days' => 'integer',
+            'max_back_days' => 'integer',
             'sort_order' => 'integer',
         ];
     }
@@ -100,7 +102,7 @@ class RequestType extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['code', 'label', 'max_days', 'is_active', 'sort_order'])
+            ->logOnly(['code', 'label', 'max_days', 'max_back_days', 'is_active', 'sort_order'])
             ->logOnlyDirty()
             ->dontLogEmptyChanges()
             ->useLogName('request-types');

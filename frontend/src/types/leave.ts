@@ -59,6 +59,8 @@ export type LeaveTypeOption = {
     label: string;
     /** Longest a single request of this type may be, or null for no limit. */
     maxDays: number | null;
+    /** How many calendar days back a request of this type may start, or null for none. */
+    backDays: number | null;
 };
 
 export type EmployeeOption = {

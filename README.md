@@ -13,7 +13,7 @@ The full spec lives outside this repo in `../docs/`:
 | Document                                                | What it is                                                         |
 | ------------------------------------------------------- | ------------------------------------------------------------------ |
 | `../docs/context.md`                                    | The living spec: scope, architecture, decisions, process flows     |
-| `../docs/HR_Dashboard_Features_and_Test_Scenarios.xlsx` | **Master** screen / feature / test list — 57 screens, 324 feature rows (10 of them removed, see `ATT-LVE`), 258 test cases |
+| `../docs/HR_Dashboard_Features_and_Test_Scenarios.xlsx` | **Master** screen / feature / test list — 59 screens, 339 feature rows (10 of them removed, see `ATT-LVE`), 281 test cases |
 | `../docs/dev-concepts.md`                               | Learning log: one entry per Laravel concept this app uses, and why |
 | `../ATTENDANCE-SYNC.md`                                 | The Fingerspot scanner pipeline design and probe runbook           |
 
@@ -29,7 +29,7 @@ listed in the checklist below. Nothing here is committed yet: changes are left f
 
 |                 |                                                                                                              |
 | --------------- | ------------------------------------------------------------------------------------------------------------ |
-| Tests           | 518 passing                                                                                                  |
+| Tests           | 583 passing                                                                                                  |
 | Static analysis | PHPStan level 7, 0 errors                                                                                    |
 | Phase 0         | **Complete** — company scoping, RBAC, workflow engine, account state and login rules                         |
 | Phase 1         | Directory (with CSV import/export), profile, add/edit, documents, admin panel done                           |
@@ -54,6 +54,24 @@ listed in the checklist below. Nothing here is committed yet: changes are left f
 | Tests                       | Pest (SQLite in-memory)                                                                                                                                       |
 | Background work             | Database queue driver — no Redis                                                                                                                              |
 | Local environment           | Docker Compose: `app` + `queue` + `vite` + `db`. Host PHP/Node optional                                                                                       |
+
+---
+
+## Releases
+
+The release number lives in one file, `backend/VERSION` (currently `0.1.0`). From it:
+`config('app.version')`, the "v0.1.0" under the side menu, the shared Inertia prop `version`, and
+`php artisan about` ("HR Dashboard › Version").
+
+Semantic versioning, so the number says how big a change is: **patch** (0.1.1) for a fix, **minor**
+(0.2.0) for new behaviour, **major** (1.0.0) for anything that changes how people work. Before 1.0.0
+a minor may also carry breaking changes.
+
+To cut a release: change `backend/VERSION`, commit with `composer.lock` and `frontend/package-lock.json`
+as they stand, and tag it (`git tag v0.1.1`). The tag is what ties a version to its exact
+dependencies: `git show v0.1.1:backend/composer.lock` and `git show v0.1.1:frontend/package-lock.json`
+list every package at that release, and `composer show --direct` / `npm ls --depth=0` give the
+summary. Do not change the version in `composer.json` or `package.json`; they are not the source.
 
 ---
 
@@ -480,6 +498,16 @@ the enum later reaches new installs only — grant it to existing roles from the
 | Management / Supervisor | view employees only (no documents, bank, payroll or health) |
 | Employee                | nothing; sees their own record via policy             |
 
+**Changed 2026-10-14:** `view-employees` used to show Supervisor and Management the whole company.
+It now opens the directory only; who appears is decided by the reporting line (`manager_id`), not the
+role: everyone sees themselves and their whole downline, nobody above or beside them, and anyone
+with people reporting to them gets the directory without any role. Seeing the whole company is the
+separate `view-all-employees` permission, held by HR Admin, System Admin and Management by default
+(a migration granted it to existing roles; Supervisor does not have it). The scope is
+`Employee::visibleTo($user)`, `LeaveRequest::visibleTo($user)` and `ReportingLine::visibleIds()`, and
+covers the directory (list, grid, chart, export), search, the profile, drawer and Tim tab, the
+Pengajuan queue and the department / position filters.
+
 Policies re-check the company even though `CompanyScope` already filters, because a model
 fetched via `acrossCompanies()` or resolved in a console context has not been filtered.
 `UserPolicy` has **no such safety net** — `User` is not company-tagged, since a parent-wide
@@ -536,8 +564,11 @@ Originally planned on spatie/laravel-model-states; dropped 2026-10-05 — reason
 
 ## Development checklist
 
-57 screens from the workbook, grouped into phases. **The workbook is the master** — it holds
-the 324 feature rows, their sizes and priorities, and the 258 test cases. This table is the map.
+59 screens from the workbook, grouped into phases. **The workbook is the master** — it holds
+the 339 feature rows, their sizes and priorities, and the 281 test cases. This table is the map.
+The access, registration, profile-change and backdating rules decided on 2026-10-14 are summarised
+under [Decided 2026-10-14, not built yet](#decided-2026-10-14-not-built-yet) below; the rows they
+reopen are marked 🟡 with "→ 10-14".
 
 `f` = feature count · `P1` = must-have count · status: ✅ done · 🟡 partial · ⬜ not started · ➖ removed (folded into another screen)
 
@@ -546,24 +577,26 @@ the 324 feature rows, their sizes and priorities, and the 258 test cases. This t
 | Screen     | Name                          | f   | P1  | Status | Notes                                                                                                                                                                                                                                                         |
 | ---------- | ----------------------------- | --- | --- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `CORE-NAV` | Company switcher              | 4   | 3   | ✅     | Scoping + switcher + server-side lock                                                                                                                                                                                                                         |
-| `CORE-RBA` | Role & permission enforcement | 7   | 6   | ✅     | Roles, permissions, policies, reporting-line downline resolver (004), role-change audit (007)                                                                                                                                                                 |
+| `CORE-RBA` | Role & permission enforcement | 8   | 7   | ✅     | Roles, permissions, policies, reporting-line downline resolver (004), role-change audit (007). Since 10-14: visibility is scoped to the downline everywhere (004) and `view-all-employees` lifts it (008)                                                     |
 | `CORE-WFL` | Approval workflow engine      | 9   | 7   | ✅     | All nine, including acting on an approval over HTTP (009). The "or app" half waits on the PWA                                                                                                                                                                 |
-| `CORE-AUT` | Login & session               | 8   | 8   | 🟡     | Session login + 2FA (001), employee-ID login (002), temporary passwords forced to change (003), admin reset (004), idle expiry = `SESSION_LIFETIME`, 120 min (005), session/token revocation (006), failed-login throttling (007). Missing: scoped employee-app tokens (008) — waits on the employee app |
+| `CORE-AUT` | Login & session               | 8   | 8   | 🟡     | Session login + 2FA (001), employee-ID login (002), temporary passwords forced to change (003), admin reset (004), idle expiry = `SESSION_LIFETIME`, 120 min (005), session/token revocation (006), failed-login throttling (007). Missing: scoped employee-app tokens (008) — waits on the employee app. Since 10-14: the temporary-password account (003) is the fallback; staff register themselves (`CORE-REG`) |
+| `CORE-REG` | Account registration (Daftar) | 5   | 3   | ✅     | Built 10-14. NIK + employee ID + password (+ optional email) activates the account for a profile HR created; the same refusal message for every failure; 5 attempts a minute per address; the registration is on the audit trail with the address. The rest of this row's detail is under "Decided 2026-10-14" |
 
 ### Phase 1 — Employee dossier & admin screens
 
 | Screen     | Name                                   | f   | P1  | Status | Notes                                                                                                                                                 |
 | ---------- | -------------------------------------- | --- | --- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `EMP-DIR`  | Employee directory (list)              | 12  | 12  | ✅     | Search, department/position multi-select, status chips, sort, active-filter strip, row summary, CSV import (010) and CSV export of the filtered list (011) |
+| `EMP-DIR`  | Employee directory (list)              | 12  | 12  | ✅     | Search, department/position multi-select, status chips, sort, active-filter strip, row summary, CSV import (010) and CSV export of the filtered list (011). Since 10-14: list, grid, chart and export are limited to the downline; NIK is a required import column; records without an account read "Belum terdaftar" (008) |
 | `EMP-GRD`  | Directory — grid view                  | 1   | 1   | ✅     | A view over the same filtered query; each card shows the profile picture, or initials |
 | `EMP-CHT`  | Directory — org chart                  | 1   | 1   | ✅     | A top-down tree drawn from `manager_id` with connector lines; anyone whose manager is filtered out renders as a root |
-| `EMP-ADD`  | Add / edit employee                    | 6   | 6   | ✅     | One form for both. Self-referencing manager refused; company filled from the active company                                                           |
-| `EMP-PRF`  | Profile shell                          | 3   | 2   | 🟡     | Header stats + tabs (Overview, Absensi, Pengajuan, Dokumen, Tim). Opens as a side drawer from the directory. Change audit is on (003); "SOPs to acknowledge" stays dropped with the Knowledge Hub |
+| `EMP-ADD`  | Add / edit employee                    | 6   | 6   | ✅     | One form for both. Self-referencing manager refused; company filled from the active company. Since 10-14: NIK is required (16 digits) and unique across the group (002); HR does not create logins (005) |
+| `EMP-PRF`  | Profile shell                          | 3   | 2   | 🟡     | Header stats + tabs (Overview, Absensi, Pengajuan, Dokumen, Tim). Opens as a side drawer from the directory. Change audit is on (003); "SOPs to acknowledge" stays dropped with the Knowledge Hub. **→ 10-14:** the Tim tab shows only people inside the viewer's scope (002) |
+| `EMP-CHG`  | Profile change requests                | 6   | 5   | ✅     | Built 10-14. The employee proposes changes to the self-service fields (`ProfileChangeRequest::FIELDS`); HR reviews the changed fields as now → asked, approves or rejects with a reason; one open request at a time; a field HR changed meanwhile is not overwritten; HR's own edits apply directly, but nobody edits their own record, so an HR Admin's own changes need another HR Admin |
 | `EMP-DET`  | Profile — overview tab                 | 6   | 5   | ✅     | All five card groups render; bank, payroll and health are withheld from roles without `view-sensitive-data` (006) |
 | `EMP-DOC`  | Profile — documents tab                | 4   | 2   | ✅     | Upload, categorise, version, expiry flags and per-document restriction. Reminders are in-app only — see Known gaps |
 | `EMP-ATT`  | Profile — attendance tab               | 3   | 3   | ✅     | Timesheet (month and year), manual add/change/void with reason + audit, recompute, and totals by employee, department and period (the recap) |
 | `EMP-REQ`  | Profile — requests tab                 | 2   | 2   | ✅     | Real: lists the employee's leave requests and leave taken this year                                                                                   |
-| `CORE-USR` | User & role management                 | 6   | 5   | ✅     | Policies and Filament screens (users, roles, permissions); activate/deactivate, last login, temporary password, reset password and revoke sessions per user |
+| `CORE-USR` | User & role management                 | 7   | 6   | 🟡     | Policies and Filament screens (users, roles, permissions); activate/deactivate, last login, temporary password, reset password and revoke sessions per user. **Open:** first-run seeding of the System Admin and Management accounts needs the client's details (007) |
 | `CORE-ORG` | Departments, positions, reporting line | 4   | 4   | ✅     | Schema, policies, the downline resolver and Filament screens for departments and positions                                                                         |
 | `CORE-ADM` | Company settings                       | 1   | 0   | 🟡     | Filament company screen done                                                                                                                                |
 
@@ -690,7 +723,7 @@ How the import behaves, so it is not surprised by:
   a range of up to 366 days, with the same department/team/leave-type filters, `?export=csv`, and
   a print layout (browser "save as PDF"; no PDF library). The calendar toolbar has "Unduh CSV" and
   "Cetak". CSV cells that start with `= + - @` are prefixed so a spreadsheet will not run them.
-- **Ingest endpoint and agents.** `POST /api/attendance/punches` accepts batches from the on-site
+- **Ingest endpoint and agents.** `POST /api/ingest/attendance` accepts batches from the on-site
   agent, through the same `IngestPunches` as the file import, so both are idempotent and behave
   identically. Auth is a **Sanctum token only** (no cookies) with the `attendance:ingest` ability,
   one token per `AttendanceAgent`, limited to 120 requests a minute per token. Agents are created
@@ -713,10 +746,42 @@ How the import behaves, so it is not surprised by:
   total row stays under every page). Folding and paging are only for the screen: printing opens every
   section and lists every employee, so the printed report is whole. The CSV is always whole.
 - **Not built yet:** the on-site agent and listener, and xlsx import.
+- **Open before `ATT-DEV` can be closed** (found in the first scanner test on SERVER-CAMAT,
+  2026-10-13; the field work and checklist are in `../fingerspot-toolkit/README.txt`, follow-ups F1-F6):
+  - **How the on-site server reaches this endpoint is undecided, and it is not "public HTTPS".**
+    The ingest route is private-network-only by design (`routes/api.php`; Phase 7 binds nginx to
+    private addresses and checks the public IP never serves the app). So SERVER-CAMAT (192.168.2.x)
+    has to be a VPN client (Tailscale or WireGuard) and the agent calls the app's private name.
+    Decide which, restrict that node (ACL) to the app's HTTPS port only, and test the agent through
+    it. The agent only ever makes outbound requests; nothing is opened at the site except the
+    scanner-to-listener firewall rule for TCP 7005. If the VPN is down the agent keeps the CSV and
+    resends later (the ingest is idempotent), so test that too.
+  - **The scanner's acknowledgement is unknown**, so it resends each punch about every 2 seconds
+    until the listener replies. Do not build or deploy the agent until toolkit follow-up F2 finds a
+    reply that stops it. The duplicates are harmless to this endpoint, but the retry loop is not
+    something to leave running.
+  - **The scanner's JSON does not match the ingest request as-is.** It sends `verify_mode` as text
+    (`"FP"`) and the request requires an integer, so such a batch would be rejected (422). The agent
+    has to map it (Personnel's own codes: 1, 20, 30; what 20 and 30 are is not known) or omit it.
+    `io_mode` is 1 for every punch, so in/out comes from the day's first and last scan, not from the
+    scanner. Times are `yyyyMMddHHmmss` wall-clock with no zone (`attendance.device_timezone`).
+  - **PIN to employee mapping is not settled.** Scanner PIN is never the NIP. The full mapping lives
+    in the Personnel on the employee PC that downloads each evening, not on the server (the
+    server's Personnel knew 74 employees; 81 PINs have punched; 10 PINs match nobody). Needs: that
+    PC's employee export, a decision whether this app's `employee_number` is the NIP or the PIN, and
+    whether the first PIN digit really is the company (1 Karya Logistik, 2 Cahaya Matahari Prima, 3
+    Tianli Indopart Maju) before relying on it for `company_id`. Unmapped punches already wait in
+    `AttendanceEnrolMap`'s unmatched table, so none are lost meanwhile.
+  - **History needs backfilling from the employee PC**, not the server (the server only has 2-4 Feb,
+    7 Sep, 12-13 Oct). Use the manual scan-log import with an export from that PC. The 325 punches of
+    2-4 Feb (all about 17:00) look like test or enrolment data: confirm, then leave them out.
+  - **Unknown whether two Personnel installs and our listener can coexist** (is the "already
+    downloaded" marker per installation or on the scanner?). Toolkit follow-up F5 settles it; until
+    then do not schedule a second automatic download in addition to the PC's manual one.
 
 | Screen    | Name                      | f   | P1  | Status | Notes                                                            |
 | --------- | ------------------------- | --- | --- | ------ | ---------------------------------------------------------------- |
-| `ATT-DEV` | Device integration health | 6   | 5   | 🟡     | Manual CSV import, enrol-ID mapping, capture status, the token-only ingest endpoint, agent registry/health and "sync now" done. The on-site agent and listener themselves (002, 006) are not built here |
+| `ATT-DEV` | Device integration health | 6   | 5   | 🟡     | Manual CSV import, enrol-ID mapping, capture status, the token-only ingest endpoint, agent registry/health and "sync now" done. The on-site agent and listener themselves (002, 006) are not built here. **Open items before closing: see the list under this table's section** (VPN route, scanner ack, PIN mapping) |
 | `ATT-CAL` | Calendar ("Kalender")     | 5   | 5   | 🟡     | Day / week / month / year, department/team/leave-type filters, status rules, holidays and approved leave shown ahead of the data, CSV export, printable recap. A separate live board is covered by the Day view |
 | `ATT-SID` | Calendar side panel       | 6   | 3   | ✅     | Headcount summary, holidays and events, and the single on-leave panel (day / week / month / year, at-least-one-day rule), all from the same rows and filters as the grid |
 | `ATT-WIZ` | Calendar event wizard     | 1   | 1   | ✅     | Holidays and company/department events, with audit. `WorkingDays` feeds the leave day counts, so a holiday is not a leave day |
@@ -729,8 +794,8 @@ unapproved-absence detection needs approved-leave data.
 
 | Screen     | Name                   | f   | P1  | Status | Notes                                                      |
 | ---------- | ---------------------- | --- | --- | ------ | ---------------------------------------------------------- |
-| `REQ-WIZ`  | New leave request      | 9   | 9   | 🟡     | Working-day count (weekends and calendar events excluded), optional attachments, per-type maximum days and resubmitting a rejected request are done |
-| `REQ-DSH`  | Requests queue         | 7   | 4   | ✅     | "Waiting on" comes from the engine; filters (status, kind, department, month), "Menunggu Anda", CSV export, summary line, "Diajukan" column and a count badge on the menu item |
+| `REQ-WIZ`  | New leave request      | 15  | 14  | 🟡     | Working-day count (weekends and calendar events excluded), optional attachments, per-type maximum days and resubmitting a rejected request are done. Since 10-14: Management files on behalf for their downline (002); no past dates except for HR / Management or within a kind's "Boleh mundur (hari)" in calendar days (004, 014); a rejected request can be resent with its past dates unchanged (013); a request the Atasan files is approved on filing (015). Partial only because the evidence rule is still open (007) |
+| `REQ-DSH`  | Requests queue         | 8   | 5   | ✅     | "Waiting on" comes from the engine; filters (status, kind, department, month), "Menunggu Anda", CSV export, summary line, "Diajukan" column and a count badge on the menu item. Since 10-14: filing on behalf is open to Management too (005); the queue lists only the viewer's own, their downline's and those waiting on them (`CORE-RBA-004`) |
 | `REQ-DLG`  | Decision dialog        | 5   | 5   | ✅     | Approve/reject with a required reason on rejection; only the Atasan (or HR when there is none) decides |
 | `ATT-LVE`  | Absensi › Cuti         | 10  | 5   | ➖     | Built, then folded into the calendar on 2026-10-09: the on-leave side panel (`ATT-SID-004`) and the Pengajuan queue cover it. The 14-working-day chart, present-per-department bars and head-count reconciliation were dropped |
 | `EMP-REQ`  | Profile — requests tab | 2   | 2   | ✅     | The employee's requests, opening to their detail            |
@@ -757,7 +822,7 @@ and the scheduling automation.
 | `REC-SCR`                         | Stage 03 Screening          | 8   | 4   | ⬜     | Includes applicant ranking (XL)                             |
 | `REC-INT`                         | Stage 04 Interview          | 8   | 3   | ⬜     | Google Meet + email, candidate reschedule (XL)              |
 | `REC-OFS`                         | Stage 05 Offer              | 9   | 8   | ⬜     | Management final approval + offer letter                    |
-| `REC-FIL`                         | Stage 06 Filled             | 7   | 6   | ⬜     | Convert-to-employee (L)                                     |
+| `REC-FIL`                         | Stage 06 Filled             | 7   | 6   | ⬜     | Convert-to-employee (L). Creates the profile the hire then registers against (`CORE-REG`); until this exists HR creates profiles by hand or CSV |
 | `REC-CAN` · `REC-CDT` · `REC-CRV` | Candidate detail + tabs     | 11  | 8   | ⬜     |                                                             |
 | `REC-OFR`                         | Send offer form             | 6   | 4   | ⬜     |                                                             |
 | `REC-TPL`                         | Templates (admin)           | 1   | 0   | ⬜     |                                                             |
@@ -795,6 +860,92 @@ units, DNS-01 certificate for `hr.cmp.id`, WireGuard + wg-easy, Tailscale, separ
 and DB credentials, and a check that the public IP never serves this app.
 
 Nothing in the app blocks this — a working login and `/up` is all the VPN test needs.
+
+**Also needed here, from Phase 2 (`ATT-DEV`):** the on-site scanner server (SERVER-CAMAT) must be
+able to reach `/api/ingest/attendance` over the same private network, because the route is not
+public. Whichever of Tailscale or WireGuard is chosen has to include that machine as a client,
+limited to the app's HTTPS port. See "Open before `ATT-DEV` can be closed" in Phase 2.
+
+### Decided 2026-10-14 (all built except first-run seeding)
+
+These reopen finished rows above. Built and tested: the visibility rule (`ReportingScopeTest`), the
+Pengajuan rules (`LeaveFilingRulesTest`), registration with NIK (`AccountRegistrationTest`) and
+profile change requests (`ProfileChangeRequestTest`). Not built: the first-run seeding of System
+Admin and Management accounts (`CORE-USR-007`, waiting for the client's details).
+
+Things to know that the rules do not say:
+- **Existing records have no NIK** until HR adds one, so nobody can register against them yet. The
+  edit form now requires it, and the unique index on `employees.national_id` allows any number of
+  empty ones. The seeders (`OrgHierarchySeeder`, `DevAccountSeeder`) do not set one.
+- **Nothing is preset for "Boleh mundur (hari)".** Until HR sets it on Cuti sakit (admin panel,
+  Jenis pengajuan), nobody but HR Admin and Management can file a sick day after the fact.
+- **Nobody edits their own record directly**, HR Admin included (`EmployeePolicy::update`): the
+  edit form is closed on it and the change goes through a request that another HR Admin approves. With
+  a single HR Admin in a company, that means their own record cannot be changed until a second exists
+  (or System Admin is given `update-employees`).
+- **Profile change requests keep a picture on the public disk** like every profile picture, under a
+  random name, from the moment it is uploaded; a withdrawn or rejected one is deleted. The list of
+  fields an employee may change is `ProfileChangeRequest::FIELDS`; adding a field there adds it to the
+  form, the review and the approval.
+- **`users.email` is now nullable** (still unique). The profile settings page no longer clears
+  "verified" when an email changes, because an unverified flag would lock the account out of every
+  page and emails are never verified here. They are in the workbook as changed rows
+(note "Changed 2026-10-14") and new ones (note "Added 2026-10-14"), with test cases that say "Not
+built yet". `../docs/context.md` (§5.2, §9.2, §9.6) still describes the old rules, and the
+Indonesian workbook copy has deliberately not been regenerated while more changes are expected.
+
+**Who sees whom (`CORE-RBA-004`, `CORE-RBA-008`).**
+- Visibility follows `manager_id`, not the role. Anyone with people under them sees their whole
+  downline at every depth. Nobody sees colleagues at their own level or anyone above them.
+- An employee with no reports sees only themselves, which is already the case today.
+- The scope applies everywhere a person can appear: directory list, grid, org chart and export;
+  global search; the profile, the drawer and the Tim tab; the Pengajuan queue; and the department
+  and position lists.
+- Seeing the whole company is a separate permission, held by default by HR Admin, System Admin and
+  Management. It can be granted to any role from the panel.
+- Build this first: every other change below reads from it.
+
+**Profiles first, then registration (`CORE-REG`, `EMP-ADD-002/005`, `CORE-USR-007`).**
+- *Initial accounts.* The System Admin and Management accounts are seeded once, from details the
+  client supplies. System Admin then creates the HR Admin accounts.
+- *Profiles.* HR creates profiles (by hand, by CSV, later from Recruitment's `REC-FIL`). NIK
+  (`national_id`, 16 digits) becomes required and unique across the group.
+- *Registration.* The employee registers at "Daftar" with NIK, employee ID, a new password and an
+  optional email. When the NIK and employee ID match one record that has no account yet and is not
+  a former employee, the account is created already active: pinned to that company, with the
+  Karyawan role.
+- *Refusals.* Every refusal gets the same message, and attempts are throttled.
+- *Known risk.* NIK + employee ID is not a secret. That is accepted because the app is VPN-only. A
+  wrongly claimed account is deactivated and reset.
+- *Roles and fallback.* System Admin still assigns every role other than Karyawan. System Admin
+  can also still create an account with a temporary password as a fallback.
+- *Data-only records.* Warehouse staff stay data-only. A record shows as active only once it has
+  been registered.
+- *Email.* Optional, unique, never verified. It is not a sign-in name; sign-in stays on the employee ID.
+
+**Profile change requests (`EMP-CHG`).**
+- An employee proposes changes to the self-service fields: contact, address, emergency contact,
+  bank, NPWP and photo. The list is expected to grow. Employment fields stay HR-only.
+- HR reviews only the changed fields, each highlighted as before → after. Approve, or reject with
+  a required reason.
+- An employee can have one open request at a time.
+- On approval, a field whose current value no longer matches the recorded "before" is not applied;
+  it is flagged to HR instead.
+- HR's own edits to a profile apply directly. An HR Admin's change to their own record needs a
+  different HR Admin to approve it.
+- Supervisors and Management do not take part. They see the profile itself only within their
+  scope.
+
+**Pengajuan (`REQ-WIZ-002/004/013/014/015`, `REQ-DSH-005`).**
+- *Filing for someone else.* Everyone files only for themselves, except HR Admin (anyone in the
+  company) and Management (their downline).
+- *Dates.* The first day may not be before today (Asia/Jakarta). HR Admin and Management are
+  exempt. Each kind can also allow a number of calendar days back ("Boleh mundur (hari)" on the
+  Jenis pengajuan form, e.g. Cuti sakit 3).
+- *Correcting.* A rejected request whose dates have since passed can be resent with the same
+  dates.
+- *Auto-approval.* A request filed by the person who would approve it (the Atasan) is approved on
+  filing, and that person is recorded as the approver.
 
 ### Deferred, not in this build
 

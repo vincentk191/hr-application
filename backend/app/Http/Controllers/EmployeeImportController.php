@@ -73,7 +73,7 @@ class EmployeeImportController extends Controller
 
         return CsvDownload::stream('templat-karyawan.csv', [
             self::COLUMNS,
-            ['EMP-001', 'Budi Santoso', 'Operasional', 'Staf', '', 'Aktif', 'Tetap', '2024-01-15', '', 'budi@example.com', '0812-0000-0000', 'Jl. Contoh No. 1', ''],
+            ['EMP-001', 'Budi Santoso', 'Operasional', 'Staf', '', 'Aktif', 'Tetap', '2024-01-15', '', 'budi@example.com', '0812-0000-0000', 'Jl. Contoh No. 1', '3174000000000001'],
         ]);
     }
 

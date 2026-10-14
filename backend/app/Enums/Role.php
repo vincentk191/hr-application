@@ -49,12 +49,14 @@ enum Role: string
                 Permission::ManageUsers,
                 Permission::ManageOrganisation,
                 Permission::ViewEmployees,
+                Permission::ViewAllEmployees,
                 Permission::AccessAdminPanel,
             ],
             // Owns the cross-company HR processes and the dossier.
             self::HrAdmin => [
                 Permission::ManageOrganisation,
                 Permission::ViewEmployees,
+                Permission::ViewAllEmployees,
                 Permission::CreateEmployees,
                 Permission::UpdateEmployees,
                 Permission::AccessAdminPanel,
@@ -70,6 +72,7 @@ enum Role: string
             // Sees its scope and decides; does not administer records.
             self::Management => [
                 Permission::ViewEmployees,
+                Permission::ViewAllEmployees,
             ],
             self::Supervisor => [
                 Permission::ViewEmployees,

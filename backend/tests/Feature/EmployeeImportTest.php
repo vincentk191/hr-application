@@ -30,10 +30,35 @@ function employeeCsv(string $body): UploadedFile
     return UploadedFile::fake()->createWithContent('karyawan.csv', $body);
 }
 
+/**
+ * Most of these tests are about something other than NIK, which a row must now have. Unless the file
+ * brings its own NIK column, give every row a unique one so those tests stay about what they say.
+ */
+function withNiks(string $body): string
+{
+    static $next = 3174000000000000;
+
+    $lines = preg_split('/\r?\n/', $body) ?: [];
+    $header = $lines[0] ?? '';
+
+    if (stripos($header, 'nik') !== false) {
+        return $body;
+    }
+
+    $delimiter = substr_count($header, ';') > substr_count($header, ',') ? ';' : ',';
+    $out = [$header.$delimiter.'NIK'];
+
+    foreach (array_slice($lines, 1) as $line) {
+        $out[] = trim($line) === '' ? $line : $line.$delimiter.(++$next);
+    }
+
+    return implode("\n", $out);
+}
+
 function importEmployeesCsv(string $body, bool $dryRun = false): TestResponse
 {
     return test()->actingAs(test()->hr)->post(route('employees.import.store'), [
-        'file' => employeeCsv($body),
+        'file' => employeeCsv(withNiks($body)),
         'dry_run' => $dryRun ? '1' : null,
     ]);
 }
@@ -174,9 +199,28 @@ it('imports into the company a group-wide user has selected', function () {
     $group->assignRole(Role::HrAdmin->value);
 
     $this->actingAs($group)->withSession([SetActiveCompany::SESSION_KEY => (string) $this->other->id])
-        ->post(route('employees.import.store'), ['file' => employeeCsv("ID,Nama\nK-1,Budi\n")]);
+        ->post(route('employees.import.store'), ['file' => employeeCsv(withNiks("ID,Nama\nK-1,Budi\n"))]);
 
     expect(Employee::acrossCompanies()->where('employee_number', 'K-1')->value('company_id'))->toBe($this->other->id);
+});
+
+it('requires a 16-digit NIK on every row', function () {
+    importEmployeesCsv("ID,Nama,NIK\nK-1,Budi,\nK-2,Siti,12345\nK-3,Dewi,3174000000000003\n");
+
+    expect(employeeImportResult())->toMatchArray(['created' => 1, 'rejected' => 2])
+        ->and(employeeImportResult()['errors'][0])->toContain('Baris 2')->toContain('NIK kosong')
+        ->and(employeeImportResult()['errors'][1])->toContain('Baris 3')->toContain('16 digit');
+});
+
+it('refuses a NIK that another employee in any company, or an earlier row, already has', function () {
+    Employee::factory()->forCompany($this->other)->create(['national_id' => '3174000000000001']);
+
+    importEmployeesCsv("ID,Nama,NIK\nK-1,Budi,3174000000000001\nK-2,Siti,3174000000000002\nK-3,Dewi,3174000000000002\n");
+
+    expect(employeeImportResult())->toMatchArray(['created' => 1, 'rejected' => 2])
+        ->and(employeeImportResult()['errors'][0])->toContain('NIK 3174000000000001 sudah terdaftar')
+        ->and(Employee::where('employee_number', 'K-2')->exists())->toBeTrue()
+        ->and(Employee::where('employee_number', 'K-3')->exists())->toBeFalse();
 });
 
 it('records the import on the audit trail', function () {
@@ -212,6 +256,9 @@ it('exports a file the importer can read back', function () {
     Employee::factory()->inDepartment($this->warehouse)->create(['employee_number' => 'K-1', 'full_name' => 'Budi', 'manager_id' => $boss->id, 'joined_on' => '2022-01-02']);
 
     $csv = $this->actingAs($this->hr)->get(route('employees.export'))->streamedContent();
+
+    // NIK is unique across the group, so the people exported must no longer hold theirs.
+    Employee::query()->update(['national_id' => null]);
 
     $second = User::factory()->create(['company_id' => $this->other->id]);
     $second->assignRole(Role::HrAdmin->value);

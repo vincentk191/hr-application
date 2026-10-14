@@ -7,6 +7,7 @@ use App\Enums\Role;
 use App\Http\Controllers\NotificationController;
 use App\Models\Company;
 use App\Models\Employee;
+use App\Models\ProfileChangeRequest;
 use App\Models\WorkflowStep;
 use App\Support\Branding;
 use App\Support\CompanyContext;
@@ -46,6 +47,7 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'name' => config('app.name'),
+            'version' => config('app.version'),
             'auth' => [
                 'user' => $request->user(),
                 // Drives the sidebar's link to the admin panel; the panel enforces access itself.
@@ -56,7 +58,8 @@ class HandleInertiaRequests extends Middleware
                 // link to the signed-in person's own profile if they have one.
                 'canViewAttendance' => $request->user()?->can(Permission::ViewAttendance->value) ?? false,
                 'canManageAttendance' => $request->user()?->can('manage-attendance-device') ?? false,
-                'canViewEmployees' => $request->user()?->can(Permission::ViewEmployees->value) ?? false,
+                'canReviewProfileChanges' => $request->user()?->can('viewAny', ProfileChangeRequest::class) ?? false,
+                'canViewEmployees' => $request->user()?->can('viewAny', Employee::class) ?? false,
                 'employeeId' => $request->user() === null
                     ? null
                     : Employee::acrossCompanies()->where('user_id', $request->user()->id)->value('id'),
@@ -64,6 +67,12 @@ class HandleInertiaRequests extends Middleware
             'companySwitcher' => fn (): ?array => $this->companySwitcher($request),
             // The colour and logo for the company being viewed (or the group colour when viewing all).
             // How many requests wait on this person: the badge on the "Pengajuan" menu item.
+            // Profile change requests HR has to decide: the badge on the review link (EMP-CHG-003).
+            'pendingProfileChanges' => fn (): int => $request->user()?->can('viewAny', ProfileChangeRequest::class)
+                ? ProfileChangeRequest::query()->pending()
+                    ->whereHas('employee', fn ($employee) => $employee->where('user_id', '!=', $request->user()->id)->orWhereNull('user_id'))
+                    ->count()
+                : 0,
             'pendingForMe' => fn (): int => $request->user() === null ? 0 : WorkflowStep::waitingOn($request->user())->count(),
             'branding' => fn (): ?array => $request->user() === null ? null : app(Branding::class)->current(),
             // The header bell: how many are unread and the latest few. Lazy, so a request that does not

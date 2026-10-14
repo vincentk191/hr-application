@@ -73,8 +73,8 @@ class AttendanceCalendarController extends Controller
             'eventForm' => $this->eventForm($request),
             'filters' => $data['filters'],
             'options' => [
-                'departments' => OrganisationNames::departments(),
-                'teams' => $roster->teamLeads(),
+                'departments' => OrganisationNames::departments($request->user()),
+                'teams' => $roster->teamLeads($request->user()),
                 'leaveTypes' => RequestType::query()->ordered()->get()
                     ->map(fn (RequestType $type): array => ['value' => $type->code, 'label' => $type->label])
                     ->values()
@@ -194,7 +194,7 @@ class AttendanceCalendarController extends Controller
             'leaveType' => $leaveType,
         ];
 
-        $employees = $roster->between($from, $to, $filters['departments'], $filters['search'], $filters['team'], $filters['leaveType']);
+        $employees = $roster->between($from, $to, $filters['departments'], $filters['search'], $filters['team'], $filters['leaveType'], $request->user());
 
         $result = $attendance->forRange($from, $to, $roster->windows($employees));
         $withScannerId = AttendanceEnrolMap::acrossCompanies()->pluck('employee_id')->flip();

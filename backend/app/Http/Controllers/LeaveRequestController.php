@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Actions\Leave\ResubmitLeaveRequest;
 use App\Actions\Leave\SubmitLeaveRequest;
+use App\Enums\Permission;
+use App\Enums\Role;
 use App\Enums\WorkflowStepStatus;
 use App\Http\Requests\StoreLeaveRequestRequest;
 use App\Http\Requests\UpdateLeaveRequestRequest;
@@ -17,6 +19,7 @@ use App\Support\CsvDownload;
 use App\Support\Leave\LeaveLimits;
 use App\Support\Leave\LeaveRequestPresenter;
 use App\Support\OrganisationNames;
+use App\Support\ReportingLine;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -50,7 +53,7 @@ class LeaveRequestController extends Controller
             'options' => [
                 'types' => RequestType::query()->ordered()->get(['code', 'label'])
                     ->map(fn (RequestType $type): array => ['value' => $type->code, 'label' => $type->label])->values(),
-                'departments' => OrganisationNames::departments(),
+                'departments' => OrganisationNames::departments($request->user()),
             ],
             // What is waiting on this person, and what was approved this month (REQ-DSH-001).
             'waitingOnMe' => WorkflowStep::waitingOn($user)->count(),
@@ -111,7 +114,7 @@ class LeaveRequestController extends Controller
 
         return LeaveRequest::query()
             ->visibleTo($user)
-            ->with(['employee:id,full_name,employee_number,department_id,user_id', 'employee.department:id,name', 'workflow.steps.decidedBy:id,name', 'workflow.comments.author:id,name', 'attachments', 'type'])
+            ->with(['employee:id,full_name,employee_number,department_id,user_id,company_id', 'employee.department:id,name', 'workflow.steps.decidedBy:id,name', 'workflow.comments.author:id,name', 'attachments', 'type'])
             ->when($filters['type'] !== null, fn (Builder $query) => $query->where('leave_type', $filters['type']))
             ->when($filters['department'] !== null, fn (Builder $query) => $query->whereHas('employee', fn (Builder $employee) => $employee->whereHas('department', fn (Builder $department) => $department->where('name', $filters['department']))))
             // A month catches any request whose days touch it.
@@ -150,9 +153,10 @@ class LeaveRequestController extends Controller
             ],
             'leaveTypes' => app(LeaveLimits::class)->options(),
             'canFileForOthers' => $canFileForOthers,
+            'canBackdate' => $user->can('backdate', LeaveRequest::class),
             'employees' => Employee::query()
                 ->active()
-                ->when(! $canFileForOthers, fn ($query) => $query->where('user_id', $user->id))
+                ->where(fn ($query) => $this->fileableBy($user, $query))
                 ->orderBy('full_name')
                 ->get(['id', 'full_name', 'employee_number'])
                 ->map(fn (Employee $employee): array => [
@@ -160,6 +164,29 @@ class LeaveRequestController extends Controller
                     'label' => "{$employee->full_name} ({$employee->employee_number})",
                 ]),
         ]);
+    }
+
+    /**
+     * Narrow a query to the employees this person may file for: HR Admin, everyone in the company;
+     * Management, themselves and their downline; anyone else, only themselves.
+     *
+     * @param  Builder<Employee>  $query
+     */
+    private function fileableBy(User $user, Builder $query): void
+    {
+        if ($user->can(Permission::CreateEmployees->value)) {
+            return;
+        }
+
+        $own = Employee::acrossCompanies()->where('user_id', $user->id)->first();
+
+        if ($user->isA(Role::Management) && $own !== null) {
+            $query->whereIn('id', app(ReportingLine::class)->scopeIds($own));
+
+            return;
+        }
+
+        $query->where('user_id', $user->id);
     }
 
     public function store(StoreLeaveRequestRequest $request, SubmitLeaveRequest $submit): RedirectResponse
@@ -193,7 +220,7 @@ class LeaveRequestController extends Controller
     {
         $this->authorize('update', $leaveRequest);
 
-        $leaveRequest->load(['employee:id,full_name,employee_number,user_id', 'workflow.steps.decidedBy:id,name', 'workflow.comments.author:id,name', 'attachments']);
+        $leaveRequest->load(['employee:id,full_name,employee_number,user_id,company_id', 'workflow.steps.decidedBy:id,name', 'workflow.comments.author:id,name', 'attachments']);
 
         return Inertia::render('leave-requests/edit', [
             'leaveTypes' => app(LeaveLimits::class)->options($leaveRequest->leave_type),

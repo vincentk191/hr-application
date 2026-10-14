@@ -20,6 +20,17 @@ class LeaveLimits
         return is_numeric($value) && (int) $value > 0 ? (int) $value : null;
     }
 
+    /**
+     * How many calendar days back a request of this type may start, or null when it may not start
+     * before today (REQ-WIZ-014).
+     */
+    public function backDays(string $code): ?int
+    {
+        $value = RequestType::query()->where('code', $code)->value('max_back_days');
+
+        return is_numeric($value) && (int) $value > 0 ? (int) $value : null;
+    }
+
     public function set(string $code, ?int $days): void
     {
         RequestType::query()->where('code', $code)->update(['max_days' => $days !== null && $days > 0 ? $days : null]);
@@ -29,7 +40,7 @@ class LeaveLimits
      * The types a form may offer, each with its limit: the ones switched on, in the administrators'
      * order, plus the one a request being corrected already has even if it has since been switched off.
      *
-     * @return array<int, array{value: string, label: string, maxDays: int|null}>
+     * @return array<int, array{value: string, label: string, maxDays: int|null, backDays: int|null}>
      */
     public function options(?string $alsoCode = null): array
     {
@@ -41,6 +52,7 @@ class LeaveLimits
                 'value' => $type->code,
                 'label' => $type->label,
                 'maxDays' => $type->max_days > 0 ? $type->max_days : null,
+                'backDays' => $type->max_back_days > 0 ? $type->max_back_days : null,
             ])
             ->values()
             ->all();

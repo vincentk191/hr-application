@@ -16,6 +16,8 @@ export type Auth = {
     /** The role shown under the name in the header. */
     roleLabel: string | null;
     canViewEmployees: boolean;
+    /** HR: may open the review list of profile change requests. */
+    canReviewProfileChanges: boolean;
     /** May load scanner logs and map scanner IDs (parent-wide accounts with the permission). */
     canManageAttendance: boolean;
     /** May open the attendance calendar. */

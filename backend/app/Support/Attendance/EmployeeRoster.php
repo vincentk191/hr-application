@@ -4,6 +4,7 @@ namespace App\Support\Attendance;
 
 use App\Models\Employee;
 use App\Models\LeaveRequest;
+use App\Models\User;
 use App\Support\ReportingLine;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -22,9 +23,10 @@ class EmployeeRoster
      * @param  list<string>  $departments
      * @return Collection<int, Employee>
      */
-    public function between(CarbonInterface $from, CarbonInterface $to, array $departments = [], string $search = '', ?int $teamLead = null, ?string $leaveType = null): Collection
+    public function between(CarbonInterface $from, CarbonInterface $to, array $departments = [], string $search = '', ?int $teamLead = null, ?string $leaveType = null, ?User $viewer = null): Collection
     {
         return Employee::query()
+            ->when($viewer !== null, fn (Builder $query) => $query->visibleTo($viewer))
             ->with(['department:id,name', 'position:id,name', 'manager:id,full_name'])
             ->where(fn (Builder $query) => $query->whereNull('joined_on')->orWhereDate('joined_on', '<=', $to->toDateString()))
             ->where(fn (Builder $query) => $query->whereNull('exited_on')->orWhereDate('exited_on', '>=', $from->toDateString()))
@@ -45,9 +47,10 @@ class EmployeeRoster
      *
      * @return Collection<int, Employee>
      */
-    public function teamLeads(): Collection
+    public function teamLeads(?User $viewer = null): Collection
     {
         return Employee::query()
+            ->when($viewer !== null, fn (Builder $query) => $query->visibleTo($viewer))
             ->whereIn('id', Employee::query()->whereNotNull('manager_id')->select('manager_id'))
             ->orderBy('full_name')
             ->get(['id', 'full_name']);

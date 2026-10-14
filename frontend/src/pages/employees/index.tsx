@@ -370,9 +370,7 @@ export default function EmployeesIndex({
                                                 </Badge>
                                             </td>
                                             <td className="hidden p-3 text-muted-foreground md:table-cell">
-                                                {employee.hasLogin
-                                                    ? 'Ada'
-                                                    : 'Data saja'}
+                                                {employee.accountLabel}
                                             </td>
                                         </tr>
                                     ))}

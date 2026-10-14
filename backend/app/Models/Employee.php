@@ -211,6 +211,20 @@ class Employee extends Model
     }
 
     /**
+     * What the directory says about the account behind this record (EMP-DIR-008): active only once
+     * the employee has registered it (or an administrator made one) and it is switched on; a record
+     * nobody has claimed yet, and warehouse staff who never will, read "Belum terdaftar".
+     */
+    public function accountLabel(): string
+    {
+        if ($this->user_id === null) {
+            return 'Belum terdaftar';
+        }
+
+        return $this->user?->is_active === false ? 'Dinonaktifkan' : 'Aktif';
+    }
+
+    /**
      * Every employee below this one in the reporting line, at any depth (CORE-RBA-004).
      *
      * @return list<int>
@@ -229,6 +243,22 @@ class Employee extends Model
     protected function inDownlineOf(Builder $query, self $manager): void
     {
         $query->whereIn('id', app(ReportingLine::class)->downlineIds($manager));
+    }
+
+    /**
+     * Limit a query to the people this user may see: their own downline and themselves, unless
+     * they hold the company-wide permission (CORE-RBA-004, CORE-RBA-008).
+     *
+     * @param  Builder<static>  $query
+     */
+    #[Scope]
+    protected function visibleTo(Builder $query, User $user): void
+    {
+        $ids = app(ReportingLine::class)->visibleIds($user);
+
+        if ($ids !== null) {
+            $query->whereIn($query->getModel()->qualifyColumn('id'), $ids);
+        }
     }
 
     /**

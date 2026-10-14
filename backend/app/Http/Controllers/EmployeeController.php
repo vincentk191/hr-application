@@ -14,6 +14,7 @@ use App\Models\EmployeeDocument;
 use App\Models\EmployeeDocumentVersion;
 use App\Models\LeaveRequest;
 use App\Models\Position;
+use App\Models\ProfileChangeRequest;
 use App\Models\User;
 use App\Models\WorkflowStep;
 use App\Support\Attendance\DailyAttendance;
@@ -47,16 +48,18 @@ class EmployeeController extends Controller
 
         $filters = $this->filtersFrom($request);
 
-        $employees = $this->filteredQuery($filters)
-            ->with(['company:id,name', 'department:id,name', 'position:id,name', 'manager:id,full_name'])
+        $user = $request->user();
+
+        $employees = $this->filteredQuery($filters, $user)
+            ->with(['company:id,name', 'department:id,name', 'position:id,name', 'manager:id,full_name', 'user:id,is_active'])
             ->get();
 
         return Inertia::render('employees/index', [
             'employees' => $employees->map(fn (Employee $employee): array => $this->summarise($employee)),
             'filters' => $filters,
-            'total' => Employee::count(),
-            'departments' => OrganisationNames::departments(),
-            'positions' => OrganisationNames::positions(),
+            'total' => Employee::query()->visibleTo($user)->count(),
+            'departments' => OrganisationNames::departments($user),
+            'positions' => OrganisationNames::positions($user),
             'statuses' => array_map(
                 fn (EmploymentStatus $status): array => ['value' => $status->value, 'label' => $status->label()],
                 EmploymentStatus::cases(),
@@ -94,9 +97,10 @@ class EmployeeController extends Controller
      * @param  array{search: string, departments: list<string>, positions: list<string>, statuses: list<mixed>, sort: string, view: string}  $filters
      * @return Builder<Employee>
      */
-    private function filteredQuery(array $filters): Builder
+    private function filteredQuery(array $filters, User $viewer): Builder
     {
         return Employee::query()
+            ->visibleTo($viewer)
             ->when($filters['search'] !== '', fn (Builder $query) => $query->where(
                 fn (Builder $inner) => $inner
                     ->where('full_name', 'like', "%{$filters['search']}%")
@@ -117,7 +121,7 @@ class EmployeeController extends Controller
     {
         $this->authorize('viewAny', Employee::class);
 
-        $employees = $this->filteredQuery($this->filtersFrom($request))
+        $employees = $this->filteredQuery($this->filtersFrom($request), $request->user())
             ->with(['department:id,name', 'position:id,name', 'manager:id,employee_number'])
             ->get();
 
@@ -152,7 +156,7 @@ class EmployeeController extends Controller
     {
         $this->authorize('view', $employee);
 
-        $employee->load(['department:id,name', 'position:id,name', 'manager:id,full_name', 'company:id,code,name']);
+        $employee->load(['department:id,name', 'position:id,name', 'manager:id,full_name', 'company:id,code,name', 'user:id,is_active']);
 
         $user = $request->user();
 
@@ -162,6 +166,8 @@ class EmployeeController extends Controller
                 fn (DocumentCategory $category): array => ['value' => $category->value, 'label' => $category->label()],
                 DocumentCategory::cases(),
             ),
+            // Your own record is changed by asking HR, not by editing (EMP-CHG-001).
+            'canRequestChange' => $user->can('createFor', [ProfileChangeRequest::class, $employee]),
             'canManageDocuments' => $user->can('create', EmployeeDocument::class),
             'canRestrictDocuments' => $user->can(Permission::ViewSensitiveData->value),
             // Loaded only when the tab is opened (router.reload with `only`), so the profile does
@@ -182,7 +188,7 @@ class EmployeeController extends Controller
     {
         $this->authorize('view', $employee);
 
-        $employee->load(['department:id,name', 'position:id,name', 'manager:id,full_name', 'company:id,code,name']);
+        $employee->load(['department:id,name', 'position:id,name', 'manager:id,full_name', 'company:id,code,name', 'user:id,is_active']);
 
         $user = $request->user();
 
@@ -207,7 +213,7 @@ class EmployeeController extends Controller
             'documents' => $this->documentsFor($user, $employee),
             'requests' => LeaveRequest::query()
                 ->where('employee_id', $employee->id)
-                ->with(['workflow.steps.decidedBy:id,name', 'workflow.comments.author:id,name', 'attachments', 'employee:id,user_id', 'type'])
+                ->with(['workflow.steps.decidedBy:id,name', 'workflow.comments.author:id,name', 'attachments', 'employee:id,user_id,company_id', 'type'])
                 ->latest('id')
                 ->get()
                 ->map(fn (LeaveRequest $leave): array => [
@@ -242,9 +248,10 @@ class EmployeeController extends Controller
                 ->sum('days'),
             'canUpdate' => $user->can('update', $employee),
             // The reporting line names colleagues, so it is for people who may see the directory;
-            // an employee looking only at their own record does not get it.
+            // an employee looking only at their own record does not get it. Only people the viewer
+            // may see appear in it: a supervisor sees neither their own manager nor their peers.
             'team' => $user->can('viewAny', Employee::class)
-                ? app(TeamSlice::class)->for($employee, $user->can(Permission::ViewAttendance->value))
+                ? app(TeamSlice::class)->for($employee, $user->can(Permission::ViewAttendance->value), $user)
                 : null,
         ];
     }
@@ -359,6 +366,7 @@ class EmployeeController extends Controller
             'status' => $employee->employment_status->label(),
             'isActive' => $employee->employment_status === EmploymentStatus::Active,
             'hasLogin' => $employee->hasLogin(),
+            'accountLabel' => $employee->accountLabel(),
             'joinedOn' => $employee->joined_on?->toDateString(),
         ];
     }

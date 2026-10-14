@@ -119,6 +119,7 @@ it('leaves the attendance figures out for someone who may not see attendance', f
     $viewer = User::factory()->create(['company_id' => $this->company->id]);
     $viewer->assignRole(Role::Employee->value);
     $viewer->givePermissionTo('view-employees');
+    $this->sari->update(['user_id' => $viewer->id]);
 
     $team = teamOf($viewer, $this->hendra);
 

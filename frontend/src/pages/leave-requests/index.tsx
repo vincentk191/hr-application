@@ -119,7 +119,7 @@ export default function LeaveRequestsIndex({
                             </a>
                         </Button>
                         <Button asChild>
-                            <Link href={create().url}>Ajukan atas nama</Link>
+                            <Link href={create().url}>Ajukan</Link>
                         </Button>
                     </div>
                 </div>

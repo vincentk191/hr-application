@@ -276,7 +276,11 @@ it('flags expired and expiring documents and leaves the rest alone', function ()
 it('withholds bank, payroll and health from roles without the sensitive-data permission', function () {
     $this->employee->update(['base_salary_idr' => 9000000, 'bank_name' => 'BCA']);
 
-    $this->actingAs(docUser(Role::Supervisor, $this->company))
+    $supervisor = docUser(Role::Supervisor, $this->company);
+    $boss = Employee::factory()->forCompany($this->company)->create(['user_id' => $supervisor->id]);
+    $this->employee->update(['manager_id' => $boss->id]);
+
+    $this->actingAs($supervisor)
         ->get(route('employees.show', $this->employee))
         ->assertInertia(fn (Assert $page) => $page
             ->where('employee.bank', null)
@@ -306,6 +310,7 @@ it('does not let an editor without the permission blank the sensitive fields', f
 
     $this->actingAs($editor)->put(route('employees.update', $this->employee), [
         'employee_number' => $this->employee->employee_number,
+        'national_id' => $this->employee->national_id,
         'full_name' => 'Nama Baru',
         'employment_status' => $this->employee->employment_status->value,
         'base_salary_idr' => '',

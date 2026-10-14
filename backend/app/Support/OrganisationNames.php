@@ -3,7 +3,9 @@
 namespace App\Support;
 
 use App\Models\Department;
+use App\Models\Employee;
 use App\Models\Position;
+use App\Models\User;
 
 /**
  * Department and position names for list filters, where a name stands for every company's
@@ -17,23 +19,50 @@ use App\Models\Position;
 final class OrganisationNames
 {
     /**
-     * The department names in the active company scope, each once.
+     * The department names in the active company scope, each once. Given a viewer, only those of
+     * the people they may see, so a filter never names a department they cannot reach.
      *
      * @return list<string>
      */
-    public static function departments(): array
+    public static function departments(?User $viewer = null): array
     {
-        return Department::query()->distinct()->orderBy('name')->pluck('name')->all();
+        $query = Department::query();
+
+        if ($viewer !== null && self::isLimited($viewer)) {
+            $query->whereIn('id', Employee::query()->visibleTo($viewer)->select('department_id'));
+        }
+
+        return array_values(array_map(
+            fn (mixed $name): string => (string) $name,
+            $query->distinct()->orderBy('name')->pluck('name')->all(),
+        ));
     }
 
     /**
-     * The position names in the active company scope, each once.
+     * The position names in the active company scope, each once, limited like the departments.
      *
      * @return list<string>
      */
-    public static function positions(): array
+    public static function positions(?User $viewer = null): array
     {
-        return Position::query()->distinct()->orderBy('name')->pluck('name')->all();
+        $query = Position::query();
+
+        if ($viewer !== null && self::isLimited($viewer)) {
+            $query->whereIn('id', Employee::query()->visibleTo($viewer)->select('position_id'));
+        }
+
+        return array_values(array_map(
+            fn (mixed $name): string => (string) $name,
+            $query->distinct()->orderBy('name')->pluck('name')->all(),
+        ));
+    }
+
+    /**
+     * Whether the viewer sees only part of the company, so the lists must follow suit.
+     */
+    private static function isLimited(User $viewer): bool
+    {
+        return app(ReportingLine::class)->visibleIds($viewer) !== null;
     }
 
     /**

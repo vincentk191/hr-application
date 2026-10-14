@@ -98,6 +98,7 @@ it('creates an employee in the active company', function () {
     $this->actingAs($this->hr)
         ->post(route('employees.store'), [
             'employee_number' => 'EMP-9001',
+            'national_id' => '3174000000009001',
             'full_name' => 'Karyawan Baru',
             'employment_status' => EmploymentStatus::Active->value,
             'base_salary_idr' => 7500000,
@@ -148,6 +149,7 @@ it('audits a profile edit', function () {
 
     $this->actingAs($this->hr)->put(route('employees.update', $employee), [
         'employee_number' => $employee->employee_number,
+        'national_id' => $employee->national_id,
         'full_name' => 'Nama Diperbarui',
         'employment_status' => EmploymentStatus::Active->value,
     ])->assertRedirect();
@@ -164,7 +166,8 @@ it('audits a profile edit', function () {
 it('refuses a supervisor the create and edit actions', function () {
     $supervisor = User::factory()->create(['company_id' => $this->company->id]);
     $supervisor->assignRole(Role::Supervisor->value);
-    $employee = Employee::factory()->forCompany($this->company)->create();
+    $boss = Employee::factory()->forCompany($this->company)->create(['user_id' => $supervisor->id]);
+    $employee = Employee::factory()->forCompany($this->company)->create(['manager_id' => $boss->id]);
 
     $this->actingAs($supervisor)->get(route('employees.create'))->assertForbidden();
     $this->actingAs($supervisor)->get(route('employees.edit', $employee))->assertForbidden();

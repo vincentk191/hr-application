@@ -55,7 +55,8 @@ it('lets a parent-wide HR account reach any company', function () {
 it('refuses a supervisor any change to a record', function () {
     $company = Company::factory()->create();
     $supervisor = userWithRole(Role::Supervisor, $company);
-    $employee = Employee::factory()->forCompany($company)->create();
+    $boss = Employee::factory()->forCompany($company)->create(['user_id' => $supervisor->id]);
+    $employee = Employee::factory()->forCompany($company)->create(['manager_id' => $boss->id]);
 
     expect($supervisor->can('view', $employee))->toBeTrue()
         ->and($supervisor->can('update', $employee))->toBeFalse()

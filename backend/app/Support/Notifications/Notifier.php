@@ -5,6 +5,7 @@ namespace App\Support\Notifications;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
 use App\Models\LeaveRequest;
+use App\Models\ProfileChangeRequest;
 use App\Models\User;
 use App\Models\WorkflowStep;
 use App\Notifications\InAppNotice;
@@ -48,6 +49,76 @@ class Notifier
                 $user->notify($notice);
             }
         }
+    }
+
+    /**
+     * A request filed by the employee's own Atasan and approved on filing (REQ-WIZ-015): the employee
+     * hears it is approved, and every HR Admin that it exists. Whoever filed it is not told.
+     */
+    public function leaveFiledAndApproved(LeaveRequest $leave, User $actor): void
+    {
+        $leave->loadMissing('employee.user');
+
+        $this->leaveDecided($leave, true, null, $actor);
+
+        $notice = new InAppNotice(
+            'leave',
+            "{$leave->reference()} diajukan dan disetujui atasan untuk {$leave->employee->full_name}",
+            "{$leave->typeLabel()}{$this->timeframeSuffix($leave)} · {$leave->start_on->toDateString()} – {$leave->end_on->toDateString()} · {$leave->days} hari kerja",
+            route('leave-requests.index', ['open' => $leave->id], absolute: false),
+        );
+
+        foreach ($this->hrAdmins($leave->company_id) as $user) {
+            if ($user->isNot($actor) && $user->isNot($leave->employee->user)) {
+                $user->notify($notice);
+            }
+        }
+    }
+
+    /**
+     * An employee asked to change their profile: every HR Admin of the company hears of it, except
+     * the employee themselves if they are one (EMP-CHG-006).
+     */
+    public function profileChangeSubmitted(ProfileChangeRequest $change, User $actor): void
+    {
+        $change->loadMissing('employee');
+
+        $notice = new InAppNotice(
+            'profile',
+            "{$change->reference()}: {$change->employee->full_name} meminta perubahan data",
+            count($change->changes).' data diubah, menunggu persetujuan HR.',
+            route('profile-changes.index', ['open' => $change->id], absolute: false),
+        );
+
+        foreach ($this->hrAdmins($change->company_id) as $user) {
+            if ($user->isNot($actor)) {
+                $user->notify($notice);
+            }
+        }
+    }
+
+    /**
+     * HR decided: tell the employee, with the reason on a rejection.
+     */
+    public function profileChangeDecided(ProfileChangeRequest $change, bool $approved, User $actor): void
+    {
+        $change->loadMissing('employee.user');
+        $employeeUser = $change->employee?->user;
+
+        if ($employeeUser === null || $employeeUser->is($actor) || ! $employeeUser->is_active) {
+            return;
+        }
+
+        $skipped = $change->conflicts ?? [];
+
+        $employeeUser->notify(new InAppNotice(
+            'profile',
+            $approved ? "{$change->reference()} disetujui" : "{$change->reference()} ditolak",
+            $approved
+                ? ($skipped === [] ? 'Perubahan data Anda sudah berlaku.' : 'Sebagian berlaku. Belum diterapkan karena HR sudah mengubahnya: '.implode(', ', $skipped).'.')
+                : "Alasan: {$change->decision_note}",
+            route('employees.changes.create', $change->employee_id, absolute: false),
+        ));
     }
 
     /**

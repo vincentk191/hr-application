@@ -16,6 +16,8 @@ export type EmployeeRow = {
     isActive: boolean;
     /** Warehouse staff are data-only records with no login (CORE-RBA-006). */
     hasLogin: boolean;
+    /** "Aktif", "Dinonaktifkan", or "Belum terdaftar" when nobody has claimed the account. */
+    accountLabel: string;
     joinedOn: string | null;
 };
 

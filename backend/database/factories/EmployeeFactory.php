@@ -28,6 +28,7 @@ class EmployeeFactory extends Factory
             'user_id' => null,
             'employee_number' => $this->faker->unique()->numerify('EMP-####'),
             'full_name' => $this->faker->name(),
+            'national_id' => $this->faker->unique()->numerify('################'),
             'employment_status' => EmploymentStatus::Active,
             'employment_type' => EmploymentType::Permanent,
             'joined_on' => $this->faker->dateTimeBetween('-8 years', '-1 month'),

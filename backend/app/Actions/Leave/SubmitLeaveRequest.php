@@ -2,6 +2,7 @@
 
 namespace App\Actions\Leave;
 
+use App\Enums\LeaveRequestStage;
 use App\Enums\Role;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
@@ -56,9 +57,33 @@ class SubmitLeaveRequest
         });
 
         // After the transaction, so nobody is told about a request that then failed to save.
-        app(Notifier::class)->leaveSubmitted($leave, $submittedBy);
+        if (! $this->approveIfFiledByAtasan($leave, $submittedBy)) {
+            app(Notifier::class)->leaveSubmitted($leave, $submittedBy);
+        }
 
         return $leave;
+    }
+
+    /**
+     * A request filed for someone by the person who would approve it is approved on the spot, with
+     * that person recorded as the approver (REQ-WIZ-015). Only the named Atasan counts: HR filling in
+     * for an employee with no Atasan is not approving as one, and nobody approves their own request.
+     * The employee and every HR Admin are told, as for any approval.
+     */
+    public function approveIfFiledByAtasan(LeaveRequest $leave, User $by): bool
+    {
+        $leave->loadMissing('employee', 'workflow');
+        $step = $this->engine->waitingOn($leave->workflow);
+
+        if ($step === null || $step->approver_user_id !== $by->id || $leave->employee->user_id === $by->id) {
+            return false;
+        }
+
+        $this->engine->approve($step, $by, 'Diajukan dan disetujui oleh atasan');
+        $this->engine->transitionTo($leave->workflow->refresh(), LeaveRequestStage::Approved, $by);
+        app(Notifier::class)->leaveFiledAndApproved($leave->refresh(), $by);
+
+        return true;
     }
 
     /**

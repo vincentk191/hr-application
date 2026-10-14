@@ -6,6 +6,7 @@ use App\Enums\EmploymentStatus;
 use App\Enums\Permission;
 use App\Models\Employee;
 use App\Models\User;
+use App\Support\ReportingLine;
 
 /**
  * Who may see and change a dossier record (CORE-RBA-003, EMP-ADD).
@@ -17,20 +18,35 @@ use App\Models\User;
  */
 class EmployeePolicy
 {
+    /**
+     * The directory opens for a role that may view employees, and for anyone with people
+     * reporting to them: the reporting line decides, not the role (CORE-RBA-004).
+     */
     public function viewAny(User $user): bool
     {
-        return $user->can(Permission::ViewEmployees->value);
+        return $user->can(Permission::ViewEmployees->value)
+            || app(ReportingLine::class)->hasReports($user);
     }
 
+    /**
+     * A record is visible to its owner, to a holder of the company-wide permission, and to the
+     * people above it in the reporting line; never to a colleague on the same level.
+     */
     public function view(User $user, Employee $employee): bool
     {
-        // An employee may always see their own record, without a view permission.
         if ($this->isSelf($user, $employee)) {
             return true;
         }
 
-        return $user->can(Permission::ViewEmployees->value)
-            && $user->canAccessCompany($employee->company_id);
+        if (! $user->canAccessCompany($employee->company_id)) {
+            return false;
+        }
+
+        if ($user->can(Permission::ViewAllEmployees->value)) {
+            return true;
+        }
+
+        return in_array($employee->id, app(ReportingLine::class)->visibleIds($user) ?? [], strict: true);
     }
 
     /**
@@ -66,6 +82,12 @@ class EmployeePolicy
     {
         // A closed offboarding locks the profile from editing (OFF-SIG-009, EMP-ADD-006).
         if ($employee->employment_status === EmploymentStatus::Inactive) {
+            return false;
+        }
+
+        // Nobody edits their own record directly, HR included: it goes through a change request
+        // that a different HR Admin approves (EMP-CHG-005).
+        if ($this->isSelf($user, $employee)) {
             return false;
         }
 

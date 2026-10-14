@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AccountRegistrationController;
 use App\Http\Controllers\AttendanceAgentController;
 use App\Http\Controllers\AttendanceCalendarController;
 use App\Http\Controllers\AttendanceDeviceController;
@@ -18,6 +19,7 @@ use App\Http\Controllers\LeaveAttachmentController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\LeaveRequestDecisionController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ProfileChangeRequestController;
 use App\Http\Controllers\SearchController;
 use Illuminate\Support\Facades\Route;
 
@@ -25,11 +27,26 @@ use Illuminate\Support\Facades\Route;
 // page: a guest goes to sign in, a signed-in user goes to their dashboard.
 Route::get('/', fn () => to_route(auth()->check() ? 'dashboard' : 'login'))->name('home');
 
+// Claiming the account for a profile HR has created (CORE-REG). Guests only.
+Route::middleware('guest')->group(function () {
+    Route::get('register', [AccountRegistrationController::class, 'create'])->name('register');
+    Route::post('register', [AccountRegistrationController::class, 'store'])
+        ->middleware('throttle:register')
+        ->name('register.store');
+});
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
 
     Route::put('active-company', [CompanySwitcherController::class, 'update'])
         ->name('active-company.update');
+
+    // Changes an employee asks to make to their own profile, and HR's review of them (EMP-CHG).
+    Route::get('employees/{employee}/changes', [ProfileChangeRequestController::class, 'create'])->name('employees.changes.create');
+    Route::post('employees/{employee}/changes', [ProfileChangeRequestController::class, 'store'])->name('employees.changes.store');
+    Route::get('profile-changes', [ProfileChangeRequestController::class, 'index'])->name('profile-changes.index');
+    Route::put('profile-changes/{profileChange}/decision', [ProfileChangeRequestController::class, 'decide'])->name('profile-changes.decide');
+    Route::delete('profile-changes/{profileChange}', [ProfileChangeRequestController::class, 'destroy'])->name('profile-changes.destroy');
 
     Route::get('employees', [EmployeeController::class, 'index'])->name('employees.index');
     Route::get('employees/create', [EmployeeController::class, 'create'])->name('employees.create');

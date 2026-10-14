@@ -49,7 +49,13 @@ trait ValidatesEmployeeDossier
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:50'],
             'address' => ['nullable', 'string', 'max:1000'],
-            'national_id' => ['nullable', 'string', 'max:50'],
+            // NIK is half of the key an employee registers with (CORE-REG), so it is required, exactly
+            // 16 digits, and unique across the group, not just the company. The unique rule reads the
+            // table directly, so it ignores the company scope, which is what is wanted here.
+            'national_id' => [
+                'required', 'string', 'regex:/^\d{16}$/',
+                Rule::unique(Employee::class, 'national_id')->ignore($ignoring),
+            ],
             'emergency_contact_name' => ['nullable', 'string', 'max:255'],
             'emergency_contact_phone' => ['nullable', 'string', 'max:50'],
             'emergency_contact_relation' => ['nullable', 'string', 'max:100'],
@@ -87,6 +93,9 @@ trait ValidatesEmployeeDossier
             'employee_number.required' => 'Isi ID karyawan.',
             'employee_number.unique' => 'ID karyawan ini sudah dipakai di perusahaan ini.',
             'full_name.required' => 'Isi nama lengkap.',
+            'national_id.required' => 'Isi NIK.',
+            'national_id.regex' => 'NIK harus 16 digit angka.',
+            'national_id.unique' => 'NIK ini sudah terdaftar pada karyawan lain.',
             'photo.image' => 'Foto harus berupa gambar.',
             'photo.mimes' => 'Foto harus berformat JPG, PNG, atau WebP.',
             'photo.max' => 'Ukuran foto maksimal 2 MB.',

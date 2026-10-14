@@ -2,7 +2,9 @@
 
 namespace App\Support;
 
+use App\Enums\Permission;
 use App\Models\Employee;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -57,6 +59,36 @@ class ReportingLine
     public function scopeIds(Employee $manager): array
     {
         return [$manager->id, ...$this->downlineIds($manager)];
+    }
+
+    /**
+     * The employees this user may see (CORE-RBA-004): themselves and everyone below them, at any
+     * depth; never a colleague on their own level or anyone above. Null means "not limited" for a
+     * holder of `view-all-employees`, whose reach is then the company scope alone. An account with
+     * no employee record behind it sees nobody.
+     *
+     * @return list<int>|null
+     */
+    public function visibleIds(User $user): ?array
+    {
+        if ($user->can(Permission::ViewAllEmployees->value)) {
+            return null;
+        }
+
+        $own = Employee::acrossCompanies()->where('user_id', $user->id)->first();
+
+        return $own === null ? [] : $this->scopeIds($own);
+    }
+
+    /**
+     * Whether anyone reports to this user's own employee record, which is what earns an ordinary
+     * employee a view of their team without any role.
+     */
+    public function hasReports(User $user): bool
+    {
+        $own = Employee::acrossCompanies()->where('user_id', $user->id)->value('id');
+
+        return $own !== null && Employee::acrossCompanies()->where('manager_id', $own)->exists();
     }
 
     public function manages(Employee $manager, Employee $candidate): bool

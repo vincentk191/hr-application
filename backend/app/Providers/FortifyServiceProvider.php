@@ -98,6 +98,7 @@ class FortifyServiceProvider extends ServiceProvider
     {
         Fortify::loginView(fn (Request $request) => Inertia::render('auth/login', [
             'canResetPassword' => Features::enabled(Features::resetPasswords()),
+            'canRegister' => true,
             'status' => $request->session()->get('status'),
         ]));
 
@@ -128,6 +129,9 @@ class FortifyServiceProvider extends ServiceProvider
         RateLimiter::for('two-factor', function (Request $request) {
             return Limit::perMinute(5)->by($request->session()->get('login.id'));
         });
+
+        // Registration is an open door onto "which NIKs exist", so it is throttled per address.
+        RateLimiter::for('register', fn (Request $request) => Limit::perMinute(5)->by($request->ip()));
 
         RateLimiter::for('login', function (Request $request) {
             $throttleKey = Str::transliterate(Str::lower($request->input(Fortify::username())).'|'.$request->ip());

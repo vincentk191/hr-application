@@ -8,6 +8,7 @@ import { LeaveRequestDetail } from '@/components/leave-request-detail';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { edit } from '@/routes/employees';
+import { create as requestChange } from '@/routes/employees/changes';
 import type { BreadcrumbItem } from '@/types';
 import type { Timesheet, YearTimesheet } from '@/types/attendance';
 import type {
@@ -24,6 +25,8 @@ type Props = {
     documentCategories: ValueOption[];
     canManageDocuments: boolean;
     canRestrictDocuments: boolean;
+    /** This is the viewer's own record: they change it by asking HR. */
+    canRequestChange: boolean;
     /** Absent until the tab asks for it; null when this viewer may not see it. */
     attendance?: Timesheet | YearTimesheet | null;
     canCorrectAttendance: boolean;
@@ -167,6 +170,7 @@ export default function EmployeeShow({
     requests,
     leaveTakenThisYear,
     canUpdate,
+    canRequestChange,
     team,
 }: Props) {
     // ?tab=attendance opens straight onto that tab, so other screens can link to it.
@@ -218,6 +222,13 @@ export default function EmployeeShow({
                     {canUpdate && (
                         <Button asChild variant="outline">
                             <Link href={edit(employee.id).url}>Ubah data</Link>
+                        </Button>
+                    )}
+                    {canRequestChange && (
+                        <Button asChild variant="outline">
+                            <Link href={requestChange(employee.id).url}>
+                                Ajukan perubahan data
+                            </Link>
                         </Button>
                     )}
                 </header>
@@ -281,7 +292,7 @@ export default function EmployeeShow({
                             <Field label="Keluar" value={employee.exitedOn} />
                             <Field
                                 label="Akun"
-                                value={employee.hasLogin ? 'Ada' : 'Data saja'}
+                                value={employee.accountLabel}
                             />
                         </Card>
 

@@ -40,6 +40,7 @@ function newEmployeePayload(array $overrides = []): array
 {
     return [
         'employee_number' => 'EMP-7001',
+        'national_id' => '3174000000007001',
         'full_name' => 'Dewi Lestari',
         'employment_status' => EmploymentStatus::Active->value,
         ...$overrides,

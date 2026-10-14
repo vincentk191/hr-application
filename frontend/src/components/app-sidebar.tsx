@@ -8,6 +8,7 @@ import {
     LayoutGrid,
     Settings,
     ShieldCheck,
+    UserPen,
     UserRound,
     Users,
 } from 'lucide-react';
@@ -33,6 +34,7 @@ import {
     show as employeeShow,
 } from '@/routes/employees';
 import { index as leaveRequestsIndex } from '@/routes/leave-requests';
+import { index as profileChanges } from '@/routes/profile-changes';
 import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
@@ -49,7 +51,8 @@ const mainNavItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
-    const { auth, pendingForMe } = usePage().props;
+    const { auth, pendingForMe, pendingProfileChanges, version } =
+        usePage().props;
 
     // The admin panel is outside the Inertia app, so it is a plain link, and only offered to
     // people the server says may open it.
@@ -73,6 +76,16 @@ export function AppSidebar() {
         ...mainNavItems
             .slice(1)
             .map((item) => ({ ...item, badge: pendingForMe })),
+        ...(auth.canReviewProfileChanges
+            ? [
+                  {
+                      title: 'Perubahan data',
+                      href: profileChanges(),
+                      icon: UserPen,
+                      badge: pendingProfileChanges,
+                  },
+              ]
+            : []),
         ...(auth.canViewAttendance
             ? [
                   {
@@ -137,6 +150,9 @@ export function AppSidebar() {
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
+                <p className="label-mono px-3 pt-2 text-muted-foreground/70">
+                    v{version}
+                </p>
             </SidebarFooter>
         </Sidebar>
     );

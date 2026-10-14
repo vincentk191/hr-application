@@ -28,15 +28,20 @@ export default function LeaveRequestCreate({
     leaveTypes,
     employees,
     canFileForOthers,
+    canBackdate,
     prefill,
 }: {
     prefill: { employeeId: number | null; date: string | null };
     leaveTypes: LeaveTypeOption[];
     employees: EmployeeOption[];
     canFileForOthers: boolean;
+    /** HR Admin and Management may start a request in the past. */
+    canBackdate: boolean;
 }) {
     const [type, setType] = useState('');
-    const maxDays = leaveTypes.find((item) => item.value === type)?.maxDays;
+    const selectedType = leaveTypes.find((item) => item.value === type);
+    const maxDays = selectedType?.maxDays;
+    const backDays = selectedType?.backDays;
 
     return (
         <>
@@ -128,6 +133,13 @@ export default function LeaveRequestCreate({
                                         type="date"
                                         defaultValue={prefill.date ?? ''}
                                     />
+                                    {!canBackdate && (
+                                        <p className="text-xs text-muted-foreground">
+                                            {backDays != null
+                                                ? `Boleh dimulai sampai ${backDays} hari ke belakang.`
+                                                : 'Tidak boleh sebelum hari ini.'}
+                                        </p>
+                                    )}
                                     <InputError message={errors.start_on} />
                                 </div>
                                 <div className="grid gap-2">
