@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Carbon;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
@@ -24,11 +25,13 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string $kind
  * @property Carbon $starts_on
  * @property Carbon $ends_on
+ * @property string|null $series_id
+ * @property string|null $repeat
  * @property int|null $created_by_user_id
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['company_id', 'department_id', 'title', 'kind', 'starts_on', 'ends_on', 'created_by_user_id'])]
+#[Fillable(['company_id', 'department_id', 'title', 'kind', 'starts_on', 'ends_on', 'series_id', 'repeat', 'created_by_user_id'])]
 class CalendarEvent extends Model
 {
     use LogsActivity;
@@ -42,6 +45,59 @@ class CalendarEvent extends Model
      * bound on how much the attendance derivation expands each event.
      */
     public const MAX_DAYS = 31;
+
+    /** How an event can repeat (ATT-WIZ-002), with the label the form shows. */
+    public const WEEKLY = 'weekly';
+
+    public const MONTHLY = 'monthly';
+
+    public const YEARLY = 'yearly';
+
+    public const REPEATS = [
+        self::WEEKLY => 'Setiap minggu',
+        self::MONTHLY => 'Setiap bulan',
+        self::YEARLY => 'Setiap tahun',
+    ];
+
+    /**
+     * No series may be longer than this many occurrences, so a repeat with a far-off end date cannot
+     * write thousands of rows.
+     */
+    public const MAX_OCCURRENCES = 120;
+
+    /**
+     * The days an event occupies each time it happens, from the first one up to the end date of the
+     * repeat. Each occurrence keeps the length of the first. Counted from the first occurrence every
+     * time, so "the 31st, monthly" lands on the last day of a short month and goes back to the 31st
+     * afterwards instead of drifting.
+     *
+     * @return list<array{0: CarbonImmutable, 1: CarbonImmutable}>
+     */
+    public static function occurrences(CarbonImmutable $starts, CarbonImmutable $ends, ?string $repeat, ?CarbonImmutable $until): array
+    {
+        if ($repeat === null || $until === null) {
+            return [[$starts, $ends]];
+        }
+
+        $length = (int) $starts->diffInDays($ends);
+        $found = [];
+
+        for ($i = 0; $i <= self::MAX_OCCURRENCES; $i++) {
+            $start = match ($repeat) {
+                self::WEEKLY => $starts->addWeeks($i),
+                self::MONTHLY => $starts->addMonthsNoOverflow($i),
+                default => $starts->addYearsNoOverflow($i),
+            };
+
+            if ($start > $until) {
+                break;
+            }
+
+            $found[] = [$start, $start->addDays($length)];
+        }
+
+        return $found;
+    }
 
     /**
      * @return array<string, string>
@@ -88,7 +144,7 @@ class CalendarEvent extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['company_id', 'department_id', 'title', 'kind', 'starts_on', 'ends_on'])
+            ->logOnly(['company_id', 'department_id', 'title', 'kind', 'starts_on', 'ends_on', 'repeat'])
             ->logOnlyDirty()
             ->dontLogEmptyChanges()
             ->useLogName('calendar');

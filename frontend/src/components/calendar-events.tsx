@@ -23,6 +23,20 @@ function AddEventForm({
         ? ''
         : String(options.companies[0]?.id ?? '');
     const [company, setCompany] = useState(onlyCompany);
+    const [starts, setStarts] = useState(defaultDate);
+    const [ends, setEnds] = useState(defaultDate);
+    const [endsChosen, setEndsChosen] = useState(false);
+    const [repeat, setRepeat] = useState('');
+
+    // The end follows the start until someone picks it themselves, and can never be before it.
+    const changeStart = (value: string) => {
+        setStarts(value);
+
+        if (!endsChosen || ends < value) {
+            setEnds(value);
+        }
+    };
+
     const departments = options.departments.filter(
         (department) => String(department.company_id) === company,
     );
@@ -62,7 +76,10 @@ function AddEventForm({
                                 id="event-from"
                                 name="starts_on"
                                 type="date"
-                                defaultValue={defaultDate}
+                                value={starts}
+                                onChange={(event) =>
+                                    changeStart(event.target.value)
+                                }
                                 required
                             />
                             <InputError message={errors.starts_on} />
@@ -73,12 +90,52 @@ function AddEventForm({
                                 id="event-to"
                                 name="ends_on"
                                 type="date"
-                                defaultValue={defaultDate}
+                                value={ends}
+                                min={starts}
+                                onChange={(event) => {
+                                    setEnds(event.target.value);
+                                    setEndsChosen(true);
+                                }}
                                 required
                             />
                             <InputError message={errors.ends_on} />
                         </div>
                     </div>
+                    <div className="grid gap-1">
+                        <Label htmlFor="event-repeat">Pengulangan</Label>
+                        <select
+                            id="event-repeat"
+                            name="repeat"
+                            value={repeat}
+                            onChange={(event) => setRepeat(event.target.value)}
+                            className={selectClasses}
+                        >
+                            <option value="">Tidak berulang</option>
+                            <option value="weekly">Setiap minggu</option>
+                            <option value="monthly">Setiap bulan</option>
+                            <option value="yearly">Setiap tahun</option>
+                        </select>
+                        <InputError message={errors.repeat} />
+                    </div>
+                    {repeat !== '' && (
+                        <div className="grid gap-1">
+                            <Label htmlFor="event-repeat-until">
+                                Berulang sampai
+                            </Label>
+                            <Input
+                                id="event-repeat-until"
+                                name="repeat_until"
+                                type="date"
+                                min={ends}
+                                required
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                Dibuat satu per kejadian, paling banyak 120.
+                                Bisa dihapus satu per satu atau sekaligus.
+                            </p>
+                            <InputError message={errors.repeat_until} />
+                        </div>
+                    )}
                     <div className="grid gap-1">
                         <Label htmlFor="event-company">Berlaku untuk</Label>
                         <select
@@ -189,29 +246,63 @@ export function CalendarEvents({
                                         : ''}{' '}
                                     · {event.scope}
                                     {event.kind === 'event' ? ' · acara' : ''}
+                                    {event.repeat
+                                        ? ` · ${event.repeat.toLowerCase()}, ${event.seriesSize} kali`
+                                        : ''}
                                 </div>
                             </div>
                             {event.canDelete && (
-                                <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    type="button"
-                                    className="text-destructive"
-                                    onClick={() => {
-                                        if (
-                                            window.confirm(
-                                                `Hapus "${event.title}"?`,
-                                            )
-                                        ) {
-                                            router.delete(
-                                                destroy(event.id).url,
-                                                { preserveScroll: true },
-                                            );
-                                        }
-                                    }}
-                                >
-                                    Hapus
-                                </Button>
+                                <div className="flex shrink-0 gap-1">
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        type="button"
+                                        className="text-destructive"
+                                        onClick={() => {
+                                            if (
+                                                window.confirm(
+                                                    event.seriesSize > 1
+                                                        ? `Hapus hanya yang ini dari "${event.title}"?`
+                                                        : `Hapus "${event.title}"?`,
+                                                )
+                                            ) {
+                                                router.delete(
+                                                    destroy(event.id).url,
+                                                    { preserveScroll: true },
+                                                );
+                                            }
+                                        }}
+                                    >
+                                        Hapus
+                                    </Button>
+                                    {event.seriesSize > 1 && (
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            type="button"
+                                            className="text-destructive"
+                                            onClick={() => {
+                                                if (
+                                                    window.confirm(
+                                                        `Hapus seluruh seri "${event.title}" (${event.seriesSize} kali)?`,
+                                                    )
+                                                ) {
+                                                    router.delete(
+                                                        destroy(event.id).url,
+                                                        {
+                                                            data: {
+                                                                series: true,
+                                                            },
+                                                            preserveScroll: true,
+                                                        },
+                                                    );
+                                                }
+                                            }}
+                                        >
+                                            Hapus seri
+                                        </Button>
+                                    )}
+                                </div>
                             )}
                         </li>
                     ))}

@@ -157,6 +157,10 @@ export type CalendarEventRow = {
     from: string;
     to: string;
     scope: string;
+    /** How it repeats ("Setiap minggu"), or null for an event that happens once. */
+    repeat: string | null;
+    /** How many times the whole series happens; 1 when it does not repeat. */
+    seriesSize: number;
     canDelete: boolean;
 };
 

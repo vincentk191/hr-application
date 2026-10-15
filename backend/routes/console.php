@@ -16,6 +16,10 @@ Schedule::command('notifications:attendance-issues')
     ->dailyAt('09:00')
     ->timezone((string) config('attendance.device_timezone'));
 
+// Seen notifications clear themselves a day after they were read. Hourly, so one is gone within an hour
+// of its day being up. What was already announced is remembered separately, so nothing is sent twice.
+Schedule::command('notifications:prune-read')->hourly();
+
 Schedule::command('notifications:document-expiry')
     ->dailyAt('08:00')
     ->timezone((string) config('attendance.device_timezone'));

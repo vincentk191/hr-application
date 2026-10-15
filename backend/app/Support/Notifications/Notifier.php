@@ -10,7 +10,7 @@ use App\Models\User;
 use App\Models\WorkflowStep;
 use App\Notifications\InAppNotice;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Notifications\DatabaseNotification;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Who is told what, and when. The only place that decides recipients, so the rules about who hears
@@ -229,7 +229,12 @@ class Notifier
     }
 
     /**
-     * Send a notification unless this person already has one with the same key.
+     * Send a notification unless this person has already been sent one with the same key.
+     *
+     * What was sent is remembered in `notification_keys`, not by looking for the notification:
+     * read notifications are deleted after a day (`notifications:prune-read`), and a job that runs
+     * every morning must not send the same thing again because its notification is gone. The insert
+     * is the check, so two runs at once cannot both send.
      */
     public function once(?User $user, InAppNotice $notice): void
     {
@@ -237,20 +242,19 @@ class Notifier
             return;
         }
 
-        if ($notice->key !== null && $this->alreadySent($user, $notice->key)) {
-            return;
+        if ($notice->key !== null) {
+            $first = DB::table('notification_keys')->insertOrIgnore([
+                'user_id' => $user->getKey(),
+                'key' => $notice->key,
+                'created_at' => now(),
+            ]);
+
+            if ($first === 0) {
+                return;
+            }
         }
 
         $user->notify($notice);
-    }
-
-    private function alreadySent(User $user, string $key): bool
-    {
-        return DatabaseNotification::query()
-            ->where('notifiable_type', $user->getMorphClass())
-            ->where('notifiable_id', $user->getKey())
-            ->where('data', 'like', '%"key":'.str_replace(['%', '_'], ['\\%', '\\_'], (string) json_encode($key)).'%')
-            ->exists();
     }
 
     /**

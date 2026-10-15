@@ -47,6 +47,9 @@ class StoreCalendarEventRequest extends FormRequest
             'kind' => ['required', Rule::in([CalendarEvent::HOLIDAY, CalendarEvent::EVENT])],
             'starts_on' => ['required', 'date_format:Y-m-d'],
             'ends_on' => ['required', 'date_format:Y-m-d', 'after_or_equal:starts_on'],
+            // Repeating (ATT-WIZ-002): how, and until when. Left blank, it happens once.
+            'repeat' => ['nullable', Rule::in(array_keys(CalendarEvent::REPEATS))],
+            'repeat_until' => ['nullable', 'required_with:repeat', 'date_format:Y-m-d', 'after:ends_on'],
             // Empty means the whole group; only a parent-wide user's request can leave it empty.
             'company_id' => ['nullable', 'integer', Rule::exists(Company::class, 'id')],
             'department_id' => ['nullable', 'integer'],
@@ -72,6 +75,8 @@ class StoreCalendarEventRequest extends FormRequest
                     $validator->errors()->add('ends_on', 'Satu acara paling lama '.CalendarEvent::MAX_DAYS.' hari.');
                 }
 
+                $this->checkRepeat($validator, $data);
+
                 if (! empty($data['department_id'])) {
                     if (empty($data['company_id'])) {
                         $validator->errors()->add('department_id', 'Pilih perusahaan untuk departemen ini.');
@@ -93,6 +98,35 @@ class StoreCalendarEventRequest extends FormRequest
     }
 
     /**
+     * A repeat must leave room between occurrences and stay within the cap on how many are made.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function checkRepeat(Validator $validator, array $data): void
+    {
+        if (empty($data['repeat']) || empty($data['repeat_until']) || $validator->errors()->hasAny(['repeat', 'repeat_until'])) {
+            return;
+        }
+
+        $starts = CarbonImmutable::parse($data['starts_on']);
+        $ends = CarbonImmutable::parse($data['ends_on']);
+        $days = (int) $starts->diffInDays($ends) + 1;
+        $room = ['weekly' => 7, 'monthly' => 28, 'yearly' => 365][$data['repeat']];
+
+        if ($days > $room) {
+            $validator->errors()->add('repeat', 'Acara sepanjang '.$days.' hari tidak muat berulang '.strtolower(CalendarEvent::REPEATS[$data['repeat']]).'.');
+
+            return;
+        }
+
+        $count = count(CalendarEvent::occurrences($starts, $ends, $data['repeat'], CarbonImmutable::parse($data['repeat_until'])));
+
+        if ($count > CalendarEvent::MAX_OCCURRENCES) {
+            $validator->errors()->add('repeat_until', 'Terlalu banyak pengulangan (maksimal '.CalendarEvent::MAX_OCCURRENCES.'). Pilih tanggal berakhir yang lebih dekat.');
+        }
+    }
+
+    /**
      * @return array<string, string>
      */
     public function messages(): array
@@ -103,6 +137,9 @@ class StoreCalendarEventRequest extends FormRequest
             'starts_on.required' => 'Isi tanggal mulai.',
             'ends_on.required' => 'Isi tanggal selesai.',
             'ends_on.after_or_equal' => 'Tanggal selesai tidak boleh sebelum tanggal mulai.',
+            'repeat.in' => 'Pilihan pengulangan tidak dikenal.',
+            'repeat_until.required_with' => 'Isi sampai kapan berulang.',
+            'repeat_until.after' => 'Tanggal berakhir pengulangan harus setelah tanggal selesai.',
         ];
     }
 }

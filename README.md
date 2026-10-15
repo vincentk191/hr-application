@@ -29,7 +29,7 @@ listed in the checklist below. Nothing here is committed yet: changes are left f
 
 |                 |                                                                                                              |
 | --------------- | ------------------------------------------------------------------------------------------------------------ |
-| Tests           | 583 passing                                                                                                  |
+| Tests           | 599 passing                                                                                                  |
 | Static analysis | PHPStan level 7, 0 errors                                                                                    |
 | Phase 0         | **Complete** — company scoping, RBAC, workflow engine, account state and login rules                         |
 | Phase 1         | Directory (with CSV import/export), profile, add/edit, documents, admin panel done                           |
@@ -782,9 +782,9 @@ How the import behaves, so it is not surprised by:
 | Screen    | Name                      | f   | P1  | Status | Notes                                                            |
 | --------- | ------------------------- | --- | --- | ------ | ---------------------------------------------------------------- |
 | `ATT-DEV` | Device integration health | 6   | 5   | 🟡     | Manual CSV import, enrol-ID mapping, capture status, the token-only ingest endpoint, agent registry/health and "sync now" done. The on-site agent and listener themselves (002, 006) are not built here. **Open items before closing: see the list under this table's section** (VPN route, scanner ack, PIN mapping) |
-| `ATT-CAL` | Calendar ("Kalender")     | 5   | 5   | 🟡     | Day / week / month / year, department/team/leave-type filters, status rules, holidays and approved leave shown ahead of the data, CSV export, printable recap. A separate live board is covered by the Day view |
+| `ATT-CAL` | Calendar ("Kalender")     | 5   | 5   | 🟡     | Day / week / month / year (the Day view is split into Hadir, which keeps Terlambat and Pulang cepat, and Tidak hadir for Cuti and absent, plus a Libur / belum ada data tab when someone is in it), department/team/leave-type filters, status rules, holidays and approved leave shown ahead of the data, CSV export, printable recap. A separate live board is covered by the Day view |
 | `ATT-SID` | Calendar side panel       | 6   | 3   | ✅     | Headcount summary, holidays and events, and the single on-leave panel (day / week / month / year, at-least-one-day rule), all from the same rows and filters as the grid |
-| `ATT-WIZ` | Calendar event wizard     | 1   | 1   | ✅     | Holidays and company/department events, with audit. `WorkingDays` feeds the leave day counts, so a holiday is not a leave day |
+| `ATT-WIZ` | Calendar event wizard     | 1   | 1   | ✅     | Holidays and company/department events, with audit; the end date follows the start, and an event can repeat weekly, monthly or yearly until a date (one row per occurrence, deletable alone or as a series). `WorkingDays` feeds the leave day counts, so a holiday is not a leave day |
 | `EMP-ATT` | Profile — attendance tab  | 3   | 3   | ✅     | Timesheet (month and year), manual add/change/void with reason + audit, recompute, and totals by employee, department and period (the recap) |
 
 ### Phase 3 — Requests (Pengajuan) + notifications
@@ -1024,7 +1024,7 @@ Progress Tracking analytics (Appendix C).
   emphasis (the chosen view, status pills, the avatar) and one red for the thing to do and the place you
   are. Dark mode follows the same tokens. Reusable classes: `surface` (a card), `label-mono` (caption),
   `seg` (a pill switcher), `pill-tabs`, `chip`. Table headings are captions by default. The shell is a top
-  bar (menu button, name, search, company, notifications, who you are with their role) over a side menu and
+  bar (menu button, name, search, company, notifications, who you are with their role) over a side menu (Profil saya is in the account menu at the top right, above Pengaturan, for everyone; it is greyed out for an account with no employee record yet; related pages folded under parent tabs: Karyawan › Direktori, Perubahan data; Absensi › Kalender, Rekap, Masalah, Data absensi; a parent with one page left shows that page alone; a closed parent carries the sum of its pages' counts) and
   the page, whose name comes from its breadcrumbs. The sign-in screens are a black panel and a hard-edged
   form. To change the palette or the type, change the tokens; to restyle a control, change its class once.
   Layouts were taken from reference screens for styling only; their content was not used. The dashboard's
@@ -1057,6 +1057,11 @@ Progress Tracking analytics (Appendix C).
     `view-attendance`).
   - **Documents:** a daily job (08:00) tells people who may manage documents when one enters its 30-day
     warning window, and again when it expires; not every morning.
+  - **Read notifications clear themselves.** An hourly job (`notifications:prune-read`) deletes a
+    notification once it has been read for 24 hours (`--hours=` changes that); unread ones stay however
+    old. What the jobs above have already announced once (a document's warning, a day's attendance
+    issues) is remembered in `notification_keys`, not by finding the notification, so clearing one never
+    makes it be sent again.
   - **The jobs need the scheduler.** The compose file has a `scheduler` service running
     `php artisan schedule:work`; without it only the leave notifications (sent when it happens) work. Run
     `php artisan notifications:attendance-issues --date=YYYY-MM-DD` or `notifications:document-expiry` by

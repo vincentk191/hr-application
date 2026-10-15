@@ -104,6 +104,8 @@ class DevAccountSeeder extends Seeder
         // Then give every company the full Management → Supervisor → Employee line.
         $this->call(OrgHierarchySeeder::class);
 
+        $this->giveEveryAccountAProfile($first);
+
         $this->command->newLine();
         $this->command->line('  All accounts use the password: password');
         $this->command->line('  group@hr.test         HR Admin, parent-wide   (switcher unlocked)');
@@ -112,6 +114,27 @@ class DevAccountSeeder extends Seeder
         $this->command->line('  supervisor.a@hr.test  Supervisor, '.$first->name.'  (read-only)');
         $this->command->line('  employee.a@hr.test    Employee, '.$first->name.'  (own profile and requests only)');
         $this->command->newLine();
+    }
+
+    /**
+     * "Profil saya" is in every account's menu, HR and administrators included, so each dev login needs
+     * a dossier record of its own to open. A parent-wide account has no company, so its record goes
+     * in the first one. Accounts that already have one are left as they are.
+     */
+    private function giveEveryAccountAProfile(Company $fallback): void
+    {
+        User::query()->where('email', 'like', '%@hr.test')->get()->each(function (User $user) use ($fallback): void {
+            if (Employee::acrossCompanies()->where('user_id', $user->id)->exists()) {
+                return;
+            }
+
+            Employee::factory()->forCompany($user->company ?? $fallback)->create([
+                'user_id' => $user->id,
+                'full_name' => $user->name,
+                'email' => $user->email,
+                'joined_on' => now()->subYears(3)->toDateString(),
+            ]);
+        });
     }
 
     /**

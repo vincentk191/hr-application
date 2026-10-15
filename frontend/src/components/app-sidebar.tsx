@@ -9,7 +9,6 @@ import {
     Settings,
     ShieldCheck,
     UserPen,
-    UserRound,
     Users,
 } from 'lucide-react';
 import { NavMain } from '@/components/nav-main';
@@ -29,10 +28,7 @@ import {
     issues as attendanceIssues,
     recap as attendanceRecap,
 } from '@/routes/attendance';
-import {
-    index as employeesIndex,
-    show as employeeShow,
-} from '@/routes/employees';
+import { index as employeesIndex } from '@/routes/employees';
 import { index as leaveRequestsIndex } from '@/routes/leave-requests';
 import { index as profileChanges } from '@/routes/profile-changes';
 import type { NavItem } from '@/types';
@@ -50,32 +46,37 @@ const mainNavItems: NavItem[] = [
     },
 ];
 
+/**
+ * Folds pages under a parent tab. Nothing to show gives nothing, and a single page is returned as
+ * itself rather than as a group of one.
+ */
+function parentTab(
+    title: string,
+    icon: NavItem['icon'],
+    children: NavItem[],
+): NavItem[] {
+    if (children.length <= 1) {
+        return children;
+    }
+
+    return [{ title, href: children[0].href, icon, children }];
+}
+
 export function AppSidebar() {
     const { auth, pendingForMe, pendingProfileChanges, version } =
         usePage().props;
 
-    // The admin panel is outside the Inertia app, so it is a plain link, and only offered to
-    // people the server says may open it.
-    // What is offered depends on who is signed in: the directory is for roles that may open it,
-    // an employee gets a link to their own profile instead, and the panel only appears for people
-    // who can open it. The server enforces each of these; hiding the link is only courtesy.
-    const navItems: NavItem[] = [
-        mainNavItems[0],
+    // What is offered depends on who is signed in: the directory is for roles that may open it, an
+    // employee gets a link to their own profile, and the admin panel (outside the Inertia app, so a
+    // plain link) only appears for people who can open it. The server enforces each of these; hiding
+    // the link is only courtesy.
+    //
+    // Related places sit under a parent tab. A parent with a single page left in it is not worth a
+    // fold, so that page is shown on its own.
+    const directory: NavItem[] = [
         ...(auth.canViewEmployees
-            ? [{ title: 'Karyawan', href: employeesIndex(), icon: Users }]
+            ? [{ title: 'Direktori', href: employeesIndex(), icon: Users }]
             : []),
-        ...(auth.employeeId !== null
-            ? [
-                  {
-                      title: 'Profil saya',
-                      href: employeeShow(auth.employeeId),
-                      icon: UserRound,
-                  },
-              ]
-            : []),
-        ...mainNavItems
-            .slice(1)
-            .map((item) => ({ ...item, badge: pendingForMe })),
         ...(auth.canReviewProfileChanges
             ? [
                   {
@@ -86,6 +87,9 @@ export function AppSidebar() {
                   },
               ]
             : []),
+    ];
+
+    const attendance: NavItem[] = [
         ...(auth.canViewAttendance
             ? [
                   {
@@ -114,6 +118,15 @@ export function AppSidebar() {
                   },
               ]
             : []),
+    ];
+
+    const navItems: NavItem[] = [
+        mainNavItems[0],
+        ...mainNavItems
+            .slice(1)
+            .map((item) => ({ ...item, badge: pendingForMe })),
+        ...parentTab('Karyawan', Users, directory),
+        ...parentTab('Absensi', CalendarCheck, attendance),
         ...(auth.canAccessAdminPanel
             ? [
                   {

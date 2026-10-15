@@ -224,7 +224,9 @@ class AttendanceCalendarController extends Controller
         $user = $request->user();
         $activeCompany = app(CompanyContext::class)->companyId();
 
-        return CalendarEvent::query()
+        $sizes = [];
+
+        $events = CalendarEvent::query()
             ->with(['company:id,code', 'department:id,name'])
             ->whereDate('starts_on', '<=', $to->toDateString())
             ->whereDate('ends_on', '>=', $from->toDateString())
@@ -232,13 +234,26 @@ class AttendanceCalendarController extends Controller
                 fn (Builder $inner) => $inner->whereNull('company_id')->orWhere('company_id', $activeCompany),
             ))
             ->orderBy('starts_on')
-            ->get()
+            ->get();
+
+        // How many times each repeating event happens in all, not only inside this range.
+        $seriesIds = $events->pluck('series_id')->filter()->unique()->all();
+
+        if ($seriesIds !== []) {
+            $sizes = CalendarEvent::query()->whereIn('series_id', $seriesIds)
+                ->selectRaw('series_id, count(*) as total')->groupBy('series_id')->pluck('total', 'series_id')->all();
+        }
+
+        return $events
             ->map(fn (CalendarEvent $event): array => [
                 'id' => $event->id,
                 'title' => $event->title,
                 'kind' => $event->kind,
                 'from' => $event->starts_on->toDateString(),
                 'to' => $event->ends_on->toDateString(),
+                // Set for an event that is one of a series: how it repeats and how many there are.
+                'repeat' => $event->repeat === null ? null : (CalendarEvent::REPEATS[$event->repeat] ?? null),
+                'seriesSize' => $event->series_id === null ? 1 : (int) ($sizes[$event->series_id] ?? 1),
                 'scope' => match (true) {
                     $event->company_id === null => 'Semua perusahaan',
                     $event->department_id === null => $event->company->code,

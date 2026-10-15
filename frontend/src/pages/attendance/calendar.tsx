@@ -78,9 +78,25 @@ const VIEWS: { value: CalendarView; label: string }[] = [
     { value: 'year', label: 'Tahun' },
 ];
 
+type DayTab = 'present' | 'away' | 'other';
+
+/** Who counts as "Hadir": anyone who came, however late or early they left. */
+const PRESENT: DayStatus[] = ['present', 'late', 'early_leave'];
+/** "Tidak hadir": absent without a reason, or away on approved leave. */
+const AWAY: DayStatus[] = ['absent', 'leave'];
+
+function tabOf(status: DayStatus | undefined): DayTab {
+    if (status !== undefined && PRESENT.includes(status)) {
+        return 'present';
+    }
+
+    return status !== undefined && AWAY.includes(status) ? 'away' : 'other';
+}
+
 /**
- * The Day view as a list rather than a one-column grid: the date is already in the toolbar, so the
- * columns carry what differs per person — position, supervisor, first and last scan, and status.
+ * The Day view, split into two tabs: Hadir (on time, Terlambat and Pulang cepat all stay here) and
+ * Tidak hadir (Cuti and absent). A holiday, a weekend or a day the log has not reached is neither, so
+ * those people sit in a third tab that only appears when there is someone in it.
  */
 function DayTable({
     date,
@@ -91,6 +107,80 @@ function DayTable({
     rows: CalendarRow[];
     statuses: StatusOption[];
 }) {
+    const byTab: Record<DayTab, CalendarRow[]> = {
+        present: [],
+        away: [],
+        other: [],
+    };
+
+    rows.forEach((row) => byTab[tabOf(row.days[date]?.status)].push(row));
+
+    // Open on Hadir; if nobody came, open on whichever tab has people.
+    const [tab, setTab] = useState<DayTab>(
+        byTab.present.length > 0
+            ? 'present'
+            : byTab.away.length > 0
+              ? 'away'
+              : byTab.other.length > 0
+                ? 'other'
+                : 'present',
+    );
+
+    const tabs: { value: DayTab; label: string }[] = [
+        { value: 'present', label: 'Hadir' },
+        { value: 'away', label: 'Tidak hadir' },
+        ...(byTab.other.length > 0
+            ? [{ value: 'other' as const, label: 'Libur / belum ada data' }]
+            : []),
+    ];
+
+    return (
+        <div className="space-y-3">
+            <div className="pill-tabs" role="tablist">
+                {tabs.map((item) => (
+                    <button
+                        key={item.value}
+                        type="button"
+                        role="tab"
+                        aria-selected={tab === item.value}
+                        data-on={tab === item.value}
+                        data-test={`day-tab-${item.value}`}
+                        onClick={() => setTab(item.value)}
+                    >
+                        {item.label} ({byTab[item.value].length})
+                    </button>
+                ))}
+            </div>
+
+            <DayRows
+                date={date}
+                rows={byTab[tab]}
+                statuses={statuses}
+                empty={
+                    rows.length === 0
+                        ? 'Tidak ada karyawan yang cocok.'
+                        : 'Tidak ada karyawan di tab ini.'
+                }
+            />
+        </div>
+    );
+}
+
+/**
+ * The list itself rather than a one-column grid: the date is already in the toolbar, so the columns
+ * carry what differs per person — position, supervisor, first and last scan, and status.
+ */
+function DayRows({
+    date,
+    rows,
+    statuses,
+    empty,
+}: {
+    date: string;
+    rows: CalendarRow[];
+    statuses: StatusOption[];
+    empty: string;
+}) {
     const labelOf = Object.fromEntries(
         statuses.map((status) => [status.value, status.label]),
     ) as Record<DayStatus, string>;
@@ -98,7 +188,7 @@ function DayTable({
     if (rows.length === 0) {
         return (
             <p className="surface p-6 text-center text-sm text-muted-foreground">
-                Tidak ada karyawan yang cocok.
+                {empty}
             </p>
         );
     }
@@ -644,6 +734,7 @@ export default function AttendanceCalendar(props: Props) {
                             />
                         ) : view === 'day' ? (
                             <DayTable
+                                key={dates[0]?.date ?? anchor}
                                 date={dates[0]?.date ?? anchor}
                                 rows={rows}
                                 statuses={options.statuses}
