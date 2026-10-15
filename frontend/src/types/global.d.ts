@@ -20,6 +20,8 @@ declare module '@inertiajs/core' {
             notifications: NotificationSummary | null;
             /** Requests waiting on the signed-in person: the badge on "Pengajuan". */
             pendingForMe: number;
+            /** Open offboarding cases this person may see: the badge on "Offboarding". */
+            openOffboarding: number;
             /** Profile change requests HR has to decide: the badge on "Perubahan data". */
             pendingProfileChanges: number;
             sidebarOpen: boolean;

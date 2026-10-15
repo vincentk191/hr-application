@@ -35,6 +35,8 @@ export type EmployeeDetail = EmployeeRow & {
     positionId: number | null;
     employmentStatus: string;
     employmentType: string | null;
+    /** Notice period in the contract, in days; the offboarding wizard checks against it. */
+    noticeDays: number | null;
     exitedOn: string | null;
     contact: {
         email: string | null;

@@ -385,6 +385,7 @@ class EmployeeController extends Controller
             'positionId' => $employee->position_id,
             'employmentStatus' => $employee->employment_status->value,
             'employmentType' => $employee->employment_type?->value,
+            'noticeDays' => $employee->notice_days,
             'exitedOn' => $employee->exited_on?->toDateString(),
             'contact' => $employee->only([
                 'email', 'phone', 'address', 'national_id',

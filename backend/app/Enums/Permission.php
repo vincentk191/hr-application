@@ -26,6 +26,7 @@ enum Permission: string
     case CorrectAttendance = 'correct-attendance';
     case ManageCalendarEvents = 'manage-calendar-events';
     case ManageLeaveSettings = 'manage-leave-settings';
+    case ManageOffboarding = 'manage-offboarding';
 
     /**
      * The Indonesian label shown in the dashboard.
@@ -49,6 +50,7 @@ enum Permission: string
             self::CorrectAttendance => 'Koreksi data absensi (tambah / batalkan scan)',
             self::ManageCalendarEvents => 'Kelola hari libur dan acara',
             self::ManageLeaveSettings => 'Atur batas hari per jenis cuti',
+            self::ManageOffboarding => 'Kelola offboarding (membuat dan mengajukan kasus)',
         };
     }
 }

@@ -5,8 +5,10 @@ namespace App\Support\Notifications;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
 use App\Models\LeaveRequest;
+use App\Models\OffboardingCase;
 use App\Models\ProfileChangeRequest;
 use App\Models\User;
+use App\Models\WorkflowComment;
 use App\Models\WorkflowStep;
 use App\Notifications\InAppNotice;
 use Illuminate\Database\Eloquent\Collection;
@@ -119,6 +121,87 @@ class Notifier
                 : "Alasan: {$change->decision_note}",
             route('employees.changes.create', $change->employee_id, absolute: false),
         ));
+    }
+
+    /**
+     * HR sent an offboarding case for approval: tell Management, who decide it (OFF-APR-001). The person
+     * leaving is never told, even if they hold the Management role.
+     */
+    public function offboardingSubmitted(OffboardingCase $case, User $actor, bool $resubmitted = false): void
+    {
+        $case->loadMissing('employee.user', 'workflow.steps');
+        $step = $case->workflow?->steps->firstWhere('status', 'pending');
+
+        if (! $step instanceof WorkflowStep) {
+            return;
+        }
+
+        $notice = new InAppNotice(
+            'offboarding',
+            $resubmitted ? "{$case->reference()} diajukan ulang: {$case->employee->full_name}" : "{$case->reference()}: offboarding {$case->employee->full_name} menunggu persetujuan",
+            "{$case->exit_type?->label()} · hari terakhir {$case->last_working_on?->toDateString()}",
+            route('offboarding.show', $case, absolute: false),
+        );
+
+        foreach ($this->approversOf($step, $case->company_id) as $user) {
+            if ($user->isNot($actor) && $user->isNot($case->employee->user)) {
+                $user->notify($notice);
+            }
+        }
+    }
+
+    /**
+     * Management decided: tell HR who made the case, with the reason on a rejection. An approval also
+     * tells the leaver's Atasan, who works the checklist from here (OFF-APR-006).
+     */
+    public function offboardingDecided(OffboardingCase $case, bool $approved, ?string $note, User $actor): void
+    {
+        $case->loadMissing('creator', 'employee.manager.user');
+        $name = $case->employee->full_name;
+        $url = route('offboarding.show', $case, absolute: false);
+
+        $recipients = collect([$case->creator])->filter()->reject(fn (User $user): bool => $user->is($actor) || ! $user->is_active);
+
+        foreach ($recipients as $user) {
+            $user->notify(new InAppNotice(
+                'offboarding',
+                $approved ? "{$case->reference()} disetujui: {$name}" : "{$case->reference()} ditolak: {$name}",
+                $approved ? 'Checklist offboarding dimulai.' : "Alasan: {$note}",
+                $url,
+            ));
+        }
+
+        $atasan = $case->employee->manager?->user;
+
+        if ($approved && $atasan !== null && $atasan->is_active && $atasan->isNot($actor)) {
+            $atasan->notify(new InAppNotice('offboarding', "Offboarding {$name} disetujui", 'Checklist dimulai; Anda memantau serah terima tim Anda.', $url));
+        }
+    }
+
+    /**
+     * A comment on a case: tell the others in the conversation, the requester and whoever decides it.
+     */
+    public function offboardingCommented(OffboardingCase $case, WorkflowComment $comment, User $author): void
+    {
+        $case->loadMissing('creator', 'employee.user', 'employee.manager.user', 'workflow.steps', 'workflow.comments.author');
+        $step = $case->workflow?->steps->firstWhere('status', 'pending');
+
+        // The requester, whoever decides next, the leaver's Atasan, and anyone who has already spoken.
+        $recipients = collect([$case->creator, $case->employee->manager?->user])
+            ->merge($step instanceof WorkflowStep ? $this->approversOf($step, $case->company_id) : [])
+            ->merge($case->workflow?->comments->pluck('author') ?? [])
+            ->filter()
+            ->unique('id')
+            ->reject(fn (User $user): bool => $user->is($author) || $user->is($case->employee->user) || ! $user->is_active);
+
+        foreach ($recipients as $user) {
+            $user->notify(new InAppNotice(
+                'offboarding',
+                "{$case->reference()}: komentar baru dari {$author->name}",
+                mb_strimwidth($comment->body, 0, 140, '…'),
+                route('offboarding.show', $case, absolute: false),
+            ));
+        }
     }
 
     /**

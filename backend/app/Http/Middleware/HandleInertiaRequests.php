@@ -7,6 +7,7 @@ use App\Enums\Role;
 use App\Http\Controllers\NotificationController;
 use App\Models\Company;
 use App\Models\Employee;
+use App\Models\OffboardingCase;
 use App\Models\ProfileChangeRequest;
 use App\Models\WorkflowStep;
 use App\Support\Branding;
@@ -58,6 +59,7 @@ class HandleInertiaRequests extends Middleware
                 // link to the signed-in person's own profile if they have one.
                 'canViewAttendance' => $request->user()?->can(Permission::ViewAttendance->value) ?? false,
                 'canManageAttendance' => $request->user()?->can('manage-attendance-device') ?? false,
+                'canViewOffboarding' => $request->user()?->can('viewAny', OffboardingCase::class) ?? false,
                 'canReviewProfileChanges' => $request->user()?->can('viewAny', ProfileChangeRequest::class) ?? false,
                 'canViewEmployees' => $request->user()?->can('viewAny', Employee::class) ?? false,
                 'employeeId' => $request->user() === null
@@ -72,6 +74,10 @@ class HandleInertiaRequests extends Middleware
                 ? ProfileChangeRequest::query()->pending()
                     ->whereHas('employee', fn ($employee) => $employee->where('user_id', '!=', $request->user()->id)->orWhereNull('user_id'))
                     ->count()
+                : 0,
+            // Open offboarding cases this person may see: the badge on "Offboarding" (OFF-DSH-010).
+            'openOffboarding' => fn (): int => $request->user()?->can('viewAny', OffboardingCase::class)
+                ? OffboardingCase::query()->visibleTo($request->user())->open()->count()
                 : 0,
             'pendingForMe' => fn (): int => $request->user() === null ? 0 : WorkflowStep::waitingOn($request->user())->count(),
             'branding' => fn (): ?array => $request->user() === null ? null : app(Branding::class)->current(),

@@ -8,6 +8,7 @@ import {
     LayoutGrid,
     Settings,
     ShieldCheck,
+    UserMinus,
     UserPen,
     Users,
 } from 'lucide-react';
@@ -30,6 +31,7 @@ import {
 } from '@/routes/attendance';
 import { index as employeesIndex } from '@/routes/employees';
 import { index as leaveRequestsIndex } from '@/routes/leave-requests';
+import { index as offboardingIndex } from '@/routes/offboarding';
 import { index as profileChanges } from '@/routes/profile-changes';
 import type { NavItem } from '@/types';
 
@@ -63,8 +65,13 @@ function parentTab(
 }
 
 export function AppSidebar() {
-    const { auth, pendingForMe, pendingProfileChanges, version } =
-        usePage().props;
+    const {
+        auth,
+        pendingForMe,
+        pendingProfileChanges,
+        openOffboarding,
+        version,
+    } = usePage().props;
 
     // What is offered depends on who is signed in: the directory is for roles that may open it, an
     // employee gets a link to their own profile, and the admin panel (outside the Inertia app, so a
@@ -76,6 +83,16 @@ export function AppSidebar() {
     const directory: NavItem[] = [
         ...(auth.canViewEmployees
             ? [{ title: 'Direktori', href: employeesIndex(), icon: Users }]
+            : []),
+        ...(auth.canViewOffboarding
+            ? [
+                  {
+                      title: 'Offboarding',
+                      href: offboardingIndex(),
+                      icon: UserMinus,
+                      badge: openOffboarding,
+                  },
+              ]
             : []),
         ...(auth.canReviewProfileChanges
             ? [

@@ -16,6 +16,8 @@ export type Auth = {
     /** The role shown under the name in the header. */
     roleLabel: string | null;
     canViewEmployees: boolean;
+    /** HR, Management and anyone with a team: may open the offboarding list. */
+    canViewOffboarding: boolean;
     /** HR: may open the review list of profile change requests. */
     canReviewProfileChanges: boolean;
     /** May load scanner logs and map scanner IDs (parent-wide accounts with the permission). */

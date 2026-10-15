@@ -42,6 +42,8 @@ trait ValidatesEmployeeDossier
             'manager_id' => ['nullable', 'integer', Rule::exists(Employee::class, 'id')],
             'employment_status' => ['required', Rule::enum(EmploymentStatus::class)],
             'employment_type' => ['nullable', Rule::enum(EmploymentType::class)],
+            // The notice period in the contract, in days: what an offboarding case is checked against.
+            'notice_days' => ['nullable', 'integer', 'min:0', 'max:365'],
             'joined_on' => ['nullable', 'date'],
             'exited_on' => ['nullable', 'date', 'after_or_equal:joined_on'],
 

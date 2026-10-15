@@ -19,6 +19,7 @@ use App\Http\Controllers\LeaveAttachmentController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\LeaveRequestDecisionController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\OffboardingCaseController;
 use App\Http\Controllers\ProfileChangeRequestController;
 use App\Http\Controllers\SearchController;
 use Illuminate\Support\Facades\Route;
@@ -40,6 +41,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::put('active-company', [CompanySwitcherController::class, 'update'])
         ->name('active-company.update');
+
+    // Offboarding: HR makes the case, Management approves, the supervisors work the checklist (OFF-*).
+    Route::get('offboarding', [OffboardingCaseController::class, 'index'])->name('offboarding.index');
+    Route::get('offboarding/create', [OffboardingCaseController::class, 'create'])->name('offboarding.create');
+    Route::post('offboarding', [OffboardingCaseController::class, 'store'])->name('offboarding.store');
+    Route::get('offboarding/files/{file}', [OffboardingCaseController::class, 'downloadFile'])->name('offboarding.files.download');
+    Route::get('offboarding/{offboardingCase}', [OffboardingCaseController::class, 'show'])->name('offboarding.show');
+    Route::get('offboarding/{offboardingCase}/edit', [OffboardingCaseController::class, 'edit'])->name('offboarding.edit');
+    Route::put('offboarding/{offboardingCase}', [OffboardingCaseController::class, 'update'])->name('offboarding.update');
+    Route::delete('offboarding/{offboardingCase}', [OffboardingCaseController::class, 'destroy'])->name('offboarding.destroy');
+    Route::post('offboarding/{offboardingCase}/submit', [OffboardingCaseController::class, 'submit'])->name('offboarding.submit');
+    Route::put('offboarding/{offboardingCase}/decision', [OffboardingCaseController::class, 'decide'])->name('offboarding.decide');
+    Route::post('offboarding/{offboardingCase}/comments', [OffboardingCaseController::class, 'comment'])->name('offboarding.comments.store');
+    Route::post('offboarding/{offboardingCase}/comments/read', [OffboardingCaseController::class, 'markCommentsRead'])->name('offboarding.comments.read');
+    Route::post('offboarding/{offboardingCase}/files', [OffboardingCaseController::class, 'addFiles'])->name('offboarding.files.store');
 
     // Changes an employee asks to make to their own profile, and HR's review of them (EMP-CHG).
     Route::get('employees/{employee}/changes', [ProfileChangeRequestController::class, 'create'])->name('employees.changes.create');

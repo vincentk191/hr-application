@@ -106,6 +106,12 @@ class WorkflowEngine
                     continue;
                 }
 
+                // A flow that already wrote the note into the thread when it was given (offboarding)
+                // must not have it written twice.
+                if ($instance->comments()->where('user_id', $step->decided_by_user_id)->where('body', (string) $step->note)->exists()) {
+                    continue;
+                }
+
                 $comment = new WorkflowComment([
                     'user_id' => $step->decided_by_user_id ?? $actor->id,
                     'stage' => $step->status->value,

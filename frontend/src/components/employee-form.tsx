@@ -262,6 +262,16 @@ export function EmployeeForm({
                         </div>
 
                         <TextField
+                            name="notice_days"
+                            label="Masa pemberitahuan kontrak (hari)"
+                            type="number"
+                            min={0}
+                            max={365}
+                            defaultValue={employee?.noticeDays}
+                            error={errors.notice_days}
+                        />
+
+                        <TextField
                             name="joined_on"
                             label="Tanggal bergabung"
                             type="date"

@@ -33,6 +33,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int|null $manager_id
  * @property EmploymentStatus $employment_status
  * @property EmploymentType|null $employment_type
+ * @property int|null $notice_days
  * @property Carbon|null $joined_on
  * @property Carbon|null $exited_on
  * @property string|null $email
@@ -72,6 +73,7 @@ use Spatie\Activitylog\Support\LogOptions;
     'manager_id',
     'employment_status',
     'employment_type',
+    'notice_days',
     'joined_on',
     'exited_on',
     // Contact + emergency contact (EMP-DET-002)
@@ -280,6 +282,7 @@ class Employee extends Model
                 'manager_id',
                 'employment_status',
                 'employment_type',
+                'notice_days',
                 'joined_on',
                 'exited_on',
                 'email',
