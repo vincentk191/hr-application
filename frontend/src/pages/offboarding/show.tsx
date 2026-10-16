@@ -1,16 +1,36 @@
-import { Form, Head, Link, setLayoutProps } from '@inertiajs/react';
+import { Head, Link, router, setLayoutProps, usePage } from '@inertiajs/react';
 import { useState } from 'react';
+import { ApprovalChain } from '@/components/approval-chain';
+import { DecisionDialog } from '@/components/decision-dialog';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { edit, index } from '@/routes/offboarding';
-import { read as readComments, store as storeComment } from '@/routes/offboarding/comments';
+import { OffboardingChecklistPanel } from '@/components/offboarding-checklist';
 import { WorkflowDiscussion } from '@/components/workflow-discussion';
-import { decide } from '@/routes/offboarding';
+import {
+    cancel,
+    close,
+    decide,
+    edit,
+    index,
+    proceed,
+    sendBack,
+} from '@/routes/offboarding';
+import { sign } from '@/routes/offboarding/signoff';
+import { LastDayDialog } from '@/components/last-day-dialog';
+import {
+    OffboardingImpactPanel,
+    OffboardingSignOffPanel,
+} from '@/components/offboarding-signoff';
+import {
+    read as readComments,
+    store as storeComment,
+} from '@/routes/offboarding/comments';
 import { store as storeFiles } from '@/routes/offboarding/files';
 import { show as employeeShow } from '@/routes/employees';
+import { Form } from '@inertiajs/react';
 import type { BreadcrumbItem } from '@/types';
 import type { OffboardingCase } from '@/types/offboarding';
 import type { WorkflowDiscussionData } from '@/types/workflow';
@@ -21,10 +41,13 @@ function size(bytes: number): string {
         : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
-const textareaClasses =
-    'w-full rounded-xl border border-input bg-card px-3 py-2 text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none';
-
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
+function Row({
+    label,
+    children,
+}: {
+    label: string;
+    children: React.ReactNode;
+}) {
     return (
         <div>
             <dt className="label-mono">{label}</dt>
@@ -72,56 +95,14 @@ function Tracker({
     );
 }
 
-function Decision({ item }: { item: OffboardingCase }) {
-    return (
-        <Form
-            {...decide.form(item.id)}
-            options={{ preserveScroll: true }}
-            className="surface grid gap-3 p-4"
-        >
-            {({ processing, errors }) => (
-                <>
-                    <h2 className="label-mono">Keputusan Manajemen</h2>
-                    <textarea
-                        name="note"
-                        rows={3}
-                        placeholder="Catatan (wajib jika ditolak, dikirim ke pemohon)"
-                        className={textareaClasses}
-                    />
-                    <InputError message={errors.note} />
-                    <div className="flex gap-2">
-                        <Button
-                            type="submit"
-                            name="decision"
-                            value="approve"
-                            disabled={processing}
-                            data-test="approve-case"
-                        >
-                            Setujui
-                        </Button>
-                        <Button
-                            type="submit"
-                            name="decision"
-                            value="reject"
-                            variant="outline"
-                            disabled={processing}
-                            data-test="reject-case"
-                        >
-                            Tolak
-                        </Button>
-                    </div>
-                </>
-            )}
-        </Form>
-    );
-}
-
 function Files({ item }: { item: OffboardingCase }) {
     return (
         <section className="surface space-y-3 p-4">
             <h2 className="label-mono">Berkas kasus</h2>
             {item.files.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Belum ada berkas.</p>
+                <p className="text-sm text-muted-foreground">
+                    Belum ada berkas.
+                </p>
             ) : (
                 <ul className="divide-y text-sm">
                     {item.files.map((file) => (
@@ -129,7 +110,10 @@ function Files({ item }: { item: OffboardingCase }) {
                             key={file.id}
                             className="flex items-center justify-between gap-2 py-2"
                         >
-                            <a href={file.downloadUrl} className="hover:underline">
+                            <a
+                                href={file.downloadUrl}
+                                className="hover:underline"
+                            >
                                 {file.name}
                             </a>
                             <span className="label-mono">
@@ -149,7 +133,9 @@ function Files({ item }: { item: OffboardingCase }) {
                     {({ processing, errors }) => (
                         <>
                             <div className="grid gap-1">
-                                <Label htmlFor="file_other">Tambah berkas</Label>
+                                <Label htmlFor="file_other">
+                                    Tambah berkas
+                                </Label>
                                 <Input
                                     id="file_other"
                                     name="file_other[]"
@@ -175,111 +161,62 @@ function Files({ item }: { item: OffboardingCase }) {
     );
 }
 
-/** Stage 1 · Diajukan: the read-only preview, the approval chain and the discussion (OFF-APR). */
+/** Stage 1 · Diajukan: the read-only preview of what Management is asked to decide (OFF-APR-002). */
 function SubmittedTab({ item }: { item: OffboardingCase }) {
     return (
-        <div className="space-y-4">
-            <section className="surface space-y-4 p-4">
-                <h2 className="label-mono">Pratinjau pengajuan</h2>
-                <dl className="grid gap-3 sm:grid-cols-2">
-                    <Row label="Karyawan">
-                        <Link
-                            href={employeeShow(item.employee.id).url}
-                            className="hover:underline"
-                        >
-                            {item.employee.name}
-                        </Link>{' '}
-                        · {item.employee.number}
-                    </Row>
-                    <Row label="Jabatan · Departemen">
-                        {[item.employee.position, item.employee.department]
-                            .filter(Boolean)
-                            .join(' · ') || '—'}
-                    </Row>
-                    <Row label="Atasan langsung">
-                        {item.employee.manager ?? '—'}
-                    </Row>
-                    <Row label="Jenis keluar">{item.exitType ?? '—'}</Row>
-                    <Row label="Pemberitahuan → hari terakhir">
-                        {item.noticeOn ?? '—'} → {item.lastWorkingOn ?? '—'}
-                    </Row>
-                    <Row label="Masa pemberitahuan">
-                        {item.noticeCheck.given !== null
-                            ? `${item.noticeCheck.given} hari`
-                            : '—'}
-                        {item.noticeCheck.short && (
-                            <span className="ml-2 font-medium text-destructive">
-                                kurang dari {item.noticeCheck.required} hari
-                                kontrak
-                            </span>
-                        )}
-                    </Row>
-                    <Row label="Kompensasi">
-                        {item.compensationMonths} bulan
-                    </Row>
-                    <Row label="Alasan kompensasi">
-                        {item.compensationReason ?? '—'}
-                    </Row>
-                </dl>
-                <div>
-                    <p className="label-mono">Alasan</p>
-                    <p className="text-sm whitespace-pre-line">
-                        {item.reason ?? '—'}
-                    </p>
-                </div>
-            </section>
-
-            <section className="surface space-y-2 p-4">
-                <h2 className="label-mono">Alur persetujuan</h2>
-                <ol className="space-y-2 text-sm">
-                    <li>
-                        Pemohon (HR) ·{' '}
-                        <Badge variant="secondary">Selesai</Badge>{' '}
-                        <span className="text-muted-foreground">
-                            {item.createdBy}
+        <section className="surface space-y-4 p-4">
+            <h2 className="label-mono">Pratinjau pengajuan</h2>
+            <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <Row label="Karyawan">
+                    <Link
+                        href={employeeShow(item.employee.id).url}
+                        className="hover:underline"
+                    >
+                        {item.employee.name}
+                    </Link>{' '}
+                    · {item.employee.number}
+                </Row>
+                <Row label="Jabatan · Departemen">
+                    {[item.employee.position, item.employee.department]
+                        .filter(Boolean)
+                        .join(' · ') || '—'}
+                </Row>
+                <Row label="Atasan langsung">
+                    {item.employee.manager ?? '—'}
+                </Row>
+                <Row label="Jenis keluar">{item.exitType ?? '—'}</Row>
+                <Row label="Pemberitahuan → hari terakhir">
+                    {item.noticeOn ?? '—'} → {item.lastWorkingOn ?? '—'}
+                </Row>
+                <Row label="Masa pemberitahuan">
+                    {item.noticeCheck.given !== null
+                        ? `${item.noticeCheck.given} hari`
+                        : '—'}
+                    {item.noticeCheck.short && (
+                        <span className="ml-2 font-medium text-destructive">
+                            kurang dari {item.noticeCheck.required} hari kontrak
                         </span>
-                    </li>
-                    {item.chain.map((step) => (
-                        <li key={step.label}>
-                            {step.label} ·{' '}
-                            <Badge
-                                variant={
-                                    step.status === 'rejected'
-                                        ? 'destructive'
-                                        : step.status === 'approved'
-                                          ? 'default'
-                                          : 'secondary'
-                                }
-                            >
-                                {step.statusLabel}
-                                {step.waitingDays !== null
-                                    ? ` · ${step.waitingDays} hari`
-                                    : ''}
-                            </Badge>
-                            {step.decidedBy && (
-                                <span className="text-muted-foreground">
-                                    {' '}
-                                    {step.decidedBy} · {step.decidedAt}
-                                </span>
-                            )}
-                            {step.note && (
-                                <p className="text-muted-foreground">
-                                    “{step.note}”
-                                </p>
-                            )}
-                        </li>
-                    ))}
-                </ol>
-            </section>
-
-            {item.canDecide && <Decision item={item} />}
-        </div>
+                    )}
+                </Row>
+                <Row label="Kompensasi">{item.compensationMonths} bulan</Row>
+                <Row label="Alasan kompensasi">
+                    {item.compensationReason ?? '—'}
+                </Row>
+            </dl>
+            <div>
+                <p className="label-mono">Alasan</p>
+                <p className="text-sm whitespace-pre-line">
+                    {item.reason ?? '—'}
+                </p>
+            </div>
+        </section>
     );
 }
 
 /**
- * The offboarding case on its pipeline (OFF-PIP). Stage 1 is built; the checklist and sign-off tabs
- * are filled in by the stages that follow.
+ * The offboarding case on its pipeline (OFF-PIP). The actions of the phase are at the top, beside the
+ * discussion button; the approvers come first in the phase, in the order they decide. Stage 1 is built;
+ * the checklist and sign-off tabs are filled in by the stages that follow.
  */
 export default function OffboardingShow({
     case: item,
@@ -295,6 +232,11 @@ export default function OffboardingShow({
 
     setLayoutProps({ breadcrumbs });
 
+    const { errors } = usePage().props as { errors: Record<string, string> };
+
+    // The signature that is this person's to give right now, if any.
+    const signStep = item.signoff?.steps.find((step) => step.canSign);
+
     const current =
         item.tabs.find((tab) => tab.state === 'current')?.stage ??
         item.tabs[item.tabs.length - 1].stage;
@@ -306,7 +248,7 @@ export default function OffboardingShow({
         <>
             <Head title={`${item.reference} · ${item.employee.name}`} />
 
-            <div className="max-w-3xl space-y-5 p-4">
+            <div className="w-full space-y-5 p-4">
                 <header className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                         <h1 className="text-2xl font-extrabold tracking-tight">
@@ -318,10 +260,158 @@ export default function OffboardingShow({
                         </p>
                         <Badge className="mt-2">{item.statusLabel}</Badge>
                     </div>
-                    <div className="flex items-center gap-2">
+
+                    <div
+                        className="flex flex-wrap items-center gap-2"
+                        data-test="phase-actions"
+                    >
                         {item.canEdit && (
                             <Button asChild variant="outline">
                                 <Link href={edit(item.id).url}>Ubah</Link>
+                            </Button>
+                        )}
+                        {item.canDecide && (
+                            <>
+                                <DecisionDialog
+                                    form={decide.form(item.id)}
+                                    decision="reject"
+                                    title={`Tolak pengajuan — ${item.employee.name}`}
+                                    subtitle={`${item.reference} · dikembalikan ke ${item.createdBy ?? 'pemohon'}`}
+                                    fieldLabel="Catatan untuk pemohon"
+                                    hint="Wajib diisi · terkirim ke pemohon lewat notifikasi"
+                                    required
+                                    confirmLabel="Kirim penolakan"
+                                    footnote="Pengajuan kembali ke draft"
+                                    destructive
+                                    trigger={
+                                        <Button
+                                            variant="outline"
+                                            data-test="reject-case"
+                                        >
+                                            Tolak
+                                        </Button>
+                                    }
+                                />
+                                <DecisionDialog
+                                    form={decide.form(item.id)}
+                                    decision="approve"
+                                    title={`Setujui pengajuan — ${item.employee.name}`}
+                                    subtitle={`${item.reference} · checklist offboarding dimulai`}
+                                    fieldLabel="Catatan (opsional)"
+                                    confirmLabel="Setujui"
+                                    footnote="Checklist dimulai"
+                                    trigger={
+                                        <Button data-test="approve-case">
+                                            Setujui
+                                        </Button>
+                                    }
+                                />
+                            </>
+                        )}
+                        {item.canChangeLastDay && <LastDayDialog item={item} />}
+                        {item.canCancel && (
+                            <DecisionDialog
+                                form={cancel.form(item.id)}
+                                decision="cancel"
+                                title={`Batalkan kasus — ${item.employee.name}`}
+                                subtitle={`${item.reference} · pengunduran diri ditarik atau kasus keliru`}
+                                fieldLabel="Alasan pembatalan"
+                                hint="Wajib diisi · semua pihak diberi tahu · tidak ada yang dinonaktifkan"
+                                required
+                                confirmLabel="Batalkan kasus"
+                                footnote="Kasus disimpan sebagai Dibatalkan"
+                                destructive
+                                trigger={
+                                    <Button
+                                        variant="outline"
+                                        data-test="cancel-case"
+                                    >
+                                        Batalkan kasus
+                                    </Button>
+                                }
+                            />
+                        )}
+                        {item.canSendBack && (
+                            <DecisionDialog
+                                form={sendBack.form(item.id)}
+                                decision="send-back"
+                                title={`Kembalikan ke checklist — ${item.employee.name}`}
+                                subtitle={`${item.reference} · tanda tangan yang sudah ada dihapus`}
+                                fieldLabel="Apa yang perlu diperbaiki"
+                                hint="Wajib diisi · masuk ke komentar dan dikirim ke pemilik checklist"
+                                required
+                                confirmLabel="Kembalikan"
+                                footnote="Kasus kembali ke tahap Checklist"
+                                trigger={
+                                    <Button
+                                        variant="outline"
+                                        data-test="send-back"
+                                    >
+                                        Kembalikan ke checklist
+                                    </Button>
+                                }
+                            />
+                        )}
+                        {signStep && (
+                            <DecisionDialog
+                                form={sign.form([item.id, signStep.id])}
+                                decision="sign"
+                                title={`Tandatangani — ${item.employee.name}`}
+                                subtitle={`${item.reference} · ${signStep.label}`}
+                                fieldLabel="Catatan (opsional)"
+                                hint={
+                                    signStep.isHr
+                                        ? 'Dengan menandatangani, saya memastikan semua item dan dokumen serah terima sudah diterima.'
+                                        : 'Dengan menandatangani, saya memastikan serah terima di tim saya sudah selesai.'
+                                }
+                                confirmLabel="Tandatangani"
+                                trigger={
+                                    <Button data-test="sign-case">
+                                        Tandatangani
+                                    </Button>
+                                }
+                            />
+                        )}
+                        {item.canClose && item.signoff && (
+                            <Button
+                                data-test="close-case"
+                                disabled={item.signoff.closeBlockers.length > 0}
+                                title={
+                                    item.signoff.closeBlockers.length > 0
+                                        ? item.signoff.closeBlockers.join(' ')
+                                        : undefined
+                                }
+                                onClick={() =>
+                                    router.post(
+                                        close(item.id).url,
+                                        {},
+                                        { preserveScroll: true },
+                                    )
+                                }
+                            >
+                                Tutup kasus
+                            </Button>
+                        )}
+                        {item.canProceed && item.checklist && (
+                            <Button
+                                data-test="proceed-signoff"
+                                disabled={!item.checklist.progress.ready}
+                                title={
+                                    item.checklist.progress.ready
+                                        ? undefined
+                                        : item.checklist.progress.blockers.join(
+                                              ' ',
+                                          )
+                                }
+                                onClick={() =>
+                                    router.post(
+                                        proceed(item.id).url,
+                                        {},
+                                        { preserveScroll: true },
+                                    )
+                                }
+                            >
+                                Lanjut ke sign-off
                             </Button>
                         )}
                         <WorkflowDiscussion
@@ -343,8 +433,71 @@ export default function OffboardingShow({
                     onPick={setTab}
                 />
 
+                {tab === 'submitted' && (
+                    <ApprovalChain
+                        requester={item.createdBy}
+                        requesterLabel="Pemohon"
+                        steps={item.chain}
+                    />
+                )}
+
+                {tab === 'checklist' && item.checklist && (
+                    <ApprovalChain
+                        requester={item.createdBy}
+                        requesterLabel="Pemohon"
+                        steps={item.checklist.groups.map((group) => ({
+                            label: group.name,
+                            approver: group.owner ?? 'Admin HR',
+                            status:
+                                group.status === 'done' ||
+                                group.status === 'not_involved'
+                                    ? 'approved'
+                                    : 'pending',
+                            statusLabel: group.statusLabel,
+                            decidedBy: null,
+                            decidedAt: null,
+                            waitingDays: null,
+                        }))}
+                    />
+                )}
+
+                {tab === 'sign_off' && item.signoff && (
+                    <ApprovalChain
+                        requester={item.createdBy}
+                        requesterLabel="Pemohon"
+                        steps={item.signoff.steps}
+                    />
+                )}
+
+                {item.stage === 'cancelled' && (
+                    <section
+                        className="surface border-destructive/50 p-4 text-sm"
+                        data-test="cancelled-banner"
+                    >
+                        Kasus dibatalkan {item.cancelledAt}: {item.cancelReason}
+                    </section>
+                )}
+
+                {(tab === 'checklist' || tab === 'sign_off') &&
+                    item.stage !== 'cancelled' && (
+                        <OffboardingImpactPanel item={item} />
+                    )}
+
                 {tab === 'submitted' ? (
                     <SubmittedTab item={item} />
+                ) : tab === 'sign_off' && item.signoff ? (
+                    <OffboardingSignOffPanel
+                        item={item}
+                        closeError={errors?.close}
+                    />
+                ) : tab === 'checklist' && item.checklist ? (
+                    <OffboardingChecklistPanel
+                        checklist={item.checklist}
+                        caseId={item.id}
+                        reference={item.reference}
+                        employee={item.employee.name ?? ''}
+                        blockedMessage={errors?.proceed}
+                    />
                 ) : (
                     <section className="surface p-6 text-sm text-muted-foreground">
                         {item.tabs.find((entry) => entry.stage === tab)

@@ -7,6 +7,9 @@ use App\Enums\Permission;
 use App\Enums\Role;
 use App\Models\Employee;
 use App\Models\OffboardingCase;
+use App\Models\OffboardingCaseDepartment;
+use App\Models\OffboardingCaseItem;
+use App\Models\OffboardingSignoff;
 use App\Models\User;
 use App\Models\WorkflowStep;
 use App\Support\ReportingLine;
@@ -28,7 +31,8 @@ class OffboardingCasePolicy
     {
         return $user->can(Permission::ManageOffboarding->value)
             || $user->isA(Role::Management)
-            || app(ReportingLine::class)->hasReports($user);
+            || app(ReportingLine::class)->hasReports($user)
+            || OffboardingCaseDepartment::acrossCompanies()->where('owner_user_id', $user->id)->exists();
     }
 
     public function view(User $user, OffboardingCase $case): bool
@@ -60,7 +64,7 @@ class OffboardingCasePolicy
      */
     public function addFiles(User $user, OffboardingCase $case): bool
     {
-        return $this->manages($user, $case) && $case->stage() !== OffboardingCaseStage::Closed;
+        return $this->manages($user, $case) && ! $case->stage()->isFinal();
     }
 
     /**
@@ -99,6 +103,152 @@ class OffboardingCasePolicy
         $leaver = Employee::acrossCompanies()->whereKey($case->employee_id)->value('user_id');
 
         return $leaver === null || $leaver !== $user->id;
+    }
+
+    /**
+     * Doing the checklist work of one department: picking its items, confirming the list, ticking them.
+     * That is the department's owner, or HR Admin when the department has no one to own it.
+     */
+    public function workGroup(User $user, OffboardingCaseDepartment $group): bool
+    {
+        $case = OffboardingCase::acrossCompanies()->find($group->offboarding_case_id);
+
+        if (! $case instanceof OffboardingCase || $case->stage() !== OffboardingCaseStage::Checklist || ! $this->view($user, $case)) {
+            return false;
+        }
+
+        return $group->owner_user_id === null
+            ? $this->manages($user, $case)
+            : $group->owner_user_id === $user->id;
+    }
+
+    /**
+     * HR may add an item for this case to any department, whoever owns it (OFF-CHK-006).
+     */
+    public function addItem(User $user, OffboardingCaseDepartment $group): bool
+    {
+        $case = OffboardingCase::acrossCompanies()->find($group->offboarding_case_id);
+
+        return $this->workGroup($user, $group)
+            || ($case instanceof OffboardingCase && $case->stage() === OffboardingCaseStage::Checklist && $this->manages($user, $case));
+    }
+
+    /**
+     * Setting a department aside as not involved is HR's call.
+     */
+    public function setAside(User $user, OffboardingCaseDepartment $group): bool
+    {
+        $case = OffboardingCase::acrossCompanies()->find($group->offboarding_case_id);
+
+        return $case instanceof OffboardingCase && $case->stage() === OffboardingCaseStage::Checklist && $this->manages($user, $case);
+    }
+
+    public function workItem(User $user, OffboardingCaseItem $item): bool
+    {
+        return $this->workGroup($user, $item->group);
+    }
+
+    /**
+     * Taking an item off the list: its owner, or HR for anything added to the case.
+     */
+    public function removeItem(User $user, OffboardingCaseItem $item): bool
+    {
+        return $this->workGroup($user, $item->group) || $this->addItem($user, $item->group);
+    }
+
+    /**
+     * "Lanjut ke sign-off" is HR's, once the checklist is complete.
+     */
+    public function proceed(User $user, OffboardingCase $case): bool
+    {
+        return $case->stage() === OffboardingCaseStage::Checklist && $this->manages($user, $case);
+    }
+
+    /**
+     * Signing off, in turn: the person the signature is bound to, or any HR Admin for HR's own.
+     */
+    public function signOff(User $user, OffboardingSignoff $signoff): bool
+    {
+        $case = OffboardingCase::acrossCompanies()->find($signoff->offboarding_case_id);
+
+        if (! $case instanceof OffboardingCase || $case->stage() !== OffboardingCaseStage::SignOff || $signoff->isSigned()) {
+            return false;
+        }
+
+        $leaver = Employee::acrossCompanies()->whereKey($case->employee_id)->value('user_id');
+
+        if ($leaver !== null && $leaver === $user->id) {
+            return false;
+        }
+
+        $earlierOpen = $case->signoffs()->where('position', '<', $signoff->position)->whereNull('signed_at')->exists();
+
+        if ($earlierOpen) {
+            return false;
+        }
+
+        return $signoff->user_id === null ? $this->manages($user, $case) : $signoff->user_id === $user->id;
+    }
+
+    /**
+     * A signer, or HR, may send a case at sign-off back to the checklist.
+     */
+    public function sendBack(User $user, OffboardingCase $case): bool
+    {
+        if ($case->stage() !== OffboardingCaseStage::SignOff) {
+            return false;
+        }
+
+        return $this->manages($user, $case)
+            || $case->signoffs()->whereNull('signed_at')->where('user_id', $user->id)->exists();
+    }
+
+    /**
+     * The exit interview is HR's, before HR signs.
+     */
+    public function recordExitInterview(User $user, OffboardingCase $case): bool
+    {
+        return $case->stage() === OffboardingCaseStage::SignOff
+            && $this->manages($user, $case)
+            && $case->signoffs()->whereNull('signed_at')->where('label', 'HR Admin')->exists();
+    }
+
+    /**
+     * Changing the last working day, until the exit has been applied.
+     */
+    public function changeLastDay(User $user, OffboardingCase $case): bool
+    {
+        return in_array($case->stage(), [OffboardingCaseStage::Checklist, OffboardingCaseStage::SignOff], true)
+            && ! $case->exitApplied()
+            && $this->manages($user, $case);
+    }
+
+    /**
+     * Cancelling a case, until the exit has been applied.
+     */
+    public function cancel(User $user, OffboardingCase $case): bool
+    {
+        return in_array($case->stage(), [OffboardingCaseStage::Submitted, OffboardingCaseStage::Checklist, OffboardingCaseStage::SignOff], true)
+            && ! $case->exitApplied()
+            && $this->manages($user, $case);
+    }
+
+    public function close(User $user, OffboardingCase $case): bool
+    {
+        return $case->stage() === OffboardingCaseStage::SignOff && $this->manages($user, $case);
+    }
+
+    public function reassign(User $user, OffboardingCase $case): bool
+    {
+        return in_array($case->stage(), [OffboardingCaseStage::Checklist, OffboardingCaseStage::SignOff], true) && $this->manages($user, $case);
+    }
+
+    /**
+     * The handover report, from sign-off on, to anyone who may see the case.
+     */
+    public function beritaAcara(User $user, OffboardingCase $case): bool
+    {
+        return in_array($case->stage(), [OffboardingCaseStage::SignOff, OffboardingCaseStage::Closed], true) && $this->view($user, $case);
     }
 
     private function manages(User $user, OffboardingCase $case): bool

@@ -9,6 +9,7 @@ use App\Filament\Resources\AttendanceIngestRequests\AttendanceIngestRequestResou
 use App\Filament\Resources\Companies\CompanyResource;
 use App\Filament\Resources\Departments\DepartmentResource;
 use App\Filament\Resources\Positions\PositionResource;
+use App\Filament\Resources\OffboardingItems\OffboardingItemResource;
 use App\Filament\Resources\RequestTypes\RequestTypeResource;
 use App\Filament\Resources\Roles\RoleResource;
 use App\Filament\Resources\Users\UserResource;
@@ -76,6 +77,7 @@ class AdminPanelProvider extends PanelProvider
             AttendanceIngestRequestResource::class,
             CompanyResource::class,
             DepartmentResource::class,
+            OffboardingItemResource::class,
             PositionResource::class,
             RequestTypeResource::class,
             RoleResource::class,

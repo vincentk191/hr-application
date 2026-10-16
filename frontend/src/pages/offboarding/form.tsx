@@ -106,7 +106,7 @@ export default function OffboardingForm({
         <>
             <Head title={existing ? existing.reference : 'Kasus offboarding baru'} />
 
-            <div className="max-w-2xl space-y-5 p-4">
+            <div className="w-full max-w-5xl space-y-5 p-4">
                 <header>
                     <div className="flex items-start justify-between gap-3">
                         <h1 className="text-2xl font-extrabold tracking-tight">
@@ -114,17 +114,41 @@ export default function OffboardingForm({
                                 ? `Draft ${existing.reference} · ${existing.employee.name}`
                                 : 'Kasus offboarding baru'}
                         </h1>
-                        {existing && discussion && discussion.items.length > 0 && (
-                            <WorkflowDiscussion
-                                discussion={discussion}
-                                reference={existing.reference}
-                                subject={existing.employee.name ?? ''}
-                                currentStageLabel={existing.stageLabel}
-                                canComment={existing.canComment}
-                                postUrl={storeComment(existing.id).url}
-                                readUrl={readComments(existing.id).url}
-                            />
-                        )}
+                        <div
+                            className="flex flex-wrap items-center gap-2"
+                            data-test="phase-actions"
+                        >
+                            <Button
+                                type="submit"
+                                form="offboarding-form"
+                                variant="outline"
+                                data-test="save-draft"
+                            >
+                                Simpan draft
+                            </Button>
+                            <Button
+                                type="submit"
+                                form="offboarding-form"
+                                name="send"
+                                value="1"
+                                data-test="send-case"
+                            >
+                                Kirim untuk persetujuan
+                            </Button>
+                            {existing &&
+                                discussion &&
+                                discussion.items.length > 0 && (
+                                    <WorkflowDiscussion
+                                        discussion={discussion}
+                                        reference={existing.reference}
+                                        subject={existing.employee.name ?? ''}
+                                        currentStageLabel={existing.stageLabel}
+                                        canComment={existing.canComment}
+                                        postUrl={storeComment(existing.id).url}
+                                        readUrl={readComments(existing.id).url}
+                                    />
+                                )}
+                        </div>
                     </div>
                     <p className="text-sm text-muted-foreground">
                         HR membuat kasus; Manajemen menyetujuinya; lalu
@@ -151,6 +175,7 @@ export default function OffboardingForm({
 
                 <Form
                     {...target}
+                    id="offboarding-form"
                     options={{ preserveScroll: true }}
                     className="space-y-5"
                 >
@@ -200,6 +225,37 @@ export default function OffboardingForm({
                                             message={errors.employee_id}
                                         />
                                     </div>
+                                    {candidate &&
+                                        (candidate.reportsCount > 0 ||
+                                            candidate.headOf.length > 0) && (
+                                            <div
+                                                className="rounded-xl border border-amber-500/50 p-3 text-sm text-amber-700 dark:text-amber-300"
+                                                data-test="leaver-warning"
+                                            >
+                                                {candidate.reportsCount > 0 && (
+                                                    <p>
+                                                        {candidate.name} masih
+                                                        menjadi atasan langsung{' '}
+                                                        {candidate.reportsCount}{' '}
+                                                        orang. Bawahannya harus
+                                                        dipindahkan ke atasan
+                                                        baru sebelum kasus
+                                                        bisa ditutup.
+                                                    </p>
+                                                )}
+                                                {candidate.headOf.length >
+                                                    0 && (
+                                                    <p>
+                                                        Kepala departemen{' '}
+                                                        {candidate.headOf.join(
+                                                            ', ',
+                                                        )}
+                                                        . Tetapkan kepala baru
+                                                        di panel admin.
+                                                    </p>
+                                                )}
+                                            </div>
+                                        )}
                                     {(candidate || existing) && (
                                         <dl className="grid gap-2 rounded-xl bg-muted/40 p-3 text-sm sm:grid-cols-2">
                                             <div>
@@ -590,25 +646,8 @@ export default function OffboardingForm({
                                 )}
                             </div>
 
-                            <div className="flex flex-wrap items-center gap-2 border-t pt-4">
-                                <Button
-                                    type="submit"
-                                    variant="outline"
-                                    disabled={processing}
-                                    data-test="save-draft"
-                                >
-                                    {processing && <Spinner />}
-                                    Simpan draft
-                                </Button>
-                                <Button
-                                    type="submit"
-                                    name="send"
-                                    value="1"
-                                    disabled={processing}
-                                    data-test="send-case"
-                                >
-                                    Kirim untuk persetujuan
-                                </Button>
+                            <div className="flex items-center gap-3 border-t pt-4">
+                                {processing && <Spinner />}
                                 <Button asChild variant="ghost">
                                     <Link href={index().url}>Batal</Link>
                                 </Button>

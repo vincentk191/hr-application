@@ -5,7 +5,11 @@ namespace App\Providers;
 use App\Enums\Permission;
 use App\Listeners\LogRoleChange;
 use App\Models\AttendanceAgent;
+use App\Models\OffboardingCaseDepartment;
+use App\Models\OffboardingCaseItem;
+use App\Models\OffboardingSignoff;
 use App\Models\User;
+use App\Policies\OffboardingCasePolicy;
 use App\Support\Attendance\WorkSchedule;
 use App\Workflows\Definitions\LeaveRequestWorkflow;
 use App\Workflows\Definitions\OffboardingCaseWorkflow;
@@ -45,11 +49,23 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
         AboutCommand::add('HR Dashboard', fn (): array => ['Version' => config('app.version')]);
         $this->defineAttendanceGate();
+        $this->defineOffboardingChecklistPolicies();
         $this->configureApiRateLimiting();
         Event::listen(Login::class, fn (Login $event) => $event->user instanceof User
             ? $event->user->forceFill(['last_login_at' => now()])->saveQuietly()
             : null);
         $this->registerRoleAudit();
+    }
+
+    /**
+     * The checklist's groups and items are checked by the offboarding case's own policy, because who may
+     * work them is a question about the case: its stage, who can see it, and who owns the department.
+     */
+    private function defineOffboardingChecklistPolicies(): void
+    {
+        Gate::policy(OffboardingCaseDepartment::class, OffboardingCasePolicy::class);
+        Gate::policy(OffboardingCaseItem::class, OffboardingCasePolicy::class);
+        Gate::policy(OffboardingSignoff::class, OffboardingCasePolicy::class);
     }
 
     /**

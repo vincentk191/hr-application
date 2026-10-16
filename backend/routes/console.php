@@ -20,6 +20,12 @@ Schedule::command('notifications:attendance-issues')
 // of its day being up. What was already announced is remembered separately, so nothing is sent twice.
 Schedule::command('notifications:prune-read')->hourly();
 
+// Switch off the accounts of people whose last working day has passed, the day after it, so they can
+// work through it (OFF-CHK-010).
+Schedule::command('offboarding:apply-exits')
+    ->dailyAt('00:30')
+    ->timezone((string) config('attendance.device_timezone'));
+
 Schedule::command('notifications:document-expiry')
     ->dailyAt('08:00')
     ->timezone((string) config('attendance.device_timezone'));

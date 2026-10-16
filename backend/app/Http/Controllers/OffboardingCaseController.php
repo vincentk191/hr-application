@@ -12,6 +12,7 @@ use App\Enums\OffboardingFileKind;
 use App\Enums\Role;
 use App\Http\Requests\DecideOffboardingCaseRequest;
 use App\Http\Requests\SaveOffboardingCaseRequest;
+use App\Models\Department;
 use App\Models\Employee;
 use App\Models\OffboardingCase;
 use App\Models\OffboardingCaseFile;
@@ -56,7 +57,7 @@ class OffboardingCaseController extends Controller
 
         $cases = $visible()->with($with)
             ->when($filters['status'] === 'open', fn (Builder $query) => $query->open())
-            ->when(in_array($filters['status'], ['draft', 'submitted', 'checklist', 'sign_off', 'closed'], true),
+            ->when(in_array($filters['status'], ['draft', 'submitted', 'checklist', 'sign_off', 'closed', 'cancelled'], true),
                 fn (Builder $query) => $query->whereHas('workflow', fn (Builder $workflow) => $workflow->where('current_stage', $filters['status'])))
             ->when($filters['department'] !== null, fn (Builder $query) => $query->whereHas('employee.department', fn (Builder $department) => $department->where('name', $filters['department'])))
             ->when($filters['lastDay'] !== null, fn (Builder $query) => $this->lastDayRange($query, $filters['lastDay']))
@@ -72,7 +73,7 @@ class OffboardingCaseController extends Controller
             'summary' => [
                 'open' => $open->count(),
                 'perStage' => collect(OffboardingCaseStage::cases())
-                    ->filter(fn (OffboardingCaseStage $stage): bool => $stage !== OffboardingCaseStage::Closed)
+                    ->filter(fn (OffboardingCaseStage $stage): bool => ! $stage->isFinal())
                     ->mapWithKeys(fn (OffboardingCaseStage $stage): array => [$stage->value => $open->filter(fn (OffboardingCase $case): bool => $case->stage() === $stage)->count()])
                     ->all(),
                 'oldestDays' => $oldest,
@@ -91,7 +92,7 @@ class OffboardingCaseController extends Controller
         $lastDay = $request->string('last_day')->toString();
 
         return [
-            'status' => in_array($status, ['open', 'draft', 'submitted', 'checklist', 'sign_off', 'closed', 'all'], true) ? $status : 'open',
+            'status' => in_array($status, ['open', 'draft', 'submitted', 'checklist', 'sign_off', 'closed', 'cancelled', 'all'], true) ? $status : 'open',
             'department' => trim($request->string('department')->toString()) ?: null,
             'lastDay' => in_array($lastDay, ['week', 'month', 'quarter'], true) ? $lastDay : null,
         ];
@@ -353,9 +354,16 @@ class OffboardingCaseController extends Controller
                     'manager' => $employee->manager?->full_name,
                     'joinedOn' => $employee->joined_on?->toDateString(),
                     'noticeDays' => $employee->notice_days,
+                    // Things HR has to settle before this person can leave, shown when they are chosen.
+                    'reportsCount' => Employee::query()->where('manager_id', $employee->id)->where('employment_status', EmploymentStatus::Active)->count(),
+                    'headOf' => Department::query()->where('supervisor_employee_id', $employee->id)->pluck('name')->all(),
                 ])->values(),
             'exitTypes' => array_map(fn (OffboardingExitType $type): array => ['value' => $type->value, 'label' => $type->label()], OffboardingExitType::cases()),
-            'fileKinds' => array_map(fn (OffboardingFileKind $kind): array => ['value' => $kind->value, 'label' => $kind->label()], OffboardingFileKind::cases()),
+            // The exit-interview notes and the reference letter come at sign-off, not when the case is made.
+            'fileKinds' => array_values(array_map(
+                fn (OffboardingFileKind $kind): array => ['value' => $kind->value, 'label' => $kind->label()],
+                array_filter(OffboardingFileKind::cases(), fn (OffboardingFileKind $kind): bool => ! in_array($kind, [OffboardingFileKind::ExitInterviewNotes, OffboardingFileKind::ReferenceLetter], true)),
+            )),
         ];
     }
 }

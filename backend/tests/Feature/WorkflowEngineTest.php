@@ -8,10 +8,15 @@ use App\Models\User;
 use App\Models\WorkflowInstance;
 use App\Models\WorkflowStep;
 use App\Support\CompanyContext;
+use App\Workflows\Contracts\TransitionGuard;
 use App\Workflows\Definitions\OffboardingCaseWorkflow;
 use App\Workflows\Exceptions\InvalidTransition;
 use App\Workflows\Exceptions\StepNotActionable;
 use App\Workflows\Exceptions\TransitionBlocked;
+use App\Workflows\Guards\ChecklistComplete;
+use App\Workflows\Guards\LastDayPassed;
+use App\Workflows\Guards\ReportsReassigned;
+use App\Workflows\Guards\SignOffsComplete;
 use App\Workflows\StepBlueprint;
 use App\Workflows\WorkflowEngine;
 use Database\Seeders\RoleSeeder;
@@ -251,8 +256,10 @@ it('allows a guarded transition once the chain is approved', function () {
 
     $instance = $this->engine->transitionTo($instance->refresh(), Stage::Checklist);
 
+    // Sign-off is a stage further on, and it waits for the checklist as well as the approval.
     expect($instance->current_stage)->toBe(Stage::Checklist->value)
-        ->and($this->engine->blockingReasons($instance, Stage::SignOff))->toBeEmpty();
+        ->and($this->engine->blockingReasons($instance, Stage::SignOff))->toHaveCount(1)
+        ->and($this->engine->blockingReasons($instance, Stage::SignOff)[0])->toContain('sign-off');
 });
 
 it('records each transition with its actor', function () {
@@ -279,6 +286,24 @@ it('marks the instance complete on reaching a final stage', function () {
     $this->engine->approve($instance->steps()->first(), $sv);
 
     $instance = $this->engine->transitionTo($instance->refresh(), Stage::Checklist);
+
+    // The stand-in subject has no checklist, signatures or leaver; what is under test here is the engine, so
+    // let the offboarding guards pass.
+    foreach ([ChecklistComplete::class, SignOffsComplete::class, LastDayPassed::class, ReportsReassigned::class] as $guard) {
+        app()->bind($guard, fn () => new class implements TransitionGuard
+        {
+            public function passes(WorkflowInstance $instance): bool
+            {
+                return true;
+            }
+
+            public function message(WorkflowInstance $instance): string
+            {
+                return '';
+            }
+        });
+    }
+
     $instance = $this->engine->transitionTo($instance, Stage::SignOff);
 
     expect($instance->isComplete())->toBeFalse();

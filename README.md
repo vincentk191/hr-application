@@ -29,7 +29,7 @@ listed in the checklist below. Nothing here is committed yet: changes are left f
 
 |                 |                                                                                                              |
 | --------------- | ------------------------------------------------------------------------------------------------------------ |
-| Tests           | 631 passing                                                                                                  |
+| Tests           | 667 passing                                                                                                  |
 | Static analysis | PHPStan level 7, 0 errors                                                                                    |
 | Phase 0         | **Complete** — company scoping, RBAC, workflow engine, account state and login rules                         |
 | Phase 1         | Directory (with CSV import/export), profile, add/edit, documents, admin panel done                           |
@@ -838,12 +838,12 @@ table, the checklist and the screens.
 | --------------------------------- | ------------------------ | --- | --- | ------ | ------------------------------------------------------ |
 | `OFF-DSH`                         | Offboarding dashboard    | 10  | 5   | 🟡     | Built 10-15: summary, stage tiles, case list, status chips, filters (status, department, last day), "Mulai kasus", row routing, badge. CSV export (009) not yet |
 | `OFF-WIZ` · `OFF-WZ1` · `OFF-WZ2` | Case wizard + steps      | 11  | 8   | ✅     | Built 10-15. Two steps in one form, save draft, notice-period check against the employee's contract days, compensation with a required reason, case files, send for approval |
-| `OFF-PIP`                         | Case pipeline            | 7   | 6   | 🟡     | Tracker, header, files panel and the Diajukan tab built 10-15. Stage-dependent actions (004) and the closing timeline (007) wait for the later stages |
+| `OFF-PIP`                         | Case pipeline            | 7   | 6   | 🟡     | Tracker, header, files, the stage-dependent action bar (004) and all three tabs built. The closing timeline (007) is the only part left |
 | `OFF-APR`                         | Stage 1 Diajukan         | 7   | 5   | ✅     | Built 10-15, **with Management as the approver** (not the supervisor), the comment thread, and rejection back to draft. The HR approval step (004) is dropped |
-| `OFF-CHK`                         | Stage 2 Checklist        | 11  | 10  | ⬜     | Owner-only ticking by the department supervisor; needs the blocked-completion guard. Next stage |
-| `OFF-SIG`                         | Stage 3 Sign-off         | 9   | 5   | ⬜     | Sequential sign-off, berita acara PDF                  |
-| `OFF-ITM`                         | Checklist builder        | 7   | 3   | ⬜     | Department supervisors tick the items that apply (007). Pre-ticking from a register (002) is deferred with the register (006). Next stage |
-| `OFF-TPL`                         | Master item list (admin) | 4   | 2   | ⬜     |                                                        |
+| `OFF-CHK`                         | Stage 2 Checklist        | 11  | 10  | ✅     | Built 10-15: groups per department owned by its supervisor (HR Admin when none), owner-only ticking with a note, the blocked-completion guard and banner, ad-hoc items, HR notified. Access revocation (010) built 10-16, see the sign-off rules below |
+| `OFF-SIG`                         | Stage 3 Sign-off         | 9   | 5   | ✅     | Built 10-16: the Atasan then HR sign in order, the exit interview, exit documents, the print-ready berita acara, send back to the checklist, close, cancel, and the dossier lock. Waiting on one decision: re-routing approvals that were waiting on the leaver |
+| `OFF-ITM`                         | Checklist builder        | 7   | 3   | ✅     | Built 10-15: the supervisors pick the items that apply (007) from the master list (001, 004), add their own for the case, and confirm with "Daftar selesai". Pre-ticking from a register (002) is deferred with the register (006) |
+| `OFF-TPL`                         | Master item list (admin) | 4   | 2   | 🟡     | "Item offboarding" in the admin panel (001, 002): kind, department, order, retire. Seeded with defaults the first time a company needs them. Template variants (003) and default owners (004) are covered by the department supervisor rule |
 
 ### Phase 6 — Home, search, employee app
 
@@ -947,6 +947,26 @@ Indonesian workbook copy has deliberately not been regenerated while more change
 - *Auto-approval.* A request filed by the person who would approve it (the Atasan) is approved on
   filing, and that person is recorded as the approver.
 
+### How a flow's page is laid out (design rules, 2026-10-15)
+
+Every process that needs approval is drawn the same way, so people learn it once. Offboarding is the first;
+recruitment and the rest follow the same rules.
+
+1. **The actions of the phase are at the top**, in the header beside the discussion button: Ubah, Tolak,
+   Setujui on a case; Simpan draft and Kirim untuk persetujuan in the wizard. Nothing the phase asks of you
+   is at the bottom of the page.
+2. **The approvers come first in the phase, in the order they decide** (`approval-chain.tsx`): who asked
+   (done), whoever decides now (highlighted, with how many days they have been waited on), and who is next
+   ("belum diminta").
+3. **An action that needs a comment opens a pop-up** (`decision-dialog.tsx`) with the note field and OK /
+   BATAL: Tolak needs a reason (the field is required and the server refuses an empty one), Setujui takes an
+   optional note. The note is written into the discussion thread.
+4. **The discussion is a drawer from the right** that dims the page behind it and blocks clicks on it; it is
+   closed with its X, Escape or a click outside, before anything else is used.
+5. **Case pages use the whole width** of the content area, not a narrow column.
+
+Not yet applied to the leave decision dialog and the profile-change review, which predate these rules.
+
 ### Offboarding flow, as decided 2026-10-15
 
 This differs from `../docs/context.md` §9.4, which still describes the earlier design.
@@ -958,11 +978,55 @@ This differs from `../docs/context.md` §9.4, which still describes the earlier 
 - **Who sees a case.** HR: every case, drafts included. Management: every case once it is sent. A supervisor:
   the cases of people below them, once sent. The person leaving: their own, from the checklist stage on.
 - **Owners are departments' supervisors.** An item belongs to a department; its owner is that department's
-  supervisor (the one set on the department). With none set, HR Admin. After approval each department
-  supervisor ticks which of their items apply, adds ad-hoc ones, confirms with "Daftar selesai" (even for none),
-  then follows the items to done. *(Next stage.)*
+  supervisor (the one set on the department, "Kepala departemen"). With none set, HR Admin. After approval each
+  department supervisor ticks which of their items apply, adds ad-hoc ones, confirms with "Daftar selesai"
+  (even for none), then follows the items to done. Built.
+  - A department's supervisor who is the leaver, has no login or is deactivated counts as none: HR Admin owns it.
+    The owner is fixed when the checklist opens, so changing a supervisor later does not move work under way.
+  - A department supervisor sees the case from then on, wherever they sit in the organisation, and is told when
+    their part opens. The leaver sees the checklist as a read-only handover reference.
+  - After "Daftar selesai" the chosen items cannot be removed (the list is the record of what was agreed), but an
+    item added for this case alone can be, until it is ticked; HR and the owner may still add one, and it must
+    be done like the rest.
+  - HR may set a department aside as "Tidak terkait" while its list is empty and unconfirmed, and take it back.
+  - **Sign-off stays locked** until every department is confirmed or set aside and no chosen item is open
+    (`ChecklistComplete` guard). HR presses "Lanjut ke sign-off" in the action bar, disabled with the reason
+    until then. HR is told when a department confirms and when the checklist is complete.
+  - **The master list** ("Item offboarding" in the admin panel) is per company and seeded with twelve defaults
+    (laptop, email and VPN accounts, ID card, fingerprint enrolment, exit interview, keys and access cards,
+    uniform and PPE, company vehicle, loans, handover) the first time a company needs it. A default is placed in
+    the company's department whose name matches (IT, HR / SDM, Fasilitas / Umum, Keuangan); with no match it has
+    no department and HR Admin owns it. The defaults are never put back over a company's own edits.
 - **Notice period** is a field on each employee (days, "Masa pemberitahuan kontrak"); the wizard compares the
   notice given against it.
+- **Stage 3, sign-off and closing (built 10-16).**
+  - **Signatures, in order.** When HR moves a complete checklist on, the leaver's Atasan signs first, then HR.
+    With no usable Atasan (none set, no login, deactivated, or leaving) HR signs alone. HR's signature needs the
+    exit interview recorded, or skipped with a reason. Management does not sign again.
+  - **Send back.** The signer whose turn it is, or HR, can send the case back to the checklist with a required
+    note (it goes into the thread, tagged Sign-off). The signatures given so far are cleared.
+  - **Closing needs three things:** every signature, the last working day behind us (the case closes only
+    *after* that day, so it cannot be closed early and forgotten), and the leaver's direct reports given a new
+    Atasan. HR does that in a panel on the case, with the leaver's own manager as the default. Each move is
+    checked (the person must still report to the leaver; nobody is put under someone who works for them). The
+    departments the leaver heads only get a warning: HR names a new head in the admin panel.
+  - **Closing** archives the case, makes the employee record inactive with `exited_on` set (and therefore locked
+    from editing), files the resignation letter, exit-interview notes and reference letter on the dossier as
+    restricted documents, and applies the exit if the daily job has not.
+  - **The exit** (`offboarding:apply-exits`, daily at 00:30 Jakarta) runs the day *after* the last working day, so
+    the person can work through it: the account is deactivated and its sessions end (**roles are kept**, so the
+    history is intact and a return is simple); the scanner mapping gets a `valid_to` of the last day (scanners
+    reuse numbers); leave requests of theirs still waiting are rejected with "Dibatalkan otomatis"; profile change
+    requests waiting are withdrawn. It runs once per case. Closing runs it too if the job has not.
+  - **Last working day.** HR may change it after Management approved, until the exit is applied. It needs no new
+    approval; Management, the Atasan, the requester and the owners are told and the change is written in the thread.
+  - **Cancelling.** HR can cancel a case with a reason until the exit is applied (the resignation was withdrawn).
+    Nothing has been switched off by then, so nothing is undone; the case is kept as "Dibatalkan" and the person
+    can be offboarded again.
+  - **Berita acara** is a page built for printing ("Cetak / PDF"), always from the case as it is now; nothing is
+    stored as a file.
+  - **Not done:** an inactive profile cannot be re-activated (rehire, deferred), and a request or checklist group
+    waiting on an *other* account that leaves is not re-routed yet (awaiting a decision).
 - **A rejection** returns the case to draft with the reason in the thread; sending it again builds a fresh
   approval and keeps what was said.
 - **One discussion for the whole case.** "Komentar & feedback" is a drawer that slides in from the right,
@@ -976,10 +1040,6 @@ This differs from `../docs/context.md` §9.4, which still describes the earlier 
   (`WorkflowDiscussion`) on the engine's comment thread, so recruitment can use it by sending the same prop.
 - **A resignation letter is required for a resignation** only. A contract that ends, a dismissal or a
   retirement needs none.
-- **Planned for the later stages:** a supervisor who is leaving needs their reports reassigned before the case can
-  close; the account is deactivated on the last working day, and the profile locks on close (or on the last day,
-  if later); the leaver's pending requests are withdrawn then; exit documents are restricted; the berita acara is
-  a print-ready page saved as a case file (no PDF package).
 - **Point of improvement:** an asset and account register (`OFF-ITM-006`), so a checklist could come pre-ticked
   with what each employee holds. Not planned.
 

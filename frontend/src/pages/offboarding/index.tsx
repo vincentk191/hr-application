@@ -20,6 +20,7 @@ const STATUSES: { value: string; label: string }[] = [
     { value: 'checklist', label: 'Checklist' },
     { value: 'sign_off', label: 'Sign-off' },
     { value: 'closed', label: 'Ditutup' },
+    { value: 'cancelled', label: 'Dibatalkan' },
     { value: 'all', label: 'Semua' },
 ];
 

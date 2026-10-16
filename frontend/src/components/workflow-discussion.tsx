@@ -30,7 +30,8 @@ function initials(name: string | null): string {
  * the workflow engine can use it by sending the same `discussion` prop.
  *
  * The page's `discussion` prop is polled while the page is open, so a comment from someone else shows
- * up without a reload.
+ * up without a reload. It is modal: the page behind it is dimmed and cannot be clicked, so the drawer is
+ * closed (by its X, Escape, or a click outside it) before anything else is used.
  */
 export function WorkflowDiscussion({
     discussion,

@@ -179,6 +179,68 @@ class Notifier
     }
 
     /**
+     * Something happened on an offboarding case that these people should hear about. The person who did
+     * it, the person leaving and anyone deactivated are left out.
+     *
+     * @param  iterable<User|null>  $recipients
+     */
+    public function offboardingEvent(OffboardingCase $case, iterable $recipients, User $actor, string $title, string $body): void
+    {
+        $case->loadMissing('employee');
+        $leaver = $case->employee->user_id;
+
+        $notice = new InAppNotice('offboarding', $title, $body, route('offboarding.show', $case, absolute: false));
+
+        foreach (collect($recipients)->filter()->unique('id') as $user) {
+            if ($user->is_active && $user->isNot($actor) && $user->id !== $leaver) {
+                $user->notify($notice);
+            }
+        }
+    }
+
+    /**
+     * The checklist stage began: tell the owner of each department's part, once, to pick what applies
+     * (OFF-ITM-007). A department with nobody to own it is HR Admin's, and HR made the case.
+     */
+    public function offboardingChecklistStarted(OffboardingCase $case): void
+    {
+        $case->loadMissing('employee');
+        $groups = $case->checklistDepartments()->with('owner')->get();
+
+        foreach ($groups->pluck('owner')->filter()->unique('id') as $owner) {
+            if (! $owner->is_active) {
+                continue;
+            }
+
+            $owner->notify(new InAppNotice(
+                'offboarding',
+                "Offboarding {$case->employee->full_name}: pilih item untuk departemen Anda",
+                "{$case->reference()} · hari terakhir {$case->last_working_on?->toDateString()}. Tandai item yang berlaku, lalu tekan Daftar selesai.",
+                route('offboarding.show', $case, absolute: false),
+            ));
+        }
+    }
+
+    /**
+     * Something moved on the checklist that HR, who made the case, should hear about.
+     */
+    public function offboardingChecklistProgress(OffboardingCase $case, User $actor, string $message): void
+    {
+        $case->loadMissing('creator', 'employee');
+
+        if ($case->creator === null || $case->creator->is($actor) || ! $case->creator->is_active) {
+            return;
+        }
+
+        $case->creator->notify(new InAppNotice(
+            'offboarding',
+            "{$case->reference()}: {$case->employee->full_name}",
+            $message,
+            route('offboarding.show', $case, absolute: false),
+        ));
+    }
+
+    /**
      * A comment on a case: tell the others in the conversation, the requester and whoever decides it.
      */
     public function offboardingCommented(OffboardingCase $case, WorkflowComment $comment, User $author): void

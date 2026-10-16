@@ -544,3 +544,27 @@ it('lets HR read and answer a rejection while correcting the case, from the wiza
 
     expect($case->workflow->comments()->count())->toBe(2);
 });
+
+it('names each approver in the chain, in order, for the top of the phase', function () {
+    $case = submittedCase($this->sinta);
+
+    $this->actingAs($this->hr)->get(route('offboarding.show', $case))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('case.createdBy', $this->hr->name)
+            ->has('case.chain', 1)
+            ->where('case.chain.0.label', 'Manajemen')
+            ->where('case.chain.0.approver', $this->mira->user->name)
+            ->where('case.chain.0.status', 'pending')
+            ->where('case.canDecide', false));
+
+    $this->actingAs($this->mira->user)->get(route('offboarding.show', $case))
+        ->assertInertia(fn (Assert $page) => $page->where('case.canDecide', true));
+
+    $this->actingAs($this->mira->user)->put(route('offboarding.decide', $case), ['decision' => 'approve'])->assertRedirect();
+
+    $this->actingAs($this->hr)->get(route('offboarding.show', $case))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('case.chain.0.status', 'approved')
+            ->where('case.chain.0.decidedBy', $this->mira->user->name)
+            ->where('case.canDecide', false));
+});

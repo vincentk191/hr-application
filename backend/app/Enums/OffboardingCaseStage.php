@@ -18,6 +18,7 @@ enum OffboardingCaseStage: string implements WorkflowStage
     case Checklist = 'checklist';
     case SignOff = 'sign_off';
     case Closed = 'closed';
+    case Cancelled = 'cancelled';
 
     public function label(): string
     {
@@ -27,11 +28,12 @@ enum OffboardingCaseStage: string implements WorkflowStage
             self::Checklist => 'Checklist',
             self::SignOff => 'Sign-off',
             self::Closed => 'Ditutup',
+            self::Cancelled => 'Dibatalkan',
         };
     }
 
     public function isFinal(): bool
     {
-        return $this === self::Closed;
+        return $this === self::Closed || $this === self::Cancelled;
     }
 }

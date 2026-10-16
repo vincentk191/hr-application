@@ -11,7 +11,13 @@ export type OffboardingRow = {
     };
     exitType: string | null;
     lastWorkingOn: string | null;
-    stage: 'draft' | 'submitted' | 'checklist' | 'sign_off' | 'closed';
+    stage:
+        | 'draft'
+        | 'submitted'
+        | 'checklist'
+        | 'sign_off'
+        | 'closed'
+        | 'cancelled';
     stageLabel: string;
     /** 0 for a draft, then 1 to 3 along the pipeline. */
     step: number;
@@ -45,6 +51,8 @@ export type OffboardingFile = {
 
 export type OffboardingStep = {
     label: string;
+    /** The person bound to decide it, when there is one. */
+    approver: string | null;
     status: 'locked' | 'pending' | 'approved' | 'rejected';
     statusLabel: string;
     decidedBy: string | null;
@@ -58,6 +66,81 @@ export type OffboardingComment = {
     author: string | null;
     body: string;
     at: string;
+};
+
+export type OffboardingChecklistItem = {
+    id: number;
+    name: string;
+    kind: string;
+    isAdhoc: boolean;
+    done: boolean;
+    doneAt: string | null;
+    doneBy: string | null;
+    note: string | null;
+    canTick: boolean;
+    canRemove: boolean;
+};
+
+export type OffboardingChecklistGroup = {
+    id: number;
+    name: string;
+    owner: string | null;
+    /** Nobody is set to own it, so HR Admin does. */
+    ownerIsHr: boolean;
+    status: 'choosing' | 'running' | 'done' | 'not_involved';
+    statusLabel: string;
+    confirmed: boolean;
+    notInvolved: boolean;
+    done: number;
+    total: number;
+    canWork: boolean;
+    canAddItem: boolean;
+    canSetAside: boolean;
+    canSelect: boolean;
+    items: OffboardingChecklistItem[];
+    /** Master items of the department not yet picked, for the owner. */
+    available: { id: number; name: string; kind: string }[];
+};
+
+export type OffboardingChecklist = {
+    progress: {
+        items: number;
+        done: number;
+        groups: number;
+        settled: number;
+        ready: boolean;
+        blockers: string[];
+    };
+    groups: OffboardingChecklistGroup[];
+};
+
+export type OffboardingSignoffStep = OffboardingStep & {
+    id: number;
+    isHr: boolean;
+    canSign: boolean;
+};
+
+export type OffboardingSignoff = {
+    steps: OffboardingSignoffStep[];
+    exitInterview: {
+        recorded: boolean;
+        skipped: boolean;
+        skippedReason: string | null;
+        reason: string | null;
+        rehire: boolean | null;
+        notes: string | null;
+        at: string | null;
+        canRecord: boolean;
+    };
+    /** Why the case cannot close yet. */
+    closeBlockers: string[];
+};
+
+export type OffboardingImpact = {
+    reports: { id: number; name: string; number: string }[];
+    defaultManagerId: number | null;
+    options: { id: number; label: string }[];
+    headOf: string[];
 };
 
 export type OffboardingCase = OffboardingRow & {
@@ -77,6 +160,23 @@ export type OffboardingCase = OffboardingRow & {
     files: OffboardingFile[];
     chain: OffboardingStep[];
     comments: OffboardingComment[];
+    /** Present from the checklist stage on. */
+    checklist: OffboardingChecklist | null;
+    /** Present from sign-off on. */
+    signoff: OffboardingSignoff | null;
+    /** For HR while the case runs: the leaver's reports and departments. */
+    impact: OffboardingImpact | null;
+    exitApplied: boolean;
+    closedAt: string | null;
+    cancelledAt: string | null;
+    cancelReason: string | null;
+    canChangeLastDay: boolean;
+    canCancel: boolean;
+    canClose: boolean;
+    canSendBack: boolean;
+    canBeritaAcara: boolean;
+    /** HR may move a case whose checklist is complete on to sign-off. */
+    canProceed: boolean;
     canEdit: boolean;
     canDecide: boolean;
     canComment: boolean;
@@ -93,6 +193,9 @@ export type OffboardingCandidate = {
     manager: string | null;
     joinedOn: string | null;
     noticeDays: number | null;
+    /** Active people who report to them, and the departments they head: to settle before they leave. */
+    reportsCount: number;
+    headOf: string[];
 };
 
 export type ValueLabel = { value: string; label: string };

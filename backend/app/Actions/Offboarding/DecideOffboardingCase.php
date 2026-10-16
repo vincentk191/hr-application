@@ -27,6 +27,8 @@ class DecideOffboardingCase
         $this->remember($instance, $by, $note);
         $this->engine->transitionTo($instance->refresh(), OffboardingCaseStage::Checklist, $by);
 
+        app(StartChecklist::class)->handle($case);
+
         app(Notifier::class)->offboardingDecided($case->refresh(), true, $note, $by);
     }
 

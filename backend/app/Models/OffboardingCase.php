@@ -35,6 +35,15 @@ use Illuminate\Support\Carbon;
  * @property string|null $compensation_reason
  * @property Carbon|null $submitted_at
  * @property Carbon|null $closed_at
+ * @property string|null $exit_interview_reason
+ * @property bool|null $exit_interview_rehire
+ * @property string|null $exit_interview_notes
+ * @property string|null $exit_interview_skipped_reason
+ * @property Carbon|null $exit_interview_at
+ * @property Carbon|null $exit_applied_at
+ * @property Carbon|null $cancelled_at
+ * @property string|null $cancel_reason
+ * @property int|null $cancelled_by_user_id
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -50,6 +59,15 @@ use Illuminate\Support\Carbon;
     'compensation_reason',
     'submitted_at',
     'closed_at',
+    'exit_interview_reason',
+    'exit_interview_rehire',
+    'exit_interview_notes',
+    'exit_interview_skipped_reason',
+    'exit_interview_at',
+    'exit_applied_at',
+    'cancelled_at',
+    'cancel_reason',
+    'cancelled_by_user_id',
 ])]
 class OffboardingCase extends Model
 {
@@ -68,6 +86,10 @@ class OffboardingCase extends Model
             'compensation_months' => 'integer',
             'submitted_at' => 'datetime',
             'closed_at' => 'datetime',
+            'exit_interview_rehire' => 'boolean',
+            'exit_interview_at' => 'datetime',
+            'exit_applied_at' => 'datetime',
+            'cancelled_at' => 'datetime',
         ];
     }
 
@@ -95,6 +117,30 @@ class OffboardingCase extends Model
         return $this->hasMany(OffboardingCaseFile::class)->orderBy('id');
     }
 
+    /**
+     * @return HasMany<OffboardingCaseDepartment, $this>
+     */
+    public function checklistDepartments(): HasMany
+    {
+        return $this->hasMany(OffboardingCaseDepartment::class)->orderBy('id');
+    }
+
+    /**
+     * @return HasMany<OffboardingSignoff, $this>
+     */
+    public function signoffs(): HasMany
+    {
+        return $this->hasMany(OffboardingSignoff::class)->orderBy('position');
+    }
+
+    /**
+     * @return HasMany<OffboardingCaseItem, $this>
+     */
+    public function checklistItems(): HasMany
+    {
+        return $this->hasMany(OffboardingCaseItem::class)->orderBy('id');
+    }
+
     public function reference(): string
     {
         return 'OFB-'.str_pad((string) $this->id, 4, '0', STR_PAD_LEFT);
@@ -105,6 +151,15 @@ class OffboardingCase extends Model
         $workflow = $this->workflow;
 
         return OffboardingCaseStage::from($workflow instanceof WorkflowInstance ? $workflow->current_stage : OffboardingCaseStage::Draft->value);
+    }
+
+    /**
+     * The exit has been applied (the account switched off, requests cleared, scanner mapping ended), which
+     * is the point after which the case can no longer be cancelled or its last working day changed.
+     */
+    public function exitApplied(): bool
+    {
+        return $this->exit_applied_at !== null;
     }
 
     public function isDraft(): bool
@@ -146,7 +201,7 @@ class OffboardingCase extends Model
     #[Scope]
     protected function open(Builder $query): void
     {
-        $query->whereHas('workflow', fn (Builder $workflow) => $workflow->where('current_stage', '!=', OffboardingCaseStage::Closed->value));
+        $query->whereHas('workflow', fn (Builder $workflow) => $workflow->whereNotIn('current_stage', [OffboardingCaseStage::Closed->value, OffboardingCaseStage::Cancelled->value]));
     }
 
     /**
@@ -163,7 +218,7 @@ class OffboardingCase extends Model
             return;
         }
 
-        $submitted = ['submitted', 'checklist', 'sign_off', 'closed'];
+        $submitted = ['submitted', 'checklist', 'sign_off', 'closed', 'cancelled'];
         $running = ['checklist', 'sign_off', 'closed'];
         $own = Employee::acrossCompanies()->where('user_id', $user->id)->first();
 
@@ -181,6 +236,11 @@ class OffboardingCase extends Model
                 $inner->orWhere(fn (Builder $self) => $self->where('employee_id', $own->id)
                     ->whereHas('workflow', fn (Builder $workflow) => $workflow->whereIn('current_stage', $running)));
             }
+
+            // The supervisor who owns a department's part of the checklist sees the case from then on,
+            // wherever they sit in the organisation.
+            $inner->orWhere(fn (Builder $owner) => $owner->whereHas('checklistDepartments', fn (Builder $group) => $group->where('owner_user_id', $user->id))
+                ->whereHas('workflow', fn (Builder $workflow) => $workflow->whereIn('current_stage', $running)));
 
             // No clause above applies to someone with no reach: match nothing rather than everything.
             $inner->orWhereRaw('1 = 0');

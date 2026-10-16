@@ -11,6 +11,8 @@ enum OffboardingFileKind: string
     case Notice = 'notice';
     case Handover = 'handover';
     case ReturnEvidence = 'return_evidence';
+    case ExitInterviewNotes = 'exit_interview_notes';
+    case ReferenceLetter = 'reference_letter';
     case Other = 'other';
 
     /**
@@ -23,6 +25,8 @@ enum OffboardingFileKind: string
             self::Notice => 'Surat pemberitahuan',
             self::Handover => 'Catatan serah terima',
             self::ReturnEvidence => 'Bukti pengembalian',
+            self::ExitInterviewNotes => 'Catatan wawancara keluar',
+            self::ReferenceLetter => 'Surat referensi',
             self::Other => 'Berkas lain',
         };
     }
