@@ -11,8 +11,8 @@ use App\Workflows\WorkflowEngine;
 use Illuminate\Support\Facades\DB;
 
 /**
- * A signer found something missing or wrong and sends the case back to the checklist with a note
- * (OFF-SIG-005). The signatures given so far are cleared: they vouched for a list that has now changed.
+ * HR found something missing or wrong at the last stage and sends the case back to the checklist with a note
+ * (OFF-SIG-005).
  */
 class SendBackToChecklist
 {
@@ -23,7 +23,7 @@ class SendBackToChecklist
         DB::transaction(function () use ($case, $by, $note): void {
             // The note goes into the thread first, so it is tagged with the sign-off stage it was written in.
             $this->engine->comment($case->workflow, $by, $note);
-            $case->signoffs()->delete();
+            $case->update(['checklist_approved_at' => null, 'checklist_approved_by_user_id' => null]);
             $this->engine->transitionTo($case->workflow->refresh(), OffboardingCaseStage::Checklist, $by);
         });
 

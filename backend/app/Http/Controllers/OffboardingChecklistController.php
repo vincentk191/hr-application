@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Offboarding\ApproveChecklist;
 use App\Actions\Offboarding\ManageChecklist;
 use App\Actions\Offboarding\ProceedToSignOff;
+use App\Actions\Offboarding\ReassignGroupOwner;
+use App\Actions\Offboarding\RefreshChecklist;
 use App\Enums\OffboardingItemKind;
 use App\Models\OffboardingCase;
 use App\Models\OffboardingCaseDepartment;
@@ -103,6 +106,41 @@ class OffboardingChecklistController extends Controller
     }
 
     /**
+     * "Perbarui dari daftar induk": items added to the master list since the checklist opened are shared out
+     * to their owners (OFF-ITM-008).
+     */
+    public function refresh(Request $request, OffboardingCase $offboardingCase, RefreshChecklist $refresh): RedirectResponse
+    {
+        $this->authorize('refreshChecklist', $offboardingCase);
+
+        $added = $refresh->handle($offboardingCase, $request->user());
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => $added === 0 ? 'Checklist sudah sesuai daftar induk.' : "{$added} item baru ditambahkan ke checklist.",
+        ]);
+
+        return back();
+    }
+
+    /**
+     * HR gives one group of the checklist to someone else for this case, or takes it back (OFF-CHK-003).
+     */
+    public function owner(Request $request, OffboardingCase $offboardingCase, OffboardingCaseDepartment $group, ReassignGroupOwner $reassign): RedirectResponse
+    {
+        $this->authorize('reassignOwner', $group);
+        $this->belongs($offboardingCase, $group);
+
+        $validated = $request->validate(['user_id' => ['nullable', 'integer']]);
+
+        $reassign->handle($group, $validated['user_id'] ?? null, $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "Pemilik {$group->name} diperbarui."]);
+
+        return back();
+    }
+
+    /**
      * The owner ticks an item as done, with a note on the condition or what was handed over (OFF-CHK-003).
      */
     public function done(Request $request, OffboardingCaseItem $item): RedirectResponse
@@ -121,6 +159,20 @@ class OffboardingChecklistController extends Controller
         $this->authorize('workItem', $item);
 
         $this->checklist->reopen($item);
+
+        return back();
+    }
+
+    /**
+     * "Setujui checklist": HR approves the finished checklist, the second check before sign-off (OFF-CHK-011).
+     */
+    public function approve(Request $request, OffboardingCase $offboardingCase, ApproveChecklist $approve): RedirectResponse
+    {
+        $this->authorize('approveChecklist', $offboardingCase);
+
+        $approve->handle($offboardingCase, $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Checklist disetujui.']);
 
         return back();
     }

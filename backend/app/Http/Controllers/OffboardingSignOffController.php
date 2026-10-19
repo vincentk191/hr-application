@@ -8,10 +8,8 @@ use App\Actions\Offboarding\CloseOffboardingCase;
 use App\Actions\Offboarding\ReassignReports;
 use App\Actions\Offboarding\RecordExitInterview;
 use App\Actions\Offboarding\SendBackToChecklist;
-use App\Actions\Offboarding\SignOffCase;
 use App\Http\Requests\RecordExitInterviewRequest;
 use App\Models\OffboardingCase;
-use App\Models\OffboardingSignoff;
 use App\Support\Offboarding\OffboardingPresenter;
 use App\Workflows\Exceptions\TransitionBlocked;
 use Illuminate\Http\RedirectResponse;
@@ -21,26 +19,11 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * The last stage of an offboarding case and what can end it (OFF-SIG): the sequence of signatures, the exit
- * interview, sending a case back to the checklist, closing it, cancelling it, and the two things HR settles
+ * The last stage of an offboarding case and what can end it (OFF-SIG): the exit interview, sending a case back to the checklist, closing it, cancelling it, and the two things HR settles
  * along the way, the leaver's reports and the last working day.
  */
 class OffboardingSignOffController extends Controller
 {
-    public function sign(Request $request, OffboardingCase $offboardingCase, OffboardingSignoff $signoff, SignOffCase $sign): RedirectResponse
-    {
-        $this->authorize('signOff', $signoff);
-        abort_unless($signoff->offboarding_case_id === $offboardingCase->id, 404);
-
-        $validated = $request->validate(['note' => ['nullable', 'string', 'max:1000']]);
-
-        $sign->handle($signoff, $request->user(), $validated['note'] ?? null);
-
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Tanda tangan tercatat.']);
-
-        return back();
-    }
-
     public function sendBack(Request $request, OffboardingCase $offboardingCase, SendBackToChecklist $sendBack): RedirectResponse
     {
         $this->authorize('sendBack', $offboardingCase);
@@ -98,7 +81,7 @@ class OffboardingSignOffController extends Controller
     }
 
     /**
-     * "Tutup kasus": HR closes it once the guards allow (OFF-SIG-008).
+     * "Tutup kasus": the HR who asked for the case closes it once the guards allow (OFF-SIG-008).
      */
     public function close(Request $request, OffboardingCase $offboardingCase, CloseOffboardingCase $close): RedirectResponse
     {

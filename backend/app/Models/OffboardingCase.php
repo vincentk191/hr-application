@@ -8,6 +8,7 @@ use App\Enums\OffboardingCaseStage;
 use App\Enums\OffboardingExitType;
 use App\Enums\Permission;
 use App\Enums\Role;
+use App\Models\Scopes\CompanyScope;
 use App\Support\ReportingLine;
 use Database\Factories\OffboardingCaseFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -17,6 +18,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Support\Carbon;
 
 /**
@@ -44,6 +46,8 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $cancelled_at
  * @property string|null $cancel_reason
  * @property int|null $cancelled_by_user_id
+ * @property Carbon|null $checklist_approved_at
+ * @property int|null $checklist_approved_by_user_id
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -68,6 +72,8 @@ use Illuminate\Support\Carbon;
     'cancelled_at',
     'cancel_reason',
     'cancelled_by_user_id',
+    'checklist_approved_at',
+    'checklist_approved_by_user_id',
 ])]
 class OffboardingCase extends Model
 {
@@ -90,15 +96,30 @@ class OffboardingCase extends Model
             'exit_interview_at' => 'datetime',
             'exit_applied_at' => 'datetime',
             'cancelled_at' => 'datetime',
+            'checklist_approved_at' => 'datetime',
         ];
     }
 
     /**
+     * The person leaving. Read across companies, because the owner of a checklist item may belong to another
+     * company than the leaver and still has to see who it is (OFF-ITM-007); who may reach the case at all is
+     * the policy's decision.
+     *
      * @return BelongsTo<Employee, $this>
      */
     public function employee(): BelongsTo
     {
-        return $this->belongsTo(Employee::class);
+        return $this->belongsTo(Employee::class)->withoutGlobalScope(CompanyScope::class);
+    }
+
+    /**
+     * The case's workflow, read across companies for the same reason.
+     *
+     * @return MorphOne<WorkflowInstance, $this>
+     */
+    public function workflow(): MorphOne
+    {
+        return $this->morphOne(WorkflowInstance::class, 'subject')->withoutGlobalScope(CompanyScope::class);
     }
 
     /**
@@ -123,14 +144,6 @@ class OffboardingCase extends Model
     public function checklistDepartments(): HasMany
     {
         return $this->hasMany(OffboardingCaseDepartment::class)->orderBy('id');
-    }
-
-    /**
-     * @return HasMany<OffboardingSignoff, $this>
-     */
-    public function signoffs(): HasMany
-    {
-        return $this->hasMany(OffboardingSignoff::class)->orderBy('position');
     }
 
     /**
@@ -205,6 +218,30 @@ class OffboardingCase extends Model
     }
 
     /**
+     * Cases in which this person owns part of the checklist, in any company (OFF-ITM-007). They see only what
+     * they need to cross their items off, never the case itself.
+     *
+     * @param  Builder<static>  $query
+     */
+    #[Scope]
+    protected function ownedBy(Builder $query, User $user): void
+    {
+        $query->whereHas('checklistDepartments', fn (Builder $group) => $group->where('owner_user_id', $user->id))
+            ->whereHas('workflow', fn (Builder $workflow) => $workflow->whereIn('current_stage', ['checklist', 'sign_off', 'closed']));
+    }
+
+    /**
+     * How many open cases this person may see or owns part of: the badge on "Offboarding" (OFF-DSH-010).
+     */
+    public static function openCountFor(User $user): int
+    {
+        $seen = static::query()->visibleTo($user)->open()->pluck('id');
+        $owned = static::query()->acrossCompanies()->ownedBy($user)->open()->pluck('id');
+
+        return $seen->merge($owned)->unique()->count();
+    }
+
+    /**
      * The cases this person may see (CORE-RBA-004). HR sees all of them, drafts included. Management
      * and supervisors see those that were submitted: Management every one, a supervisor those of people
      * below them. The person leaving sees their own once the checklist stage has begun.
@@ -236,11 +273,6 @@ class OffboardingCase extends Model
                 $inner->orWhere(fn (Builder $self) => $self->where('employee_id', $own->id)
                     ->whereHas('workflow', fn (Builder $workflow) => $workflow->whereIn('current_stage', $running)));
             }
-
-            // The supervisor who owns a department's part of the checklist sees the case from then on,
-            // wherever they sit in the organisation.
-            $inner->orWhere(fn (Builder $owner) => $owner->whereHas('checklistDepartments', fn (Builder $group) => $group->where('owner_user_id', $user->id))
-                ->whereHas('workflow', fn (Builder $workflow) => $workflow->whereIn('current_stage', $running)));
 
             // No clause above applies to someone with no reach: match nothing rather than everything.
             $inner->orWhereRaw('1 = 0');

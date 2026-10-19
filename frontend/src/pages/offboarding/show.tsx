@@ -18,7 +18,6 @@ import {
     proceed,
     sendBack,
 } from '@/routes/offboarding';
-import { sign } from '@/routes/offboarding/signoff';
 import { LastDayDialog } from '@/components/last-day-dialog';
 import {
     OffboardingImpactPanel,
@@ -28,6 +27,7 @@ import {
     read as readComments,
     store as storeComment,
 } from '@/routes/offboarding/comments';
+import { approve as approveChecklist } from '@/routes/offboarding/checklist';
 import { store as storeFiles } from '@/routes/offboarding/files';
 import { show as employeeShow } from '@/routes/employees';
 import { Form } from '@inertiajs/react';
@@ -92,6 +92,55 @@ function Tracker({
                 </button>
             ))}
         </div>
+    );
+}
+
+/**
+ * The side panel on the checklist tab: where each owner's part stands, and which signatures are still to
+ * come. The owners confirm their list and cross their items off in the main column.
+ */
+function SignOffs({ item }: { item: OffboardingCase }) {
+    if (!item.checklist) {
+        return null;
+    }
+
+    return (
+        <section className="surface space-y-3 p-4" data-test="owner-signoffs">
+            <h2 className="label-mono">Sign-off pemilik item</h2>
+            <ul className="divide-y text-sm">
+                {item.checklist.groups.map((group) => (
+                    <li
+                        key={group.id}
+                        className="flex items-start justify-between gap-3 py-2"
+                    >
+                        <div className="min-w-0">
+                            <p className="font-medium">{group.name}</p>
+                            <p className="label-mono">
+                                {group.ownerIsHr
+                                    ? 'Admin HR'
+                                    : (group.owner ?? 'Admin HR')}
+                                {' · '}
+                                {group.done}/{group.total} item
+                            </p>
+                        </div>
+                        <Badge
+                            variant={
+                                group.status === 'done' ||
+                                group.status === 'not_involved'
+                                    ? 'outline'
+                                    : 'secondary'
+                            }
+                        >
+                            {group.statusLabel}
+                        </Badge>
+                    </li>
+                ))}
+            </ul>
+            <p className="text-xs text-muted-foreground">
+                Setelah semua selesai dan HR menyetujui, kasus bisa lanjut ke
+                tahap Sign-off.
+            </p>
+        </section>
     );
 }
 
@@ -234,9 +283,6 @@ export default function OffboardingShow({
 
     const { errors } = usePage().props as { errors: Record<string, string> };
 
-    // The signature that is this person's to give right now, if any.
-    const signStep = item.signoff?.steps.find((step) => step.canSign);
-
     const current =
         item.tabs.find((tab) => tab.state === 'current')?.stage ??
         item.tabs[item.tabs.length - 1].stage;
@@ -352,26 +398,6 @@ export default function OffboardingShow({
                                 }
                             />
                         )}
-                        {signStep && (
-                            <DecisionDialog
-                                form={sign.form([item.id, signStep.id])}
-                                decision="sign"
-                                title={`Tandatangani — ${item.employee.name}`}
-                                subtitle={`${item.reference} · ${signStep.label}`}
-                                fieldLabel="Catatan (opsional)"
-                                hint={
-                                    signStep.isHr
-                                        ? 'Dengan menandatangani, saya memastikan semua item dan dokumen serah terima sudah diterima.'
-                                        : 'Dengan menandatangani, saya memastikan serah terima di tim saya sudah selesai.'
-                                }
-                                confirmLabel="Tandatangani"
-                                trigger={
-                                    <Button data-test="sign-case">
-                                        Tandatangani
-                                    </Button>
-                                }
-                            />
-                        )}
                         {item.canClose && item.signoff && (
                             <Button
                                 data-test="close-case"
@@ -392,16 +418,32 @@ export default function OffboardingShow({
                                 Tutup kasus
                             </Button>
                         )}
+                        {item.checklist?.canApprove && (
+                            <Button
+                                data-test="approve-checklist"
+                                onClick={() =>
+                                    router.post(
+                                        approveChecklist(item.id).url,
+                                        {},
+                                        { preserveScroll: true },
+                                    )
+                                }
+                            >
+                                Setujui checklist
+                            </Button>
+                        )}
                         {item.canProceed && item.checklist && (
                             <Button
                                 data-test="proceed-signoff"
-                                disabled={!item.checklist.progress.ready}
+                                disabled={!item.checklist.approved}
                                 title={
-                                    item.checklist.progress.ready
+                                    item.checklist.approved
                                         ? undefined
-                                        : item.checklist.progress.blockers.join(
-                                              ' ',
-                                          )
+                                        : item.checklist.progress.ready
+                                          ? 'HR perlu menyetujui checklist dulu.'
+                                          : item.checklist.progress.blockers.join(
+                                                ' ',
+                                            )
                                 }
                                 onClick={() =>
                                     router.post(
@@ -442,31 +484,7 @@ export default function OffboardingShow({
                 )}
 
                 {tab === 'checklist' && item.checklist && (
-                    <ApprovalChain
-                        requester={item.createdBy}
-                        requesterLabel="Pemohon"
-                        steps={item.checklist.groups.map((group) => ({
-                            label: group.name,
-                            approver: group.owner ?? 'Admin HR',
-                            status:
-                                group.status === 'done' ||
-                                group.status === 'not_involved'
-                                    ? 'approved'
-                                    : 'pending',
-                            statusLabel: group.statusLabel,
-                            decidedBy: null,
-                            decidedAt: null,
-                            waitingDays: null,
-                        }))}
-                    />
-                )}
-
-                {tab === 'sign_off' && item.signoff && (
-                    <ApprovalChain
-                        requester={item.createdBy}
-                        requesterLabel="Pemohon"
-                        steps={item.signoff.steps}
-                    />
+                    <ApprovalChain steps={item.checklist.chain} />
                 )}
 
                 {item.stage === 'cancelled' && (
@@ -478,36 +496,41 @@ export default function OffboardingShow({
                     </section>
                 )}
 
-                {(tab === 'checklist' || tab === 'sign_off') &&
-                    item.stage !== 'cancelled' && (
-                        <OffboardingImpactPanel item={item} />
-                    )}
+                <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
+                    <div className="min-w-0 space-y-5">
+                        {(tab === 'checklist' || tab === 'sign_off') &&
+                            item.stage !== 'cancelled' && (
+                                <OffboardingImpactPanel item={item} />
+                            )}
 
-                {tab === 'submitted' ? (
-                    <SubmittedTab item={item} />
-                ) : tab === 'sign_off' && item.signoff ? (
-                    <OffboardingSignOffPanel
-                        item={item}
-                        closeError={errors?.close}
-                    />
-                ) : tab === 'checklist' && item.checklist ? (
-                    <OffboardingChecklistPanel
-                        checklist={item.checklist}
-                        caseId={item.id}
-                        reference={item.reference}
-                        employee={item.employee.name ?? ''}
-                        blockedMessage={errors?.proceed}
-                    />
-                ) : (
-                    <section className="surface p-6 text-sm text-muted-foreground">
-                        {item.tabs.find((entry) => entry.stage === tab)
-                            ?.state === 'next'
-                            ? 'Tahap ini belum dimulai.'
-                            : 'Tahap ini disiapkan pada tahap pengembangan berikutnya.'}
-                    </section>
-                )}
+                        {tab === 'submitted' ? (
+                            <SubmittedTab item={item} />
+                        ) : tab === 'sign_off' && item.signoff ? (
+                            <OffboardingSignOffPanel
+                                item={item}
+                                closeError={errors?.close}
+                            />
+                        ) : tab === 'checklist' && item.checklist ? (
+                            <OffboardingChecklistPanel
+                                checklist={item.checklist}
+                                caseId={item.id}
+                                blockedMessage={errors?.proceed}
+                            />
+                        ) : (
+                            <section className="surface p-6 text-sm text-muted-foreground">
+                                {item.tabs.find((entry) => entry.stage === tab)
+                                    ?.state === 'next'
+                                    ? 'Tahap ini belum dimulai.'
+                                    : 'Tahap ini disiapkan pada tahap pengembangan berikutnya.'}
+                            </section>
+                        )}
+                    </div>
 
-                <Files item={item} />
+                    <aside className="min-w-0 space-y-5" data-test="side-panel">
+                        {tab === 'checklist' && <SignOffs item={item} />}
+                        <Files item={item} />
+                    </aside>
+                </div>
             </div>
         </>
     );

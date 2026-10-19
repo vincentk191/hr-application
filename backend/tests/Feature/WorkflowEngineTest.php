@@ -13,10 +13,11 @@ use App\Workflows\Definitions\OffboardingCaseWorkflow;
 use App\Workflows\Exceptions\InvalidTransition;
 use App\Workflows\Exceptions\StepNotActionable;
 use App\Workflows\Exceptions\TransitionBlocked;
+use App\Workflows\Guards\ChecklistApproved;
 use App\Workflows\Guards\ChecklistComplete;
+use App\Workflows\Guards\ExitInterviewRecorded;
 use App\Workflows\Guards\LastDayPassed;
 use App\Workflows\Guards\ReportsReassigned;
-use App\Workflows\Guards\SignOffsComplete;
 use App\Workflows\StepBlueprint;
 use App\Workflows\WorkflowEngine;
 use Database\Seeders\RoleSeeder;
@@ -258,8 +259,9 @@ it('allows a guarded transition once the chain is approved', function () {
 
     // Sign-off is a stage further on, and it waits for the checklist as well as the approval.
     expect($instance->current_stage)->toBe(Stage::Checklist->value)
-        ->and($this->engine->blockingReasons($instance, Stage::SignOff))->toHaveCount(1)
-        ->and($this->engine->blockingReasons($instance, Stage::SignOff)[0])->toContain('sign-off');
+        ->and($this->engine->blockingReasons($instance, Stage::SignOff))->toHaveCount(2)
+        ->and($this->engine->blockingReasons($instance, Stage::SignOff)[0])->toContain('sign-off')
+        ->and($this->engine->blockingReasons($instance, Stage::SignOff)[1])->toContain('menyetujui checklist');
 });
 
 it('records each transition with its actor', function () {
@@ -287,9 +289,9 @@ it('marks the instance complete on reaching a final stage', function () {
 
     $instance = $this->engine->transitionTo($instance->refresh(), Stage::Checklist);
 
-    // The stand-in subject has no checklist, signatures or leaver; what is under test here is the engine, so
+    // The stand-in subject has no checklist, exit details or leaver; what is under test here is the engine, so
     // let the offboarding guards pass.
-    foreach ([ChecklistComplete::class, SignOffsComplete::class, LastDayPassed::class, ReportsReassigned::class] as $guard) {
+    foreach ([ChecklistComplete::class, ChecklistApproved::class, ExitInterviewRecorded::class, LastDayPassed::class, ReportsReassigned::class] as $guard) {
         app()->bind($guard, fn () => new class implements TransitionGuard
         {
             public function passes(WorkflowInstance $instance): bool

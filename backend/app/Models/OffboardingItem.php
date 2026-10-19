@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Concerns\BelongsToCompany;
 use App\Enums\OffboardingItemKind;
 use Database\Factories\OffboardingItemFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -15,23 +14,28 @@ use Illuminate\Support\Carbon;
 
 /**
  * An item on the master list of what is handed back or switched off when someone leaves (OFF-ITM-001,
- * OFF-TPL-002). It belongs to a department, and that department's supervisor owns it on a case.
+ * OFF-TPL-002). The list belongs to the whole group, not to a company: a department such as IT can serve
+ * every company.
+ *
+ * Who owns an item on a case: the person named here, if there is one and they can act; otherwise the
+ * supervisor of the department it names, in the leaver's company; otherwise HR Admin. The person's job
+ * title and department are read from their own record.
  *
  * @property int $id
- * @property int $company_id
  * @property string $name
  * @property OffboardingItemKind $kind
- * @property int|null $department_id
+ * @property string|null $department_name the department whose supervisor owns it when no one is named
+ * @property int|null $owner_employee_id
  * @property bool $is_active
  * @property int $sort_order
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['company_id', 'name', 'kind', 'department_id', 'is_active', 'sort_order'])]
+#[Fillable(['name', 'kind', 'department_name', 'owner_employee_id', 'is_active', 'sort_order'])]
 class OffboardingItem extends Model
 {
     /** @use HasFactory<OffboardingItemFactory> */
-    use BelongsToCompany, HasFactory;
+    use HasFactory;
 
     /**
      * @return array<string, string>
@@ -42,11 +46,13 @@ class OffboardingItem extends Model
     }
 
     /**
-     * @return BelongsTo<Department, $this>
+     * The person named as owner, from any company.
+     *
+     * @return BelongsTo<Employee, $this>
      */
-    public function department(): BelongsTo
+    public function owner(): BelongsTo
     {
-        return $this->belongsTo(Department::class)->withoutGlobalScopes();
+        return $this->belongsTo(Employee::class, 'owner_employee_id')->withoutGlobalScopes();
     }
 
     /**

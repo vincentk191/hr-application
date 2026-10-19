@@ -11,7 +11,6 @@ use App\Models\OffboardingItem;
 use App\Models\User;
 use App\Support\Offboarding\OffboardingCatalog;
 use Database\Seeders\RoleSeeder;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -90,7 +89,7 @@ function ckMaster(string $name): OffboardingItem
  */
 function ckPickAll(User $owner, OffboardingCase $case, OffboardingCaseDepartment $group): void
 {
-    foreach (OffboardingItem::query()->where('department_id', $group->department_id)->get() as $item) {
+    foreach (OffboardingItem::query()->whereIn('id', $group->item_ids ?? [])->get() as $item) {
         test()->actingAs($owner)->post(route('offboarding.checklist.select', [$case, $group]), ['offboarding_item_id' => $item->id])->assertRedirect();
     }
 
@@ -112,9 +111,9 @@ it('makes the default items and a group per department when Management approves,
     $case = checklistCase();
 
     expect(OffboardingItem::count())->toBe(count(OffboardingCatalog::DEFAULTS))
-        ->and(ckMaster('Laptop dan perangkat kerja dikembalikan')->department_id)->toBe($this->it->id)
-        ->and(ckMaster('Seragam dan alat pelindung diri dikembalikan')->department_id)->toBe($this->facilities->id)
-        ->and(ckMaster('Serah terima pekerjaan dan pengetahuan')->department_id)->toBeNull();
+        ->and(ckMaster('Laptop dan perangkat kerja dikembalikan')->department_name)->toBe('IT')
+        ->and(ckMaster('Seragam dan alat pelindung diri dikembalikan')->department_name)->toBe('Fasilitas')
+        ->and(ckMaster('Serah terima pekerjaan dan pengetahuan')->department_name)->toBeNull();
 
     $groups = OffboardingCaseDepartment::query()->where('offboarding_case_id', $case->id)->get()->keyBy('name');
 
@@ -132,7 +131,7 @@ it('makes the default items and a group per department when Management approves,
 });
 
 it('never puts the defaults back over a company\'s own list', function () {
-    OffboardingItem::factory()->create(['company_id' => $this->company->id, 'name' => 'Hanya satu', 'department_id' => $this->it->id]);
+    OffboardingItem::factory()->create(['name' => 'Hanya satu', 'department_name' => 'IT']);
 
     $case = checklistCase();
 
@@ -191,12 +190,15 @@ it('shows the owner only the items still to pick, and the leaver the list withou
     $itGroup = ckGroup($case, 'IT');
     $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.select', [$case, $itGroup]), ['offboarding_item_id' => ckMaster('Akses VPN dicabut')->id])->assertRedirect();
 
+    // Ivan is neither above the leaver nor HR, so he gets the narrow view: only his own group.
     $this->actingAs($this->ivan->user)->get(route('offboarding.show', $case))
         ->assertInertia(fn (Assert $page) => $page
-            ->where('case.checklist.groups', fn ($groups) => collect($groups)->firstWhere('name', 'IT')['canSelect'] === true
-                && count(collect($groups)->firstWhere('name', 'IT')['available']) === 3
-                && count(collect($groups)->firstWhere('name', 'IT')['items']) === 1
-                && collect($groups)->firstWhere('name', 'Fasilitas')['canSelect'] === false));
+            ->component('offboarding/owner')
+            ->where('case.checklist.groups', fn ($groups) => count($groups) === 1
+                && $groups[0]['name'] === 'IT'
+                && $groups[0]['canSelect'] === true
+                && count($groups[0]['available']) === 3
+                && count($groups[0]['items']) === 1));
 
     $this->actingAs($this->sinta->user)->get(route('offboarding.show', $case))
         ->assertInertia(fn (Assert $page) => $page->where('case.checklist.groups', fn ($groups) => collect($groups)->every(fn ($group) => $group['canWork'] === false && $group['available'] === [])));
@@ -308,7 +310,7 @@ it('keeps sign-off locked and says why, until every list is confirmed and every 
     $case = checklistCase();
 
     $this->actingAs($this->hr)->post(route('offboarding.proceed', $case))
-        ->assertSessionHasErrors(['proceed' => 'Kasus belum bisa lanjut ke sign-off: 5 departemen belum mengonfirmasi daftarnya.']);
+        ->assertSessionHasErrors(['proceed' => 'Kasus belum bisa lanjut ke sign-off: 5 departemen belum mengonfirmasi daftarnya. HR belum menyetujui checklist.']);
 
     ckPickAll($this->ivan->user, $case, ckGroup($case, 'IT'));
     ckPickAll($this->fani->user, $case, ckGroup($case, 'Fasilitas'));
@@ -338,6 +340,11 @@ it('keeps sign-off locked and says why, until every list is confirmed and every 
 
     $this->actingAs($this->ivan->user)->post(route('offboarding.proceed', $case))->assertForbidden();
     $this->actingAs($this->mira->user)->post(route('offboarding.proceed', $case))->assertForbidden();
+    // Finished is not enough: HR approves the checklist first, and anyone of HR may.
+    $this->actingAs($this->hr)->post(route('offboarding.proceed', $case))->assertSessionHasErrors(['proceed' => 'HR belum menyetujui checklist.']);
+    $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.approve', $case))->assertForbidden();
+    $this->actingAs($this->mira->user)->post(route('offboarding.checklist.approve', $case))->assertForbidden();
+    $this->actingAs($this->hr)->post(route('offboarding.checklist.approve', $case))->assertRedirect();
     $this->actingAs($this->hr)->post(route('offboarding.proceed', $case))->assertRedirect();
 
     expect($case->refresh()->workflow->current_stage)->toBe('sign_off');

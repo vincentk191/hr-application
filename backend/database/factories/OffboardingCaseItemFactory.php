@@ -19,8 +19,8 @@ class OffboardingCaseItemFactory extends Factory
     {
         return [
             'offboarding_case_department_id' => OffboardingCaseDepartment::factory(),
-            'offboarding_case_id' => fn (array $attributes) => OffboardingCaseDepartment::acrossCompanies()->whereKey($attributes['offboarding_case_department_id'])->value('offboarding_case_id'),
-            'company_id' => fn (array $attributes) => OffboardingCaseDepartment::acrossCompanies()->whereKey($attributes['offboarding_case_department_id'])->value('company_id'),
+            'offboarding_case_id' => fn (array $attributes) => OffboardingCaseDepartment::query()->whereKey($attributes['offboarding_case_department_id'])->value('offboarding_case_id'),
+            'company_id' => fn (array $attributes) => OffboardingCaseDepartment::query()->whereKey($attributes['offboarding_case_department_id'])->value('company_id'),
             'name' => fake()->sentence(3),
             'kind' => OffboardingItemKind::Physical,
             'is_adhoc' => false,

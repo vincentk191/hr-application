@@ -29,8 +29,8 @@ class ManageChecklist
     {
         $this->assertOpen($group);
 
-        if ($item->department_id !== $group->department_id || ! $item->is_active) {
-            throw ValidationException::withMessages(['item' => 'Item ini bukan bagian dari departemen ini.']);
+        if (! in_array($item->id, $group->item_ids ?? [], strict: true) || ! $item->is_active) {
+            throw ValidationException::withMessages(['item' => 'Item ini bukan bagian dari daftar Anda.']);
         }
 
         return OffboardingCaseItem::query()->firstOrCreate(
@@ -53,6 +53,8 @@ class ManageChecklist
      */
     public function addAdhoc(OffboardingCaseDepartment $group, string $name, OffboardingItemKind $kind, User $by): OffboardingCaseItem
     {
+        $this->revokeApproval($group);
+
         return OffboardingCaseItem::create([
             'company_id' => $group->company_id,
             'offboarding_case_id' => $group->offboarding_case_id,
@@ -81,6 +83,7 @@ class ManageChecklist
         }
 
         $item->delete();
+        $this->revokeApproval($group);
     }
 
     /**
@@ -106,6 +109,7 @@ class ManageChecklist
         }
 
         $group->update(['not_involved' => $notInvolved, 'confirmed_at' => null, 'confirmed_by_user_id' => null]);
+        $this->revokeApproval($group);
 
         if ($notInvolved) {
             $this->announceIfReady($group, $by);
@@ -129,6 +133,15 @@ class ManageChecklist
     public function reopen(OffboardingCaseItem $item): void
     {
         $item->update(['done_at' => null, 'done_by_user_id' => null]);
+        $this->revokeApproval($item->group);
+    }
+
+    /**
+     * HR's approval of the checklist stands for what was there when it was given; a change takes it back.
+     */
+    private function revokeApproval(OffboardingCaseDepartment $group): void
+    {
+        OffboardingCase::acrossCompanies()->whereKey($group->offboarding_case_id)->update(['checklist_approved_at' => null, 'checklist_approved_by_user_id' => null]);
     }
 
     /**

@@ -162,18 +162,17 @@ export default function BeritaAcara({ case: item }: { case: OffboardingCase }) {
                             Tanda tangan
                         </h2>
                         <div className="grid gap-6 sm:grid-cols-2">
-                            {item.signoff?.steps.map((step) => (
-                                <div key={step.id} className="space-y-8">
-                                    <p>{step.label}</p>
+                            {[
+                                {
+                                    label: 'Yang menyerahkan',
+                                    name: item.employee.name,
+                                },
+                                { label: 'HR', name: item.createdBy },
+                            ].map((signer) => (
+                                <div key={signer.label} className="space-y-8">
+                                    <p>{signer.label}</p>
                                     <div className="border-b border-foreground pt-6" />
-                                    <p>
-                                        {step.decidedBy ??
-                                            step.approver ??
-                                            'Admin HR'}
-                                        {step.decidedAt
-                                            ? ` · ${step.decidedAt}`
-                                            : ' · belum menandatangani'}
-                                    </p>
+                                    <p>{signer.name ?? '—'}</p>
                                 </div>
                             ))}
                         </div>

@@ -7,10 +7,11 @@ use App\Workflows\Contracts\TransitionGuard;
 use App\Workflows\Contracts\WorkflowDefinition;
 use App\Workflows\Contracts\WorkflowStage;
 use App\Workflows\Guards\ChainFullyApproved;
+use App\Workflows\Guards\ChecklistApproved;
 use App\Workflows\Guards\ChecklistComplete;
+use App\Workflows\Guards\ExitInterviewRecorded;
 use App\Workflows\Guards\LastDayPassed;
 use App\Workflows\Guards\ReportsReassigned;
-use App\Workflows\Guards\SignOffsComplete;
 use BackedEnum;
 
 /**
@@ -52,8 +53,8 @@ class OffboardingCaseWorkflow implements WorkflowDefinition
             // A rejection returns the case to its requester (OFF-APR-006).
             Stage::Submitted->value => [Stage::Checklist->value, Stage::Draft->value, Stage::Cancelled->value],
             Stage::Checklist->value => [Stage::SignOff->value, Stage::Cancelled->value],
-            // A signer who finds something missing sends the case back to the checklist (OFF-SIG-005); HR
-            // can cancel it until the exit has been applied (the resignation was withdrawn).
+            // HR can send the case back to the checklist when something is missing (OFF-SIG-005), or cancel it
+            // until the exit has been applied (the resignation was withdrawn).
             Stage::SignOff->value => [Stage::Closed->value, Stage::Checklist->value, Stage::Cancelled->value],
             Stage::Closed->value => [],
             Stage::Cancelled->value => [],
@@ -69,11 +70,12 @@ class OffboardingCaseWorkflow implements WorkflowDefinition
             // HR only builds the checklist once the supervisor has approved (OFF-APR-001/004).
             Stage::Checklist->value => [ChainFullyApproved::class],
             // Sign-off additionally needs every department's list confirmed and every item on it ticked
-            // (OFF-CHK-001).
-            Stage::SignOff->value => [ChainFullyApproved::class, ChecklistComplete::class],
-            // Closing needs every signature, the last working day behind us, and the leaver's reports moved on
-            // (OFF-SIG-008). Cancelling is not gated: it is a way out.
-            Stage::Closed->value => [SignOffsComplete::class, LastDayPassed::class, ReportsReassigned::class],
+            // (OFF-CHK-001), and HR's approval of the finished checklist (OFF-CHK-011).
+            Stage::SignOff->value => [ChainFullyApproved::class, ChecklistComplete::class, ChecklistApproved::class],
+            // Closing needs the exit details filled in, the last working day behind us, and the leaver's reports
+            // moved on (OFF-SIG-008). There are no signatures: HR, who asked for the case, closes it. Cancelling is
+            // not gated: it is a way out.
+            Stage::Closed->value => [ExitInterviewRecorded::class, LastDayPassed::class, ReportsReassigned::class],
         ];
     }
 }

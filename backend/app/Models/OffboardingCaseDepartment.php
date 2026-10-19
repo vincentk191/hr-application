@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Concerns\BelongsToCompany;
 use Database\Factories\OffboardingCaseDepartmentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -22,22 +21,30 @@ use Illuminate\Support\Carbon;
  * @property int|null $department_id
  * @property string $name
  * @property int|null $owner_user_id
+ * @property string|null $owner_title
+ * @property string|null $owner_department
+ * @property list<int>|null $item_ids the master items this group was given
  * @property Carbon|null $confirmed_at
  * @property int|null $confirmed_by_user_id
  * @property bool $not_involved
  */
-#[Fillable(['company_id', 'offboarding_case_id', 'department_id', 'name', 'owner_user_id', 'confirmed_at', 'confirmed_by_user_id', 'not_involved'])]
+#[Fillable(['company_id', 'offboarding_case_id', 'department_id', 'name', 'owner_user_id', 'owner_title', 'owner_department', 'item_ids', 'confirmed_at', 'confirmed_by_user_id', 'not_involved'])]
 class OffboardingCaseDepartment extends Model
 {
-    /** @use HasFactory<OffboardingCaseDepartmentFactory> */
-    use BelongsToCompany, HasFactory;
+    /**
+     * Not company-scoped: a group is always reached through its case, which has been authorised, and its
+     * owner may belong to another company (OFF-ITM-007).
+     *
+     * @use HasFactory<OffboardingCaseDepartmentFactory>
+     */
+    use HasFactory;
 
     /**
      * @return array<string, string>
      */
     protected function casts(): array
     {
-        return ['confirmed_at' => 'datetime', 'not_involved' => 'boolean'];
+        return ['confirmed_at' => 'datetime', 'not_involved' => 'boolean', 'item_ids' => 'array'];
     }
 
     /**

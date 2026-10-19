@@ -28,37 +28,46 @@ export function ApprovalChain({
     requesterLabel = 'Pemohon',
     steps,
 }: {
-    requester: string | null;
+    /** Who asked; leave out for a phase that starts from checks rather than a request. */
+    requester?: string | null;
     requesterLabel?: string;
     steps: ApprovalChainStep[];
 }) {
+    const withRequester = requester !== undefined;
+
     return (
         <ol
             className="flex flex-col gap-2 lg:flex-row lg:items-stretch"
             aria-label="Alur persetujuan"
             data-test="approval-chain"
         >
-            <li className="flex flex-1 items-center gap-3 border-2 border-foreground bg-card p-3">
-                <span className="flex size-9 shrink-0 items-center justify-center bg-foreground text-background">
-                    <Check className="size-4" />
-                </span>
-                <div className="min-w-0">
-                    <p className="truncate font-semibold">{requester ?? '—'}</p>
-                    <p className="label-mono">Selesai · {requesterLabel}</p>
-                </div>
-            </li>
+            {withRequester && (
+                <li className="flex flex-1 items-center gap-3 border-2 border-foreground bg-card p-3">
+                    <span className="flex size-9 shrink-0 items-center justify-center bg-foreground text-background">
+                        <Check className="size-4" />
+                    </span>
+                    <div className="min-w-0">
+                        <p className="truncate font-semibold">
+                            {requester ?? '—'}
+                        </p>
+                        <p className="label-mono">Selesai · {requesterLabel}</p>
+                    </div>
+                </li>
+            )}
 
             {steps.map((step, index) => (
                 <li
                     key={`${step.label}-${index}`}
                     className="flex flex-1 items-center gap-2 lg:contents"
                 >
-                    <span
-                        className="px-1 text-muted-foreground lg:flex lg:items-center"
-                        aria-hidden
-                    >
-                        →
-                    </span>
+                    {(withRequester || index > 0) && (
+                        <span
+                            className="px-1 text-muted-foreground lg:flex lg:items-center"
+                            aria-hidden
+                        >
+                            →
+                        </span>
+                    )}
                     <div
                         className={`flex flex-1 items-center gap-3 border-2 p-3 ${STATE[step.status]}`}
                         data-state={step.status}
@@ -75,7 +84,7 @@ export function ApprovalChain({
                             {step.status === 'approved' ? (
                                 <Check className="size-4" />
                             ) : (
-                                String(index + 2).padStart(2, '0')
+                                String(index + (withRequester ? 2 : 1)).padStart(2, '0')
                             )}
                         </span>
                         <div className="min-w-0">

@@ -55,20 +55,22 @@ class OffboardingCaseController extends Controller
         $visible = fn (): Builder => OffboardingCase::query()->visibleTo($user);
         $with = ['employee.position:id,name', 'employee.department:id,name', 'creator:id,name', 'workflow'];
 
-        $cases = $visible()->with($with)
-            ->when($filters['status'] === 'open', fn (Builder $query) => $query->open())
-            ->when(in_array($filters['status'], ['draft', 'submitted', 'checklist', 'sign_off', 'closed', 'cancelled'], true),
-                fn (Builder $query) => $query->whereHas('workflow', fn (Builder $workflow) => $workflow->where('current_stage', $filters['status'])))
+        $cases = $this->narrowed($visible()->with($with), $filters)
             ->when($filters['department'] !== null, fn (Builder $query) => $query->whereHas('employee.department', fn (Builder $department) => $department->where('name', $filters['department'])))
-            ->when($filters['lastDay'] !== null, fn (Builder $query) => $this->lastDayRange($query, $filters['lastDay']))
             ->latest('id')
             ->get();
+
+        // Cases in which this person owns part of the checklist, from any company: listed, with only what they need.
+        $owned = $this->narrowed(OffboardingCase::query()->acrossCompanies()->ownedBy($user), $filters)->latest('id')->get()
+            ->reject(fn (OffboardingCase $case): bool => $cases->contains('id', $case->id));
 
         $open = $visible()->with('workflow')->open()->get();
         $oldest = $open->filter(fn (OffboardingCase $case): bool => $case->created_at !== null)->map(fn (OffboardingCase $case): int => (int) $case->created_at->diffInDays(now()))->max();
 
         return Inertia::render('offboarding/index', [
-            'cases' => $cases->map(fn (OffboardingCase $case): array => $this->presenter->row($case))->values(),
+            'cases' => $cases->map(fn (OffboardingCase $case): array => $this->presenter->row($case))
+                ->concat($owned->map(fn (OffboardingCase $case): array => $this->presenter->limitedRow($case)))
+                ->sortByDesc('id')->values(),
             'filters' => $filters,
             'summary' => [
                 'open' => $open->count(),
@@ -81,6 +83,28 @@ class OffboardingCaseController extends Controller
             'departments' => OrganisationNames::departments($user),
             'canCreate' => $user->can('create', OffboardingCase::class),
         ]);
+    }
+
+    /**
+     * The status and last-day filters, which apply to every list the dashboard builds.
+     *
+     * @param  Builder<OffboardingCase>  $query
+     * @param  array{status: string, department: string|null, lastDay: string|null}  $filters
+     * @return Builder<OffboardingCase>
+     */
+    private function narrowed(Builder $query, array $filters): Builder
+    {
+        if ($filters['status'] === 'open') {
+            $query->open();
+        } elseif (in_array($filters['status'], ['draft', 'submitted', 'checklist', 'sign_off', 'closed', 'cancelled'], true)) {
+            $query->whereHas('workflow', fn (Builder $workflow) => $workflow->where('current_stage', $filters['status']));
+        }
+
+        if ($filters['lastDay'] !== null) {
+            $this->lastDayRange($query, $filters['lastDay']);
+        }
+
+        return $query;
     }
 
     /**
@@ -227,6 +251,13 @@ class OffboardingCaseController extends Controller
      */
     public function show(Request $request, OffboardingCase $offboardingCase): Response|RedirectResponse
     {
+        // The owner of a checklist item, from any company, gets the narrow view and nothing more.
+        if ($request->user()->cannot('view', $offboardingCase) && $request->user()->can('viewAsOwner', $offboardingCase)) {
+            return Inertia::render('offboarding/owner', [
+                'case' => $this->presenter->ownerView($offboardingCase, $request->user()),
+            ]);
+        }
+
         $this->authorize('view', $offboardingCase);
 
         if ($offboardingCase->isDraft() && $request->user()->can('update', $offboardingCase)) {

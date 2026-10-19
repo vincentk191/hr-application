@@ -2,7 +2,6 @@
 
 namespace App\Actions\Offboarding;
 
-use App\Models\Department;
 use App\Models\OffboardingCase;
 use App\Models\OffboardingCaseDepartment;
 use App\Models\OffboardingItem;
@@ -11,9 +10,13 @@ use App\Support\Offboarding\OffboardingCatalog;
 use App\Support\Offboarding\OffboardingOwners;
 
 /**
- * Opens a case's checklist once Management has approved it (OFF-ITM-007): one group per department that
- * has items on the master list, each owned by that department's supervisor, plus one for items that
- * belong to no department, which HR Admin owns. Each owner is told to pick the items that apply.
+ * Opens a case's checklist once Management has approved it (OFF-ITM-007): the active master items are
+ * shared out by owner. Each owner (a named person, or the supervisor of the item's department, in the
+ * leaver's company) gets one group holding the items that are theirs, and is told to pick what applies.
+ * Items nobody can own go to HR Admin, one group per department name.
+ *
+ * A group remembers its owner, their job title and department as they were, and which master items it
+ * was given, so later changes to the list or to people do not move work that is under way.
  */
 class StartChecklist
 {
@@ -26,19 +29,35 @@ class StartChecklist
         }
 
         $case->loadMissing('employee.user');
-        $this->catalog->ensureDefaults($case->company_id);
+        $this->catalog->ensureDefaults();
 
-        $departmentIds = OffboardingItem::query()->active()->get()->pluck('department_id')->unique()->values();
+        $groups = [];
 
-        foreach ($departmentIds as $departmentId) {
-            $department = $departmentId === null ? null : Department::acrossCompanies()->whereKey($departmentId)->first();
+        foreach (OffboardingItem::query()->active()->orderBy('sort_order')->get() as $item) {
+            $owner = $this->owners->ownerOf($item, $case->employee);
+            $key = $owner === null ? 'hr|'.mb_strtolower((string) $item->department_name) : 'u'.$owner->id;
 
+            $about = $owner === null ? null : $this->owners->describe($owner);
+
+            $groups[$key] ??= [
+                'owner' => $owner,
+                'name' => ($about['department'] ?? null) ?: ($item->department_name ?: 'Tanpa departemen'),
+                'title' => $about['title'] ?? null,
+                'department' => $about['department'] ?? null,
+                'items' => [],
+            ];
+            $groups[$key]['items'][] = $item->id;
+        }
+
+        foreach ($groups as $group) {
             OffboardingCaseDepartment::create([
                 'company_id' => $case->company_id,
                 'offboarding_case_id' => $case->id,
-                'department_id' => $department?->id,
-                'name' => $department === null ? 'Tanpa departemen' : $department->name,
-                'owner_user_id' => $this->owners->ownerOf($department, $case->employee)?->id,
+                'name' => $group['name'],
+                'owner_user_id' => $group['owner']?->id,
+                'owner_title' => $group['title'],
+                'owner_department' => $group['department'],
+                'item_ids' => $group['items'],
             ]);
         }
 

@@ -1,15 +1,17 @@
 import { router } from '@inertiajs/react';
-import { Check, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useState } from 'react';
-import { DecisionDialog } from '@/components/decision-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import {
     adhoc,
     confirm,
     done,
     involvement,
+    owner as reassignOwner,
+    refresh,
     remove,
     reopen,
     select,
@@ -91,32 +93,39 @@ function AdhocForm({
     );
 }
 
-function ItemRow({
-    item,
-    reference,
-    employee,
-}: {
-    item: OffboardingChecklistItem;
-    reference: string;
-    employee: string;
-}) {
+/**
+ * One item of a group. The owner ticks it with the checkbox, and un-ticks it the same way; anyone who may
+ * not act on it sees the box disabled.
+ */
+function ItemRow({ item }: { item: OffboardingChecklistItem }) {
     return (
         <li
             className="flex flex-wrap items-start justify-between gap-2 py-2"
             data-test="checklist-item"
         >
-            <div className="flex min-w-0 items-start gap-2">
-                <span
-                    className={`mt-0.5 flex size-5 shrink-0 items-center justify-center border-2 ${
-                        item.done
-                            ? 'border-foreground bg-foreground text-background'
-                            : 'border-border'
-                    }`}
-                >
-                    {item.done && <Check className="size-3" />}
-                </span>
+            <div className="flex min-w-0 items-start gap-3">
+                <Checkbox
+                    className="mt-0.5 size-5 rounded-none border-2"
+                    checked={item.done}
+                    disabled={!item.canTick}
+                    aria-label={`${item.done ? 'Batalkan' : 'Tandai selesai'} ${item.name}`}
+                    data-test="tick-item"
+                    onCheckedChange={(checked) =>
+                        router.put(
+                            (checked ? done(item.id) : reopen(item.id)).url,
+                            {},
+                            visit,
+                        )
+                    }
+                />
                 <div className="min-w-0">
-                    <p className={item.done ? 'text-muted-foreground' : ''}>
+                    <p
+                        className={
+                            item.done
+                                ? 'text-muted-foreground line-through'
+                                : ''
+                        }
+                    >
                         {item.name}{' '}
                         <span className="label-mono">
                             {item.kind}
@@ -133,36 +142,6 @@ function ItemRow({
                 </div>
             </div>
             <div className="flex shrink-0 items-center gap-1">
-                {item.canTick && !item.done && (
-                    <DecisionDialog
-                        form={done.form(item.id)}
-                        decision="done"
-                        title={`Tandai selesai — ${item.name}`}
-                        subtitle={`${reference} · ${employee}`}
-                        fieldLabel="Catatan kondisi atau serah terima (opsional)"
-                        confirmLabel="OK"
-                        trigger={
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                data-test="tick-item"
-                            >
-                                Tandai selesai
-                            </Button>
-                        }
-                    />
-                )}
-                {item.canTick && item.done && (
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() =>
-                            router.put(reopen(item.id).url, {}, visit)
-                        }
-                    >
-                        Batalkan
-                    </Button>
-                )}
                 {item.canRemove && (
                     <Button
                         size="icon"
@@ -183,13 +162,11 @@ function ItemRow({
 function Group({
     group,
     caseId,
-    reference,
-    employee,
+    ownerOptions,
 }: {
     group: OffboardingChecklistGroup;
     caseId: number;
-    reference: string;
-    employee: string;
+    ownerOptions: OffboardingChecklist['ownerOptions'];
 }) {
     return (
         <section
@@ -200,16 +177,51 @@ function Group({
                 <div>
                     <h3 className="font-semibold">{group.name}</h3>
                     <p className="label-mono">
-                        {group.owner ??
-                            'Admin HR (belum ada kepala departemen)'}
+                        {group.ownerIsHr
+                            ? 'Admin HR'
+                            : [group.owner, group.ownerTitle]
+                                  .filter(Boolean)
+                                  .join(' · ')}
                         {' · '}
                         {group.done}/{group.total} selesai
                     </p>
+                    {group.ownerUnavailable && (
+                        <p className="text-xs text-amber-700 dark:text-amber-300">
+                            Pemilik ({group.owner}) tidak aktif; Admin HR
+                            menanganinya sampai dialihkan.
+                        </p>
+                    )}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <Badge variant={STATUS_VARIANT[group.status]}>
                         {group.statusLabel}
                     </Badge>
+                    {group.canReassign && (
+                        <select
+                            aria-label={`Alihkan pemilik ${group.name}`}
+                            value={group.ownerId ?? ''}
+                            onChange={(event) =>
+                                router.put(
+                                    reassignOwner([caseId, group.id]).url,
+                                    {
+                                        user_id: event.target.value
+                                            ? Number(event.target.value)
+                                            : null,
+                                    },
+                                    visit,
+                                )
+                            }
+                            className="h-8 max-w-64 rounded-xl border border-input bg-card px-2 text-xs"
+                            data-test="reassign-owner"
+                        >
+                            <option value="">Admin HR</option>
+                            {ownerOptions.map((option) => (
+                                <option key={option.id} value={option.id}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                    )}
                     {group.canSetAside && !group.notInvolved && (
                         <Button
                             size="sm"
@@ -283,12 +295,7 @@ function Group({
             {group.items.length > 0 ? (
                 <ul className="divide-y">
                     {group.items.map((item) => (
-                        <ItemRow
-                            key={item.id}
-                            item={item}
-                            reference={reference}
-                            employee={employee}
-                        />
+                        <ItemRow key={item.id} item={item} />
                     ))}
                 </ul>
             ) : (
@@ -330,20 +337,16 @@ function Group({
 
 /**
  * Stage 2 · Checklist (OFF-CHK): a group for each department, owned by its supervisor. They pick which
- * items apply, confirm the list with "Daftar selesai", then tick the items as they are done. The case
+ * items apply, confirm the list with "Daftar selesai", then tick the items with their checkbox as they are done. The case
  * cannot go on to sign-off until every list is confirmed and every item is ticked (OFF-CHK-001).
  */
 export function OffboardingChecklistPanel({
     checklist,
     caseId,
-    reference,
-    employee,
     blockedMessage,
 }: {
     checklist: OffboardingChecklist;
     caseId: number;
-    reference: string;
-    employee: string;
     /** The server's refusal when "Lanjut ke sign-off" was pressed too early. */
     blockedMessage?: string;
 }) {
@@ -377,6 +380,28 @@ export function OffboardingChecklistPanel({
                 )}
             </section>
 
+            {checklist.canRefresh && (
+                <section
+                    className="surface flex flex-wrap items-center justify-between gap-3 p-4"
+                    data-test="refresh-checklist"
+                >
+                    <p className="text-sm">
+                        {checklist.newItems > 0
+                            ? `${checklist.newItems} item baru ada di daftar induk sejak checklist ini dibuka.`
+                            : 'Checklist sudah sesuai daftar induk.'}
+                    </p>
+                    <Button
+                        size="sm"
+                        variant={checklist.newItems > 0 ? 'default' : 'outline'}
+                        onClick={() =>
+                            router.post(refresh(caseId).url, {}, visit)
+                        }
+                    >
+                        Perbarui dari daftar induk
+                    </Button>
+                </section>
+            )}
+
             {blockedMessage && (
                 <p className="text-sm text-destructive" role="alert">
                     {blockedMessage}
@@ -388,8 +413,7 @@ export function OffboardingChecklistPanel({
                     key={group.id}
                     group={group}
                     caseId={caseId}
-                    reference={reference}
-                    employee={employee}
+                    ownerOptions={checklist.ownerOptions}
                 />
             ))}
         </div>

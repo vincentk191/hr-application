@@ -3,77 +3,53 @@
 namespace App\Support\Offboarding;
 
 use App\Enums\OffboardingItemKind;
-use App\Models\Department;
 use App\Models\OffboardingItem;
 
 /**
- * The master list of offboarding items, with sensible defaults for a company that has none yet
- * (OFF-TPL-001). HR can change everything afterwards from the admin panel, and the defaults are never
- * put back over their edits: they are only made when the company has no items at all.
+ * The master list of offboarding items, with sensible defaults when it is empty (OFF-TPL-001). The list
+ * is the group's, shared by every company. HR can change everything afterwards from the admin panel, and
+ * the defaults are never put back over their edits: they are only made when there are no items at all.
  *
- * Each default names the kind of department it belongs to. A company's own department with a matching
- * name takes it; with no match the item has no department, and HR Admin owns it.
+ * A default names the department whose supervisor owns it (matched by name in the leaver's company) and
+ * names no person; HR can give any item a named owner.
  */
 class OffboardingCatalog
 {
     /**
-     * @var array<string, list<string>>
-     */
-    private const DEPARTMENT_NAMES = [
-        'it' => ['it', 'ti', 'teknologi informasi', 'information technology'],
-        'hr' => ['hr', 'hrd', 'sdm', 'human resources'],
-        'facilities' => ['fasilitas', 'umum', 'general affairs', 'ga'],
-        'finance' => ['keuangan', 'finance', 'akuntansi'],
-    ];
-
-    /**
      * @var list<array{name: string, kind: OffboardingItemKind, department: string|null}>
      */
     public const DEFAULTS = [
-        ['name' => 'Laptop dan perangkat kerja dikembalikan', 'kind' => OffboardingItemKind::Physical, 'department' => 'it'],
-        ['name' => 'Akun email perusahaan dinonaktifkan', 'kind' => OffboardingItemKind::Digital, 'department' => 'it'],
-        ['name' => 'Akses VPN dicabut', 'kind' => OffboardingItemKind::Digital, 'department' => 'it'],
-        ['name' => 'Akun aplikasi kerja lain dinonaktifkan', 'kind' => OffboardingItemKind::Digital, 'department' => 'it'],
-        ['name' => 'Kartu identitas karyawan dikembalikan', 'kind' => OffboardingItemKind::Physical, 'department' => 'hr'],
-        ['name' => 'Pendaftaran sidik jari di pemindai absensi dihapus', 'kind' => OffboardingItemKind::Digital, 'department' => 'hr'],
-        ['name' => 'Wawancara keluar dilakukan', 'kind' => OffboardingItemKind::Process, 'department' => 'hr'],
-        ['name' => 'Kunci, kartu akses, dan loker dikembalikan', 'kind' => OffboardingItemKind::Physical, 'department' => 'facilities'],
-        ['name' => 'Seragam dan alat pelindung diri dikembalikan', 'kind' => OffboardingItemKind::Physical, 'department' => 'facilities'],
-        ['name' => 'Kendaraan operasional diserahkan', 'kind' => OffboardingItemKind::Physical, 'department' => 'facilities'],
-        ['name' => 'Pinjaman atau kasbon diselesaikan', 'kind' => OffboardingItemKind::Process, 'department' => 'finance'],
+        ['name' => 'Laptop dan perangkat kerja dikembalikan', 'kind' => OffboardingItemKind::Physical, 'department' => 'IT'],
+        ['name' => 'Akun email perusahaan dinonaktifkan', 'kind' => OffboardingItemKind::Digital, 'department' => 'IT'],
+        ['name' => 'Akses VPN dicabut', 'kind' => OffboardingItemKind::Digital, 'department' => 'IT'],
+        ['name' => 'Akun aplikasi kerja lain dinonaktifkan', 'kind' => OffboardingItemKind::Digital, 'department' => 'IT'],
+        ['name' => 'Kartu identitas karyawan dikembalikan', 'kind' => OffboardingItemKind::Physical, 'department' => 'HR'],
+        ['name' => 'Pendaftaran sidik jari di pemindai absensi dihapus', 'kind' => OffboardingItemKind::Digital, 'department' => 'HR'],
+        ['name' => 'Wawancara keluar dilakukan', 'kind' => OffboardingItemKind::Process, 'department' => 'HR'],
+        ['name' => 'Kunci, kartu akses, dan loker dikembalikan', 'kind' => OffboardingItemKind::Physical, 'department' => 'Fasilitas'],
+        ['name' => 'Seragam dan alat pelindung diri dikembalikan', 'kind' => OffboardingItemKind::Physical, 'department' => 'Fasilitas'],
+        ['name' => 'Kendaraan operasional diserahkan', 'kind' => OffboardingItemKind::Physical, 'department' => 'Fasilitas'],
+        ['name' => 'Pinjaman atau kasbon diselesaikan', 'kind' => OffboardingItemKind::Process, 'department' => 'Keuangan'],
         ['name' => 'Serah terima pekerjaan dan pengetahuan', 'kind' => OffboardingItemKind::Process, 'department' => null],
     ];
 
     /**
-     * Make the default items for a company that has none. Safe to call every time.
+     * Make the default items if there are none. Safe to call every time.
      */
-    public function ensureDefaults(int $companyId): void
+    public function ensureDefaults(): void
     {
-        if (OffboardingItem::acrossCompanies()->where('company_id', $companyId)->exists()) {
+        if (OffboardingItem::query()->exists()) {
             return;
         }
 
-        $departments = Department::acrossCompanies()->where('company_id', $companyId)->get(['id', 'name']);
-
         foreach (self::DEFAULTS as $position => $default) {
-            OffboardingItem::acrossCompanies()->create([
-                'company_id' => $companyId,
+            OffboardingItem::query()->create([
                 'name' => $default['name'],
                 'kind' => $default['kind'],
-                'department_id' => $default['department'] === null ? null : $this->departmentFor($default['department'], $departments),
+                'department_name' => $default['department'],
                 'is_active' => true,
                 'sort_order' => ($position + 1) * 10,
             ]);
         }
-    }
-
-    /**
-     * @param  \Illuminate\Support\Collection<int, Department>  $departments
-     */
-    private function departmentFor(string $key, $departments): ?int
-    {
-        $names = self::DEPARTMENT_NAMES[$key] ?? [];
-
-        return $departments->first(fn (Department $department): bool => in_array(mb_strtolower(trim($department->name)), $names, true))?->id;
     }
 }

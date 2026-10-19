@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Concerns\BelongsToCompany;
 use App\Enums\OffboardingItemKind;
 use Database\Factories\OffboardingCaseItemFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -31,8 +30,12 @@ use Illuminate\Support\Carbon;
 #[Fillable(['company_id', 'offboarding_case_id', 'offboarding_case_department_id', 'offboarding_item_id', 'name', 'kind', 'is_adhoc', 'done_at', 'done_by_user_id', 'note', 'added_by_user_id'])]
 class OffboardingCaseItem extends Model
 {
-    /** @use HasFactory<OffboardingCaseItemFactory> */
-    use BelongsToCompany, HasFactory;
+    /**
+     * Not company-scoped, like its group: reached through an authorised case.
+     *
+     * @use HasFactory<OffboardingCaseItemFactory>
+     */
+    use HasFactory;
 
     /**
      * @return array<string, string>

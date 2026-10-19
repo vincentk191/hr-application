@@ -9,7 +9,7 @@ use App\Workflows\Contracts\TransitionGuard;
 
 /**
  * Blocks sign-off while the checklist is not complete (OFF-CHK-001): a department has not confirmed its
- * list, or an item chosen for the case is still open. Sign-off by the Atasan and HR stays locked until
+ * list, or an item chosen for the case is still open. The last stage stays locked until
  * every item is done.
  */
 class ChecklistComplete implements TransitionGuard

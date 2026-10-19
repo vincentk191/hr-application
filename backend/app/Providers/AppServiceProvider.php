@@ -5,9 +5,9 @@ namespace App\Providers;
 use App\Enums\Permission;
 use App\Listeners\LogRoleChange;
 use App\Models\AttendanceAgent;
+use App\Models\OffboardingCase;
 use App\Models\OffboardingCaseDepartment;
 use App\Models\OffboardingCaseItem;
-use App\Models\OffboardingSignoff;
 use App\Models\User;
 use App\Policies\OffboardingCasePolicy;
 use App\Support\Attendance\WorkSchedule;
@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Spatie\Permission\Events\RoleAttachedEvent;
@@ -50,11 +51,24 @@ class AppServiceProvider extends ServiceProvider
         AboutCommand::add('HR Dashboard', fn (): array => ['Version' => config('app.version')]);
         $this->defineAttendanceGate();
         $this->defineOffboardingChecklistPolicies();
+        $this->bindOffboardingRoutes();
         $this->configureApiRateLimiting();
         Event::listen(Login::class, fn (Login $event) => $event->user instanceof User
             ? $event->user->forceFill(['last_login_at' => now()])->saveQuietly()
             : null);
         $this->registerRoleAudit();
+    }
+
+    /**
+     * The owner of a checklist item may belong to another company than the leaver (OFF-ITM-007), so these
+     * routes find the case, group and item wherever they are; each action then asks the policy whether this
+     * person may touch it, which is where company access is decided.
+     */
+    private function bindOffboardingRoutes(): void
+    {
+        Route::bind('offboardingCase', fn (string $value): OffboardingCase => OffboardingCase::acrossCompanies()->findOrFail($value));
+        Route::bind('group', fn (string $value): OffboardingCaseDepartment => OffboardingCaseDepartment::query()->findOrFail($value));
+        Route::bind('item', fn (string $value): OffboardingCaseItem => OffboardingCaseItem::query()->findOrFail($value));
     }
 
     /**
@@ -65,7 +79,6 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::policy(OffboardingCaseDepartment::class, OffboardingCasePolicy::class);
         Gate::policy(OffboardingCaseItem::class, OffboardingCasePolicy::class);
-        Gate::policy(OffboardingSignoff::class, OffboardingCasePolicy::class);
     }
 
     /**

@@ -13,11 +13,13 @@ use App\Models\User;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
 /**
- * Sign-off, closing and cancelling an offboarding case, and the exit itself (OFF-SIG, OFF-CHK-010).
+ * The last stage of an offboarding case, closing and cancelling it, and the exit itself (OFF-SIG, OFF-CHK-010).
+ * There are no signatures: the HR who asked for the case fills in the exit details and closes it.
  *
  * Mira (Management) manages Rudi, who manages Sinta, the leaver; Dewi reports to Sinta. Lukas has no Atasan.
  * The last working day is 2 December 2026.
@@ -81,9 +83,18 @@ function soCaseAtChecklist(?Employee $leaver = null): OffboardingCase
 function soCaseAtSignOff(?Employee $leaver = null): OffboardingCase
 {
     $case = soCaseAtChecklist($leaver);
-    test()->actingAs(test()->hr)->post(route('offboarding.proceed', $case))->assertRedirect();
+    soProceed(test()->hr, $case);
 
     return $case->refresh();
+}
+
+/**
+ * HR approves the finished checklist, then moves the case on.
+ */
+function soProceed(User $by, OffboardingCase $case): void
+{
+    test()->actingAs($by)->post(route('offboarding.checklist.approve', $case))->assertRedirect();
+    test()->actingAs($by)->post(route('offboarding.proceed', $case))->assertRedirect();
 }
 
 function soStage(OffboardingCase $case): string
@@ -91,60 +102,104 @@ function soStage(OffboardingCase $case): string
     return (string) $case->refresh()->workflow->current_stage;
 }
 
-function soSign(User $by, OffboardingCase $case, int $position)
-{
-    $signoff = $case->signoffs()->where('position', $position)->firstOrFail();
-
-    return test()->actingAs($by)->post(route('offboarding.signoff.sign', [$case, $signoff]), ['note' => 'Sudah diperiksa']);
-}
-
 function soInterview(OffboardingCase $case)
 {
-    return test()->actingAs(test()->hr)->put(route('offboarding.interview', $case), [
+    return soInterviewAs(test()->hr, $case);
+}
+
+function soInterviewAs(User $by, OffboardingCase $case)
+{
+    return test()->actingAs($by)->put(route('offboarding.interview', $case), [
         'reason' => 'Peluang karier', 'rehire' => '1', 'notes' => 'Baik-baik saja',
     ]);
 }
 
 // --- Sign-off ---
 
-it('sets up the Atasan then HR when the checklist is complete, and tells the Atasan', function () {
-    $case = soCaseAtSignOff();
+it('moves on to the last stage with no signatures, and tells the HR who asked for it when someone else moved it', function () {
+    $other = soUser(Role::HrAdmin, $this->company);
+    $case = soCaseAtChecklist();
+    $this->hr->notifications()->delete();
+
+    soProceed($other, $case);
 
     expect(soStage($case))->toBe('sign_off')
-        ->and($case->signoffs()->pluck('label')->all())->toBe(['Atasan langsung', 'HR Admin'])
-        ->and($case->signoffs()->first()->user_id)->toBe($this->rudi->user_id)
-        ->and($case->signoffs()->where('position', 2)->value('user_id'))->toBeNull()
-        ->and($this->rudi->user->notifications()->get()->pluck('data.title')->implode(' '))->toContain('giliran Anda');
+        ->and($this->hr->notifications()->get()->pluck('data.title')->implode(' '))->toContain('siap diselesaikan')
+        // Neither the Atasan nor anybody else is asked to sign.
+        ->and($this->rudi->user->notifications()->get()->pluck('data.title')->implode(' '))->not->toContain('giliran Anda')
+        ->and(Route::has('offboarding.signoff.sign'))->toBeFalse();
 });
 
-it('has HR sign alone when the leaver has no usable Atasan', function () {
-    $case = soCaseAtSignOff($this->lukas);
+it('has only the HR who asked for the case fill in the details and close it, and another HR when they cannot', function () {
+    $case = soCaseAtSignOff();
+    $other = soUser(Role::HrAdmin, $this->company);
 
-    expect($case->signoffs()->pluck('label')->all())->toBe(['HR Admin'])
-        ->and($case->signoffs()->first()->position)->toBe(1);
+    $this->actingAs($other)->put(route('offboarding.interview', $case), ['reason' => 'x', 'rehire' => '1'])->assertForbidden();
+    $this->actingAs($other)->post(route('offboarding.close', $case))->assertForbidden();
+    $this->actingAs($this->mira->user)->post(route('offboarding.close', $case))->assertForbidden();
 
-    // An Atasan who is deactivated counts as none.
-    $this->rudi->user->forceFill(['is_active' => false])->save();
-    $other = soCaseAtSignOff($this->sinta);
+    $this->actingAs($this->hr)->get(route('offboarding.show', $case))
+        ->assertInertia(fn (Assert $page) => $page->where('case.canClose', true)->where('case.signoff.exitInterview.canRecord', true));
+    $this->actingAs($other)->get(route('offboarding.show', $case))
+        ->assertInertia(fn (Assert $page) => $page->where('case.canClose', false)->where('case.signoff.exitInterview.canRecord', false));
 
-    expect($other->signoffs()->pluck('label')->all())->toBe(['HR Admin']);
+    // The requester is deactivated: the other HR takes it over, so the case is never stuck.
+    $this->hr->forceFill(['is_active' => false])->save();
+    soInterviewAs($other, $case)->assertRedirect();
+    expect($other->can('close', $case))->toBeTrue();
 });
 
-it('keeps each signature locked until the one before it is done, and HR\'s until the exit interview is in', function () {
+it('chains the checklist phase as owners signing off, then HR approving, with no requester or case approval', function () {
+    $case = soCaseAtChecklist();
+
+    $this->actingAs($this->hr)->get(route('offboarding.show', $case))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('case.checklist.chain.0.label', 'Pemilik item sign-off')
+            ->where('case.checklist.chain.0.status', 'approved')
+            ->where('case.checklist.chain.1.label', 'Persetujuan HR')
+            ->where('case.checklist.chain.1.status', 'pending')
+            ->where('case.checklist.canApprove', true)
+            ->has('case.checklist.chain', 2));
+
+    // An owner who has not confirmed holds up both checks.
+    $group = $case->checklistDepartments()->first();
+    $group->update(['not_involved' => false, 'confirmed_at' => null]);
+
+    $this->actingAs($this->hr)->get(route('offboarding.show', $case))
+        ->assertInertia(fn (Assert $page) => $page->where('case.checklist.chain.0.status', 'pending')->where('case.checklist.chain.1.status', 'locked')->where('case.checklist.canApprove', false));
+    $this->actingAs($this->hr)->post(route('offboarding.checklist.approve', $case))->assertSessionHasErrors('approve');
+});
+
+it('has any HR approve the checklist, and takes the approval back when the checklist changes', function () {
+    $case = soCaseAtChecklist();
+    $other = soUser(Role::HrAdmin, $this->company);
+
+    $this->actingAs($other)->post(route('offboarding.checklist.approve', $case))->assertRedirect();
+    $this->actingAs($this->hr)->get(route('offboarding.show', $case))
+        ->assertInertia(fn (Assert $page) => $page->where('case.checklist.chain.1.status', 'approved')->where('case.checklist.chain.1.decidedBy', $other->name)->where('case.checklist.approved', true));
+
+    // A new item turns up: what HR approved is no longer what is there.
+    $group = $case->checklistDepartments()->first();
+    $this->actingAs($this->hr)->post(route('offboarding.checklist.adhoc', [$case, $group]), ['name' => 'Serah terima klien', 'kind' => 'process'])->assertRedirect();
+
+    $this->actingAs($this->hr)->get(route('offboarding.show', $case))
+        ->assertInertia(fn (Assert $page) => $page->where('case.checklist.approved', false));
+    expect($case->refresh()->checklist_approved_at)->toBeNull();
+});
+
+it('has no chain of steps at the last stage, only the exit form, and a close that waits for it', function () {
     $case = soCaseAtSignOff();
 
-    soSign($this->hr, $case, 2)->assertForbidden();
-    soSign($this->mira->user, $case, 1)->assertForbidden();
-    soSign($this->sinta->user, $case, 1)->assertForbidden();
-    soSign($this->rudi->user, $case, 1)->assertRedirect();
+    $this->actingAs($this->hr)->get(route('offboarding.show', $case))
+        ->assertInertia(fn (Assert $page) => $page
+            ->missing('case.signoff.steps')
+            ->where('case.signoff.exitInterview.recorded', false)
+            ->where('case.signoff.closeBlockers.0', 'Catat wawancara keluar dulu, atau lewati dengan alasan.'));
 
-    // Now HR's turn, but the exit interview has to be on the case first.
-    soSign($this->hr, $case, 2)->assertSessionHasErrors(['signoff' => 'Catat wawancara keluar dulu, atau lewati dengan alasan.']);
     soInterview($case)->assertRedirect();
-    soSign($this->hr, $case, 2)->assertRedirect();
 
-    expect($case->signoffs()->whereNull('signed_at')->count())->toBe(0);
-    soSign($this->hr, $case, 2)->assertForbidden();
+    $this->actingAs($this->hr)->get(route('offboarding.show', $case))
+        ->assertInertia(fn (Assert $page) => $page->where('case.signoff.exitInterview.recorded', true)->where('case.signoff.closeBlockers.0', fn ($reason) => str_contains($reason, 'hari kerja terakhir')));
 });
 
 it('records the exit interview, or skips it with a reason, and only for HR', function () {
@@ -163,27 +218,20 @@ it('records the exit interview, or skips it with a reason, and only for HR', fun
     expect($case->exit_interview_skipped_reason)->toBe('Diberhentikan, tidak relevan')->and($case->exit_interview_reason)->toBeNull();
 });
 
-it('lets a signer or HR send the case back to the checklist with a note, clearing the signatures', function () {
+it('lets HR send the case back to the checklist with a note, and then on again', function () {
     $case = soCaseAtSignOff();
 
-    // The Atasan, while their own signature is the open one.
-    $this->actingAs($this->rudi->user)->post(route('offboarding.send-back', $case), [])->assertSessionHasErrors('note');
+    $this->actingAs($this->hr)->post(route('offboarding.send-back', $case), [])->assertSessionHasErrors('note');
+    $this->actingAs($this->rudi->user)->post(route('offboarding.send-back', $case), ['note' => 'x'])->assertForbidden();
     $this->actingAs($this->lukas->user)->post(route('offboarding.send-back', $case), ['note' => 'x'])->assertForbidden();
-    $this->actingAs($this->rudi->user)->post(route('offboarding.send-back', $case), ['note' => 'Laptop belum diperiksa IT'])->assertRedirect();
+    $this->actingAs($this->hr)->post(route('offboarding.send-back', $case), ['note' => 'Laptop belum diperiksa IT'])->assertRedirect();
 
     expect(soStage($case))->toBe('checklist')
-        ->and($case->signoffs()->count())->toBe(0)
         ->and($case->workflow->comments()->pluck('body')->all())->toContain('Laptop belum diperiksa IT')
         ->and($case->workflow->comments()->first()->stage)->toBe('sign_off');
 
-    // Back to sign-off; once the Atasan has signed it is no longer theirs to send back, but HR still may.
-    $this->actingAs($this->hr)->post(route('offboarding.proceed', $case))->assertRedirect();
-    soSign($this->rudi->user, $case, 1)->assertRedirect();
-
-    $this->actingAs($this->rudi->user)->post(route('offboarding.send-back', $case), ['note' => 'Lagi'])->assertForbidden();
-    $this->actingAs($this->hr)->post(route('offboarding.send-back', $case), ['note' => 'Ada yang terlewat'])->assertRedirect();
-
-    expect(soStage($case))->toBe('checklist')->and($case->signoffs()->count())->toBe(0);
+    soProceed($this->hr, $case);
+    expect(soStage($case))->toBe('sign_off');
 });
 
 it('says what stands in the way of closing', function () {
@@ -191,7 +239,7 @@ it('says what stands in the way of closing', function () {
 
     $this->actingAs($this->hr)->get(route('offboarding.show', $case))
         ->assertInertia(fn (Assert $page) => $page
-            ->where('case.signoff.closeBlockers', ['Masih menunggu 2 tanda tangan.', 'Kasus baru bisa ditutup setelah hari kerja terakhir (2026-12-02).', 'Masih ada 1 bawahan langsung yang belum dipindahkan ke atasan baru.'])
+            ->where('case.signoff.closeBlockers', ['Catat wawancara keluar dulu, atau lewati dengan alasan.', 'Kasus baru bisa ditutup setelah hari kerja terakhir (2026-12-02).', 'Masih ada 1 bawahan langsung yang belum dipindahkan ke atasan baru.'])
             ->where('case.canClose', true));
 
     $this->actingAs($this->hr)->post(route('offboarding.close', $case))->assertSessionHasErrors('close');
@@ -238,16 +286,14 @@ it('shows HR the reports and the departments the leaver heads, and warns when a 
 
 // --- Closing ---
 
-it('closes after the last day, with everything signed and the reports moved, and makes the exit final', function () {
+it('closes after the last day, with the details filled in and the reports moved, and makes the exit final', function () {
     AttendanceEnrolMap::create(['company_id' => $this->company->id, 'employee_id' => $this->sinta->id, 'device_sn' => 'SN1', 'pin' => '77']);
     $case = soCaseAtSignOff();
     $this->actingAs($this->hr)->post(route('offboarding.reports', $case), ['moves' => [$this->dewi->id => $this->rudi->id]])->assertRedirect();
     $this->actingAs($this->hr)->post(route('offboarding.files.store', $case), ['file_reference_letter' => [UploadedFile::fake()->create('ref.pdf', 20, 'application/pdf')]])->assertRedirect();
-    soSign($this->rudi->user, $case, 1)->assertRedirect();
     soInterview($case)->assertRedirect();
-    soSign($this->hr, $case, 2)->assertRedirect();
 
-    // Signed, but the last working day (2 December) has not passed.
+    // Filled in, but the last working day (2 December) has not passed.
     $this->travelTo(CarbonImmutable::parse('2026-12-02 12:00', 'Asia/Jakarta'));
     $this->actingAs($this->hr)->post(route('offboarding.close', $case))->assertSessionHasErrors('close');
     expect(soStage($case))->toBe('sign_off');
@@ -282,9 +328,7 @@ it('closes after the last day, with everything signed and the reports moved, and
 
 it('refuses to close while a report has not been moved', function () {
     $case = soCaseAtSignOff();
-    soSign($this->rudi->user, $case, 1);
     soInterview($case);
-    soSign($this->hr, $case, 2);
     $this->travelTo(CarbonImmutable::parse('2026-12-03 09:00', 'Asia/Jakarta'));
 
     $this->actingAs($this->hr)->post(route('offboarding.close', $case))
@@ -406,26 +450,10 @@ it('serves the handover report from sign-off on, to people who may see the case'
 
     $this->actingAs($this->hr)->get(route('offboarding.berita-acara', $case))->assertForbidden();
 
-    $this->actingAs($this->hr)->post(route('offboarding.proceed', $case))->assertRedirect();
+    soProceed($this->hr, $case);
 
     $this->actingAs($this->hr)->get(route('offboarding.berita-acara', $case))->assertOk()
         ->assertInertia(fn (Assert $page) => $page->component('offboarding/berita-acara')->where('case.reference', $case->reference()));
     $this->actingAs($this->mira->user)->get(route('offboarding.berita-acara', $case))->assertOk();
     $this->actingAs($this->lukas->user)->get(route('offboarding.berita-acara', $case))->assertForbidden();
-});
-
-it('shows who signed and when on the case page, in order', function () {
-    $case = soCaseAtSignOff();
-    soSign($this->rudi->user, $case, 1)->assertRedirect();
-
-    $this->actingAs($this->hr)->get(route('offboarding.show', $case))
-        ->assertInertia(fn (Assert $page) => $page
-            ->where('case.signoff.steps.0.status', 'approved')
-            ->where('case.signoff.steps.0.decidedBy', $this->rudi->user->name)
-            ->where('case.signoff.steps.1.status', 'pending')
-            ->where('case.signoff.steps.1.canSign', true)
-            ->where('case.signoff.exitInterview.canRecord', true));
-
-    $this->actingAs($this->rudi->user)->get(route('offboarding.show', $case))
-        ->assertInertia(fn (Assert $page) => $page->where('case.signoff.steps.1.canSign', false)->where('case.canClose', false));
 });

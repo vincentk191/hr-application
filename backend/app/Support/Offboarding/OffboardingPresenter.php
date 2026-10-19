@@ -2,19 +2,21 @@
 
 namespace App\Support\Offboarding;
 
+use App\Actions\Offboarding\RefreshChecklist;
+use App\Enums\EmploymentStatus;
 use App\Enums\OffboardingCaseStage;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\OffboardingCase;
 use App\Models\OffboardingCaseDepartment;
-use App\Models\OffboardingCaseItem;
 use App\Models\OffboardingCaseFile;
+use App\Models\OffboardingCaseItem;
 use App\Models\OffboardingItem;
-use App\Models\OffboardingSignoff;
+use App\Models\Position;
 use App\Models\User;
-use App\Workflows\WorkflowEngine;
-use App\Enums\EmploymentStatus;
 use App\Models\WorkflowStep;
+use App\Workflows\WorkflowEngine;
+use Illuminate\Support\Facades\DB;
 
 /**
  * An offboarding case as the pages show it: a row for the list, and the whole case for its pipeline.
@@ -140,42 +142,15 @@ class OffboardingPresenter
     }
 
     /**
-     * Stage 3: the signatures in order, the exit interview, and what is still in the way of closing.
+     * Stage 3: the exit interview, a plain form with no chain of steps, and what is still in the way of closing.
      *
      * @return array<string, mixed>
      */
     private function signoff(OffboardingCase $case, User $viewer): array
     {
-        $steps = $case->signoffs()->with(['user:id,name', 'signedBy:id,name'])->get();
-        $earlierOpen = false;
-
-        $rows = $steps->map(function (OffboardingSignoff $step) use ($viewer, &$earlierOpen): array {
-            $status = $step->isSigned() ? 'approved' : ($earlierOpen ? 'locked' : 'pending');
-            $earlierOpen = $earlierOpen || ! $step->isSigned();
-
-            return [
-                'id' => $step->id,
-                'label' => $step->label,
-                'approver' => $step->user?->name,
-                'status' => $status,
-                'statusLabel' => match ($status) {
-                    'approved' => 'Selesai',
-                    'pending' => 'Menunggu',
-                    default => 'Terkunci',
-                },
-                'decidedBy' => $step->signedBy?->name,
-                'decidedAt' => $step->signed_at?->toDateString(),
-                'note' => $step->note,
-                'waitingDays' => null,
-                'isHr' => $step->user_id === null,
-                'canSign' => $viewer->can('signOff', $step),
-            ];
-        })->values()->all();
-
         $open = $case->stage() === OffboardingCaseStage::SignOff;
 
         return [
-            'steps' => $rows,
             'exitInterview' => [
                 'recorded' => $case->exit_interview_at !== null,
                 'skipped' => $case->exit_interview_skipped_reason !== null,
@@ -187,6 +162,29 @@ class OffboardingPresenter
                 'canRecord' => $viewer->can('recordExitInterview', $case),
             ],
             'closeBlockers' => $open ? app(WorkflowEngine::class)->blockingReasons($case->workflow, OffboardingCaseStage::Closed) : [],
+        ];
+    }
+
+    /**
+     * One step of the chain shown across the top of a phase, in the shape the approval chain component takes.
+     *
+     * @return array<string, mixed>
+     */
+    private function chainStep(string $label, ?string $who, string $status, string $approvedLabel = 'Selesai', ?string $by = null, ?string $at = null): array
+    {
+        return [
+            'label' => $label,
+            'approver' => $who,
+            'status' => $status,
+            'statusLabel' => match ($status) {
+                'approved' => $approvedLabel,
+                'pending' => 'Menunggu',
+                default => 'Terkunci',
+            },
+            'decidedBy' => $by,
+            'decidedAt' => $at,
+            'note' => null,
+            'waitingDays' => null,
         ];
     }
 
@@ -211,71 +209,192 @@ class OffboardingPresenter
     }
 
     /**
-     * The checklist: a group per department with who owns it, its items, and what the viewer may do in it
-     * (OFF-CHK-002).
+     * The checklist: a group per owner with who they are, their items, and what the viewer may do in it
+     * (OFF-CHK-002). For the owner of items in another company, only the groups that are theirs.
      *
      * @return array<string, mixed>
      */
-    private function checklist(OffboardingCase $case, User $viewer): array
+    private function checklist(OffboardingCase $case, User $viewer, bool $ownedOnly = false): array
     {
-        $progress = app(ChecklistProgress::class)->for($case);
-        $groups = $case->checklistDepartments()->with(['owner:id,name', 'items.doneBy:id,name'])->get();
-        $master = OffboardingItem::query()->active()->orderBy('sort_order')->get()->groupBy(fn (OffboardingItem $item): string => (string) $item->department_id);
+        $groups = $case->checklistDepartments()->with(['owner:id,name', 'items.doneBy:id,name'])->get()
+            ->when($ownedOnly, fn ($all) => $all->filter(fn (OffboardingCaseDepartment $group): bool => $group->owner_user_id === $viewer->id)->values());
+
         $open = $case->stage() === OffboardingCaseStage::Checklist;
+        $master = OffboardingItem::query()->active()->orderBy('sort_order')->get()->keyBy('id');
+        $canReassign = ! $ownedOnly && $open && $viewer->can('manage-offboarding');
+
+        $payload = $groups->map(function (OffboardingCaseDepartment $group) use ($viewer, $master, $open, $canReassign): array {
+            $items = $group->items;
+            $chosen = $items->pluck('offboarding_item_id')->filter()->all();
+            $canWork = $viewer->can('workGroup', $group);
+            $pending = $items->reject->isDone()->count();
+            $ownerGone = $group->owner_user_id !== null && ($group->owner === null || ! User::query()->whereKey($group->owner_user_id)->where('is_active', true)->exists());
+
+            return [
+                'id' => $group->id,
+                'name' => $group->name,
+                'owner' => $group->owner?->name,
+                'ownerIsHr' => $group->owner_user_id === null || $ownerGone,
+                // Job title and department of the owner as they were when the checklist began.
+                'ownerTitle' => collect([$group->owner_title, $group->owner_department])->filter()->implode(' · ') ?: null,
+                'ownerId' => $group->owner_user_id,
+                'ownerUnavailable' => $ownerGone,
+                'status' => match (true) {
+                    $group->not_involved => 'not_involved',
+                    $group->confirmed_at === null => 'choosing',
+                    $pending > 0 => 'running',
+                    default => 'done',
+                },
+                'statusLabel' => match (true) {
+                    $group->not_involved => 'Tidak terkait',
+                    $group->confirmed_at === null => 'Menunggu daftar',
+                    $pending > 0 => 'Berjalan',
+                    default => 'Selesai',
+                },
+                'confirmed' => $group->confirmed_at !== null,
+                'notInvolved' => $group->not_involved,
+                'done' => $items->filter->isDone()->count(),
+                'total' => $items->count(),
+                'canWork' => $canWork,
+                'canAddItem' => $open && $viewer->can('addItem', $group),
+                'canSetAside' => $open && ! $group->confirmed_at && $items->isEmpty() && $viewer->can('setAside', $group),
+                'canReassign' => $canReassign,
+                'canSelect' => $canWork && ! $group->isSettled(),
+                'items' => $items->map(fn (OffboardingCaseItem $item): array => [
+                    'id' => $item->id,
+                    'name' => $item->name,
+                    'kind' => $item->kind->label(),
+                    'isAdhoc' => $item->is_adhoc,
+                    'done' => $item->isDone(),
+                    'doneAt' => $item->done_at?->toDateString(),
+                    'doneBy' => $item->doneBy?->name,
+                    'note' => $item->note,
+                    'canTick' => $open && $group->confirmed_at !== null && $canWork,
+                    'canRemove' => $open && ! $item->isDone() && ($item->is_adhoc || ! $group->isSettled()) && $viewer->can('removeItem', $item),
+                ])->values()->all(),
+                'available' => $canWork && ! $group->isSettled()
+                    ? collect($group->item_ids ?? [])
+                        ->reject(fn (int $id): bool => in_array($id, $chosen, true))
+                        ->map(fn (int $id) => $master->get($id))
+                        ->filter()
+                        ->map(fn (OffboardingItem $item): array => ['id' => $item->id, 'name' => $item->name, 'kind' => $item->kind->label()])
+                        ->values()->all()
+                    : [],
+            ];
+        })->values();
+
+        if ($ownedOnly) {
+            $items = $payload->sum('total');
+            $done = $payload->sum('done');
+            $progress = [
+                'items' => $items, 'done' => $done, 'groups' => $payload->count(),
+                'settled' => $payload->filter(fn (array $group): bool => $group['confirmed'] || $group['notInvolved'])->count(),
+                'ready' => false, 'blockers' => [],
+            ];
+        } else {
+            $progress = app(ChecklistProgress::class)->for($case);
+        }
+
+        $moved = $case->stage() !== OffboardingCaseStage::Checklist;
+        $ownersDone = $moved || $progress['ready'];
+        $approved = $moved || $case->checklist_approved_at !== null;
+        $approver = $case->checklist_approved_by_user_id === null ? null : User::query()->whereKey($case->checklist_approved_by_user_id)->value('name');
 
         return [
             'progress' => $progress,
-            'groups' => $groups->map(function (OffboardingCaseDepartment $group) use ($viewer, $master, $open): array {
-                $items = $group->items;
-                $chosen = $items->pluck('offboarding_item_id')->filter()->all();
-                $canWork = $viewer->can('workGroup', $group);
-                $pending = $items->reject->isDone()->count();
+            // The phase's own chain, two checks before the case may go on: every owner has signed off their part,
+            // then HR approves.
+            'chain' => $ownedOnly ? [] : [
+                $this->chainStep(
+                    'Pemilik item sign-off',
+                    "{$progress['settled']} dari {$progress['groups']} pemilik · {$progress['done']}/{$progress['items']} item",
+                    $ownersDone ? 'approved' : 'pending',
+                ),
+                $this->chainStep('Persetujuan HR', null, $approved ? 'approved' : ($ownersDone ? 'pending' : 'locked'), 'Disetujui', $approver, $case->checklist_approved_at?->toDateString()),
+            ],
+            'approved' => $approved,
+            'canApprove' => ! $ownedOnly && $open && ! $approved && $progress['ready'] && $viewer->can('approveChecklist', $case),
+            'groups' => $payload->all(),
+            // Who HR can hand a group to: anyone active with an account, in any company.
+            'ownerOptions' => $canReassign ? $this->ownerOptions() : [],
+            // Items added to the master list since this checklist opened (OFF-ITM-008).
+            'canRefresh' => ! $ownedOnly && $viewer->can('refreshChecklist', $case),
+            'newItems' => ! $ownedOnly && $open ? count(app(RefreshChecklist::class)->missingItems($case)) : 0,
+        ];
+    }
 
-                return [
-                    'id' => $group->id,
-                    'name' => $group->name,
-                    'owner' => $group->owner?->name,
-                    'ownerIsHr' => $group->owner_user_id === null,
-                    'status' => match (true) {
-                        $group->not_involved => 'not_involved',
-                        $group->confirmed_at === null => 'choosing',
-                        $pending > 0 => 'running',
-                        default => 'done',
-                    },
-                    'statusLabel' => match (true) {
-                        $group->not_involved => 'Tidak terkait',
-                        $group->confirmed_at === null => 'Menunggu daftar',
-                        $pending > 0 => 'Berjalan',
-                        default => 'Selesai',
-                    },
-                    'confirmed' => $group->confirmed_at !== null,
-                    'notInvolved' => $group->not_involved,
-                    'done' => $items->filter->isDone()->count(),
-                    'total' => $items->count(),
-                    'canWork' => $canWork,
-                    'canAddItem' => $open && $viewer->can('addItem', $group),
-                    'canSetAside' => $open && ! $group->confirmed_at && $items->isEmpty() && $viewer->can('setAside', $group),
-                    'canSelect' => $canWork && ! $group->isSettled(),
-                    'items' => $items->map(fn (OffboardingCaseItem $item): array => [
-                        'id' => $item->id,
-                        'name' => $item->name,
-                        'kind' => $item->kind->label(),
-                        'isAdhoc' => $item->is_adhoc,
-                        'done' => $item->isDone(),
-                        'doneAt' => $item->done_at?->toDateString(),
-                        'doneBy' => $item->doneBy?->name,
-                        'note' => $item->note,
-                        'canTick' => $open && $group->confirmed_at !== null && $canWork,
-                        'canRemove' => $open && ! $item->isDone() && ($item->is_adhoc || ! $group->isSettled()) && $viewer->can('removeItem', $item),
-                    ])->values()->all(),
-                    'available' => $canWork && ! $group->isSettled()
-                        ? ($master->get((string) $group->department_id) ?? collect())
-                            ->reject(fn (OffboardingItem $item): bool => in_array($item->id, $chosen, true))
-                            ->map(fn (OffboardingItem $item): array => ['id' => $item->id, 'name' => $item->name, 'kind' => $item->kind->label()])
-                            ->values()->all()
-                        : [],
-                ];
-            })->values()->all(),
+    /**
+     * Everyone with a login, for handing a group to someone else: name, job title and company.
+     *
+     * @return list<array{id: int, label: string}>
+     */
+    private function ownerOptions(): array
+    {
+        $options = [];
+
+        $rows = DB::table('employees')
+            ->join('users', 'users.id', '=', 'employees.user_id')
+            ->leftJoin('positions', 'positions.id', '=', 'employees.position_id')
+            ->leftJoin('companies', 'companies.id', '=', 'employees.company_id')
+            ->where('users.is_active', true)
+            ->orderBy('employees.full_name')
+            ->get(['users.id as user_id', 'employees.full_name', 'positions.name as position', 'companies.code as company']);
+
+        foreach ($rows as $row) {
+            $options[] = [
+                'id' => (int) $row->user_id,
+                'label' => collect([$row->full_name, $row->position, $row->company])->filter()->implode(' · '),
+            ];
+        }
+
+        return $options;
+    }
+
+    /**
+     * A case in the list for someone who only owns part of its checklist: no reason, exit type, requester
+     * or compensation (OFF-ITM-007). The leaver may belong to another company, so they are read across companies.
+     *
+     * @return array<string, mixed>
+     */
+    public function limitedRow(OffboardingCase $case): array
+    {
+        $leaver = Employee::acrossCompanies()->find($case->employee_id);
+        $stage = $case->stage();
+
+        return [
+            'id' => $case->id,
+            'reference' => $case->reference(),
+            'employee' => [
+                'id' => $case->employee_id,
+                'name' => $leaver?->full_name,
+                'number' => $leaver?->employee_number,
+                'position' => $leaver?->position_id === null ? null : Position::acrossCompanies()->whereKey($leaver->position_id)->value('name'),
+                'department' => $leaver?->department_id === null ? null : Department::acrossCompanies()->whereKey($leaver->department_id)->value('name'),
+            ],
+            'exitType' => null,
+            'lastWorkingOn' => $case->last_working_on?->toDateString(),
+            'stage' => $stage->value,
+            'stageLabel' => $stage->label(),
+            'step' => $this->stepNumber($stage),
+            'statusLabel' => $this->statusLabel($case, $stage),
+            'isDraft' => false,
+            'createdBy' => null,
+            'daysOpen' => null,
+            'limited' => true,
+        ];
+    }
+
+    /**
+     * What the owner of checklist items in another company sees of a case: who is leaving, from which
+     * department, until when, and their own groups (OFF-ITM-007).
+     *
+     * @return array<string, mixed>
+     */
+    public function ownerView(OffboardingCase $case, User $viewer): array
+    {
+        return [
+            ...$this->limitedRow($case),
+            'checklist' => $this->checklist($case, $viewer, ownedOnly: true),
         ];
     }
 

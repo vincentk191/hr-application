@@ -19,7 +19,7 @@ use Illuminate\Support\Str;
 
 /**
  * HR closes the case, which is archived (OFF-SIG-008). The guards on the workflow decide whether it may
- * close at all: every signature given, the last working day behind us, the leaver's reports moved on.
+ * close at all: the exit details filled in, the last working day behind us, the leaver's reports moved on.
  * Closing then makes the exit final: the employee record becomes inactive and locked, the exit documents
  * are filed on the dossier as restricted documents, and the exit is applied if the daily job has not
  * already done so.

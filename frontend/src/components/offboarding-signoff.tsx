@@ -334,8 +334,8 @@ function ExitDocuments({ item }: { item: OffboardingCase }) {
 
 /**
  * Stage 3 · Sign-off (OFF-SIG): where the case stands, the exit interview, a summary of the checklist by
- * owner, and what HR still has to settle. The signatures themselves are in the approval chain above and
- * the actions at the top of the page.
+ * owner, and what HR still has to settle. There are no signatures: the HR who asked for the case fills in the
+ * details and closes it, and the actions are at the top of the page.
  */
 export function OffboardingSignOffPanel({
     item,
@@ -350,8 +350,8 @@ export function OffboardingSignOffPanel({
         return null;
     }
 
-    const waiting = signoff.steps.find((step) => step.status !== 'approved');
     const closed = item.stage === 'closed';
+    const detailsDone = signoff.exitInterview.recorded;
 
     return (
         <div className="space-y-4">
@@ -362,9 +362,9 @@ export function OffboardingSignOffPanel({
                 >
                     {closed
                         ? `Kasus ditutup ${item.closedAt}. Profil karyawan dikunci.`
-                        : waiting
-                          ? `Tinggal tanda tangan ${waiting.label}${waiting.approver ? ` (${waiting.approver})` : ''}.`
-                          : `Semua tanda tangan lengkap. Kasus bisa ditutup setelah hari kerja terakhir (${item.lastWorkingOn}).`}
+                        : !detailsDone
+                          ? `Menunggu ${item.createdBy ?? 'HR'} mengisi detail keluar (wawancara keluar, atau dilewati dengan alasan).`
+                          : `Detail lengkap. ${item.createdBy ?? 'HR'} bisa menutup kasus setelah hari kerja terakhir (${item.lastWorkingOn}).`}
                 </p>
                 {item.canBeritaAcara && (
                     <Button asChild variant="outline" size="sm">

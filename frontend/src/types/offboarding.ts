@@ -25,6 +25,8 @@ export type OffboardingRow = {
     isDraft: boolean;
     createdBy: string | null;
     daysOpen: number | null;
+    /** A case listed for someone who only owns part of its checklist: no reason, type or requester. */
+    limited?: boolean;
 };
 
 export type OffboardingFilters = {
@@ -85,8 +87,13 @@ export type OffboardingChecklistGroup = {
     id: number;
     name: string;
     owner: string | null;
-    /** Nobody is set to own it, so HR Admin does. */
+    /** Nobody is set to own it (or they are deactivated), so HR Admin does. */
     ownerIsHr: boolean;
+    /** The owner's job title and department as they were when the checklist began. */
+    ownerTitle: string | null;
+    ownerId: number | null;
+    ownerUnavailable: boolean;
+    canReassign: boolean;
     status: 'choosing' | 'running' | 'done' | 'not_involved';
     statusLabel: string;
     confirmed: boolean;
@@ -111,17 +118,22 @@ export type OffboardingChecklist = {
         ready: boolean;
         blockers: string[];
     };
+    /** The phase's own two checks: the owners sign off their part, then HR approves. */
+    chain: OffboardingStep[];
+    /** HR has approved the finished checklist, so the case may go on. */
+    approved: boolean;
+    /** HR may approve it now: it is finished and not yet approved. */
+    canApprove: boolean;
     groups: OffboardingChecklistGroup[];
-};
-
-export type OffboardingSignoffStep = OffboardingStep & {
-    id: number;
-    isHr: boolean;
-    canSign: boolean;
+    /** Who HR can hand a group to: anyone with an account, in any company. */
+    ownerOptions: { id: number; label: string }[];
+    /** HR may bring the checklist up to date with the master list. */
+    canRefresh: boolean;
+    /** Items added to the master list since the checklist opened. */
+    newItems: number;
 };
 
 export type OffboardingSignoff = {
-    steps: OffboardingSignoffStep[];
     exitInterview: {
         recorded: boolean;
         skipped: boolean;

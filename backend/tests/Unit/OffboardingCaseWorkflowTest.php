@@ -3,10 +3,11 @@
 use App\Enums\OffboardingCaseStage as Stage;
 use App\Workflows\Definitions\OffboardingCaseWorkflow;
 use App\Workflows\Guards\ChainFullyApproved;
+use App\Workflows\Guards\ChecklistApproved;
 use App\Workflows\Guards\ChecklistComplete;
+use App\Workflows\Guards\ExitInterviewRecorded;
 use App\Workflows\Guards\LastDayPassed;
 use App\Workflows\Guards\ReportsReassigned;
-use App\Workflows\Guards\SignOffsComplete;
 
 /**
  * The offboarding pipeline's shape (context.md §9.4, OFF-PIP-002).
@@ -60,11 +61,11 @@ it('guards the two stages that need approval and a finished checklist', function
     $guards = $this->definition->guards();
 
     expect($guards[Stage::Checklist->value])->toBe([ChainFullyApproved::class])
-        // Sign-off waits for Management's approval and for every checklist item to be done (OFF-CHK-001).
-        ->and($guards[Stage::SignOff->value])->toBe([ChainFullyApproved::class, ChecklistComplete::class])
+        // Sign-off waits for Management's approval, every checklist item done (OFF-CHK-001) and HR's approval.
+        ->and($guards[Stage::SignOff->value])->toBe([ChainFullyApproved::class, ChecklistComplete::class, ChecklistApproved::class])
         // Submitting a draft is the requester's own action, so it is not gated.
-        // Closing needs every signature, the last day behind us and the reports moved on; cancelling is not gated.
-        ->and($guards[Stage::Closed->value])->toBe([SignOffsComplete::class, LastDayPassed::class, ReportsReassigned::class])
+        // Closing needs the exit details, the last day behind us and the reports moved on; cancelling is not gated.
+        ->and($guards[Stage::Closed->value])->toBe([ExitInterviewRecorded::class, LastDayPassed::class, ReportsReassigned::class])
         ->and($guards)->not->toHaveKey(Stage::Cancelled->value)
         ->and($guards)->not->toHaveKey(Stage::Submitted->value);
 });

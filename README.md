@@ -29,7 +29,7 @@ listed in the checklist below. Nothing here is committed yet: changes are left f
 
 |                 |                                                                                                              |
 | --------------- | ------------------------------------------------------------------------------------------------------------ |
-| Tests           | 667 passing                                                                                                  |
+| Tests           | 685 passing                                                                                                  |
 | Static analysis | PHPStan level 7, 0 errors                                                                                    |
 | Phase 0         | **Complete** — company scoping, RBAC, workflow engine, account state and login rules                         |
 | Phase 1         | Directory (with CSV import/export), profile, add/edit, documents, admin panel done                           |
@@ -840,8 +840,8 @@ table, the checklist and the screens.
 | `OFF-WIZ` · `OFF-WZ1` · `OFF-WZ2` | Case wizard + steps      | 11  | 8   | ✅     | Built 10-15. Two steps in one form, save draft, notice-period check against the employee's contract days, compensation with a required reason, case files, send for approval |
 | `OFF-PIP`                         | Case pipeline            | 7   | 6   | 🟡     | Tracker, header, files, the stage-dependent action bar (004) and all three tabs built. The closing timeline (007) is the only part left |
 | `OFF-APR`                         | Stage 1 Diajukan         | 7   | 5   | ✅     | Built 10-15, **with Management as the approver** (not the supervisor), the comment thread, and rejection back to draft. The HR approval step (004) is dropped |
-| `OFF-CHK`                         | Stage 2 Checklist        | 11  | 10  | ✅     | Built 10-15: groups per department owned by its supervisor (HR Admin when none), owner-only ticking with a note, the blocked-completion guard and banner, ad-hoc items, HR notified. Access revocation (010) built 10-16, see the sign-off rules below |
-| `OFF-SIG`                         | Stage 3 Sign-off         | 9   | 5   | ✅     | Built 10-16: the Atasan then HR sign in order, the exit interview, exit documents, the print-ready berita acara, send back to the checklist, close, cancel, and the dossier lock. Waiting on one decision: re-routing approvals that were waiting on the leaver |
+| `OFF-CHK`                         | Stage 2 Checklist        | 11  | 10  | ✅     | Built 10-15: groups per department owned by its supervisor (HR Admin when none), owner-only ticking with a checkbox, the blocked-completion guard and banner, ad-hoc items, HR notified. Access revocation (010) built 10-16, see the sign-off rules below |
+| `OFF-SIG`                         | Stage 3 Sign-off         | 9   | 5   | ✅     | Built 10-16: the exit details, then HR closes (no signatures since 10-19), the exit interview, exit documents, the print-ready berita acara, send back to the checklist, close, cancel, and the dossier lock. Waiting on one decision: re-routing approvals that were waiting on the leaver |
 | `OFF-ITM`                         | Checklist builder        | 7   | 3   | ✅     | Built 10-15: the supervisors pick the items that apply (007) from the master list (001, 004), add their own for the case, and confirm with "Daftar selesai". Pre-ticking from a register (002) is deferred with the register (006) |
 | `OFF-TPL`                         | Master item list (admin) | 4   | 2   | 🟡     | "Item offboarding" in the admin panel (001, 002): kind, department, order, retire. Seeded with defaults the first time a company needs them. Template variants (003) and default owners (004) are covered by the department supervisor rule |
 
@@ -971,20 +971,52 @@ Not yet applied to the leave decision dialog and the profile-change review, whic
 
 This differs from `../docs/context.md` §9.4, which still describes the earlier design.
 
-- **HR makes the case; Management approves it; the department supervisors own the checklist; the Atasan
-  and HR sign off.** HR is the only role that starts a case. Management approves first, always: the nearest
+- **HR makes the case; Management approves it; the item owners work the checklist; the HR who asked for the
+  case closes it.** HR is the only role that starts a case. Management approves first, always: the nearest
   Management account above the leaver on the reporting line, or any Management account if there is none. The
-  leaver's own Atasan does not approve; they see the case and sign at the end. There is no HR approval step.
+  leaver's own Atasan does not approve or sign; they see the case. (Changed 10-19: the Atasan and HR Admin
+  signatures at the end are gone.)
 - **Who sees a case.** HR: every case, drafts included. Management: every case once it is sent. A supervisor:
   the cases of people below them, once sent. The person leaving: their own, from the checklist stage on.
-- **Owners are departments' supervisors.** An item belongs to a department; its owner is that department's
-  supervisor (the one set on the department, "Kepala departemen"). With none set, HR Admin. After approval each
-  department supervisor ticks which of their items apply, adds ad-hoc ones, confirms with "Daftar selesai"
-  (even for none), then follows the items to done. Built.
-  - A department's supervisor who is the leaver, has no login or is deactivated counts as none: HR Admin owns it.
-    The owner is fixed when the checklist opens, so changing a supervisor later does not move work under way.
-  - A department supervisor sees the case from then on, wherever they sit in the organisation, and is told when
-    their part opens. The leaver sees the checklist as a read-only handover reference.
+- **Owners (changed 10-16: items are group-wide and can name a person).** An item's owner on a case is, in
+  this order: **the person named on the item** (anyone with a login, from any company; their job title and
+  department are read from their own record), else **the supervisor of the department the item names, in the
+  leaver's company**, else **HR Admin**. After approval each owner gets one group holding their items, picks
+  which apply, adds ad-hoc ones, confirms with "Daftar selesai" (even for none), then follows the items to done.
+  - Someone cannot own an item if they have no login, are deactivated, or are the person leaving; it then falls
+    to the next owner in the order above. A group whose owner is deactivated later is handled by HR Admin until
+    it is handed on.
+  - The owner is fixed when the checklist opens, with their job title and department as they were, and so is
+    the list of items the group was given: later changes to people or to the master list do not move work under
+    way. **HR can hand a group to someone else for one case** ("Alihkan pemilik", any person with an account, or
+    back to Admin HR); that never changes the master list.
+  - **Bringing a running checklist up to date.** Because the items are fixed when the checklist opens, an item
+    added to the master list afterwards does not reach cases already under way. At the Checklist stage HR sees
+    a banner ("N item baru ada di daftar induk") with **"Perbarui dari daftar induk"**. It adds only the items
+    a case has not been given, to each item's owner: into their list if they have not confirmed it, or else
+    into a second group for them ("... (tambahan)") so a confirmed list stays as it was. Nothing chosen,
+    confirmed or ticked is ever removed or changed, owners who receive something new are told, and it can be
+    pressed again at no cost. It is refused at any other stage.
+  - **Ticking and layout (changed 10-16).** An owner crosses an item off with its checkbox and un-ticks it the
+    same way (no dialog, no note); anyone who may not act sees the box disabled. The checklist is in the main
+    column; a side panel beside it holds each owner's part (item count and status) and the case files.
+  - **The checklist phase's two checks (changed 10-19).** The Management approval shows on the first page only
+    and is not repeated, and the requester is not shown either. Across the top of the checklist are two checks:
+    **1. every item owner has signed off their part** (confirmed their list and ticked their items) and **2. HR's
+    approval** ("Setujui checklist", available once check 1 is done; any HR of the company may give it, not only
+    the requester). Only when both are done does "Lanjut ke sign-off" unlock (`ChecklistApproved` guard). HR's
+    approval vouches for the checklist as it was: reopening an item, adding or removing one, setting a department
+    aside, refreshing from the master list or sending the case back takes it back.
+  - **The sign-off phase has no chain of steps.** It is a form: the post-exit interview (or skipped with a
+    reason), which HR submits; only then can "Tutup kasus" be pressed, provided the other checks are clear.
+  - **Across companies.** A shared department (IT, say) can serve every company, so an owner may belong to a
+    different company than the leaver. They see **only what they need to cross their items off**: who is leaving
+    and from which department, the last working day, and their own groups, with no reason, exit type,
+    compensation, files, approval, discussion or sign-off. They cannot open the rest of the case or any other
+    case of that company, and HR of another company still cannot touch the case. The case appears in their
+    "Offboarding" list and badge in the same limited form. (The routes find a case in any company and every
+    action then asks the policy; the checklist tables carry no company scope for that reason.)
+  - The leaver sees the checklist as a read-only handover reference.
   - After "Daftar selesai" the chosen items cannot be removed (the list is the record of what was agreed), but an
     item added for this case alone can be, until it is ticked; HR and the owner may still add one, and it must
     be done like the rest.
@@ -992,20 +1024,22 @@ This differs from `../docs/context.md` §9.4, which still describes the earlier 
   - **Sign-off stays locked** until every department is confirmed or set aside and no chosen item is open
     (`ChecklistComplete` guard). HR presses "Lanjut ke sign-off" in the action bar, disabled with the reason
     until then. HR is told when a department confirms and when the checklist is complete.
-  - **The master list** ("Item offboarding" in the admin panel) is per company and seeded with twelve defaults
-    (laptop, email and VPN accounts, ID card, fingerprint enrolment, exit interview, keys and access cards,
-    uniform and PPE, company vehicle, loans, handover) the first time a company needs it. A default is placed in
-    the company's department whose name matches (IT, HR / SDM, Fasilitas / Umum, Keuangan); with no match it has
-    no department and HR Admin owns it. The defaults are never put back over a company's own edits.
+  - **The master list** ("Item offboarding" in the admin panel) belongs to the whole group, not to a company, and
+    is seeded once with twelve defaults (laptop, email and VPN accounts, ID card, fingerprint enrolment, exit
+    interview, keys and access cards, uniform and PPE, company vehicle, loans, handover). Each item names a
+    department (by name: IT, HR, Fasilitas, Keuangan; the supervisor of the leaver's own company's department of
+    that name owns it) and may name a person instead. Only a parent-wide HR Admin or System Admin may edit it; HR
+    of one company chooses which items apply on its own cases. The defaults are never put back over edits.
 - **Notice period** is a field on each employee (days, "Masa pemberitahuan kontrak"); the wizard compares the
   notice given against it.
-- **Stage 3, sign-off and closing (built 10-16).**
-  - **Signatures, in order.** When HR moves a complete checklist on, the leaver's Atasan signs first, then HR.
-    With no usable Atasan (none set, no login, deactivated, or leaving) HR signs alone. HR's signature needs the
-    exit interview recorded, or skipped with a reason. Management does not sign again.
-  - **Send back.** The signer whose turn it is, or HR, can send the case back to the checklist with a required
-    note (it goes into the thread, tagged Sign-off). The signatures given so far are cleared.
-  - **Closing needs three things:** every signature, the last working day behind us (the case closes only
+- **Stage 3, sign-off and closing (built 10-16, reworked 10-19).**
+  - **No signatures.** The Atasan and HR Admin no longer sign. The HR who asked for the case fills in the exit
+    form (the exit interview, or skipped with a reason) and then closes it; they are told when the case reaches
+    them. If that person can no longer act (deactivated, or no longer HR), any
+    other HR of the company takes over, so a case is never stuck. Management does not sign again.
+  - **Send back.** HR can send the case back to the checklist with a required note (it goes into the thread,
+    tagged Sign-off).
+  - **Closing needs three things:** the exit details filled in, the last working day behind us (the case closes only
     *after* that day, so it cannot be closed early and forgotten), and the leaver's direct reports given a new
     Atasan. HR does that in a panel on the case, with the leaver's own manager as the default. Each move is
     checked (the person must still report to the leaver; nobody is put under someone who works for them). The

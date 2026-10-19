@@ -3,22 +3,26 @@
 namespace App\Policies;
 
 use App\Enums\Permission;
+use App\Enums\Role;
 use App\Models\OffboardingItem;
 use App\Models\User;
 
 /**
- * Who may manage the master list of offboarding items (OFF-TPL-002): those who manage offboarding.
+ * Who may manage the master list of offboarding items (OFF-TPL-002). The list is the whole group's, shared by
+ * every company, so only a parent-wide HR Admin or System Admin may change it; HR of one company chooses
+ * which items apply on their own cases.
  */
 class OffboardingItemPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->can(Permission::ManageOffboarding->value);
+        return $user->isParentWide()
+            && ($user->can(Permission::ManageOffboarding->value) || $user->isA(Role::SystemAdmin));
     }
 
     public function view(User $user, OffboardingItem $item): bool
     {
-        return $this->viewAny($user) && $user->canAccessCompany($item->company_id);
+        return $this->viewAny($user);
     }
 
     public function create(User $user): bool
@@ -28,11 +32,11 @@ class OffboardingItemPolicy
 
     public function update(User $user, OffboardingItem $item): bool
     {
-        return $this->view($user, $item);
+        return $this->viewAny($user);
     }
 
     public function delete(User $user, OffboardingItem $item): bool
     {
-        return $this->view($user, $item);
+        return $this->viewAny($user);
     }
 }

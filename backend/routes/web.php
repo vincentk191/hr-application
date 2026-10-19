@@ -56,8 +56,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('offboarding/{offboardingCase}/checklist/{group}/adhoc', [OffboardingChecklistController::class, 'adhoc'])->name('offboarding.checklist.adhoc');
     Route::post('offboarding/{offboardingCase}/checklist/{group}/confirm', [OffboardingChecklistController::class, 'confirm'])->name('offboarding.checklist.confirm');
     Route::put('offboarding/{offboardingCase}/checklist/{group}/involvement', [OffboardingChecklistController::class, 'involvement'])->name('offboarding.checklist.involvement');
+    Route::post('offboarding/{offboardingCase}/checklist/approve', [OffboardingChecklistController::class, 'approve'])->name('offboarding.checklist.approve');
+    Route::post('offboarding/{offboardingCase}/checklist/refresh', [OffboardingChecklistController::class, 'refresh'])->name('offboarding.checklist.refresh');
+    Route::put('offboarding/{offboardingCase}/checklist/{group}/owner', [OffboardingChecklistController::class, 'owner'])->name('offboarding.checklist.owner');
     Route::post('offboarding/{offboardingCase}/proceed', [OffboardingChecklistController::class, 'proceed'])->name('offboarding.proceed');
-    Route::post('offboarding/{offboardingCase}/signoffs/{signoff}/sign', [OffboardingSignOffController::class, 'sign'])->name('offboarding.signoff.sign');
     Route::post('offboarding/{offboardingCase}/send-back', [OffboardingSignOffController::class, 'sendBack'])->name('offboarding.send-back');
     Route::put('offboarding/{offboardingCase}/exit-interview', [OffboardingSignOffController::class, 'interview'])->name('offboarding.interview');
     Route::put('offboarding/{offboardingCase}/last-day', [OffboardingSignOffController::class, 'lastDay'])->name('offboarding.last-day');

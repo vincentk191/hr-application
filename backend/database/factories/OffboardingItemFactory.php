@@ -3,7 +3,6 @@
 namespace Database\Factories;
 
 use App\Enums\OffboardingItemKind;
-use App\Models\Company;
 use App\Models\OffboardingItem;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -18,7 +17,6 @@ class OffboardingItemFactory extends Factory
     public function definition(): array
     {
         return [
-            'company_id' => Company::factory(),
             'name' => fake()->unique()->words(3, true),
             'kind' => OffboardingItemKind::Physical,
             'is_active' => true,

@@ -77,7 +77,7 @@ class HandleInertiaRequests extends Middleware
                 : 0,
             // Open offboarding cases this person may see: the badge on "Offboarding" (OFF-DSH-010).
             'openOffboarding' => fn (): int => $request->user()?->can('viewAny', OffboardingCase::class)
-                ? OffboardingCase::query()->visibleTo($request->user())->open()->count()
+                ? OffboardingCase::openCountFor($request->user())
                 : 0,
             'pendingForMe' => fn (): int => $request->user() === null ? 0 : WorkflowStep::waitingOn($request->user())->count(),
             'branding' => fn (): ?array => $request->user() === null ? null : app(Branding::class)->current(),
