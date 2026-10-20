@@ -67,6 +67,11 @@ server {
         fastcgi_param DOCUMENT_ROOT $realpath_root;
         fastcgi_param ENTRANCE $entrance;
         fastcgi_param HTTPS $forwarded_https;
+        # The app's pages send long response headers (the Link preload hints for the built assets, and cookies). The
+        # default buffer is 4k or 8k, and a header that does not fit is a 502 ("upstream sent too big header").
+        fastcgi_buffer_size 32k;
+        fastcgi_buffers 16 16k;
+        fastcgi_busy_buffers_size 32k;
         fastcgi_read_timeout 60s;
     }
 
