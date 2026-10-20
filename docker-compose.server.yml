@@ -141,7 +141,8 @@ services:
         image: cloudflare/cloudflared:latest
         profiles: ['tunnel']
         restart: unless-stopped
-        command: tunnel --no-autoupdate --url http://172.31.0.10:80
+        # http2 (TCP) rather than the default quic (UDP): some home networks let a QUIC connection register but then drop its traffic, which shows as a 502.
+        command: tunnel --no-autoupdate --protocol http2 --url http://172.31.0.10:80
         depends_on:
             - web
         networks:
