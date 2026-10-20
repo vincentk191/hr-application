@@ -55,9 +55,14 @@ server {
         try_files $uri $uri/ /index.php?$query_string;
     }
 
+    # Docker's own resolver, and a variable, so Nginx looks `app` up again instead of keeping the address it had when it
+    # started: the app container gets a new address whenever it is recreated, and a fixed one gives a 502 until Nginx restarts.
+    resolver 127.0.0.11 valid=10s;
+
     location = /index.php {
         include fastcgi_params;
-        fastcgi_pass app:9000;
+        set $php_upstream app:9000;
+        fastcgi_pass $php_upstream;
         fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
         fastcgi_param DOCUMENT_ROOT $realpath_root;
         fastcgi_param ENTRANCE $entrance;
