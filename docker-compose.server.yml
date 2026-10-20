@@ -88,7 +88,7 @@ services:
             OFFICE_CIDR: ${OFFICE_CIDR:-192.168.0.0/16}
         ports:
             # The office / LAN reaches the app here. Set WEB_BIND to the server's LAN address to keep it off other interfaces.
-            - '${WEB_BIND:-0.0.0.0}:${WEB_PORT:-8080}:80'
+            - '${WEB_BIND:-0.0.0.0}:${WEB_PORT:-8090}:80'
         volumes:
             - appstorage:/var/www/backend/storage:ro
         depends_on:
