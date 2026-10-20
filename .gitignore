@@ -40,3 +40,6 @@
 /backend/boost.json
 /backend/opencode.json
 /backend/opencode.jsonc
+
+# Server stack secrets (docker/server/.env)
+docker/server/.env

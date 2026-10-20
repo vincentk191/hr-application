@@ -1,0 +1,164 @@
+# The server stack: the app as it would run on a server, for testing connectivity and the PWA (decided 2026-10-20).
+#
+#   web      Nginx. Decides which entrance a request used and serves the built files.
+#   app      PHP-FPM with the code baked in (no bind mounts).
+#   queue    the queue worker.        scheduler   the daily jobs.
+#   db       PostgreSQL, not published.
+#   wg       WireGuard (wg-easy): the private entrance for elevated people and the office.
+#   tunnel   (profile "tunnel") a temporary https:// address for trying the PWA on phones; arrives as PUBLIC.
+#
+# Configuration is read from docker/server/.env (copy docker/server/server.env.example); see the steps in
+# docker/server/server.env.example. Start with:
+#   docker compose -f docker-compose.server.yml --env-file docker/server/.env up -d --build
+#
+# Three Docker networks keep the entrances apart, and their ranges are repeated in docker/server/nginx.conf.template:
+#   internal 172.29.0.0/24  app, queue, scheduler, db, and Nginx. A request from the server itself arrives from here.
+#   vpn      172.30.0.0/24  WireGuard and Nginx. Peers reach Nginx at 172.30.0.10 and arrive as private.
+#   edge     172.31.0.0/24  the tunnel and Nginx. Anything from here is public.
+
+name: hr-server
+
+x-app: &app
+    image: hr-server-app
+    restart: unless-stopped
+    env_file: docker/server/.env
+    environment:
+        DB_HOST: db
+        DB_PORT: 5432
+    volumes:
+        - appstorage:/var/www/backend/storage
+    depends_on:
+        db:
+            condition: service_healthy
+
+services:
+    db:
+        image: postgres:16-alpine
+        restart: unless-stopped
+        environment:
+            POSTGRES_DB: ${DB_DATABASE:-hr_app}
+            POSTGRES_USER: ${DB_USERNAME:-hr_app}
+            POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in docker/server/.env}
+        volumes:
+            - pgdata:/var/lib/postgresql/data
+        healthcheck:
+            test: ['CMD-SHELL', 'pg_isready -U ${DB_USERNAME:-hr_app} -d ${DB_DATABASE:-hr_app}']
+            interval: 5s
+            timeout: 5s
+            retries: 10
+        networks:
+            - internal
+
+    app:
+        <<: *app
+        # Built once here; the queue and the scheduler use the same image.
+        build:
+            context: .
+            target: server
+            args:
+                PHP_IMAGE: php:8.4-fpm
+        environment:
+            DB_HOST: db
+            DB_PORT: 5432
+            RUN_MIGRATIONS: 'true'
+        networks:
+            - internal
+
+    queue:
+        <<: *app
+        user: www-data
+        command: php artisan queue:work --tries=1 --timeout=0 --sleep=3 --max-time=3600
+        networks:
+            - internal
+
+    scheduler:
+        <<: *app
+        user: www-data
+        command: php artisan schedule:work
+        networks:
+            - internal
+
+    web:
+        build:
+            context: .
+            target: web
+        image: hr-server-web
+        restart: unless-stopped
+        environment:
+            OFFICE_CIDR: ${OFFICE_CIDR:-192.168.0.0/16}
+        ports:
+            # The office / LAN reaches the app here. Set WEB_BIND to the server's LAN address to keep it off other interfaces.
+            - '${WEB_BIND:-0.0.0.0}:${WEB_PORT:-8080}:80'
+        volumes:
+            - appstorage:/var/www/backend/storage:ro
+        depends_on:
+            - app
+        networks:
+            internal:
+                ipv4_address: 172.29.0.10
+            vpn:
+                ipv4_address: 172.30.0.10
+            edge:
+                ipv4_address: 172.31.0.10
+
+    wg:
+        image: ghcr.io/wg-easy/wg-easy:15
+        restart: unless-stopped
+        environment:
+            # First-run setup; everything here can be changed later in the admin page.
+            INIT_ENABLED: 'true'
+            INIT_USERNAME: ${WG_ADMIN_USER:-admin}
+            INIT_PASSWORD: ${WG_ADMIN_PASSWORD:?set WG_ADMIN_PASSWORD in docker/server/.env}
+            INIT_HOST: ${WG_HOST:?set WG_HOST (the server's LAN or public address) in docker/server/.env}
+            INIT_PORT: '51820'
+            # Peers send only the app's address through the tunnel (split tunnel), not all their traffic.
+            INIT_ALLOWED_IPS: 172.30.0.10/32
+            # The admin page is served on plain HTTP and bound to the server itself, so it needs this.
+            INSECURE: 'true'
+            DISABLE_IPV6: 'true'
+        ports:
+            - '51820:51820/udp'
+            # The admin page: reachable from the server only, never from the network.
+            - '127.0.0.1:51821:51821/tcp'
+        volumes:
+            - wgdata:/etc/wireguard
+        cap_add:
+            - NET_ADMIN
+            - SYS_MODULE
+        sysctls:
+            - net.ipv4.ip_forward=1
+            - net.ipv4.conf.all.src_valid_mark=1
+        networks:
+            vpn:
+                ipv4_address: 172.30.0.2
+
+    tunnel:
+        # A temporary https address for the PWA (no domain needed): `docker compose ... --profile tunnel up -d tunnel`,
+        # then read the address from `docker logs hr-server-tunnel-1`. It reaches the app as the PUBLIC entrance.
+        image: cloudflare/cloudflared:latest
+        profiles: ['tunnel']
+        restart: unless-stopped
+        command: tunnel --no-autoupdate --url http://172.31.0.10:80
+        depends_on:
+            - web
+        networks:
+            - edge
+
+networks:
+    internal:
+        ipam:
+            config:
+                - subnet: 172.29.0.0/24
+    vpn:
+        ipam:
+            config:
+                - subnet: 172.30.0.0/24
+    edge:
+        ipam:
+            config:
+                - subnet: 172.31.0.0/24
+
+volumes:
+    pgdata:
+    appstorage:
+    wgdata:

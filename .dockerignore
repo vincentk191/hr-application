@@ -8,8 +8,11 @@
 .github
 **/node_modules
 **/vendor
+# Built inside the image by the server stack; never taken from the host.
 backend/public/build
 backend/public/hot
+backend/public/storage
+backend/storage/app
 backend/storage/logs/*
 backend/storage/framework/cache/*
 backend/storage/framework/sessions/*

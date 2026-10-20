@@ -52,6 +52,12 @@ class Entrance
      */
     public static function publicFor(Request $request): bool
     {
+        $fromServer = $request->server->get((string) config('entrance.server_variable'));
+
+        if (is_string($fromServer) && $fromServer !== '') {
+            return strtolower(trim($fromServer)) !== 'private';
+        }
+
         $value = $request->headers->get((string) config('entrance.header'));
 
         if ($value !== null && IpUtils::checkIp((string) $request->server->get('REMOTE_ADDR'), (array) config('entrance.trusted_proxies'))) {

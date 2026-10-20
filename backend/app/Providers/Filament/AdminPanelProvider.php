@@ -8,13 +8,14 @@ use App\Filament\Resources\AttendanceAgents\AttendanceAgentResource;
 use App\Filament\Resources\AttendanceIngestRequests\AttendanceIngestRequestResource;
 use App\Filament\Resources\Companies\CompanyResource;
 use App\Filament\Resources\Departments\DepartmentResource;
-use App\Filament\Resources\Positions\PositionResource;
 use App\Filament\Resources\OffboardingItems\OffboardingItemResource;
+use App\Filament\Resources\Positions\PositionResource;
 use App\Filament\Resources\RequestTypes\RequestTypeResource;
 use App\Filament\Resources\Roles\RoleResource;
 use App\Filament\Resources\Users\UserResource;
 use App\Http\Middleware\AuthenticateAdminPanel;
 use App\Http\Middleware\EnforceAccountState;
+use App\Http\Middleware\EnforceEntrance;
 use App\Http\Middleware\SetActiveCompany;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -116,6 +117,9 @@ class AdminPanelProvider extends PanelProvider
                 FilamentInfoWidget::class,
             ])
             ->middleware([
+                // The panel is not in the web group, so the entrance check is repeated here: the sign-in page too must
+                // not be served on the public entrance (CORE-ACC-002).
+                EnforceEntrance::class,
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,

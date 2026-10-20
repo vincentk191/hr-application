@@ -20,6 +20,13 @@ return [
     'default' => env('ENTRANCE_DEFAULT', 'public'),
 
     /*
+     * With PHP-FPM, Nginx passes the entrance as a plain FastCGI parameter. That cannot be set by a client (request
+     * headers only ever arrive as HTTP_*), so it is believed on its own, with no proxy check. The header above is
+     * for set-ups that forward with a header instead.
+     */
+    'server_variable' => 'ENTRANCE',
+
+    /*
      * The proxies whose X-Entrance header is believed (and whose forwarded address and scheme the app
      * trusts). Addresses or CIDR ranges, comma separated in the environment.
      */

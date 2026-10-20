@@ -76,6 +76,16 @@ it('believes the entrance header only from a trusted proxy', function () {
     onPrivate($this->rudi->user)->get(route('employees.index'))->assertForbidden();
 });
 
+it('believes the entrance Nginx passes to PHP-FPM, which a client cannot set', function () {
+    config(['entrance.default' => 'public']);
+
+    $this->withServerVariables(['ENTRANCE' => 'private'])->actingAs($this->rudi->user)->get(route('employees.index'))->assertOk();
+    $this->withServerVariables(['ENTRANCE' => 'public'])->actingAs($this->rudi->user)->get(route('employees.index'))->assertForbidden();
+
+    // A request header of the same name is not that parameter.
+    $this->withHeaders(['ENTRANCE' => 'private'])->actingAs($this->rudi->user)->get(route('employees.index'))->assertForbidden();
+});
+
 it('gives each entrance its own session cookie', function () {
     onPublic($this->sinta->user)->get(route('dashboard'))->assertOk();
     expect(config('session.cookie'))->toBe(config('entrance.session_cookies.public'));
@@ -99,6 +109,10 @@ it('refuses everything that is not self-service on the public entrance, whoever 
 
         onPublic($user)->post('/livewire-47186d7c/update')->assertForbidden();
     }
+
+    // Nor is the panel served to someone who is not signed in (it is not in the web group, so it checks itself).
+    auth()->logout();
+    $this->withHeaders(['X-Entrance' => 'public'])->get('/admin')->assertForbidden();
 
     // The same people reach them on the private entrance.
     onPrivate($this->hr)->get(route('employees.index'))->assertOk();

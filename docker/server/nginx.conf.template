@@ -1,0 +1,71 @@
+# Nginx for the server stack. The official image fills ${...} from the container's environment when it starts.
+#
+# The entrance (CORE-ACC-001) is decided here, from where the request came from, and handed to PHP as a FastCGI
+# parameter, which a client cannot set:
+#   private  the server itself, the office network (OFFICE_CIDR), and WireGuard peers (they arrive from the VPN network)
+#   public   everything else, including the tunnel, which sits on its own network
+# Keep the three Docker network ranges in docker-compose.server.yml in step with the lines below.
+
+map $http_x_forwarded_proto $forwarded_https {
+    default off;
+    https   on;
+}
+
+geo $remote_addr $entrance {
+    default          public;
+    172.29.0.0/24    private;   # the stack's own network: the server itself (localhost) lands here
+    172.30.0.0/24    private;   # WireGuard peers, as they leave the VPN container
+    172.31.0.1       private;   # the host itself: Docker may route its own connections through any of the three networks
+    ${OFFICE_CIDR}   private;   # the office / LAN
+}
+
+server {
+    listen 80;
+    server_name _;
+
+    root /var/www/backend/public;
+    index index.php;
+
+    client_max_body_size 25m;
+    server_tokens off;
+
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "same-origin" always;
+
+    # The service worker must be revalidated every time, and may control the whole site.
+    location = /sw.js {
+        add_header Cache-Control "no-cache";
+        add_header Service-Worker-Allowed "/";
+        try_files $uri =404;
+    }
+
+    location = /manifest.webmanifest {
+        add_header Cache-Control "no-cache";
+        default_type application/manifest+json;
+        try_files $uri =404;
+    }
+
+    # Built files have a hash in their name.
+    location /build/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location = /index.php {
+        include fastcgi_params;
+        fastcgi_pass app:9000;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        fastcgi_param DOCUMENT_ROOT $realpath_root;
+        fastcgi_param ENTRANCE $entrance;
+        fastcgi_param HTTPS $forwarded_https;
+        fastcgi_read_timeout 60s;
+    }
+
+    # Nothing else is run as PHP, and dot files are never served.
+    location ~ \.php$ { return 404; }
+    location ~ /\.(?!well-known) { deny all; }
+}

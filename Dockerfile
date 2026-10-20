@@ -5,7 +5,9 @@
 # ../docs/context.md §5.8) and will add a separate stage here when Phase 7 lands.
 #
 # Pinned to 8.4 to match the VPS and the local Herd install; composer.json allows ^8.3.
-FROM php:8.4-cli AS base
+# The PHP image the shared base starts from: the CLI for development, php-fpm for the server stack.
+ARG PHP_IMAGE=php:8.4-cli
+FROM ${PHP_IMAGE} AS base
 
 # libpq-dev  -> pdo_pgsql (PostgreSQL is the only supported database here)
 # libzip-dev -> zip, needed by Composer and later by Laravel Excel
@@ -66,3 +68,46 @@ RUN chmod +x /usr/local/bin/entrypoint
 
 ENTRYPOINT ["entrypoint"]
 CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+
+# ---- Server stack (docker-compose.server.yml) ----------------------------------------------------------------------
+#
+# Built from the repository alone, nothing mounted: the code, the production Composer install and the built frontend
+# are all inside. Build it with --build-arg PHP_IMAGE=php:8.4-fpm for the app image (the compose file does).
+
+# The dev image has PHP and Node together, which the build needs (the Wayfinder plugin runs `php artisan`).
+FROM dev AS assets
+COPY backend /var/www/backend
+COPY frontend /var/www/frontend
+WORKDIR /var/www/backend
+# A throwaway key and an in-memory database: booting the app to generate routes needs neither for real.
+ENV APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= \
+    APP_ENV=production \
+    DB_CONNECTION=sqlite \
+    DB_DATABASE=:memory: \
+    CACHE_STORE=array \
+    SESSION_DRIVER=array \
+    QUEUE_CONNECTION=sync
+RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+WORKDIR /var/www/frontend
+RUN npm ci && npm run build
+# The public disk is exposed at /storage by a link that points into the shared storage volume.
+RUN ln -sfn ../storage/app/public /var/www/backend/public/storage \
+    && rm -rf /var/www/frontend/node_modules
+
+# PHP-FPM with the application baked in.
+FROM base AS server
+COPY docker/php/php-server.ini /usr/local/etc/php/conf.d/zz-app.ini
+COPY docker/server/entrypoint.sh /usr/local/bin/entrypoint
+RUN chmod +x /usr/local/bin/entrypoint
+COPY --from=assets /var/www/backend /var/www/backend
+WORKDIR /var/www/backend
+RUN rm -f .env \
+    && mkdir -p storage/app/public storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
+    && chown -R www-data:www-data storage bootstrap/cache
+ENTRYPOINT ["entrypoint"]
+CMD ["php-fpm"]
+
+# Nginx with the built public folder, so it serves the app's files itself and hands only PHP to the app container.
+FROM nginx:1.27-alpine AS web
+COPY --from=assets /var/www/backend/public /var/www/backend/public
+COPY docker/server/nginx.conf.template /etc/nginx/templates/default.conf.template
