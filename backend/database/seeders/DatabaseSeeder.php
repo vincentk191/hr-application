@@ -20,6 +20,12 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
         ]);
 
+        // A throwaway account for trying the app by hand; never on a real server, where it would be a known login
+        // (and where the faker package its factory needs is not installed).
+        if (app()->isProduction()) {
+            return;
+        }
+
         // A parent-wide account: no company, so it may switch and view combined.
         User::factory()->create([
             'name' => 'Test User',

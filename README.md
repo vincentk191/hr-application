@@ -1026,7 +1026,12 @@ the WireGuard admin page on `127.0.0.1:51821`, reachable from the server only.
    `OFFICE_CIDR` (the real office range) and `APP_URL`.
 2. `docker compose -f docker-compose.server.yml --env-file docker/server/.env up -d --build` (the first build takes
    several minutes: it installs the PHP packages and builds the frontend). Migrations run when the app starts.
-3. First run only: `... exec app php artisan db:seed --force` for the roles (and the example data when testing).
+3. First run only: `... exec app php artisan db:seed --force` creates the companies and roles. On a **testing** server
+   only, set `APP_ENV=staging` and `COMPOSER_DEV=true` in the env file before step 2 (the image then includes the
+   faker package the example seeders need; they refuse to run when `APP_ENV=production`), and add
+   `... exec app php artisan db:seed --class=DevAccountSeeder --force` and `--class=OrgHierarchySeeder`. The example
+   accounts (for instance `admin@hr.test`, all with the password `password`) are for testing only. A real server has no
+   accounts yet: the first System Admin and Management accounts still have to be built from the client's details.
 4. From a device on the office network, open `http://<server address>:8090`: the private entrance.
 5. WireGuard: open `http://localhost:51821` **on the server**, sign in with `WG_ADMIN_USER` / `WG_ADMIN_PASSWORD`, add
    a client for each person who needs the private entrance, and scan its QR code in the WireGuard app. Peers send only

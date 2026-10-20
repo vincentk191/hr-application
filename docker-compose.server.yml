@@ -26,6 +26,8 @@ x-app: &app
         target: server
         args:
             PHP_IMAGE: php:8.4-fpm
+            # true on a testing server, so the example-data seeders can run; leave false for a real one.
+            COMPOSER_DEV: ${COMPOSER_DEV:-false}
     image: hr-server-app
     restart: unless-stopped
     env_file: docker/server/.env

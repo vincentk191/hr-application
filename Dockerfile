@@ -87,7 +87,10 @@ ENV APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= \
     CACHE_STORE=array \
     SESSION_DRIVER=array \
     QUEUE_CONNECTION=sync
-RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+# Packages for development (the example-data seeders need the faker package) are installed only when asked for:
+# build with COMPOSER_DEV=true on a testing server, never on a real one.
+ARG COMPOSER_DEV=false
+RUN if [ "$COMPOSER_DEV" = "true" ]; then composer install --no-interaction --prefer-dist --optimize-autoloader;     else composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader; fi
 WORKDIR /var/www/frontend
 RUN npm ci && npm run build
 # The public disk is exposed at /storage by a link that points into the shared storage volume.
