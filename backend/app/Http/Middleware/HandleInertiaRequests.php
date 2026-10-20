@@ -10,6 +10,8 @@ use App\Models\Employee;
 use App\Models\OffboardingCase;
 use App\Models\ProfileChangeRequest;
 use App\Models\WorkflowStep;
+use App\Support\Access\AccessTier;
+use App\Support\Access\Entrance;
 use App\Support\Branding;
 use App\Support\CompanyContext;
 use Illuminate\Http\Request;
@@ -65,6 +67,12 @@ class HandleInertiaRequests extends Middleware
                 'employeeId' => $request->user() === null
                     ? null
                     : Employee::acrossCompanies()->where('user_id', $request->user()->id)->value('id'),
+            ],
+            // Which entrance this is, and whether an elevated account is being held to the self-service view
+            // because it is on the public one (CORE-ACC-004).
+            'entrance' => fn (): array => [
+                'public' => app(Entrance::class)->isPublic(),
+                'limited' => app(Entrance::class)->isPublic() && $request->user() !== null && app(AccessTier::class)->isElevated($request->user()),
             ],
             'companySwitcher' => fn (): ?array => $this->companySwitcher($request),
             // The colour and logo for the company being viewed (or the group colour when viewing all).

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\Permission;
 use App\Enums\Role;
+use App\Support\Access\Entrance;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
@@ -44,7 +45,11 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable implements FilamentUser, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, HasRoles, Notifiable, TwoFactorAuthenticatable;
+    use HasApiTokens, HasFactory, Notifiable, TwoFactorAuthenticatable;
+
+    use HasRoles {
+        checkPermissionTo as private permissionCheckedByRoles;
+    }
 
     /**
      * Get the attributes that should be cast.
@@ -162,6 +167,26 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
      */
     public function isA(Role $role): bool
     {
+        // On the public entrance everyone is a plain employee (CORE-ACC-004).
+        if ($role !== Role::Employee && app(Entrance::class)->isPublic()) {
+            return false;
+        }
+
         return $this->hasRole($role->value);
+    }
+
+    /**
+     * Every permission check goes through here (spatie's gate hook calls it), so on the public entrance an
+     * account holds none: it sees and can do only what any employee can (CORE-ACC-004).
+     *
+     * @param  int|string|\BackedEnum|\Spatie\Permission\Contracts\Permission  $permission
+     */
+    public function checkPermissionTo($permission, ?string $guardName = null): bool
+    {
+        if (app(Entrance::class)->isPublic()) {
+            return false;
+        }
+
+        return $this->permissionCheckedByRoles($permission, $guardName);
     }
 }

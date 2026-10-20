@@ -24,6 +24,8 @@ declare module '@inertiajs/core' {
             openOffboarding: number;
             /** Profile change requests HR has to decide: the badge on "Perubahan data". */
             pendingProfileChanges: number;
+            /** Which entrance this is; `limited` when an elevated account is held to the self-service view. */
+            entrance: { public: boolean; limited: boolean };
             sidebarOpen: boolean;
             [key: string]: unknown;
         };

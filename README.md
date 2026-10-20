@@ -32,7 +32,7 @@ listed in the checklist below. Nothing here is committed yet: changes are left f
 
 |                 |                                                                                                              |
 | --------------- | ------------------------------------------------------------------------------------------------------------ |
-| Tests           | 685 passing                                                                                                  |
+| Tests           | 698 passing                                                                                                  |
 | Static analysis | PHPStan level 7, 0 errors                                                                                    |
 | Phase 0         | **Complete** — company scoping, RBAC, workflow engine, account state and login rules                         |
 | Phase 1         | Directory (with CSV import/export), profile, add/edit, documents, admin panel done                           |
@@ -856,14 +856,14 @@ table, the checklist and the screens.
 | `CORE-SRC` | Global search & settings | 4   | 3   | 🟡     | Global search is done (header box, Ctrl/⌘ K). The leave and holiday policy live in the admin panel and on the calendar; the Indonesian translation-file setup (004) is not done |
 | —          | Employee app (PWA)       | —   | —   | ⬜     | Manifest, service worker, install prompt, Web Push, Sanctum API. Workbook has no screen rows for this yet |
 
-### Phase 6b — Public entrance and access tiers (decided 2026-10-19, not built)
+### Phase 6b — Public entrance and access tiers (decided 2026-10-19; tier middleware built 2026-10-20)
 
 Employees use the app with no VPN; elevated roles need WireGuard. The tier is enforced by the app, not
 only the network. It reverses the earlier "private-only" decision (`docs/context.md` §5.1, §5.2, §5.8).
 
 | Screen     | Name                          | f | P1 | Status | Notes |
 | ---------- | ----------------------------- | - | -- | ------ | ----- |
-| `CORE-ACC` | Access tiers, public entrance | 9 | 6  | ⬜     | See the rows below |
+| `CORE-ACC` | Access tiers, public entrance | 9 | 6  | 🟡     | `-001` to `-004` built; the rest below are not |
 
 - `CORE-ACC-001` **Two entrances.** Separate Nginx server blocks and hostnames; the app learns the entrance from
   a header only Nginx sets (trusted-proxy setup is new work, never the `Host` header); separate session cookies.
@@ -886,6 +886,80 @@ only the network. It reverses the earlier "private-only" decision (`docs/context
   entrance only; the public entrance shows initials. Company logos stay public.
 - `CORE-ACC-009` **Offboarding:** the checklist item "email and VPN accounts" now means the WireGuard peer for
   an elevated leaver; employees have no VPN to revoke.
+
+**Built 2026-10-20 (`EntranceTest`, 12 tests).** `ResolveEntrance` runs first and reads the `X-Entrance` header, believed only
+from a proxy in `TRUSTED_PROXIES`; with no trusted header the request is `ENTRANCE_DEFAULT`, which is **public when
+unset** so a broken proxy setup fails closed (development sets it to `private`). Each entrance gets its own session
+cookie. `EnforceEntrance` serves only the routes `PublicRoutes` classes as public, and a test fails when any route
+is unclassed. On the public entrance an account holds **no permissions and no role above Karyawan**
+(`User::checkPermissionTo` and `isA`), the reporting line is the person alone, approvals waiting on them are hidden
+and cannot be decided, and `entrance.limited` shows elevated accounts a notice. `AccessTier` answers who is elevated.
+**Filing a Pengajuan for oneself works on the public entrance** (POSTs `leave-requests.store` and `update`, profile
+change requests, withdrawing one); filing for someone else, and backdating, stay on the private entrance.
+**Not built yet:** the Nginx server blocks that set the header (the header must be *overwritten*, never passed on from
+the client), the 2FA and throttling hardening, the registration and sign-in changes, private photos, and removing
+email password reset (`-005` to `-009`).
+
+**Deferred to the last phase, before go-live** (decided 2026-10-20; the mobile PWA view waits until the web app is ready):
+what the Inertia shared props carry on every page, and the leaver's own read-only offboarding view on the public
+entrance (offboarding is private for now). Both are noted here so they are not forgotten.
+
+#### Route audit for the public entrance (2026-10-20)
+
+All 117 application routes and the 41 from packages were classed, and what a plain Karyawan, a supervisor,
+HR and Management reach on every route with no parameter was checked against a running app. The routes with
+parameters were read from their policies. Nothing was changed.
+
+**What already holds.** A plain Karyawan already gets 403 on the directory, import and export, the attendance
+calendar, recap, issues and device pages, the profile-change queue, offboarding and the user admin screens.
+Their own data is reachable through policies that already check ownership (profile, own leave and attachments,
+own documents that are not restricted).
+
+**Public entrance, allowed** (the allowlist for `CORE-ACC-002`):
+- *Sign-in:* `login`, `logout`, `two-factor-challenge`, `register`, `user/confirm-password` and the two-factor
+  setup routes under `user/`.
+- *Own data:* `dashboard`, `notifications*`, `leave-requests` (list, create, store, update, export, own
+  attachments), `employees/{self}` (show, edit, update, summary, changes), `documents/*/versions/*` for the
+  person's own unrestricted documents, `profile-changes/{own}` to withdraw, `search`, `settings/*`
+  (profile, password, security, appearance), `active-company` and `up`.
+
+**Private only** (never served on the public entrance): everything under `admin/*` and `livewire-*`; `api/ingest/*`;
+`employees` index, create, import, export, store and any other person's record; `documents` store, update, delete
+and new versions; `employees/{employee}/punches`, `punches/*`; all of `attendance/*`; `calendar-events`;
+`profile-changes` index and decisions; `leave-requests/{id}/decision`; all of `offboarding/*`.
+
+**Findings that need work** (these are what Phase 6b must change):
+1. **There is no entrance concept anywhere.** Every route sits behind only `Authenticate`, so on a public
+   entrance a supervisor today would reach the directory, the export and the offboarding screens (200 on all
+   three). The tier must be one middleware that every route passes through, with an allowlist by route name.
+2. **"Elevated" is scattered across policies** (`viewAny` by permission or reports, leave `view` by approver
+   step, offboarding by item owner). It needs one service that answers it for a user: any role above Karyawan,
+   direct reports, department head, an approval step bound to them, or an offboarding item owner.
+3. **Some routes serve different data per account at one URL** (`dashboard`, `leave-requests`, `search`,
+   `employees/{id}`, document and attachment downloads, `offboarding` and `offboarding/{case}`). On the public
+   entrance they must behave as the Karyawan version for everyone, so the check has to be on the data scope, not
+   only the URL.
+4. **Photos and logos are reachable with no sign-in** through `/storage` (the public disk). Photos need the
+   private disk and an authorised route (`CORE-ACC-008`). The package route `storage/{path}` serves the private
+   `local` disk (`serve` is on); nothing should generate signed links to it, and it should be switched off or
+   blocked on the public entrance.
+5. **Password reset by email is switched on** (Fortify `resetPasswords`) while emails are optional and never
+   verified. That contradicts "no reset before HR activates" and is a takeover path on a public site. It should
+   be removed in favour of reset by HR or admin, and the email-verification routes with it.
+6. **`register` creates an active account** and `login` uses the email (the employee-ID sign-in is custom); both
+   change under `CORE-ACC-006` and `-007`.
+7. **One session configuration for everything.** The entrances need their own cookie names.
+8. **No trusted-proxy configuration**, which the entrance header depends on.
+9. **Dev-only routes.** `_boost/browser-logs` comes from a dev package and must not exist on the server
+   (install without dev dependencies); `sanctum/csrf-cookie` is unused by the Inertia app and can be blocked.
+10. **Not yet audited:** the data the Inertia shared props carry on every page (company switcher, counts), and
+    the leaver's own read-only offboarding view. The leaver is a Karyawan with no VPN, so the proposal is to
+    allow that one read-only page on the public entrance; to be confirmed.
+11. **Future routes:** the PWA's Sanctum API does not exist yet. It should start with the same allowlist and the
+    same tier rule, so it cannot become a way around the entrance.
+
+Tests to add when this is built: one that requests every route by name as an elevated account on the public
+entrance and expects the allowlist and nothing else, and a guard that fails when a new route has no class.
 
 ### Phase 7 — Deployment & VPN
 

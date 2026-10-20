@@ -15,6 +15,7 @@ use App\Models\LeaveRequest;
 use App\Models\RequestType;
 use App\Models\User;
 use App\Models\WorkflowStep;
+use App\Support\Access\Entrance;
 use App\Support\CsvDownload;
 use App\Support\Leave\LeaveLimits;
 use App\Support\Leave\LeaveRequestPresenter;
@@ -174,6 +175,13 @@ class LeaveRequestController extends Controller
      */
     private function fileableBy(User $user, Builder $query): void
     {
+        // On the public entrance everyone files for themselves only (CORE-ACC-004).
+        if (app(Entrance::class)->isPublic()) {
+            $query->where('user_id', $user->id);
+
+            return;
+        }
+
         if ($user->can(Permission::CreateEmployees->value)) {
             return;
         }

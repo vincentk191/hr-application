@@ -1,8 +1,10 @@
 <?php
 
 use App\Http\Middleware\EnforceAccountState;
+use App\Http\Middleware\EnforceEntrance;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\ResolveEntrance;
 use App\Http\Middleware\SetActiveCompany;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -23,6 +25,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
+        // Which entrance the request used, before anything starts a session (CORE-ACC-001).
+        $middleware->prepend(ResolveEntrance::class);
+        $middleware->api(append: [EnforceEntrance::class]);
+
         // Sanctum's token-ability checks, for routes that must be limited to one kind of token.
         $middleware->alias([
             'abilities' => CheckAbilities::class,
@@ -39,6 +45,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(remove: [SubstituteBindings::class]);
 
         $middleware->web(append: [
+            EnforceEntrance::class,
             HandleAppearance::class,
             SetActiveCompany::class,
             EnforceAccountState::class,

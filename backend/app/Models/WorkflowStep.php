@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Concerns\BelongsToCompany;
 use App\Enums\WorkflowStepStatus;
+use App\Support\Access\Entrance;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
@@ -101,7 +102,8 @@ class WorkflowStep extends Model
      */
     public function canBeDecidedBy(User $user): bool
     {
-        if (! $this->isOpen()) {
+        // Deciding is an elevated act: it needs the private entrance (CORE-ACC-004).
+        if (! $this->isOpen() || app(Entrance::class)->isPublic()) {
             return false;
         }
 
@@ -133,6 +135,12 @@ class WorkflowStep extends Model
     #[Scope]
     protected function waitingOn(Builder $query, User $user): void
     {
+        if (app(Entrance::class)->isPublic()) {
+            $query->whereRaw('1 = 0');
+
+            return;
+        }
+
         $query->where('status', WorkflowStepStatus::Pending)
             ->where(function (Builder $query) use ($user): void {
                 $query->where('approver_user_id', $user->id)

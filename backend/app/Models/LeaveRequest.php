@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Concerns\BelongsToCompany;
 use App\Concerns\HasWorkflow;
+use App\Support\Access\Entrance;
 use App\Support\Attendance\WorkingDays;
 use App\Support\ReportingLine;
 use Carbon\CarbonInterface;
@@ -86,6 +87,13 @@ class LeaveRequest extends Model
         $ids = app(ReportingLine::class)->visibleIds($user);
 
         if ($ids === null) {
+            return;
+        }
+
+        // The requests they are asked to approve are an elevated view; not on the public entrance.
+        if (app(Entrance::class)->isPublic()) {
+            $query->whereIn('employee_id', $ids);
+
             return;
         }
 

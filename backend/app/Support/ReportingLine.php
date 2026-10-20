@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Enums\Permission;
 use App\Models\Employee;
 use App\Models\User;
+use App\Support\Access\Entrance;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -71,11 +72,16 @@ class ReportingLine
      */
     public function visibleIds(User $user): ?array
     {
+        $own = Employee::acrossCompanies()->where('user_id', $user->id)->first();
+
+        // On the public entrance a person sees themselves only, whatever their place in the line.
+        if (app(Entrance::class)->isPublic()) {
+            return $own === null ? [] : [$own->id];
+        }
+
         if ($user->can(Permission::ViewAllEmployees->value)) {
             return null;
         }
-
-        $own = Employee::acrossCompanies()->where('user_id', $user->id)->first();
 
         return $own === null ? [] : $this->scopeIds($own);
     }
@@ -86,6 +92,10 @@ class ReportingLine
      */
     public function hasReports(User $user): bool
     {
+        if (app(Entrance::class)->isPublic()) {
+            return false;
+        }
+
         $own = Employee::acrossCompanies()->where('user_id', $user->id)->value('id');
 
         return $own !== null && Employee::acrossCompanies()->where('manager_id', $own)->exists();

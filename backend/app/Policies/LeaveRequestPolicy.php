@@ -9,6 +9,7 @@ use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\User;
 use App\Models\WorkflowStep;
+use App\Support\Access\Entrance;
 use App\Support\ReportingLine;
 
 /**
@@ -29,6 +30,10 @@ class LeaveRequestPolicy
     {
         if ($leaveRequest->employee?->user_id === $user->id) {
             return true;
+        }
+
+        if (app(Entrance::class)->isPublic()) {
+            return false;
         }
 
         if (! $user->canAccessCompany($leaveRequest->company_id)) {
@@ -57,7 +62,8 @@ class LeaveRequestPolicy
      */
     public function createOnBehalf(User $user): bool
     {
-        return $user->can(Permission::CreateEmployees->value) || $user->isA(Role::Management);
+        return ! app(Entrance::class)->isPublic()
+            && ($user->can(Permission::CreateEmployees->value) || $user->isA(Role::Management));
     }
 
     /**

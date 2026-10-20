@@ -10,6 +10,7 @@ use App\Models\OffboardingCaseDepartment;
 use App\Models\OffboardingCaseItem;
 use App\Models\User;
 use App\Policies\OffboardingCasePolicy;
+use App\Support\Access\Entrance;
 use App\Support\Attendance\WorkSchedule;
 use App\Workflows\Definitions\LeaveRequestWorkflow;
 use App\Workflows\Definitions\OffboardingCaseWorkflow;
@@ -18,6 +19,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\Console\AboutCommand;
+use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Date;
@@ -38,6 +40,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        // One per request: which entrance the request used (CORE-ACC-001).
+        $this->app->singleton(Entrance::class);
+
         $this->registerWorkflows();
         $this->app->bind(WorkSchedule::class, fn (): WorkSchedule => WorkSchedule::current());
     }
@@ -47,6 +52,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // The proxies whose forwarded address and scheme, and entrance header, are believed (CORE-ACC-001).
+        TrustProxies::at(config('entrance.trusted_proxies'));
+
         $this->configureDefaults();
         AboutCommand::add('HR Dashboard', fn (): array => ['Version' => config('app.version')]);
         $this->defineAttendanceGate();

@@ -13,7 +13,7 @@ import { dashboard } from '@/routes';
  * company, notifications and the person signed in. The side menu sits beneath it.
  */
 export function AppTopbar() {
-    const { branding } = usePage().props;
+    const { branding, entrance } = usePage().props;
 
     // Wear the colour of the company being looked at, and take it off again when there is none.
     useEffect(() => {
@@ -21,6 +21,7 @@ export function AppTopbar() {
     }, [branding?.color]);
 
     return (
+        <>
         <header className="sticky top-0 z-30 flex h-(--topbar-h) shrink-0 items-center gap-2 border-b bg-card px-3 sm:gap-4 sm:px-6">
             <SidebarTrigger className="-ml-1 shrink-0" />
 
@@ -58,5 +59,17 @@ export function AppTopbar() {
                 <UserChip />
             </div>
         </header>
+        {entrance?.limited && (
+            <div
+                role="status"
+                className="border-b bg-amber-500/10 px-3 py-2 text-sm text-amber-800 sm:px-6 dark:text-amber-200"
+                data-test="limited-view"
+            >
+                Anda masuk lewat jalur publik, jadi hanya halaman pribadi Anda
+                yang tersedia. Fitur lain (tim, persetujuan, laporan) hanya
+                bisa dibuka lewat VPN.
+            </div>
+        )}
+        </>
     );
 }
