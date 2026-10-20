@@ -52,6 +52,29 @@ it('saves a company\'s colour and logo from its form', function () {
     Storage::disk('public')->assertExists($acme->logo_path);
 });
 
+it('saves a separate dark-mode logo, and falls back to the light one when there is none', function () {
+    $this->actingAs($this->admin);
+
+    Livewire::test(EditCompany::class, ['record' => $this->acme->getKey()])
+        ->fillForm(['logo_path' => logoFile(), 'logo_dark_path' => logoFile('logo-dark.png')])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    $acme = $this->acme->fresh();
+
+    expect($acme->logo_dark_path)->toStartWith('company-logos/')
+        ->and($acme->logoDarkUrl())->toContain('company-logos/')
+        ->and($acme->logoDarkUrl())->not->toBe($acme->logoUrl());
+    Storage::disk('public')->assertExists($acme->logo_dark_path);
+
+    $this->actingAs($this->admin)->withSession([SetActiveCompany::SESSION_KEY => (string) $acme->id])
+        ->get(route('dashboard'))
+        ->assertInertia(fn (Assert $page) => $page->where('branding.logoDarkUrl', fn ($url) => str_contains($url, 'company-logos/')));
+
+    $acme->update(['logo_dark_path' => null]);
+    expect($acme->fresh()->logoDarkUrl())->toBeNull();
+});
+
 it('lets a company be created with a colour, and without one', function () {
     $this->actingAs($this->admin);
 

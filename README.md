@@ -4,9 +4,12 @@ Internal HR application for a parent group of three operating companies: one das
 and management, and (later) a PWA for staff. Replaces a fragmented Access + Excel + PDF setup
 with a single source of truth.
 
-**Private by design.** The app is never exposed to the public internet — admins reach it over
-Tailscale, employees over WireGuard. The only public surface in the whole system is the careers
-intake on the existing CMP website, which the app talks to outbound only.
+**Two entrances, decided 2026-10-19** (replaces "private by design"). Elevated roles (supervisors and anyone
+with direct reports, department heads, approvers, checklist item owners, Management, HR, admins) and the
+scanner server reach the app over **WireGuard only** (Tailscale is not used). Employees reach their own
+self-service pages over a **public entrance with no VPN**; elevated accounts that sign in there get the
+same limited view. Not built yet: see Phase 6b. The careers intake on the existing CMP website remains
+public, and the app talks to it outbound only.
 
 The full spec lives outside this repo in `../docs/`:
 
@@ -748,12 +751,12 @@ How the import behaves, so it is not surprised by:
 - **Not built yet:** the on-site agent and listener, and xlsx import.
 - **Open before `ATT-DEV` can be closed** (found in the first scanner test on SERVER-CAMAT,
   2026-10-13; the field work and checklist are in `../fingerspot-toolkit/README.txt`, follow-ups F1-F6):
-  - **How the on-site server reaches this endpoint is undecided, and it is not "public HTTPS".**
+  - **How the on-site server reaches this endpoint is decided (WireGuard peer, 2026-10-19), not set up, and it is not "public HTTPS".**
     The ingest route is private-network-only by design (`routes/api.php`; Phase 7 binds nginx to
     private addresses and checks the public IP never serves the app). So SERVER-CAMAT (192.168.2.x)
-    has to be a VPN client (Tailscale or WireGuard) and the agent calls the app's private name.
-    Decide which, restrict that node (ACL) to the app's HTTPS port only, and test the agent through
-    it. The agent only ever makes outbound requests; nothing is opened at the site except the
+    has to be a WireGuard peer (Tailscale is not used) and the agent calls the app's private name.
+    Restrict that peer with a firewall rule to the app's private HTTPS port, and only the ingest
+    route, and test the agent through it. The agent only ever makes outbound requests; nothing is opened at the site except the
     scanner-to-listener firewall rule for TCP 7005. If the VPN is down the agent keeps the CSV and
     resends later (the ingest is idempotent), so test that too.
   - **The scanner's acknowledgement is unknown**, so it resends each punch about every 2 seconds
@@ -853,18 +856,50 @@ table, the checklist and the screens.
 | `CORE-SRC` | Global search & settings | 4   | 3   | 🟡     | Global search is done (header box, Ctrl/⌘ K). The leave and holiday policy live in the admin panel and on the calendar; the Indonesian translation-file setup (004) is not done |
 | —          | Employee app (PWA)       | —   | —   | ⬜     | Manifest, service worker, install prompt, Web Push, Sanctum API. Workbook has no screen rows for this yet |
 
+### Phase 6b — Public entrance and access tiers (decided 2026-10-19, not built)
+
+Employees use the app with no VPN; elevated roles need WireGuard. The tier is enforced by the app, not
+only the network. It reverses the earlier "private-only" decision (`docs/context.md` §5.1, §5.2, §5.8).
+
+| Screen     | Name                          | f | P1 | Status | Notes |
+| ---------- | ----------------------------- | - | -- | ------ | ----- |
+| `CORE-ACC` | Access tiers, public entrance | 9 | 6  | ⬜     | See the rows below |
+
+- `CORE-ACC-001` **Two entrances.** Separate Nginx server blocks and hostnames; the app learns the entrance from
+  a header only Nginx sets (trusted-proxy setup is new work, never the `Host` header); separate session cookies.
+- `CORE-ACC-002` **Self-service allowlist on the public entrance:** dashboard, own attendance, own Pengajuan,
+  own profile, notifications. Everything else (the admin panel, `/api/ingest`, offboarding, recaps, the employee
+  list, the company calendar's other people, global search of others) is refused there. Every existing route
+  has to be classed as self-service or private: an audit of the built phases.
+- `CORE-ACC-003` **Who is elevated:** any role above Karyawan, anyone with direct reports, department heads,
+  approvers, and the owners of offboarding checklist items (they see other people's leaver details).
+- `CORE-ACC-004` **Limited view:** an elevated account on the public entrance gets the employee view only, with
+  a notice that the rest needs the VPN. Approving leave from a phone therefore needs WireGuard.
+- `CORE-ACC-005` **Hardening:** 2FA recommended for every account, login throttled per address and per account,
+  a proxy or WAF, and a check from outside that the public IP serves only the allowlist.
+- `CORE-ACC-006` **Registration waits for HR** (changes `CORE-REG`): the account is created pending and cannot
+  sign in or reset a password until HR clicks activate. Activation codes handed over in person are a possible
+  later tightening.
+- `CORE-ACC-007` **Sign-in is NIK + Employee ID + password** as separate fields (replaces email or employee ID;
+  email sign-in stays on the private entrance for the seeded admin accounts).
+- `CORE-ACC-008` **Photos are private:** moved to a private disk and served by an authorised route on the private
+  entrance only; the public entrance shows initials. Company logos stay public.
+- `CORE-ACC-009` **Offboarding:** the checklist item "email and VPN accounts" now means the WireGuard peer for
+  an elevated leaver; employees have no VPN to revoke.
+
 ### Phase 7 — Deployment & VPN
 
-Not screens. Nginx bound to the private addresses only, PHP-FPM, queue worker and scheduler
-units, DNS-01 certificate for `hr.cmp.id`, WireGuard + wg-easy, Tailscale, separate Linux user
-and DB credentials, and a check that the public IP never serves this app.
+Not screens. Two Nginx server blocks (the private one bound to the WireGuard address only, the public one
+serving only the self-service allowlist), PHP-FPM, queue worker and scheduler units, DNS-01 certificate for
+the private name `hr.cmp.id` and an ordinary certificate for the public hostname, **WireGuard + wg-easy only
+(no Tailscale)**, separate Linux user and DB credentials, and a check from outside that the public IP serves
+only the allowlist. With a public entrance, a small VPS of its own is recommended over sharing the CMP one.
 
 Nothing in the app blocks this — a working login and `/up` is all the VPN test needs.
 
 **Also needed here, from Phase 2 (`ATT-DEV`):** the on-site scanner server (SERVER-CAMAT) must be
 able to reach `/api/ingest/attendance` over the same private network, because the route is not
-public. Whichever of Tailscale or WireGuard is chosen has to include that machine as a client,
-limited to the app's HTTPS port. See "Open before `ATT-DEV` can be closed" in Phase 2.
+public. That machine is a WireGuard peer, limited to the app's private HTTPS port and the ingest route. See "Open before `ATT-DEV` can be closed" in Phase 2.
 
 ### Decided 2026-10-14 (all built except first-run seeding)
 
@@ -912,11 +947,13 @@ Indonesian workbook copy has deliberately not been regenerated while more change
   (`national_id`, 16 digits) becomes required and unique across the group.
 - *Registration.* The employee registers at "Daftar" with NIK, employee ID, a new password and an
   optional email. When the NIK and employee ID match one record that has no account yet and is not
-  a former employee, the account is created already active: pinned to that company, with the
+  a former employee, the account is created already active (to change: it will wait for HR, `CORE-ACC-006`): pinned to that company, with the
   Karyawan role.
 - *Refusals.* Every refusal gets the same message, and attempts are throttled.
-- *Known risk.* NIK + employee ID is not a secret. That is accepted because the app is VPN-only. A
-  wrongly claimed account is deactivated and reset.
+- *Known risk (revised 2026-10-19).* NIK + employee ID is not a secret. That was accepted because the app was
+  VPN-only; with a public entrance it is not, so registration will wait for HR to activate the account, and
+  sign-in will use NIK + employee ID + password (`CORE-ACC-006`, `-007`; not built). A wrongly claimed account is
+  deactivated and reset.
 - *Roles and fallback.* System Admin still assigns every role other than Karyawan. System Admin
   can also still create an account with a temporary password as a fallback.
 - *Data-only records.* Warehouse staff stay data-only. A record shows as active only once it has
@@ -1117,8 +1154,8 @@ Progress Tracking analytics (Appendix C).
   The audit log is gated by `manage-users`, not a permission of its own.
 - **Profile pictures sit on the public disk** (`storage/app/public/employee-photos`, served at
   `/storage`) under random file names. They are reachable by anyone who has the URL, unlike the
-  rest of the dossier. If that is not acceptable, they need a private disk and an authorised
-  route. The container image has no GD extension, so there is no server-side resizing. Instead the
+  rest of the dossier. With the public entrance this changes (`CORE-ACC-008`): they move to a private disk and an authorised
+  route on the private entrance only; the public entrance shows initials. The container image has no GD extension, so there is no server-side resizing. Instead the
   browser shrinks and converts the picture before it is sent: the longest side is brought down to
   640 px and it is saved as WebP at quality 0.8, so a phone photo of a few MB goes up as under 100 KB
   (`lib/compress-image.ts`, used by the form's `PhotoInput`). If the browser cannot do it, or the result

@@ -29,8 +29,15 @@ export function AppTopbar() {
                     <img
                         src={branding.logoUrl}
                         alt={branding.name ?? 'Logo perusahaan'}
-                        className="h-9 max-w-32 object-contain sm:max-w-40"
+                        className={`h-9 max-w-32 object-contain sm:max-w-40 ${branding.logoDarkUrl ? 'dark:hidden' : ''}`}
                     />
+                    {branding.logoDarkUrl && (
+                        <img
+                            src={branding.logoDarkUrl}
+                            alt={branding.name ?? 'Logo perusahaan'}
+                            className="hidden h-9 max-w-32 object-contain sm:max-w-40 dark:block"
+                        />
+                    )}
                 </Link>
             )}
             <Link

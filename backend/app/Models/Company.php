@@ -24,11 +24,12 @@ use Illuminate\Support\Facades\Storage;
  * @property string $name
  * @property string|null $brand_color
  * @property string|null $logo_path
+ * @property string|null $logo_dark_path
  * @property bool $is_active
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['code', 'name', 'brand_color', 'logo_path', 'is_active'])]
+#[Fillable(['code', 'name', 'brand_color', 'logo_path', 'logo_dark_path', 'is_active'])]
 class Company extends Model
 {
     /** @use HasFactory<CompanyFactory> */
@@ -51,6 +52,14 @@ class Company extends Model
     public function logoUrl(): ?string
     {
         return $this->logo_path === null ? null : Storage::disk('public')->url($this->logo_path);
+    }
+
+    /**
+     * The logo for dark mode, or null when only one was uploaded (the light logo is then used in both modes).
+     */
+    public function logoDarkUrl(): ?string
+    {
+        return $this->logo_dark_path === null ? null : Storage::disk('public')->url($this->logo_dark_path);
     }
 
     /**

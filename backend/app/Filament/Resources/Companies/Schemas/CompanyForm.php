@@ -30,8 +30,17 @@ class CompanyForm
                     ->regex(Branding::COLOR_PATTERN)
                     ->validationMessages(['regex' => 'Gunakan warna heksadesimal enam digit, mis. #1d4ed8.']),
                 FileUpload::make('logo_path')
-                    ->label('Logo')
+                    ->label('Logo (mode terang)')
                     ->helperText('PNG, JPG, SVG atau WebP, maksimal 2 MB. Tampil di bilah atas saat perusahaan ini dipilih.')
+                    ->image()
+                    ->disk('public')
+                    ->directory('company-logos')
+                    ->visibility('public')
+                    ->acceptedFileTypes(['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'])
+                    ->maxSize(2048),
+                FileUpload::make('logo_dark_path')
+                    ->label('Logo (mode gelap)')
+                    ->helperText('Opsional, untuk latar gelap. Kosongkan untuk memakai logo mode terang di kedua mode.')
                     ->image()
                     ->disk('public')
                     ->directory('company-logos')

@@ -20,6 +20,11 @@ class CompaniesTable
                     ->label('Logo')
                     ->disk('public')
                     ->height(28),
+                ImageColumn::make('logo_dark_path')
+                    ->label('Logo gelap')
+                    ->disk('public')
+                    ->height(28)
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('code')
                     ->label('Kode')
                     ->searchable()

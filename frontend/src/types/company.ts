@@ -6,6 +6,8 @@ export type Branding = {
     name: string | null;
     color: string | null;
     logoUrl: string | null;
+    /** For dark mode; the light logo is used when there is none. */
+    logoDarkUrl: string | null;
 };
 
 export type CompanyOption = {

@@ -36,26 +36,27 @@ class Branding
     }
 
     /**
-     * @return array{name: string|null, color: string|null, logoUrl: string|null}
+     * @return array{name: string|null, color: string|null, logoUrl: string|null, logoDarkUrl: string|null}
      */
     public function current(): array
     {
         $companyId = $this->context->companyId();
 
         if ($this->context->isCombined() || $companyId === null) {
-            return ['name' => null, 'color' => $this->groupColor(), 'logoUrl' => null];
+            return ['name' => null, 'color' => $this->groupColor(), 'logoUrl' => null, 'logoDarkUrl' => null];
         }
 
-        $company = Company::query()->find($companyId, ['id', 'name', 'brand_color', 'logo_path']);
+        $company = Company::query()->find($companyId, ['id', 'name', 'brand_color', 'logo_path', 'logo_dark_path']);
 
         if ($company === null) {
-            return ['name' => null, 'color' => null, 'logoUrl' => null];
+            return ['name' => null, 'color' => null, 'logoUrl' => null, 'logoDarkUrl' => null];
         }
 
         return [
             'name' => $company->name,
             'color' => $company->brand_color,
             'logoUrl' => $company->logoUrl(),
+            'logoDarkUrl' => $company->logoDarkUrl(),
         ];
     }
 }
