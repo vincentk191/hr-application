@@ -14,7 +14,7 @@ use Inertia\Testing\AssertableInertia as Assert;
  * The profile picture on the employee record, as shown on the directory cards.
  */
 beforeEach(function () {
-    Storage::fake('public');
+    Storage::fake('local');
     $this->seed(RoleSeeder::class);
     $this->company = Company::factory()->create();
     $this->hr = User::factory()->create(['company_id' => $this->company->id]);
@@ -55,12 +55,12 @@ it('stores an uploaded photo and exposes its URL to the directory', function () 
     $employee = Employee::firstWhere('employee_number', 'EMP-7001');
 
     expect($employee->photo_path)->not->toBeNull();
-    Storage::disk('public')->assertExists($employee->photo_path);
+    Storage::disk('local')->assertExists($employee->photo_path);
 
     $this->actingAs($this->hr)
         ->get(route('employees.index'))
         ->assertInertia(fn (Assert $page) => $page
-            ->where('employees.0.photoUrl', Storage::disk('public')->url($employee->photo_path)));
+            ->where('employees.0.photoUrl', fn ($url) => str_starts_with($url, "/employees/{$employee->id}/photo?v=")));
 });
 
 it('keeps the WebP file the browser sends after shrinking the picture', function () {
@@ -71,7 +71,7 @@ it('keeps the WebP file the browser sends after shrinking the picture', function
     $path = Employee::firstWhere('employee_number', 'EMP-7001')->photo_path;
 
     expect($path)->toEndWith('.webp');
-    Storage::disk('public')->assertExists($path);
+    Storage::disk('local')->assertExists($path);
 });
 
 it('gives a null photoUrl when there is no picture', function () {
@@ -84,7 +84,7 @@ it('gives a null photoUrl when there is no picture', function () {
 
 it('replaces a photo and deletes the old file', function () {
     $employee = Employee::factory()->forCompany($this->company)->create([
-        'photo_path' => fakePhoto('old.jpg')->store('employee-photos', 'public'),
+        'photo_path' => fakePhoto('old.jpg')->store('employee-photos', 'local'),
     ]);
     $old = $employee->photo_path;
 
@@ -98,13 +98,13 @@ it('replaces a photo and deletes the old file', function () {
     $employee->refresh();
 
     expect($employee->photo_path)->not->toBe($old);
-    Storage::disk('public')->assertMissing($old);
-    Storage::disk('public')->assertExists($employee->photo_path);
+    Storage::disk('local')->assertMissing($old);
+    Storage::disk('local')->assertExists($employee->photo_path);
 });
 
 it('removes a photo on request', function () {
     $employee = Employee::factory()->forCompany($this->company)->create([
-        'photo_path' => fakePhoto('old.jpg')->store('employee-photos', 'public'),
+        'photo_path' => fakePhoto('old.jpg')->store('employee-photos', 'local'),
     ]);
     $old = $employee->photo_path;
 
@@ -116,12 +116,12 @@ it('removes a photo on request', function () {
         ->assertRedirect();
 
     expect($employee->fresh()->photo_path)->toBeNull();
-    Storage::disk('public')->assertMissing($old);
+    Storage::disk('local')->assertMissing($old);
 });
 
 it('keeps the existing photo when an edit does not touch it', function () {
     $employee = Employee::factory()->forCompany($this->company)->create([
-        'photo_path' => fakePhoto('old.jpg')->store('employee-photos', 'public'),
+        'photo_path' => fakePhoto('old.jpg')->store('employee-photos', 'local'),
     ]);
 
     $this->actingAs($this->hr)
@@ -144,4 +144,24 @@ it('rejects a file that is not an image, or is too large', function () {
         ->assertSessionHasErrors('photo');
 
     expect(Employee::where('employee_number', 'EMP-7001')->exists())->toBeFalse();
+});
+
+it('keeps pictures private: served by an authorised route on the private entrance, and not at all on the public one', function () {
+    $employee = Employee::factory()->forCompany($this->company)->withLogin()->create([
+        'photo_path' => fakePhoto('dewi.jpg')->store('employee-photos', 'local'),
+    ]);
+    $colleague = Employee::factory()->forCompany($this->company)->withLogin()->create();
+    $url = route('employees.photo', $employee);
+
+    // Not on any public path.
+    expect(Storage::disk('public')->exists($employee->photo_path))->toBeFalse();
+
+    $this->actingAs($employee->user)->get($url)->assertOk();
+    $this->actingAs($this->hr)->get($url)->assertOk();
+    $this->actingAs($colleague->user)->get($url)->assertForbidden();
+
+    // The public entrance neither serves the route nor offers a picture: initials are shown instead.
+    $this->withHeaders(['X-Entrance' => 'public'])->actingAs($employee->user)->get($url)->assertForbidden();
+    $this->withHeaders(['X-Entrance' => 'public'])->actingAs($employee->user)->get(route('employees.show', $employee))
+        ->assertInertia(fn (Assert $page) => $page->where('employee.photoUrl', null));
 });

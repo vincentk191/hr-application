@@ -40,9 +40,9 @@ class PublicRoutes
     public const PRIVATE_PREFIXES = [
         'filament.', 'livewire.', 'default-livewire.', 'api.', 'attendance.', 'calendar-events.', 'punches.', 'offboarding.',
         'storage.', 'sanctum.', 'boost.', 'verification.', 'password.request', 'password.email', 'password.reset', 'password.update',
-        'employees.index', 'employees.create', 'employees.store', 'employees.import', 'employees.export',
+        'employees.index', 'employees.create', 'employees.store', 'employees.activation', 'employees.photo', 'employees.import', 'employees.export',
         'documents.store', 'documents.update', 'documents.destroy', 'documents.versions',
-        'profile-changes.index', 'profile-changes.decide', 'leave-requests.decision',
+        'profile-changes.index', 'profile-changes.decide', 'profile-changes.photo', 'leave-requests.decision',
         'user-password.',
     ];
 

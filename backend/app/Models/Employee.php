@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Concerns\BelongsToCompany;
 use App\Enums\EmploymentStatus;
 use App\Enums\EmploymentType;
+use App\Support\Access\Entrance;
 use App\Support\ReportingLine;
 use Database\Factories\EmployeeFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -15,7 +16,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Storage;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 
@@ -202,9 +202,18 @@ class Employee extends Model
     /**
      * The public URL of the profile picture, or null when the record has none.
      */
+    /** The private disk profile pictures are kept on (CORE-ACC-008). */
+    public const PHOTO_DISK = 'local';
+
     public function photoUrl(): ?string
     {
-        return $this->photo_path === null ? null : Storage::disk('public')->url($this->photo_path);
+        // Pictures are private (CORE-ACC-008): served by an authorised route on the private entrance only, so
+        // the public entrance shows initials.
+        if ($this->photo_path === null || app(Entrance::class)->isPublic()) {
+            return null;
+        }
+
+        return route('employees.photo', $this, absolute: false).'?v='.substr(md5($this->photo_path), 0, 8);
     }
 
     public function hasLogin(): bool
@@ -221,6 +230,10 @@ class Employee extends Model
     {
         if ($this->user_id === null) {
             return 'Belum terdaftar';
+        }
+
+        if ($this->user?->awaiting_activation === true) {
+            return 'Menunggu aktivasi';
         }
 
         return $this->user?->is_active === false ? 'Dinonaktifkan' : 'Aktif';

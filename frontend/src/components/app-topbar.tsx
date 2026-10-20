@@ -2,6 +2,7 @@ import { Link, usePage } from '@inertiajs/react';
 import { useEffect } from 'react';
 import { CompanySwitcher } from '@/components/company-switcher';
 import { GlobalSearch } from '@/components/global-search';
+import { InstallBanner } from '@/components/install-banner';
 import { NotificationBell } from '@/components/notification-bell';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { UserChip } from '@/components/user-chip';
@@ -59,6 +60,7 @@ export function AppTopbar() {
                 <UserChip />
             </div>
         </header>
+        <InstallBanner />
         {entrance?.limited && (
             <div
                 role="status"

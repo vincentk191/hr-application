@@ -26,6 +26,6 @@ class AccountRegistrationController extends Controller
         $register->handle($request->validated(), $request->ip());
 
         // Not signed in automatically: they sign in the normal way, which also proves the password.
-        return to_route('login')->with('status', 'Pendaftaran berhasil. Silakan masuk dengan ID karyawan Anda.');
+        return to_route('login')->with('status', 'Pendaftaran berhasil. Akun bisa dipakai setelah HR mengaktifkannya.');
     }
 }

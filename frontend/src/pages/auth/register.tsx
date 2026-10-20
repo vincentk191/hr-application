@@ -134,5 +134,5 @@ export default function Register({ passwordRules }: Props) {
 Register.layout = {
     title: 'Daftar',
     description:
-        'Isi NIK dan ID karyawan yang sama dengan data yang dibuat HR, lalu pilih kata sandi.',
+        'Isi NIK dan ID karyawan yang sama dengan data yang dibuat HR, lalu pilih kata sandi. Akun baru bisa dipakai setelah HR mengaktifkannya.',
 };

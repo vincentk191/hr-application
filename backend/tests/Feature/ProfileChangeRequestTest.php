@@ -18,7 +18,7 @@ use Spatie\Activitylog\Models\Activity;
  */
 beforeEach(function () {
     $this->seed(RoleSeeder::class);
-    Storage::fake('public');
+    Storage::fake('local');
 
     $this->company = Company::factory()->create();
     $this->hr = changeUser(Role::HrAdmin, $this->company);
@@ -145,15 +145,29 @@ it('keeps a withdrawn or rejected picture off the disk', function () {
 
     askForChange($this->staffUser, $this->staff, ['photo' => $photo()])->assertRedirect();
     $pending = latestChange()->changes['photo_path']['after'];
-    Storage::disk('public')->assertExists($pending);
+    Storage::disk('local')->assertExists($pending);
 
     $this->actingAs($this->staffUser)->delete(route('profile-changes.destroy', latestChange()))->assertRedirect();
-    Storage::disk('public')->assertMissing($pending);
+    Storage::disk('local')->assertMissing($pending);
 
     askForChange($this->staffUser, $this->staff, ['photo' => $photo()])->assertRedirect();
     $second = latestChange()->changes['photo_path']['after'];
     $this->actingAs($this->hr)->put(route('profile-changes.decide', latestChange()), ['decision' => 'reject', 'note' => 'Foto kurang jelas'])->assertRedirect();
-    Storage::disk('public')->assertMissing($second);
+    Storage::disk('local')->assertMissing($second);
+});
+
+it('shows a waiting picture to HR and its owner through an authorised route, and to nobody else', function () {
+    askForChange($this->staffUser, $this->staff, ['photo' => UploadedFile::fake()->create('foto.jpg', 20, 'image/jpeg')])->assertRedirect();
+    $change = latestChange();
+    $other = changeUser(Role::Employee, $this->company);
+
+    $this->actingAs($this->hr)->get(route('profile-changes.photo', [$change, 'after']))->assertOk();
+    $this->actingAs($this->staffUser)->get(route('profile-changes.photo', [$change, 'after']))->assertOk();
+    $this->actingAs($this->hr)->get(route('profile-changes.photo', [$change, 'sideways']))->assertNotFound();
+    $this->actingAs($other)->get(route('profile-changes.photo', [$change, 'after']))->assertForbidden();
+
+    $this->actingAs($this->hr)->get(route('profile-changes.index'))
+        ->assertInertia(fn (Assert $page) => $page->where('waiting.0.changes.0.afterUrl', fn ($url) => str_contains($url, '/photo/after')));
 });
 
 // --- Reviewing ---
@@ -246,7 +260,7 @@ it('does not overwrite a field HR changed after the request was made, and says s
 });
 
 it('replaces the picture on approval and deletes the old file', function () {
-    $old = UploadedFile::fake()->create('lama.jpg', 20, 'image/jpeg')->store('employee-photos', 'public');
+    $old = UploadedFile::fake()->create('lama.jpg', 20, 'image/jpeg')->store('employee-photos', 'local');
     $this->staff->update(['photo_path' => $old]);
 
     askForChange($this->staffUser, $this->staff, ['photo' => UploadedFile::fake()->create('baru.jpg', 20, 'image/jpeg')])->assertRedirect();
@@ -255,8 +269,8 @@ it('replaces the picture on approval and deletes the old file', function () {
     $this->actingAs($this->hr)->put(route('profile-changes.decide', latestChange()), ['decision' => 'approve'])->assertRedirect();
 
     expect($this->staff->refresh()->photo_path)->toBe($new);
-    Storage::disk('public')->assertMissing($old);
-    Storage::disk('public')->assertExists($new);
+    Storage::disk('local')->assertMissing($old);
+    Storage::disk('local')->assertExists($new);
 });
 
 it('needs a reason to reject, and leaves the profile alone', function () {

@@ -202,6 +202,15 @@ class Notifier
      * The checklist stage began: tell the owner of each department's part, once, to pick what applies
      * (OFF-ITM-007). A department with nobody to own it is HR Admin's, and HR made the case.
      */
+    public function accountRegistered(Employee $employee, User $user): void
+    {
+        $notice = new InAppNotice('account', 'Pendaftaran akun menunggu aktivasi', "{$employee->full_name} ({$employee->employee_number}) mendaftarkan akunnya. Periksa lalu aktifkan, atau tolak jika bukan orangnya.", route('employees.show', $employee, absolute: false));
+
+        foreach ($this->hrAdmins($employee->company_id) as $hr) {
+            $hr->notify($notice);
+        }
+    }
+
     public function offboardingChecklistStarted(OffboardingCase $case): void
     {
         $case->loadMissing('employee');

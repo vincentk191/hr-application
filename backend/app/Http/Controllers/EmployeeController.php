@@ -168,6 +168,9 @@ class EmployeeController extends Controller
             ),
             // Your own record is changed by asking HR, not by editing (EMP-CHG-001).
             'canRequestChange' => $user->can('createFor', [ProfileChangeRequest::class, $employee]),
+            // An account the employee registered and HR has not yet activated (CORE-ACC-006).
+            'accountPending' => $employee->user_id !== null && User::query()->whereKey($employee->user_id)->where('awaiting_activation', true)->exists(),
+            'canActivateAccount' => $user->can('activateAccount', $employee),
             'canManageDocuments' => $user->can('create', EmployeeDocument::class),
             'canRestrictDocuments' => $user->can(Permission::ViewSensitiveData->value),
             // Loaded only when the tab is opened (router.reload with `only`), so the profile does
@@ -272,7 +275,7 @@ class EmployeeController extends Controller
         // it is deliberately absent from the validated payload.
         $employee = Employee::create([
             ...$this->writableFields($request->safe()->except(['photo', 'remove_photo']), $request->user()),
-            'photo_path' => $request->file('photo')?->store('employee-photos', 'public'),
+            'photo_path' => $request->file('photo')?->store('employee-photos', Employee::PHOTO_DISK),
         ]);
 
         Inertia::flash('toast', [
@@ -299,7 +302,7 @@ class EmployeeController extends Controller
         $data = $this->writableFields($request->safe()->except(['photo', 'remove_photo']), $request->user());
 
         if ($request->hasFile('photo')) {
-            $data['photo_path'] = $request->file('photo')->store('employee-photos', 'public');
+            $data['photo_path'] = $request->file('photo')->store('employee-photos', Employee::PHOTO_DISK);
         } elseif ($request->boolean('remove_photo')) {
             $data['photo_path'] = null;
         }
@@ -309,7 +312,7 @@ class EmployeeController extends Controller
         $employee->update($data);
 
         if ($previousPhoto !== null && $employee->photo_path !== $previousPhoto) {
-            Storage::disk('public')->delete($previousPhoto);
+            Storage::disk(Employee::PHOTO_DISK)->delete($previousPhoto);
         }
 
         Inertia::flash('toast', [

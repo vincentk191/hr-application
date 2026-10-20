@@ -36,3 +36,11 @@ void createInertiaApp({
 
 // This will set light / dark mode on load...
 initializeTheme();
+
+// The service worker (the PWA's offline page and asset cache). Only in a built app: during development the
+// Vite server serves everything and a worker would get in the way.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => undefined);
+    });
+}

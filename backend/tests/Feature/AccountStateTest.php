@@ -4,6 +4,7 @@ use App\Models\Company;
 use App\Models\Employee;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 
 test('a deactivated account cannot sign in', function () {
     $user = User::factory()->create(['is_active' => false]);
@@ -60,28 +61,65 @@ test('signing in records the last login', function () {
     expect($user->fresh()->last_login_at)->not->toBeNull();
 });
 
-test('an employee can sign in with their employee ID', function () {
-    $employee = Employee::factory()->withLogin()->create(['employee_number' => 'KRY-0042']);
+test('an employee signs in with NIK and employee ID together', function () {
+    $employee = Employee::factory()->withLogin()->create(['employee_number' => 'KRY-0042', 'national_id' => '3174000000004200']);
 
-    $this->post(route('login.store'), ['email' => 'kry-0042', 'password' => 'password']);
+    $this->post(route('login.store'), ['email' => '3174000000004200|kry-0042', 'password' => 'password']);
 
     $this->assertAuthenticatedAs($employee->user);
 });
 
-test('an employee ID shared by two companies is refused', function () {
-    $a = Employee::factory()->forCompany(Company::factory()->create())->withLogin()->create(['employee_number' => '007']);
-    Employee::factory()->forCompany(Company::factory()->create())->withLogin()->create(['employee_number' => '007']);
+test('an employee ID alone, or a NIK with the wrong ID, no longer signs anyone in', function () {
+    Employee::factory()->withLogin()->create(['employee_number' => 'KRY-1', 'national_id' => '3174000000000001']);
 
-    $this->post(route('login.store'), ['email' => '007', 'password' => 'password']);
+    foreach (['KRY-1', '3174000000000001', '3174000000000001|KRY-2', '3174000000000002|KRY-1', '|KRY-1', '3174000000000001|'] as $login) {
+        $this->post(route('login.store'), ['email' => $login, 'password' => 'password']);
+        $this->assertGuest();
+    }
+});
+
+test('an employee ID shared by two companies still signs in, because the NIK tells them apart', function () {
+    $a = Employee::factory()->forCompany(Company::factory()->create())->withLogin()->create(['employee_number' => '007', 'national_id' => '3174000000000007']);
+    Employee::factory()->forCompany(Company::factory()->create())->withLogin()->create(['employee_number' => '007', 'national_id' => '3174000000000070']);
+
+    $this->post(route('login.store'), ['email' => '3174000000000007|007', 'password' => 'password']);
+
+    $this->assertAuthenticatedAs($a->user);
+});
+
+test('a wrong password with NIK and employee ID fails', function () {
+    Employee::factory()->withLogin()->create(['employee_number' => 'KRY-1', 'national_id' => '3174000000000001']);
+
+    $this->post(route('login.store'), ['email' => '3174000000000001|KRY-1', 'password' => 'wrong']);
 
     $this->assertGuest();
 });
 
-test('a wrong password with an employee ID fails', function () {
-    Employee::factory()->withLogin()->create(['employee_number' => 'KRY-1']);
+test('an email works on the private entrance only', function () {
+    $user = User::factory()->create();
 
-    $this->post(route('login.store'), ['email' => 'KRY-1', 'password' => 'wrong']);
+    $this->withHeaders(['X-Entrance' => 'public'])->post(route('login.store'), ['email' => $user->email, 'password' => 'password']);
+    $this->assertGuest();
 
+    $this->withHeaders(['X-Entrance' => 'private'])->post(route('login.store'), ['email' => $user->email, 'password' => 'password']);
+    $this->assertAuthenticatedAs($user);
+});
+
+test('there is no password reset by email: a reset is by HR or an administrator', function () {
+    expect(Route::has('password.email'))->toBeFalse()
+        ->and(Route::has('password.reset'))->toBeFalse();
+
+    $this->get(route('login'))->assertInertia(fn ($page) => $page->where('canResetPassword', false));
+});
+
+test('a guesser is slowed down however many addresses they use against one account', function () {
+    $employee = Employee::factory()->withLogin()->create(['employee_number' => 'KRY-5', 'national_id' => '3174000000000005']);
+
+    foreach (range(1, 10) as $i) {
+        $this->withServerVariables(['REMOTE_ADDR' => "10.0.0.{$i}"])->post(route('login.store'), ['email' => '3174000000000005|KRY-5', 'password' => 'wrong']);
+    }
+
+    $this->withServerVariables(['REMOTE_ADDR' => '10.0.9.9'])->post(route('login.store'), ['email' => '3174000000000005|KRY-5', 'password' => 'password'])->assertStatus(429);
     $this->assertGuest();
 });
 

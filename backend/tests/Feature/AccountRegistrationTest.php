@@ -43,7 +43,10 @@ it('shows the registration page to guests only, with a link from the login page'
     $this->actingAs(User::factory()->create())->get(route('register'))->assertRedirect();
 });
 
-it('creates an active account for the matching profile, which can then sign in with the employee ID', function () {
+it('creates an account that waits for HR to activate it, and tells HR', function () {
+    $hr = User::factory()->create(['company_id' => $this->company->id]);
+    $hr->assignRole(Role::HrAdmin->value);
+
     $this->post(route('register.store'), registration())->assertRedirect(route('login'));
 
     $user = $this->profile->refresh()->user;
@@ -51,15 +54,74 @@ it('creates an active account for the matching profile, which can then sign in w
     expect($user)->not->toBeNull()
         ->and($user->name)->toBe('Budi Santoso')
         ->and($user->email)->toBeNull()
-        ->and($user->is_active)->toBeTrue()
-        ->and($user->must_change_password)->toBeFalse()
+        ->and($user->is_active)->toBeFalse()
+        ->and($user->awaiting_activation)->toBeTrue()
         ->and($user->company_id)->toBe($this->company->id)
-        ->and($user->email_verified_at)->not->toBeNull()
         ->and($user->getRoleNames()->all())->toBe([Role::Employee->value])
-        ->and($this->profile->accountLabel())->toBe('Aktif');
+        ->and($hr->notifications()->get()->pluck('data.title')->implode(' '))->toContain('menunggu aktivasi');
 
-    $this->post(route('login.store'), ['email' => 'K-100', 'password' => 'kata-sandi-rahasia-1'])->assertRedirect();
+    // The right password is not enough until HR has activated it, and it says why.
+    $this->post(route('login.store'), ['email' => '3174000000000100|K-100', 'password' => 'kata-sandi-rahasia-1'])
+        ->assertSessionHasErrors(['email' => 'Akun Anda menunggu aktivasi HR.']);
+    $this->assertGuest();
+
+    // A wrong password learns nothing about the account.
+    $this->post(route('login.store'), ['email' => '3174000000000100|K-100', 'password' => 'salah'])->assertSessionHasErrors('email');
+    $this->assertGuest();
+});
+
+it('lets HR activate the account, after which the employee signs in with NIK and employee ID', function () {
+    $hr = User::factory()->create(['company_id' => $this->company->id]);
+    $hr->assignRole(Role::HrAdmin->value);
+    $this->post(route('register.store'), registration())->assertRedirect(route('login'));
+    $this->app['auth']->forgetGuards();
+
+    $this->actingAs($hr)->get(route('employees.show', $this->profile))
+        ->assertInertia(fn ($page) => $page->where('accountPending', true)->where('canActivateAccount', true));
+
+    $this->actingAs($hr)->post(route('employees.activation.activate', $this->profile))->assertRedirect();
+
+    $user = $this->profile->refresh()->user->refresh();
+    expect($user->is_active)->toBeTrue()->and($user->awaiting_activation)->toBeFalse()
+        ->and($this->profile->accountLabel())->toBe('Aktif')
+        ->and(Activity::query()->where('log_name', 'account')->pluck('description')->all())->toContain('HR mengaktifkan akun yang didaftarkan karyawan');
+
+    $this->post('/logout');
+    $this->post(route('login.store'), ['email' => '3174000000000100|k-100', 'password' => 'kata-sandi-rahasia-1'])->assertRedirect();
     $this->assertAuthenticatedAs($user);
+
+    // Nothing left to activate.
+    $this->actingAs($hr)->post(route('employees.activation.activate', $this->profile))->assertSessionHasErrors('account');
+});
+
+it('lets HR reject a claim, freeing the profile for the right person', function () {
+    $hr = User::factory()->create(['company_id' => $this->company->id]);
+    $hr->assignRole(Role::HrAdmin->value);
+    $this->post(route('register.store'), registration())->assertRedirect(route('login'));
+    $claimant = $this->profile->refresh()->user_id;
+
+    $this->actingAs($hr)->delete(route('employees.activation.reject', $this->profile))->assertRedirect();
+
+    expect($this->profile->refresh()->user_id)->toBeNull()->and(User::find($claimant))->toBeNull();
+
+    $this->post('/logout');
+    $this->post(route('register.store'), registration(['password' => 'kata-sandi-asli-2', 'password_confirmation' => 'kata-sandi-asli-2']))->assertRedirect(route('login'));
+    expect($this->profile->refresh()->user_id)->not->toBeNull();
+});
+
+it('keeps activation to HR, and to people who can reach that company', function () {
+    $this->post(route('register.store'), registration())->assertRedirect(route('login'));
+    $this->app['auth']->forgetGuards();
+
+    $employee = User::factory()->create(['company_id' => $this->company->id]);
+    $employee->assignRole(Role::Employee->value);
+    $otherHr = User::factory()->create(['company_id' => Company::factory()->create()->id]);
+    $otherHr->assignRole(Role::HrAdmin->value);
+
+    $this->actingAs($employee)->post(route('employees.activation.activate', $this->profile))->assertForbidden();
+    // Another company's profile does not exist for them.
+    $this->actingAs($otherHr)->post(route('employees.activation.activate', $this->profile))->assertNotFound();
+    expect($this->profile->refresh()->user->awaiting_activation)->toBeTrue();
 });
 
 it('keeps an optional email, lower-cased, without asking to verify it', function () {

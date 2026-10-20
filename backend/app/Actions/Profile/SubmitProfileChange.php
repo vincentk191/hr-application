@@ -36,7 +36,7 @@ class SubmitProfileChange
         $storedPhoto = null;
 
         if ($photo !== null) {
-            $storedPhoto = $photo->store('employee-photos', 'public');
+            $storedPhoto = $photo->store('employee-photos', Employee::PHOTO_DISK);
             $changes['photo_path'] = ['before' => $employee->photo_path, 'after' => $storedPhoto];
         }
 
@@ -104,7 +104,7 @@ class SubmitProfileChange
         $pending = $request->changes['photo_path']['after'] ?? null;
 
         if ($pending !== null) {
-            Storage::disk('public')->delete($pending);
+            Storage::disk(Employee::PHOTO_DISK)->delete($pending);
         }
     }
 }

@@ -31,6 +31,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @property Carbon|null $email_verified_at
  * @property string $password
  * @property bool $is_active
+ * @property bool $awaiting_activation
  * @property bool $must_change_password
  * @property Carbon|null $last_login_at
  * @property string|null $two_factor_secret
@@ -63,6 +64,7 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
             'is_active' => 'boolean',
+            'awaiting_activation' => 'boolean',
             'must_change_password' => 'boolean',
             'last_login_at' => 'datetime',
         ];

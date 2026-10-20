@@ -73,6 +73,14 @@ class EmployeePolicy
             && $user->canAccessCompany($employee->company_id);
     }
 
+    /**
+     * HR activates (or rejects) an account the employee registered for themselves (CORE-ACC-006).
+     */
+    public function activateAccount(User $user, Employee $employee): bool
+    {
+        return $user->can(Permission::CreateEmployees->value) && $user->canAccessCompany($employee->company_id);
+    }
+
     public function create(User $user): bool
     {
         return $user->can(Permission::CreateEmployees->value);

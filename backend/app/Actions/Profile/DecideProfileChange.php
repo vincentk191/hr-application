@@ -53,7 +53,7 @@ class DecideProfileChange
                 $employee->forceFill($apply)->save();
 
                 if ($previousPhoto !== null) {
-                    Storage::disk('public')->delete($previousPhoto);
+                    Storage::disk(Employee::PHOTO_DISK)->delete($previousPhoto);
                 }
             }
 
@@ -61,7 +61,7 @@ class DecideProfileChange
                 $pending = $field === 'photo_path' ? ($locked->changes['photo_path']['after'] ?? null) : null;
 
                 if ($pending !== null) {
-                    Storage::disk('public')->delete($pending);
+                    Storage::disk(Employee::PHOTO_DISK)->delete($pending);
                 }
             }
 
@@ -113,7 +113,7 @@ class DecideProfileChange
             $pending = $locked->changes['photo_path']['after'] ?? null;
 
             if ($pending !== null) {
-                Storage::disk('public')->delete($pending);
+                Storage::disk(Employee::PHOTO_DISK)->delete($pending);
             }
         });
 

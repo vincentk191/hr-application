@@ -1,4 +1,4 @@
-import { Head, Link, setLayoutProps } from '@inertiajs/react';
+import { Head, Link, router, setLayoutProps } from '@inertiajs/react';
 import { useState } from 'react';
 import { EmployeeAttendance } from '@/components/employee-attendance';
 import { EmployeeAvatar } from '@/components/employee-avatar';
@@ -8,6 +8,7 @@ import { LeaveRequestDetail } from '@/components/leave-request-detail';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { edit } from '@/routes/employees';
+import { activate, reject } from '@/routes/employees/activation';
 import { create as requestChange } from '@/routes/employees/changes';
 import type { BreadcrumbItem } from '@/types';
 import type { Timesheet, YearTimesheet } from '@/types/attendance';
@@ -27,6 +28,9 @@ type Props = {
     canRestrictDocuments: boolean;
     /** This is the viewer's own record: they change it by asking HR. */
     canRequestChange: boolean;
+    /** The employee registered an account that HR has not yet activated. */
+    accountPending: boolean;
+    canActivateAccount: boolean;
     /** Absent until the tab asks for it; null when this viewer may not see it. */
     attendance?: Timesheet | YearTimesheet | null;
     canCorrectAttendance: boolean;
@@ -171,6 +175,8 @@ export default function EmployeeShow({
     leaveTakenThisYear,
     canUpdate,
     canRequestChange,
+    accountPending,
+    canActivateAccount,
     team,
 }: Props) {
     // ?tab=attendance opens straight onto that tab, so other screens can link to it.
@@ -232,6 +238,45 @@ export default function EmployeeShow({
                         </Button>
                     )}
                 </header>
+
+                {accountPending && canActivateAccount && (
+                    <section
+                        className="surface flex flex-wrap items-center justify-between gap-3 border-amber-500/50 p-4"
+                        data-test="pending-account"
+                    >
+                        <p className="max-w-2xl text-sm">
+                            {employee.name} mendaftarkan akun dengan NIK dan ID
+                            karyawan ini, dan belum bisa masuk. Aktifkan jika
+                            benar orangnya; tolak jika bukan, dan profil ini
+                            bisa didaftarkan ulang.
+                        </p>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                onClick={() =>
+                                    router.delete(
+                                        reject(employee.id).url,
+                                        { preserveScroll: true },
+                                    )
+                                }
+                            >
+                                Tolak
+                            </Button>
+                            <Button
+                                data-test="activate-account"
+                                onClick={() =>
+                                    router.post(
+                                        activate(employee.id).url,
+                                        {},
+                                        { preserveScroll: true },
+                                    )
+                                }
+                            >
+                                Aktifkan akun
+                            </Button>
+                        </div>
+                    </section>
+                )}
 
                 {/* Profile header stats. "Leave taken", never a remaining balance — no
                     entitlement is modelled (context.md §10). */}

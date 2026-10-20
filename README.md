@@ -32,7 +32,7 @@ listed in the checklist below. Nothing here is committed yet: changes are left f
 
 |                 |                                                                                                              |
 | --------------- | ------------------------------------------------------------------------------------------------------------ |
-| Tests           | 698 passing                                                                                                  |
+| Tests           | 705 passing                                                                                                  |
 | Static analysis | PHPStan level 7, 0 errors                                                                                    |
 | Phase 0         | **Complete** — company scoping, RBAC, workflow engine, account state and login rules                         |
 | Phase 1         | Directory (with CSV import/export), profile, add/edit, documents, admin panel done                           |
@@ -854,7 +854,7 @@ table, the checklist and the screens.
 | ---------- | ------------------------ | --- | --- | ------ | --------------------------------------------------------------------------------------------------------- |
 | `DAS-MAI`  | Home                     | 5   | 3   | ⬜     | Cross-module KPIs — needs the modules to exist first                                                      |
 | `CORE-SRC` | Global search & settings | 4   | 3   | 🟡     | Global search is done (header box, Ctrl/⌘ K). The leave and holiday policy live in the admin panel and on the calendar; the Indonesian translation-file setup (004) is not done |
-| —          | Employee app (PWA)       | —   | —   | ⬜     | Manifest, service worker, install prompt, Web Push, Sanctum API. Workbook has no screen rows for this yet |
+| —          | Employee app (PWA)       | —   | —   | 🟡     | **Feasibility build 2026-10-20:** manifest, icons, service worker (offline page, built assets only, never a page or data), install banner (Android prompt, iPhone hint). Not built: Web Push, the Sanctum API, saved drafts. See "PWA feasibility build" below |
 
 ### Phase 6b — Public entrance and access tiers (decided 2026-10-19; tier middleware built 2026-10-20)
 
@@ -863,7 +863,7 @@ only the network. It reverses the earlier "private-only" decision (`docs/context
 
 | Screen     | Name                          | f | P1 | Status | Notes |
 | ---------- | ----------------------------- | - | -- | ------ | ----- |
-| `CORE-ACC` | Access tiers, public entrance | 9 | 6  | 🟡     | `-001` to `-004` built; the rest below are not |
+| `CORE-ACC` | Access tiers, public entrance | 9 | 6  | 🟡     | `-001` to `-008` built in the app; the Nginx side, 2FA enforcement and the two audits deferred to Phase 7 are not |
 
 - `CORE-ACC-001` **Two entrances.** Separate Nginx server blocks and hostnames; the app learns the entrance from
   a header only Nginx sets (trusted-proxy setup is new work, never the `Host` header); separate session cookies.
@@ -877,9 +877,8 @@ only the network. It reverses the earlier "private-only" decision (`docs/context
   a notice that the rest needs the VPN. Approving leave from a phone therefore needs WireGuard.
 - `CORE-ACC-005` **Hardening:** 2FA recommended for every account, login throttled per address and per account,
   a proxy or WAF, and a check from outside that the public IP serves only the allowlist.
-- `CORE-ACC-006` **Registration waits for HR** (changes `CORE-REG`): the account is created pending and cannot
-  sign in or reset a password until HR clicks activate. Activation codes handed over in person are a possible
-  later tightening.
+- `CORE-ACC-006` **Registration waits for HR** (changes `CORE-REG`): built; see above. Activation codes handed over
+  in person are a possible later tightening.
 - `CORE-ACC-007` **Sign-in is NIK + Employee ID + password** as separate fields (replaces email or employee ID;
   email sign-in stays on the private entrance for the seeded admin accounts).
 - `CORE-ACC-008` **Photos are private:** moved to a private disk and served by an authorised route on the private
@@ -896,9 +895,25 @@ is unclassed. On the public entrance an account holds **no permissions and no ro
 and cannot be decided, and `entrance.limited` shows elevated accounts a notice. `AccessTier` answers who is elevated.
 **Filing a Pengajuan for oneself works on the public entrance** (POSTs `leave-requests.store` and `update`, profile
 change requests, withdrawing one); filing for someone else, and backdating, stay on the private entrance.
-**Not built yet:** the Nginx server blocks that set the header (the header must be *overwritten*, never passed on from
-the client), the 2FA and throttling hardening, the registration and sign-in changes, private photos, and removing
-email password reset (`-005` to `-009`).
+**Also built 2026-10-20 (`AccountRegistrationTest`, `AccountStateTest`, `EmployeePhotoTest`, `ProfileChangeRequestTest`):**
+- `CORE-ACC-006` **Registration waits for HR.** "Daftar" creates the account *inactive and awaiting activation*; it
+  cannot sign in (the right password gets "Akun Anda menunggu aktivasi HR", a wrong one learns nothing). HR is
+  notified, and the profile shows "Aktifkan akun" or "Tolak" to HR of that company (a rejected claim is deleted, so
+  the profile can be claimed again by the right person). Both are written to the audit trail.
+- `CORE-ACC-007` **Sign-in is NIK + employee ID + password** (two fields, sent together as `NIK|ID`). The ID alone no
+  longer works, and an ID shared by two companies is no longer ambiguous because the NIK tells them apart. An
+  email works only on the private entrance, behind a link on the form, for the administrator accounts.
+- `CORE-ACC-005` (in part) **Throttling per address *and* per account** (5 a minute for the pair, 20 for an address,
+  10 for an account from anywhere). **Email password reset is removed** (the Fortify feature is off, the routes and
+  pages are gone): a reset is by HR or an administrator with a temporary password. Email verification routes stay,
+  classed private.
+- `CORE-ACC-008` **Photos are private.** They live on the private disk and are served by `employees.photo` (and
+  `profile-changes.photo` for a picture waiting for HR) to someone who may see the record, on the private entrance
+  only; the public entrance shows initials. A migration moved the existing pictures. Company logos stay public.
+- `CORE-ACC-009` The default offboarding item "Akses VPN dicabut" already covers the WireGuard peer; nothing to change.
+
+**Not built yet (Phase 7 / go-live):** the Nginx server blocks that set the header (it must be *overwritten*, never
+passed on from the client), making 2FA mandatory, the proxy or WAF in front, and the outside check of the public IP.
 
 **Deferred to the last phase, before go-live** (decided 2026-10-20; the mobile PWA view waits until the web app is ready):
 what the Inertia shared props carry on every page, and the leaver's own read-only offboarding view on the public
@@ -961,6 +976,23 @@ and new versions; `employees/{employee}/punches`, `punches/*`; all of `attendanc
 Tests to add when this is built: one that requests every route by name as an elevated account on the public
 entrance and expects the allowlist and nothing else, and a guard that fails when a new route has no class.
 
+#### PWA feasibility build (2026-10-20)
+
+The app is installable and has an offline page; nothing else about it is a "mobile app" yet, by design: it is the same
+Inertia app, and the point is to test whether install, launch speed, the offline page and the self-service pages
+feel right on real phones before building on it.
+- **Files:** `public/manifest.webmanifest`, `public/sw.js`, `public/offline.html`, `public/icons/*`, the head tags
+  in `resources/views/app.blade.php`, the worker registration in `app.tsx`, `useInstallPrompt` and `InstallBanner`.
+- **The worker keeps no data.** Pages are network-only (the offline page when there is no connection); only the
+  hashed files under `/build/` and `/fonts/` are stored. Inertia responses, downloads, photos and the API are never
+  touched, so nothing personal stays on a phone that was lost.
+- **To try it:** it registers only in a production build (`npm run build` inside the `hr-app-vite` container; the
+  host has no PHP, which the build needs) and needs a secure origin: `localhost` works on a desktop, a phone needs
+  HTTPS (the real public hostname, or a tunnel while testing). Stop the Vite dev server so `public/hot` is gone,
+  otherwise Laravel serves the dev assets and no worker is registered.
+- **Still open:** Web Push, saved drafts, the Sanctum API for approvals (which will be private-entrance only), iPhone
+  testing of the home-screen install, and what "installed" should open at.
+
 ### Phase 7 — Deployment & VPN
 
 Not screens. Two Nginx server blocks (the private one bound to the WireGuard address only, the public one
@@ -1021,7 +1053,7 @@ Indonesian workbook copy has deliberately not been regenerated while more change
   (`national_id`, 16 digits) becomes required and unique across the group.
 - *Registration.* The employee registers at "Daftar" with NIK, employee ID, a new password and an
   optional email. When the NIK and employee ID match one record that has no account yet and is not
-  a former employee, the account is created already active (to change: it will wait for HR, `CORE-ACC-006`): pinned to that company, with the
+  a former employee, the account is created waiting for HR to activate it (`CORE-ACC-006`, built 2026-10-20): pinned to that company, with the
   Karyawan role.
 - *Refusals.* Every refusal gets the same message, and attempts are throttled.
 - *Known risk (revised 2026-10-19).* NIK + employee ID is not a secret. That was accepted because the app was

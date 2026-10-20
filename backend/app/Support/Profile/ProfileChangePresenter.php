@@ -6,7 +6,6 @@ use App\Enums\Permission;
 use App\Models\Employee;
 use App\Models\ProfileChangeRequest;
 use App\Models\User;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * A profile change request as the pages show it: each changed field with its label, group and the
@@ -43,7 +42,7 @@ class ProfileChangePresenter
             'decidedAt' => $request->decided_at?->toDateTimeString(),
             'decisionNote' => $request->decision_note,
             'conflicts' => $request->conflicts ?? [],
-            'changes' => collect($request->changes)->map(function (array $change, string $field) use ($maySeeSensitive): array {
+            'changes' => collect($request->changes)->map(function (array $change, string $field) use ($maySeeSensitive, $request): array {
                 $definition = ProfileChangeRequest::FIELDS[$field] ?? ['label' => $field, 'group' => 'Lainnya', 'type' => 'text', 'sensitive' => false];
                 $masked = $definition['sensitive'] && ! $maySeeSensitive;
                 $isPhoto = $definition['type'] === 'photo';
@@ -56,8 +55,8 @@ class ProfileChangePresenter
                     'masked' => $masked,
                     'before' => $masked || $isPhoto ? null : $change['before'],
                     'after' => $masked || $isPhoto ? null : $change['after'],
-                    'beforeUrl' => $isPhoto && $change['before'] !== null ? Storage::disk('public')->url($change['before']) : null,
-                    'afterUrl' => $isPhoto && $change['after'] !== null ? Storage::disk('public')->url($change['after']) : null,
+                    'beforeUrl' => $isPhoto && $change['before'] !== null ? route('profile-changes.photo', [$request, 'before'], absolute: false) : null,
+                    'afterUrl' => $isPhoto && $change['after'] !== null ? route('profile-changes.photo', [$request, 'after'], absolute: false) : null,
                 ];
             })->values()->all(),
             'canDecide' => $viewer->can('decide', $request),
