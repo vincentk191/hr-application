@@ -1007,6 +1007,45 @@ Nothing in the app blocks this — a working login and `/up` is all the VPN test
 able to reach `/api/ingest/attendance` over the same private network, because the route is not
 public. That machine is a WireGuard peer, limited to the app's private HTTPS port and the ingest route. See "Open before `ATT-DEV` can be closed" in Phase 2.
 
+#### Server stack and deployment steps (2026-10-20)
+
+`docker-compose.server.yml` runs the app as it would on a server: Nginx, PHP-FPM with the code baked into the image
+(no bind mounts), PostgreSQL (not published), the queue worker, the scheduler, WireGuard (wg-easy) and, only when
+asked, a temporary tunnel. It needs Linux with Docker. The dev stack (`docker-compose.yml`) is unchanged.
+
+**How the entrances are decided.** Nginx looks at where a request came from and passes the result to PHP as a
+FastCGI parameter, which a client cannot set. Private: the server itself, the office or LAN range (`OFFICE_CIDR`) and
+WireGuard peers. Public: everything else, including the tunnel. The three Docker network ranges (internal
+`172.29.0.0/24`, vpn `172.30.0.0/24`, edge `172.31.0.0/24`) are repeated in `docker/server/nginx.conf.template`; keep
+them in step. Ports published on the host: the web port (default **8090**, `WEB_PORT`), `51820/udp` for WireGuard, and
+the WireGuard admin page on `127.0.0.1:51821`, reachable from the server only.
+
+**Steps, from a fresh clone on the server:**
+1. `cp docker/server/server.env.example docker/server/.env` and fill it in: `APP_KEY` (the file has the command),
+   `DB_PASSWORD`, `WG_ADMIN_PASSWORD`, `WG_HOST` (the address phones use to reach the server's WireGuard port),
+   `OFFICE_CIDR` (the real office range) and `APP_URL`.
+2. `docker compose -f docker-compose.server.yml --env-file docker/server/.env up -d --build` (the first build takes
+   several minutes: it installs the PHP packages and builds the frontend). Migrations run when the app starts.
+3. First run only: `... exec app php artisan db:seed --force` for the roles (and the example data when testing).
+4. From a device on the office network, open `http://<server address>:8090`: the private entrance.
+5. WireGuard: open `http://localhost:51821` **on the server**, sign in with `WG_ADMIN_USER` / `WG_ADMIN_PASSWORD`, add
+   a client for each person who needs the private entrance, and scan its QR code in the WireGuard app. Peers send only
+   the app's address through the tunnel; with the VPN on, browse to `http://172.30.0.10`.
+6. Trying the PWA over https before a domain exists: `... --profile tunnel up -d tunnel`, then read the address from
+   `docker logs hr-server-tunnel-1`. It arrives as the **public** entrance and changes each time the tunnel restarts.
+
+**Before it is a real production deployment** (not done by the stack above):
+- A neutral domain for the group, with an ordinary certificate on the public hostname (Nginx listening on 443;
+  today the stack serves plain HTTP). The service worker and installing the PWA need https, so over WireGuard by
+  address (`http://172.30.0.10`) they do not work.
+- The public entrance reachable from the internet (ports 80/443), the WireGuard UDP port forwarded, and a firewall
+  that allows nothing else; check from outside that the public address serves only the allowlist.
+- Mandatory 2FA, throttling at the proxy or a WAF in front, backups of the `pgdata` and `appstorage` volumes, and
+  `TRUSTED_PROXIES` set if a proxy or tunnel sits in front of Nginx.
+- A VPS of its own rather than sharing the CMP one (now that there is a public entrance).
+- Peers' WireGuard keys are revoked by deleting the client in wg-easy: part of offboarding for an elevated leaver.
+- `ENTRANCE_DEFAULT` is left unset on a server so a request Nginx cannot place counts as public.
+
 ### Decided 2026-10-14 (all built except first-run seeding)
 
 These reopen finished rows above. Built and tested: the visibility rule (`ReportingScopeTest`), the

@@ -19,6 +19,13 @@
 name: hr-server
 
 x-app: &app
+    # app, queue and scheduler share one image. Each lists the same build, so a fresh clone builds it on `up --build`
+    # (the layers are cached after the first) instead of trying to pull an image that does not exist anywhere.
+    build:
+        context: .
+        target: server
+        args:
+            PHP_IMAGE: php:8.4-fpm
     image: hr-server-app
     restart: unless-stopped
     env_file: docker/server/.env
@@ -51,12 +58,6 @@ services:
 
     app:
         <<: *app
-        # Built once here; the queue and the scheduler use the same image.
-        build:
-            context: .
-            target: server
-            args:
-                PHP_IMAGE: php:8.4-fpm
         environment:
             DB_HOST: db
             DB_PORT: 5432
