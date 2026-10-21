@@ -91,7 +91,7 @@ it('leaves an existing account with that email as it is when run again', functio
 it('seeds only the roles and the system admin, with no placeholder companies, in production', function () {
     app()->detectEnvironment(fn () => 'production');
 
-    $this->seed(DatabaseSeeder::class);
+    $this->artisan('db:seed', ['--class' => DatabaseSeeder::class, '--force' => true])->assertSuccessful();
 
     expect(Company::query()->count())->toBe(0)
         ->and(User::query()->pluck('email')->all())->toBe(['admin@example.com'])
