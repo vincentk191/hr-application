@@ -14,6 +14,7 @@ use App\Support\Access\AccessTier;
 use App\Support\Access\Entrance;
 use App\Support\Branding;
 use App\Support\CompanyContext;
+use App\Support\Features;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -68,6 +69,8 @@ class HandleInertiaRequests extends Middleware
                     ? null
                     : Employee::acrossCompanies()->where('user_id', $request->user()->id)->value('id'),
             ],
+            // The modules switched on for this release (config/features.php): the menus and tabs follow it.
+            'features' => ['attendance' => Features::attendance()],
             // Which entrance this is, and whether an elevated account is being held to the self-service view
             // because it is on the public one (CORE-ACC-004).
             'entrance' => fn (): array => [

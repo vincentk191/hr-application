@@ -1,4 +1,4 @@
-import { Head, Link, router, setLayoutProps } from '@inertiajs/react';
+import { Head, Link, router, setLayoutProps, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import { EmployeeAttendance } from '@/components/employee-attendance';
 import { EmployeeAvatar } from '@/components/employee-avatar';
@@ -179,6 +179,8 @@ export default function EmployeeShow({
     canActivateAccount,
     team,
 }: Props) {
+    const { features } = usePage().props;
+
     // ?tab=attendance opens straight onto that tab, so other screens can link to it.
     const [tab, setTab] = useState<TabKey>(() => {
         const asked =
@@ -186,7 +188,11 @@ export default function EmployeeShow({
                 ? null
                 : new URLSearchParams(window.location.search).get('tab');
 
-        return TABS.some((item) => item.key === asked)
+        return TABS.some(
+            (item) =>
+                item.key === asked &&
+                (item.key !== 'attendance' || features.attendance),
+        )
             ? (asked as TabKey)
             : 'overview';
     });
@@ -307,7 +313,11 @@ export default function EmployeeShow({
                 </div>
 
                 <nav className="pill-tabs">
-                    {TABS.filter((item) => item.key !== 'team' || team).map(
+                    {TABS.filter(
+                        (item) =>
+                            (item.key !== 'team' || team) &&
+                            (item.key !== 'attendance' || features.attendance),
+                    ).map(
                         (item) => (
                             <button
                                 key={item.key}

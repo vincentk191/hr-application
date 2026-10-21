@@ -1,5 +1,6 @@
 <?php
 
+use App\Support\Features;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -14,7 +15,8 @@ Artisan::command('inspire', function () {
 Schedule::command('notifications:attendance-issues')
     ->weekdays()
     ->dailyAt('09:00')
-    ->timezone((string) config('attendance.device_timezone'));
+    ->timezone((string) config('attendance.device_timezone'))
+    ->when(fn (): bool => Features::attendance());
 
 // Seen notifications clear themselves a day after they were read. Hourly, so one is gone within an hour
 // of its day being up. What was already announced is remembered separately, so nothing is sent twice.

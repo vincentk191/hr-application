@@ -599,7 +599,7 @@ reopen are marked 🟡 with "→ 10-14".
 | `EMP-DOC`  | Profile — documents tab                | 4   | 2   | ✅     | Upload, categorise, version, expiry flags and per-document restriction. Reminders are in-app only — see Known gaps |
 | `EMP-ATT`  | Profile — attendance tab               | 3   | 3   | ✅     | Timesheet (month and year), manual add/change/void with reason + audit, recompute, and totals by employee, department and period (the recap) |
 | `EMP-REQ`  | Profile — requests tab                 | 2   | 2   | ✅     | Real: lists the employee's leave requests and leave taken this year                                                                                   |
-| `CORE-USR` | User & role management                 | 7   | 6   | 🟡     | Policies and Filament screens (users, roles, permissions); activate/deactivate, last login, temporary password, reset password and revoke sessions per user. **Open:** first-run seeding of the System Admin and Management accounts needs the client's details (007) |
+| `CORE-USR` | User & role management                 | 7   | 6   | 🟡     | Policies and Filament screens (users, roles, permissions); activate/deactivate, last login, temporary password, reset password and revoke sessions per user. Since 10-21 a real server's first run seeds one company-less System Admin (`SystemAdminSeeder`, from `INITIAL_ADMIN_*`) who creates the companies and each company's first HR Admin in the panel. **Open:** the Management accounts still need the client's details (007) |
 | `CORE-ORG` | Departments, positions, reporting line | 4   | 4   | ✅     | Schema, policies, the downline resolver and Filament screens for departments and positions                                                                         |
 | `CORE-ADM` | Company settings                       | 1   | 0   | 🟡     | Filament company screen done                                                                                                                                |
 
@@ -1026,18 +1026,33 @@ the WireGuard admin page on `127.0.0.1:51821`, reachable from the server only.
    `OFFICE_CIDR` (the real office range) and `APP_URL`.
 2. `docker compose -f docker-compose.server.yml --env-file docker/server/.env up -d --build` (the first build takes
    several minutes: it installs the PHP packages and builds the frontend). Migrations run when the app starts.
-3. First run only: `... exec app php artisan db:seed --force` creates the companies and roles. On a **testing** server
+3. First run only: set `INITIAL_ADMIN_EMAIL` and `INITIAL_ADMIN_PASSWORD` (12 or more characters; optionally
+   `INITIAL_ADMIN_NAME`) in the env file, then `... exec app php artisan db:seed --force`. On a real server
+   (`APP_ENV=production`) this creates the roles and one **System Admin that belongs to no company**, and no companies.
+   Sign in on the private entrance with that email (the temporary password must be changed at once), create the
+   companies in the admin panel ("Perusahaan"), then create each company's first HR Admin under "Pengguna" with
+   that company and the Admin HR role. Remove `INITIAL_ADMIN_PASSWORD` from the env file afterwards; running the
+   seeder again leaves an existing account untouched. On a **testing** server
    only, set `APP_ENV=staging` and `COMPOSER_DEV=true` in the env file before step 2 (the image then includes the
    faker package the example seeders need; they refuse to run when `APP_ENV=production`), and add
    `... exec app php artisan db:seed --class=DevAccountSeeder --force` and `--class=OrgHierarchySeeder`. The example
    accounts (for instance `admin@hr.test`, all with the password `password`) are for testing only. A real server has no
-   accounts yet: the first System Admin and Management accounts still have to be built from the client's details.
+   accounts yet apart from the System Admin above; the Management accounts still have to be built from the client's details.
 4. From a device on the office network, open `http://<server address>:8090`: the private entrance.
 5. WireGuard: open `http://localhost:51821` **on the server**, sign in with `WG_ADMIN_USER` / `WG_ADMIN_PASSWORD`, add
    a client for each person who needs the private entrance, and scan its QR code in the WireGuard app. Peers send only
    the app's address through the tunnel; with the VPN on, browse to `http://172.30.0.10`.
 6. Trying the PWA over https before a domain exists: `... --profile tunnel up -d tunnel`, then read the address from
    `docker logs hr-server-tunnel-1`. It arrives as the **public** entrance and changes each time the tunnel restarts.
+
+**Shipping without attendance (`FEATURE_ATTENDANCE=false`, built 2026-10-21; `AttendanceFeatureSwitchTest`).** Off, the
+sidebar keeps only "Kalender", the profile loses its Absensi tab and cannot be corrected, the dashboard has no scanner
+card, the pages (recap, issues, device, imports, punches, calendar export) and `/api/ingest/*` answer 404, the
+"Data absensi", agent and working-hours screens leave the admin panel (`manage-attendance-device` is false), and the
+09:00 attendance notice does not run. **The calendar page and `calendar-events` stay on purpose**: leave day counts need the
+holidays, and the on-leave side panel is where approved leave is seen. Known leftovers while it is off: the calendar
+grid and its "Data sampai ..." line still show attendance wording with no data behind them, and the employee drawer
+and global search were not checked. Nothing is deleted; turning it back on restores everything.
 
 **Before it is a real production deployment** (not done by the stack above):
 - A neutral domain for the group, with an ordinary certificate on the public hostname (Nginx listening on 443;
@@ -1048,15 +1063,23 @@ the WireGuard admin page on `127.0.0.1:51821`, reachable from the server only.
 - Mandatory 2FA, throttling at the proxy or a WAF in front, backups of the `pgdata` and `appstorage` volumes, and
   `TRUSTED_PROXIES` set if a proxy or tunnel sits in front of Nginx.
 - A VPS of its own rather than sharing the CMP one (now that there is a public entrance).
+- **A proxy in front of the stack's Nginx must not make the public look private.** `nginx.conf.template` classes a
+  request by its source address, and `172.31.0.1` (the host itself) and `172.29.0.0/24` are **private**. So a TLS proxy on
+  the host (the landing page's Nginx, Caddy, Apache) that forwards to the stack would make every internet visitor
+  arrive from the host and be served the **private** entrance (the admin panel, directory and offboarding). Until the
+  template takes the real client address from `X-Forwarded-For` for that one trusted proxy (`set_real_ip_from`) and is
+  tested, expose the public hostname only through the `tunnel` service (it arrives from the `edge` network and is
+  classed public) or through a proxy in its own container on `edge`. Check from outside with a visitor's browser:
+  `/admin` and `/employees` must be refused.
 - Peers' WireGuard keys are revoked by deleting the client in wg-easy: part of offboarding for an elevated leaver.
 - `ENTRANCE_DEFAULT` is left unset on a server so a request Nginx cannot place counts as public.
 
-### Decided 2026-10-14 (all built except first-run seeding)
+### Decided 2026-10-14 (all built; first-run seeding covers the System Admin only)
 
 These reopen finished rows above. Built and tested: the visibility rule (`ReportingScopeTest`), the
 Pengajuan rules (`LeaveFilingRulesTest`), registration with NIK (`AccountRegistrationTest`) and
-profile change requests (`ProfileChangeRequestTest`). Not built: the first-run seeding of System
-Admin and Management accounts (`CORE-USR-007`, waiting for the client's details).
+profile change requests (`ProfileChangeRequestTest`). First-run seeding (`CORE-USR-007`) is built for the System
+Admin (`SystemAdminSeederTest`); the Management accounts are not, and wait for the client's details.
 
 Things to know that the rules do not say:
 - **Existing records have no NIK** until HR adds one, so nobody can register against them yet. The

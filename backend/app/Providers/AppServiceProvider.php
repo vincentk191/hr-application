@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Policies\OffboardingCasePolicy;
 use App\Support\Access\Entrance;
 use App\Support\Attendance\WorkSchedule;
+use App\Support\Features;
 use App\Workflows\Definitions\LeaveRequestWorkflow;
 use App\Workflows\Definitions\OffboardingCaseWorkflow;
 use App\Workflows\WorkflowRegistry;
@@ -98,7 +99,8 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::define(
             'manage-attendance-device',
-            fn (User $user): bool => $user->isParentWide()
+            fn (User $user): bool => Features::attendance()
+                && $user->isParentWide()
                 && $user->checkPermissionTo(Permission::ManageAttendance->value),
         );
     }

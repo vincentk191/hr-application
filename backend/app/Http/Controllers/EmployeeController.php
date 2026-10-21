@@ -21,6 +21,7 @@ use App\Support\Attendance\DailyAttendance;
 use App\Support\Attendance\EmployeeTimesheet;
 use App\Support\CsvDownload;
 use App\Support\Employees\TeamSlice;
+use App\Support\Features;
 use App\Support\Leave\LeaveRequestPresenter;
 use App\Support\OrganisationNames;
 use Carbon\CarbonImmutable;
@@ -254,7 +255,7 @@ class EmployeeController extends Controller
             // an employee looking only at their own record does not get it. Only people the viewer
             // may see appear in it: a supervisor sees neither their own manager nor their peers.
             'team' => $user->can('viewAny', Employee::class)
-                ? app(TeamSlice::class)->for($employee, $user->can(Permission::ViewAttendance->value), $user)
+                ? app(TeamSlice::class)->for($employee, Features::attendance() && $user->can(Permission::ViewAttendance->value), $user)
                 : null,
         ];
     }

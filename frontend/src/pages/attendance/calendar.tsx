@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import {
@@ -461,6 +461,8 @@ export default function AttendanceCalendar(props: Props) {
         eventForm,
     } = props;
 
+    const { features } = usePage().props;
+
     const [search, setSearch] = useState(filters.search);
 
     const go = (changes: {
@@ -513,7 +515,7 @@ export default function AttendanceCalendar(props: Props) {
             <Head title="Kalender" />
 
             <div className="flex flex-col gap-4 p-4">
-                {capture.state !== 'current' && (
+                {features.attendance && capture.state !== 'current' && (
                     <p className="surface border-amber-500/60 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
                         {capture.state === 'never'
                             ? 'Belum ada log pemindai yang diunggah.'
@@ -579,12 +581,16 @@ export default function AttendanceCalendar(props: Props) {
                     </h2>
 
                     <div className="ml-auto flex gap-2 print:hidden">
-                        <Button asChild variant="outline" size="sm">
-                            <Link href={recap()}>Rekap</Link>
-                        </Button>
-                        <Button asChild variant="outline" size="sm">
-                            <a href={exportUrl}>Unduh CSV</a>
-                        </Button>
+                        {features.attendance && (
+                            <>
+                                <Button asChild variant="outline" size="sm">
+                                    <Link href={recap()}>Rekap</Link>
+                                </Button>
+                                <Button asChild variant="outline" size="sm">
+                                    <a href={exportUrl}>Unduh CSV</a>
+                                </Button>
+                            </>
+                        )}
                         <Button
                             variant="outline"
                             size="sm"

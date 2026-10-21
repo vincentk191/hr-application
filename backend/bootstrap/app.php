@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnforceAccountState;
 use App\Http\Middleware\EnforceEntrance;
+use App\Http\Middleware\EnsureFeatureEnabled;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\ResolveEntrance;
@@ -33,6 +34,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'abilities' => CheckAbilities::class,
             'ability' => CheckForAnyAbility::class,
+            'feature' => EnsureFeatureEnabled::class,
         ]);
 
         // SubstituteBindings is pulled out of its default slot and re-added *after*

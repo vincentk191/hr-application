@@ -112,25 +112,31 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->scopeBindings()
         ->name('documents.download');
 
+    // The calendar and its holidays stay when attendance is switched off (FEATURE_ATTENDANCE): leave day
+    // counts need the holidays, and the calendar's side panel is where approved leave is seen.
     Route::get('attendance/calendar', [AttendanceCalendarController::class, 'index'])->name('attendance.calendar');
-    Route::get('attendance/recap', [AttendanceRecapController::class, 'index'])->name('attendance.recap');
-    Route::get('attendance/calendar/export', [AttendanceCalendarController::class, 'export'])->name('attendance.calendar.export');
-    Route::get('attendance/issues', [AttendanceIssueController::class, 'index'])->name('attendance.issues');
-    Route::post('attendance/issues/resolve', [AttendanceIssueController::class, 'resolve'])->name('attendance.issues.resolve');
-    Route::post('attendance/issues/reopen', [AttendanceIssueController::class, 'reopen'])->name('attendance.issues.reopen');
     Route::post('calendar-events', [CalendarEventController::class, 'store'])->name('calendar-events.store');
     Route::delete('calendar-events/{calendarEvent}', [CalendarEventController::class, 'destroy'])->name('calendar-events.destroy');
-    Route::post('attendance/agents/sync-now', [AttendanceAgentController::class, 'syncNow'])->name('attendance.agents.sync-now');
-    Route::get('attendance/device', [AttendanceDeviceController::class, 'index'])->name('attendance.device');
-    Route::post('attendance/imports', [AttendanceImportController::class, 'store'])->name('attendance.imports.store');
-    Route::post('attendance/enrol-maps', [AttendanceEnrolMapController::class, 'store'])
-        ->name('attendance.enrol-maps.store');
-    Route::delete('attendance/enrol-maps/{enrolMap}', [AttendanceEnrolMapController::class, 'destroy'])
-        ->name('attendance.enrol-maps.destroy');
 
-    Route::post('employees/{employee}/punches', [AttendancePunchController::class, 'store'])->name('punches.store');
-    Route::put('punches/{punch}', [AttendancePunchController::class, 'update'])->name('punches.update');
-    Route::delete('punches/{punch}', [AttendancePunchController::class, 'destroy'])->name('punches.destroy');
+    // Everything else about attendance answers 404 while the feature is off (config/features.php).
+    Route::middleware('feature:attendance')->group(function (): void {
+        Route::get('attendance/recap', [AttendanceRecapController::class, 'index'])->name('attendance.recap');
+        Route::get('attendance/calendar/export', [AttendanceCalendarController::class, 'export'])->name('attendance.calendar.export');
+        Route::get('attendance/issues', [AttendanceIssueController::class, 'index'])->name('attendance.issues');
+        Route::post('attendance/issues/resolve', [AttendanceIssueController::class, 'resolve'])->name('attendance.issues.resolve');
+        Route::post('attendance/issues/reopen', [AttendanceIssueController::class, 'reopen'])->name('attendance.issues.reopen');
+        Route::post('attendance/agents/sync-now', [AttendanceAgentController::class, 'syncNow'])->name('attendance.agents.sync-now');
+        Route::get('attendance/device', [AttendanceDeviceController::class, 'index'])->name('attendance.device');
+        Route::post('attendance/imports', [AttendanceImportController::class, 'store'])->name('attendance.imports.store');
+        Route::post('attendance/enrol-maps', [AttendanceEnrolMapController::class, 'store'])
+            ->name('attendance.enrol-maps.store');
+        Route::delete('attendance/enrol-maps/{enrolMap}', [AttendanceEnrolMapController::class, 'destroy'])
+            ->name('attendance.enrol-maps.destroy');
+
+        Route::post('employees/{employee}/punches', [AttendancePunchController::class, 'store'])->name('punches.store');
+        Route::put('punches/{punch}', [AttendancePunchController::class, 'update'])->name('punches.update');
+        Route::delete('punches/{punch}', [AttendancePunchController::class, 'destroy'])->name('punches.destroy');
+    });
 
     Route::get('search', [SearchController::class, 'index'])->name('search');
     Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');

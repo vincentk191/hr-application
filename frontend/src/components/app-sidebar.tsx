@@ -71,6 +71,7 @@ export function AppSidebar() {
         pendingProfileChanges,
         openOffboarding,
         version,
+        features,
     } = usePage().props;
 
     // What is offered depends on who is signed in: the directory is for roles that may open it, an
@@ -114,16 +115,21 @@ export function AppSidebar() {
                       href: attendanceCalendar(),
                       icon: CalendarCheck,
                   },
-                  {
-                      title: 'Rekap absensi',
-                      href: attendanceRecap(),
-                      icon: ClipboardList,
-                  },
-                  {
-                      title: 'Masalah absensi',
-                      href: attendanceIssues(),
-                      icon: TriangleAlert,
-                  },
+                  // With attendance switched off only the calendar is left (holidays and leave).
+                  ...(features.attendance
+                      ? [
+                            {
+                                title: 'Rekap absensi',
+                                href: attendanceRecap(),
+                                icon: ClipboardList,
+                            },
+                            {
+                                title: 'Masalah absensi',
+                                href: attendanceIssues(),
+                                icon: TriangleAlert,
+                            },
+                        ]
+                      : []),
               ]
             : []),
         ...(auth.canManageAttendance

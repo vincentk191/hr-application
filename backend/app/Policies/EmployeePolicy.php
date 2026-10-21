@@ -6,6 +6,7 @@ use App\Enums\EmploymentStatus;
 use App\Enums\Permission;
 use App\Models\Employee;
 use App\Models\User;
+use App\Support\Features;
 use App\Support\ReportingLine;
 
 /**
@@ -55,6 +56,10 @@ class EmployeePolicy
      */
     public function viewAttendance(User $user, Employee $employee): bool
     {
+        if (! Features::attendance()) {
+            return false;
+        }
+
         if ($this->isSelf($user, $employee)) {
             return true;
         }
@@ -69,7 +74,8 @@ class EmployeePolicy
      */
     public function correctAttendance(User $user, Employee $employee): bool
     {
-        return $user->can(Permission::CorrectAttendance->value)
+        return Features::attendance()
+            && $user->can(Permission::CorrectAttendance->value)
             && $user->canAccessCompany($employee->company_id);
     }
 
