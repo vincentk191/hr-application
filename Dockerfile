@@ -100,6 +100,7 @@ RUN ln -sfn ../storage/app/public /var/www/backend/public/storage \
 # PHP-FPM with the application baked in.
 FROM base AS server
 COPY docker/php/php-server.ini /usr/local/etc/php/conf.d/zz-app.ini
+COPY docker/php/php-fpm-pool.conf /usr/local/etc/php-fpm.d/zz-pool.conf
 COPY docker/server/entrypoint.sh /usr/local/bin/entrypoint
 RUN chmod +x /usr/local/bin/entrypoint
 COPY --from=assets /var/www/backend /var/www/backend

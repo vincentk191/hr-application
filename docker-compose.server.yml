@@ -55,6 +55,9 @@ services:
             interval: 5s
             timeout: 5s
             retries: 10
+        # Memory caps keep this stack from starving the other apps on the VPS. They sit well above what each service uses
+        # (db ~25 MB, app ~55 MB idle, queue and scheduler ~60 MB): a container that goes over one is killed and restarted.
+        mem_limit: 1g
         networks:
             - internal
 
@@ -64,6 +67,8 @@ services:
             DB_HOST: db
             DB_PORT: 5432
             RUN_MIGRATIONS: 'true'
+        # Up to 12 PHP-FPM workers (docker/php/php-fpm-pool.conf).
+        mem_limit: 1536m
         networks:
             - internal
 
@@ -71,6 +76,7 @@ services:
         <<: *app
         user: www-data
         command: php artisan queue:work --tries=1 --timeout=0 --sleep=3 --max-time=3600
+        mem_limit: 512m
         networks:
             - internal
 
@@ -78,6 +84,7 @@ services:
         <<: *app
         user: www-data
         command: php artisan schedule:work
+        mem_limit: 256m
         networks:
             - internal
 
