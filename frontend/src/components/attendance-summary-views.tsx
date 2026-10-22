@@ -32,9 +32,17 @@ function isCounted(day: CalendarDaySummary): boolean {
     );
 }
 
-function Legend({ items }: { items: { swatch: string; label: string }[] }) {
+function Legend({
+    items,
+    className = '',
+}: {
+    items: { swatch: string; label: string }[];
+    className?: string;
+}) {
     return (
-        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        <ul
+            className={`flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground ${className}`}
+        >
             {items.map((item) => (
                 <li key={item.label} className="flex items-center gap-1.5">
                     <span
@@ -196,7 +204,7 @@ export function MonthSummary({
                             type="button"
                             onClick={() => onOpen(day.date)}
                             title={day.holiday ?? undefined}
-                            className={`flex min-h-14 min-w-0 flex-col justify-between overflow-hidden rounded-md border p-1 text-left hover:ring-2 hover:ring-ring sm:min-h-20 sm:p-1.5 ${
+                            className={`relative flex min-h-14 min-w-0 flex-col justify-between overflow-hidden rounded-xl border p-1 text-left hover:ring-2 hover:ring-ring sm:min-h-20 sm:rounded-md sm:p-1.5 ${
                                 low
                                     ? 'border-destructive bg-destructive/15'
                                     : muted
@@ -211,6 +219,12 @@ export function MonthSummary({
                                     : undefined
                             }
                         >
+                            {day.leave > 0 && (
+                                <span
+                                    aria-hidden
+                                    className="absolute top-1 right-1 size-1.5 rounded-full bg-sky-500 sm:hidden"
+                                />
+                            )}
                             <span className="text-xs">{day.day}</span>
                             {day.holiday !== null ? (
                                 <span className="truncate text-[9px] leading-tight font-medium sm:text-[11px]">
@@ -225,11 +239,6 @@ export function MonthSummary({
                                               ? '—'
                                               : ''}
                                     </span>
-                                    {day.leave > 0 && (
-                                        <span className="block text-[9px] leading-tight text-muted-foreground sm:hidden">
-                                            {day.leave} cuti
-                                        </span>
-                                    )}
                                     {(day.leave > 0 || day.late > 0) && (
                                         <span className="hidden text-[10px] leading-tight text-muted-foreground sm:block">
                                             {[
@@ -252,6 +261,7 @@ export function MonthSummary({
             </div>
 
             <Legend
+                className="hidden sm:flex"
                 items={[
                     { swatch: 'bg-emerald-500/20', label: 'Sedikit hadir' },
                     {
@@ -266,6 +276,18 @@ export function MonthSummary({
                         swatch: 'bg-muted/40 border',
                         label: 'Libur / akhir pekan / belum ada data',
                     },
+                ]}
+            />
+            <Legend
+                className="sm:hidden"
+                items={[
+                    { swatch: 'bg-emerald-500', label: 'Hadir' },
+                    {
+                        swatch: 'rounded-full border-2 border-destructive',
+                        label: '< 60%',
+                    },
+                    { swatch: 'rounded-full bg-sky-500', label: 'Cuti' },
+                    { swatch: 'bg-muted/40 border', label: 'Belum ada data' },
                 ]}
             />
         </section>

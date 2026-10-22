@@ -80,13 +80,14 @@ export default function EmployeesIndex({
     const [search, setSearch] = useState(filters.search);
     const [openId, setOpenId] = useState<number | null>(null);
     const [filtersOpen, setFiltersOpen] = useState(false);
-    // The org chart does not fit a phone's width, so it is not offered there; a view already set to
-    // chart (the URL, or a window resized down) falls back to the card list instead of an empty page.
+    // Grid repeats what the card list already shows on a phone, so it is not offered there; a view
+    // already set to grid (the URL, or a window resized down) falls back to the card list. The chart
+    // stays, and switches to a collapsible tree that fits a narrow screen (EmployeeOrgChart).
     const isMobile = useIsMobile();
     const views = isMobile
-        ? VIEWS.filter((view) => view.value !== 'chart')
+        ? VIEWS.filter((view) => view.value !== 'grid')
         : VIEWS;
-    const view = isMobile && filters.view === 'chart' ? 'list' : filters.view;
+    const view = isMobile && filters.view === 'grid' ? 'list' : filters.view;
     // The directory arrives whole; the list and grid page through it, the org chart needs it all.
     const pagination = usePagination(employees.length);
     const pageOfEmployees = pagination.slice(employees);
@@ -258,7 +259,7 @@ export default function EmployeesIndex({
                 </div>
 
                 {/* Phone: one card per employee. The full profile is a tap away. */}
-                {view !== 'chart' && (
+                {view === 'list' && (
                     <>
                         <div className="flex flex-col gap-3 md:hidden">
                             {employees.length === 0 && (

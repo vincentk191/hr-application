@@ -1,4 +1,5 @@
 import { Head, Link, router, setLayoutProps, usePage } from '@inertiajs/react';
+import { ArrowLeft, MoreVertical } from 'lucide-react';
 import { useState } from 'react';
 import { EmployeeAttendance } from '@/components/employee-attendance';
 import { EmployeeAvatar } from '@/components/employee-avatar';
@@ -7,7 +8,13 @@ import { EmployeeTeamTab } from '@/components/employee-team';
 import { LeaveRequestDetail } from '@/components/leave-request-detail';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { edit, reactivate } from '@/routes/employees';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { edit, index as employeesIndex, reactivate } from '@/routes/employees';
 import { activate, reject } from '@/routes/employees/activation';
 import { create as requestChange } from '@/routes/employees/changes';
 import type { BreadcrumbItem } from '@/types';
@@ -205,14 +212,106 @@ export default function EmployeeShow({
         { title: employee.name, href: `/employees/${employee.id}` },
     ];
 
-    setLayoutProps({ breadcrumbs });
+    setLayoutProps({ breadcrumbs, compactTitleOnMobile: true });
+
+    const confirmReactivate = () => {
+        if (
+            window.confirm(
+                `Aktifkan kembali ${employee.name}? Profil bisa diubah lagi dan akun masuknya diaktifkan kembali. Riwayat offboarding tetap tersimpan.`,
+            )
+        ) {
+            router.post(
+                reactivate(employee.id).url,
+                {},
+                { preserveScroll: true },
+            );
+        }
+    };
+
+    const hasHeaderActions = canUpdate || canReactivate || canRequestChange;
 
     return (
         <>
             <Head title={employee.name} />
 
             <div className="flex flex-col gap-4 p-4">
-                <header className="flex flex-wrap items-start justify-between gap-3">
+                {/* Phone: a compact back + avatar + name header, in place of the page's usual title bar
+                    (PageTitleBar is hidden here, see compactTitleOnMobile above). The same actions as the
+                    desktop header, below, fold into the overflow menu so the row stays one line. */}
+                <header className="flex items-center gap-3 md:hidden">
+                    <Button
+                        asChild
+                        variant="ghost"
+                        size="icon"
+                        className="shrink-0"
+                    >
+                        <Link
+                            href={employeesIndex()}
+                            aria-label="Kembali ke direktori"
+                        >
+                            <ArrowLeft className="size-5" />
+                        </Link>
+                    </Button>
+                    <EmployeeAvatar
+                        name={employee.name}
+                        photoUrl={employee.photoUrl}
+                        className="size-9 shrink-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                        <p className="truncate font-semibold">
+                            {employee.name}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                            {[employee.position, employee.department]
+                                .filter(Boolean)
+                                .join(' · ')}
+                        </p>
+                    </div>
+                    {hasHeaderActions && (
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="shrink-0"
+                                    aria-label="Menu profil"
+                                >
+                                    <MoreVertical className="size-5" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                {canUpdate && (
+                                    <DropdownMenuItem asChild>
+                                        <Link href={edit(employee.id).url}>
+                                            Ubah data
+                                        </Link>
+                                    </DropdownMenuItem>
+                                )}
+                                {canReactivate && (
+                                    <DropdownMenuItem
+                                        data-test="reactivate-employee"
+                                        onSelect={confirmReactivate}
+                                    >
+                                        Aktifkan kembali
+                                    </DropdownMenuItem>
+                                )}
+                                {canRequestChange && (
+                                    <DropdownMenuItem asChild>
+                                        <Link
+                                            href={
+                                                requestChange(employee.id).url
+                                            }
+                                        >
+                                            Ajukan perubahan data
+                                        </Link>
+                                    </DropdownMenuItem>
+                                )}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    )}
+                </header>
+
+                <header className="hidden flex-wrap items-start justify-between gap-3 md:flex">
                     <div className="flex items-center gap-4">
                         <EmployeeAvatar
                             name={employee.name}
@@ -243,19 +342,7 @@ export default function EmployeeShow({
                         <Button
                             variant="outline"
                             data-test="reactivate-employee"
-                            onClick={() => {
-                                if (
-                                    window.confirm(
-                                        `Aktifkan kembali ${employee.name}? Profil bisa diubah lagi dan akun masuknya diaktifkan kembali. Riwayat offboarding tetap tersimpan.`,
-                                    )
-                                ) {
-                                    router.post(
-                                        reactivate(employee.id).url,
-                                        {},
-                                        { preserveScroll: true },
-                                    );
-                                }
-                            }}
+                            onClick={confirmReactivate}
                         >
                             Aktifkan kembali
                         </Button>
@@ -335,7 +422,7 @@ export default function EmployeeShow({
                     </div>
                 </div>
 
-                <nav className="pill-tabs">
+                <nav className="pill-tabs flex-nowrap overflow-x-auto md:flex-wrap md:overflow-visible">
                     {TABS.filter(
                         (item) =>
                             (item.key !== 'team' || team) &&
@@ -346,6 +433,7 @@ export default function EmployeeShow({
                             type="button"
                             onClick={() => setTab(item.key)}
                             data-on={tab === item.key}
+                            className="shrink-0"
                         >
                             {item.label}
                         </button>

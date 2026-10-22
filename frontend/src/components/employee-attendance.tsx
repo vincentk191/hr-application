@@ -287,6 +287,139 @@ function DayRow({
     );
 }
 
+/**
+ * The same one day as {@link DayRow}, as a card instead of a table row: date and weekday at the
+ * left, status and duration at the right, and — tapped open — the same scan list and correction
+ * forms. Used on a phone, where the table does not fit.
+ */
+function DayCard({
+    employeeId,
+    day,
+    canCorrect,
+}: {
+    employeeId: number;
+    day: TimesheetDay;
+    canCorrect: boolean;
+}) {
+    const [open, setOpen] = useState(false);
+    const hasScans = day.scans.length > 0;
+    const expandable = hasScans || canCorrect;
+
+    return (
+        <li className="surface p-3">
+            <button
+                type="button"
+                onClick={() => expandable && setOpen((value) => !value)}
+                className="flex w-full items-center gap-3 text-left"
+                disabled={!expandable}
+            >
+                <span className="w-10 shrink-0">
+                    <span className="block text-lg leading-none font-bold">
+                        {day.date.slice(8)}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                        {day.weekday}
+                    </span>
+                </span>
+                <span className="min-w-0 flex-1">
+                    <span
+                        className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[day.status]}`}
+                    >
+                        {day.event
+                            ? `Libur: ${day.event}`
+                            : STATUS_LABEL[day.status]}
+                    </span>
+                    {(day.in !== null || day.out !== null) && (
+                        <span className="mt-1 block font-mono text-xs text-muted-foreground">
+                            {day.in ?? '—'} – {day.out ?? '—'}
+                        </span>
+                    )}
+                </span>
+                <span className="shrink-0 text-right text-sm font-medium whitespace-nowrap">
+                    {formatMinutes(day.minutes)}
+                </span>
+            </button>
+
+            {open && (
+                <div className="mt-3 border-t pt-3">
+                    {hasScans ? (
+                        <ul className="divide-y">
+                            {day.scans.map((scan) => (
+                                <ScanRow
+                                    key={scan.id}
+                                    date={day.date}
+                                    scan={scan}
+                                    canCorrect={canCorrect}
+                                />
+                            ))}
+                        </ul>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">
+                            Tidak ada scan pada hari ini.
+                        </p>
+                    )}
+
+                    {canCorrect && (
+                        <Form
+                            action={store(employeeId).url}
+                            method="post"
+                            resetOnSuccess
+                            className="mt-3 flex flex-col items-start gap-2 border-t pt-3"
+                        >
+                            {({ processing, errors }) => (
+                                <>
+                                    <input
+                                        type="hidden"
+                                        name="date"
+                                        value={day.date}
+                                    />
+                                    <div className="grid w-full gap-1">
+                                        <Label
+                                            htmlFor={`time-m-${day.date}`}
+                                            className="text-xs"
+                                        >
+                                            Tambah scan
+                                        </Label>
+                                        <Input
+                                            id={`time-m-${day.date}`}
+                                            type="time"
+                                            name="time"
+                                            required
+                                            className="w-32"
+                                        />
+                                        <InputError message={errors.time} />
+                                    </div>
+                                    <div className="grid w-full gap-1">
+                                        <Label
+                                            htmlFor={`reason-m-${day.date}`}
+                                            className="text-xs"
+                                        >
+                                            Alasan (wajib)
+                                        </Label>
+                                        <Input
+                                            id={`reason-m-${day.date}`}
+                                            name="reason"
+                                            required
+                                        />
+                                        <InputError message={errors.reason} />
+                                    </div>
+                                    <Button
+                                        type="submit"
+                                        size="sm"
+                                        disabled={processing}
+                                    >
+                                        Tambah
+                                    </Button>
+                                </>
+                            )}
+                        </Form>
+                    )}
+                </div>
+            )}
+        </li>
+    );
+}
+
 function PeriodToggle({
     period,
     onChange,
@@ -570,31 +703,75 @@ export function EmployeeAttendance({
 
     return (
         <div className="flex flex-col gap-4">
-            {toggle}
-            <div className="flex flex-wrap items-center gap-2">
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => goTo(attendance.prev)}
-                    aria-label="Bulan sebelumnya"
-                >
-                    ‹
-                </Button>
-                <h2 className="text-lg font-semibold">{attendance.label}</h2>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => goTo(attendance.next)}
-                    aria-label="Bulan berikutnya"
-                >
-                    ›
-                </Button>
-                <span className="ml-auto text-xs text-muted-foreground">
-                    Data sampai {attendance.dataThrough ?? '—'}
-                </span>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-1">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => goTo(attendance.prev)}
+                        aria-label="Bulan sebelumnya"
+                    >
+                        ‹
+                    </Button>
+                    <h2 className="text-lg font-semibold">
+                        {attendance.label}
+                    </h2>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => goTo(attendance.next)}
+                        aria-label="Bulan berikutnya"
+                    >
+                        ›
+                    </Button>
+                </div>
+                {toggle}
+            </div>
+            <span className="hidden text-xs text-muted-foreground md:block">
+                Data sampai {attendance.dataThrough ?? '—'}
+            </span>
+
+            {/* Phone: a big total-hours card, then the five counts as small round badges. */}
+            <div className="flex flex-col gap-3 md:hidden">
+                <div className="surface flex items-center justify-between p-4">
+                    <div>
+                        <p className="label-mono">Total jam kerja</p>
+                        <p className="text-3xl font-extrabold tracking-tight">
+                            {formatMinutes(totals.minutes)}
+                        </p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        Data sampai {attendance.dataThrough ?? '—'}
+                    </p>
+                </div>
+                <div className="grid grid-cols-5 gap-1 text-center">
+                    {(
+                        [
+                            ['present', 'Hadir'],
+                            ['late', 'Telat'],
+                            ['early_leave', 'P. cepat'],
+                            ['absent', 'Absen'],
+                            ['leave', 'Cuti'],
+                        ] as const
+                    ).map(([status, label]) => (
+                        <div
+                            key={status}
+                            className="flex flex-col items-center gap-1"
+                        >
+                            <span
+                                className={`flex size-9 items-center justify-center rounded-full text-sm font-bold ${STATUS_STYLE[status]}`}
+                            >
+                                {totals[status]}
+                            </span>
+                            <span className="text-[11px] text-muted-foreground">
+                                {label}
+                            </span>
+                        </div>
+                    ))}
+                </div>
             </div>
 
-            <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-6">
+            <dl className="hidden grid-cols-2 gap-2 text-sm sm:grid-cols-6 md:grid">
                 {(
                     [
                         ['present', 'Hadir'],
@@ -624,7 +801,9 @@ export function EmployeeAttendance({
                 </div>
             </dl>
 
-            <div className="surface overflow-x-auto">
+            <p className="label-mono">Riwayat harian</p>
+
+            <div className="surface hidden overflow-x-auto md:block">
                 <table className="w-full text-sm">
                     <thead className="bg-muted/50 text-left">
                         <tr>
@@ -648,6 +827,17 @@ export function EmployeeAttendance({
                     </tbody>
                 </table>
             </div>
+
+            <ul className="flex flex-col gap-2 md:hidden">
+                {attendance.days.map((day) => (
+                    <DayCard
+                        key={day.date}
+                        employeeId={employeeId}
+                        day={day}
+                        canCorrect={canCorrect}
+                    />
+                ))}
+            </ul>
 
             <p className="text-xs text-muted-foreground">
                 Masuk = scan pertama, pulang = scan terakhir pada hari itu.

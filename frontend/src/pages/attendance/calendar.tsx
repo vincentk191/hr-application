@@ -1,5 +1,5 @@
-import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ChevronRight } from 'lucide-react';
+import { Head, Link, router, setLayoutProps, usePage } from '@inertiajs/react';
+import { ChevronRight, MoreVertical } from 'lucide-react';
 import { useState } from 'react';
 import {
     MonthSummary,
@@ -7,6 +7,11 @@ import {
     YearSummary,
 } from '@/components/attendance-summary-views';
 import { CalendarEvents } from '@/components/calendar-events';
+import {
+    FilterButton,
+    FilterSection,
+    FilterSheet,
+} from '@/components/filter-sheet';
 import { MultiSelectFilter } from '@/components/multi-select-filter';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,7 +19,20 @@ import {
     CollapsibleContent,
     CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { STATUS_STYLE } from '@/lib/attendance-status';
 import { printReport } from '@/lib/print';
 import { device } from '@/routes/attendance';
@@ -70,6 +88,10 @@ type Props = {
     schedule: { start: string; end: string; lateAfter: string };
     canManageAttendance: boolean;
 };
+
+const CALENDAR_BREADCRUMBS: BreadcrumbItem[] = [
+    { title: 'Kalender', href: calendar() },
+];
 
 const VIEWS: { value: CalendarView; label: string }[] = [
     { value: 'day', label: 'Hari' },
@@ -464,6 +486,7 @@ export default function AttendanceCalendar(props: Props) {
     const { features } = usePage().props;
 
     const [search, setSearch] = useState(filters.search);
+    const [filtersOpen, setFiltersOpen] = useState(false);
 
     const go = (changes: {
         view?: CalendarView;
@@ -510,11 +533,51 @@ export default function AttendanceCalendar(props: Props) {
         ['leave_type', filters.leaveType ?? ''],
     ]).toString()}`;
 
+    // Only a primitive goes through setLayoutProps (see AppLayoutProps): the overflow menu below is built
+    // straight into this page's own JSX instead, as the mobile-only title row PageTitleBar's own title
+    // (hidden here by compactTitleOnMobile) would otherwise show.
+    setLayoutProps({
+        breadcrumbs: CALENDAR_BREADCRUMBS,
+        compactTitleOnMobile: true,
+    });
+
     return (
         <>
             <Head title="Kalender" />
 
             <div className="flex flex-col gap-4 p-4">
+                <div className="flex items-center justify-between md:hidden">
+                    <h1 className="text-2xl font-extrabold tracking-tight">
+                        Kalender
+                    </h1>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                aria-label="Menu kalender"
+                            >
+                                <MoreVertical className="size-5" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            {features.attendance && (
+                                <>
+                                    <DropdownMenuItem asChild>
+                                        <Link href={recap()}>Rekap</Link>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem asChild>
+                                        <a href={exportUrl}>Unduh CSV</a>
+                                    </DropdownMenuItem>
+                                </>
+                            )}
+                            <DropdownMenuItem onSelect={() => printReport()}>
+                                Cetak / PDF
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+
                 {features.attendance && capture.state !== 'current' && (
                     <p className="surface border-amber-500/60 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
                         {capture.state === 'never'
@@ -536,19 +599,24 @@ export default function AttendanceCalendar(props: Props) {
                     </p>
                 )}
 
-                <div className="flex flex-wrap items-center gap-2">
-                    <div className="seg">
-                        {VIEWS.map((item) => (
-                            <button
-                                key={item.value}
-                                type="button"
-                                onClick={() => go({ view: item.value })}
-                                data-on={view === item.value}
-                            >
-                                {item.label}
-                            </button>
-                        ))}
-                    </div>
+                <div className="seg w-full md:w-fit">
+                    {VIEWS.map((item) => (
+                        <button
+                            key={item.value}
+                            type="button"
+                            onClick={() => go({ view: item.value })}
+                            data-on={view === item.value}
+                            className="flex-1 md:flex-initial"
+                        >
+                            {item.label}
+                        </button>
+                    ))}
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h2 className="text-xl font-extrabold tracking-tight">
+                        {nav.label}
+                    </h2>
 
                     <div className="flex items-center gap-1">
                         <Button
@@ -576,11 +644,7 @@ export default function AttendanceCalendar(props: Props) {
                         </Button>
                     </div>
 
-                    <h2 className="text-xl font-extrabold tracking-tight">
-                        {nav.label}
-                    </h2>
-
-                    <div className="ml-auto flex gap-2 print:hidden">
+                    <div className="ml-auto hidden gap-2 md:flex print:hidden">
                         {features.attendance && (
                             <>
                                 <Button asChild variant="outline" size="sm">
@@ -601,14 +665,25 @@ export default function AttendanceCalendar(props: Props) {
                         </Button>
                     </div>
 
-                    <span className="text-xs text-muted-foreground">
+                    <span className="hidden text-xs text-muted-foreground md:block">
                         Data sampai {dataThrough ?? '—'} · jam kerja{' '}
                         {schedule.start}–{schedule.end}, terlambat setelah{' '}
                         {schedule.lateAfter}
                     </span>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                <FilterButton
+                    count={
+                        filters.departments.length +
+                        filters.statuses.length +
+                        (filters.team !== null ? 1 : 0) +
+                        (filters.leaveType !== null ? 1 : 0) +
+                        (filters.search !== '' ? 1 : 0)
+                    }
+                    onClick={() => setFiltersOpen(true)}
+                />
+
+                <div className="hidden flex-wrap items-center gap-2 md:flex">
                     <form
                         onSubmit={(event) => {
                             event.preventDefault();
@@ -836,12 +911,152 @@ export default function AttendanceCalendar(props: Props) {
                     </aside>
                 </div>
             </div>
+
+            <FilterSheet
+                open={filtersOpen}
+                onOpenChange={setFiltersOpen}
+                onReset={() => {
+                    setSearch('');
+                    go({
+                        filters: {
+                            departments: [],
+                            statuses: [],
+                            search: '',
+                            team: null,
+                            leaveType: null,
+                        },
+                    });
+                }}
+                showLabel="Terapkan filter"
+            >
+                <form
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        go({});
+                        setFiltersOpen(false);
+                    }}
+                >
+                    <Input
+                        value={search}
+                        onChange={(event) => setSearch(event.target.value)}
+                        placeholder="Cari nama atau ID…"
+                        aria-label="Cari karyawan"
+                    />
+                </form>
+
+                <FilterSection title="Status kehadiran">
+                    <div className="flex flex-wrap gap-2">
+                        {options.statuses
+                            .filter(
+                                (status) =>
+                                    status.value !== 'off' &&
+                                    status.value !== 'no_data',
+                            )
+                            .map((status) => (
+                                <button
+                                    key={status.value}
+                                    type="button"
+                                    onClick={() =>
+                                        go({
+                                            filters: {
+                                                statuses: toggle(
+                                                    filters.statuses,
+                                                    status.value,
+                                                ),
+                                            },
+                                        })
+                                    }
+                                    className={`rounded-full px-3 py-1 text-xs ${STATUS_STYLE[status.value]} ${
+                                        filters.statuses.includes(status.value)
+                                            ? 'ring-2 ring-foreground/60'
+                                            : 'opacity-70'
+                                    }`}
+                                >
+                                    {status.code} · {status.label}
+                                </button>
+                            ))}
+                    </div>
+                </FilterSection>
+
+                <FilterSection title="Departemen">
+                    <div className="flex flex-wrap gap-2">
+                        {options.departments.map((name) => (
+                            <button
+                                key={name}
+                                type="button"
+                                className="chip"
+                                data-on={filters.departments.includes(name)}
+                                onClick={() =>
+                                    go({
+                                        filters: {
+                                            departments: toggle(
+                                                filters.departments,
+                                                name,
+                                            ),
+                                        },
+                                    })
+                                }
+                            >
+                                {name}
+                            </button>
+                        ))}
+                    </div>
+                </FilterSection>
+
+                <Select
+                    value={filters.team === null ? 'all' : String(filters.team)}
+                    onValueChange={(value) =>
+                        go({
+                            filters: {
+                                team: value === 'all' ? null : Number(value),
+                            },
+                        })
+                    }
+                >
+                    <SelectTrigger
+                        aria-label="Tim"
+                        className="w-full justify-between border-0 border-t px-0 py-5 text-sm font-medium shadow-none first:rounded-none"
+                    >
+                        <span>Tim</span>
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Semua tim</SelectItem>
+                        {options.teams.map((lead) => (
+                            <SelectItem key={lead.id} value={String(lead.id)}>
+                                Tim {lead.full_name}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+
+                <Select
+                    value={filters.leaveType ?? 'all'}
+                    onValueChange={(value) =>
+                        go({
+                            filters: {
+                                leaveType: value === 'all' ? null : value,
+                            },
+                        })
+                    }
+                >
+                    <SelectTrigger
+                        aria-label="Jenis pengajuan"
+                        className="w-full justify-between border-0 border-t px-0 py-5 text-sm font-medium shadow-none first:rounded-none"
+                    >
+                        <span>Jenis pengajuan</span>
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Semua jenis</SelectItem>
+                        {options.leaveTypes.map((type) => (
+                            <SelectItem key={type.value} value={type.value}>
+                                {type.label}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </FilterSheet>
         </>
     );
 }
-
-AttendanceCalendar.layout = {
-    breadcrumbs: [
-        { title: 'Kalender', href: calendar() },
-    ] satisfies BreadcrumbItem[],
-};

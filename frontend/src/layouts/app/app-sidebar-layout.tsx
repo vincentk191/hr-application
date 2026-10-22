@@ -9,6 +9,7 @@ import type { AppLayoutProps } from '@/types';
 export default function AppSidebarLayout({
     children,
     breadcrumbs = [],
+    compactTitleOnMobile,
 }: AppLayoutProps) {
     return (
         <AppShell variant="sidebar">
@@ -19,7 +20,10 @@ export default function AppSidebarLayout({
                     variant="sidebar"
                     className="min-h-[calc(100svh-var(--topbar-h))] min-w-0 overflow-x-clip bg-background pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0"
                 >
-                    <PageTitleBar breadcrumbs={breadcrumbs} />
+                    <PageTitleBar
+                        breadcrumbs={breadcrumbs}
+                        compactOnMobile={compactTitleOnMobile}
+                    />
                     {children}
                 </AppContent>
             </div>
