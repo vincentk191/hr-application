@@ -2,12 +2,14 @@
 
 namespace App\Actions\Offboarding;
 
+use App\Enums\OffboardingFileKind;
 use App\Models\Employee;
 use App\Models\OffboardingCase;
 use App\Models\User;
 use App\Support\Offboarding\OffboardingFiles;
 use App\Workflows\Definitions\OffboardingCaseWorkflow;
 use App\Workflows\WorkflowEngine;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -24,7 +26,7 @@ class SaveOffboardingDraft
 
     /**
      * @param  array<string, mixed>  $data  the case's own fields
-     * @param  list<array{kind: \App\Enums\OffboardingFileKind, files: list<\Illuminate\Http\UploadedFile>}>  $uploads
+     * @param  list<array{kind: OffboardingFileKind, files: list<UploadedFile>}>  $uploads
      * @param  array<int, int>  $removeFileIds
      */
     public function handle(?OffboardingCase $case, ?Employee $employee, array $data, array $uploads, array $removeFileIds, User $by): OffboardingCase

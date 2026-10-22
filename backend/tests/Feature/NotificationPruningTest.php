@@ -4,6 +4,7 @@ use App\Models\User;
 use App\Notifications\InAppNotice;
 use App\Support\Notifications\Notifier;
 use Carbon\CarbonImmutable;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Notifications\DatabaseNotification;
 
 /**
@@ -91,7 +92,7 @@ it('still sends the same key to a different person, and a different key to the s
 });
 
 it('runs every hour', function () {
-    $event = collect(app(Illuminate\Console\Scheduling\Schedule::class)->events())
+    $event = collect(app(Schedule::class)->events())
         ->first(fn ($event) => str_contains((string) $event->command, 'notifications:prune-read'));
 
     expect($event)->not->toBeNull()->and($event->expression)->toBe('0 * * * *');

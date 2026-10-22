@@ -5,6 +5,7 @@ namespace App\Actions\Offboarding;
 use App\Enums\OffboardingCaseStage;
 use App\Models\OffboardingCase;
 use App\Models\User;
+use App\Models\WorkflowInstance;
 use App\Support\Notifications\Notifier;
 use App\Workflows\WorkflowEngine;
 
@@ -36,7 +37,7 @@ class DecideOffboardingCase
      * A note given with a decision is also a comment, so it shows in the thread at once and stays with
      * the stage it was written in. Written before the stage changes, which is what tags it.
      */
-    private function remember(\App\Models\WorkflowInstance $instance, User $by, ?string $note): void
+    private function remember(WorkflowInstance $instance, User $by, ?string $note): void
     {
         if (trim((string) $note) !== '') {
             $this->engine->comment($instance, $by, (string) $note);

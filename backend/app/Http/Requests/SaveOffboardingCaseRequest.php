@@ -8,6 +8,7 @@ use App\Enums\OffboardingFileKind;
 use App\Models\Employee;
 use App\Models\OffboardingCase;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -134,7 +135,7 @@ class SaveOffboardingCaseRequest extends FormRequest
     /**
      * The files sent with the form, by kind.
      *
-     * @return list<array{kind: OffboardingFileKind, files: list<\Illuminate\Http\UploadedFile>}>
+     * @return list<array{kind: OffboardingFileKind, files: list<UploadedFile>}>
      */
     public function uploads(): array
     {

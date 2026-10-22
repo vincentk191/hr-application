@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\User;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -27,7 +28,7 @@ return new class extends Migration
         });
 
         DB::table('notifications')
-            ->where('notifiable_type', (new App\Models\User)->getMorphClass())
+            ->where('notifiable_type', (new User)->getMorphClass())
             ->where('data', 'like', '%"key":%')
             ->orderBy('created_at')
             ->each(function (object $row): void {
