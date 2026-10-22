@@ -35,7 +35,8 @@ server {
     root /var/www/backend/public;
     index index.php;
 
-    client_max_body_size 25m;
+    # Room for the largest form: five 5 MB leave attachments, plus the rest of the form. Keep it at or above post_max_size.
+    client_max_body_size 30m;
     server_tokens off;
 
     add_header X-Content-Type-Options "nosniff" always;

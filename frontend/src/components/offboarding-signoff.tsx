@@ -2,6 +2,7 @@ import { Form, Link, router } from '@inertiajs/react';
 import { Check } from 'lucide-react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
+import LimitedFileInput from '@/components/limited-file-input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -306,10 +307,11 @@ function ExitDocuments({ item }: { item: OffboardingCase }) {
                             </option>
                         </select>
                     </div>
-                    <Input
+                    <LimitedFileInput
                         name={`file_${kind}[]`}
-                        type="file"
                         accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                        maxSizeMb={10}
+                        maxFiles={5}
                         className="w-72"
                     />
                     <InputError message={errors[`file_${kind}`]} />

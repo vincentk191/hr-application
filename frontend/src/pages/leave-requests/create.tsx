@@ -1,6 +1,7 @@
 import { Form, Head } from '@inertiajs/react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
+import LimitedFileInput from '@/components/limited-file-input';
 import { TimeframeFields } from '@/components/timeframe-fields';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -180,12 +181,13 @@ export default function LeaveRequestCreate({
                                         (opsional)
                                     </span>
                                 </Label>
-                                <Input
+                                <LimitedFileInput
                                     id="attachments"
                                     name="attachments[]"
-                                    type="file"
                                     multiple
                                     accept=".pdf,.jpg,.jpeg,.png"
+                                    maxSizeMb={5}
+                                    maxFiles={5}
                                 />
                                 <p className="text-xs text-muted-foreground">
                                     Mis. surat dokter. PDF, JPG, atau PNG,

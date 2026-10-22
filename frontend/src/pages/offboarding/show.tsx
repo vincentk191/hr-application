@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { ApprovalChain } from '@/components/approval-chain';
 import { DecisionDialog } from '@/components/decision-dialog';
 import InputError from '@/components/input-error';
+import LimitedFileInput from '@/components/limited-file-input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -185,12 +186,13 @@ function Files({ item }: { item: OffboardingCase }) {
                                 <Label htmlFor="file_other">
                                     Tambah berkas
                                 </Label>
-                                <Input
+                                <LimitedFileInput
                                     id="file_other"
                                     name="file_other[]"
-                                    type="file"
                                     multiple
                                     accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                                    maxSizeMb={10}
+                                    maxFiles={5}
                                 />
                                 <InputError message={errors.file_other} />
                             </div>

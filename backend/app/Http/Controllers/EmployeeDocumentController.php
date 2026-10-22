@@ -9,6 +9,7 @@ use App\Http\Requests\UpdateEmployeeDocumentRequest;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
 use App\Models\EmployeeDocumentVersion;
+use App\Support\Files\UploadFiler;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -25,6 +26,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class EmployeeDocumentController extends Controller
 {
     private const DISK = 'local';
+
+    public function __construct(private readonly UploadFiler $filer) {}
 
     public function store(StoreEmployeeDocumentRequest $request, Employee $employee): RedirectResponse
     {
@@ -113,13 +116,15 @@ class EmployeeDocumentController extends Controller
     private function addVersion(EmployeeDocument $document, UploadedFile $file, ?string $note): EmployeeDocumentVersion
     {
         $next = ((int) $document->versions()->max('version_no')) + 1;
+        // Kept exactly as uploaded: a contract may be signed, and rewriting the PDF would break the signature.
+        $stored = $this->filer->store($file, "employee-documents/{$document->employee_id}", self::DISK, compress: false);
 
         return $document->versions()->create([
             'version_no' => $next,
-            'path' => $file->store("employee-documents/{$document->employee_id}", self::DISK),
+            'path' => $stored['path'],
             'original_name' => $file->getClientOriginalName(),
             'mime_type' => $file->getClientMimeType(),
-            'size_bytes' => $file->getSize(),
+            'size_bytes' => $stored['size'],
             'uploaded_by_user_id' => auth()->id(),
             'note' => $note,
         ]);

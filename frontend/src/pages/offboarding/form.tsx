@@ -1,6 +1,7 @@
 import { Form, Head, Link, setLayoutProps } from '@inertiajs/react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
+import LimitedFileInput from '@/components/limited-file-input';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -516,15 +517,16 @@ export default function OffboardingForm({
                                                         </span>
                                                     </label>
                                                 ))}
-                                                <Input
+                                                <LimitedFileInput
                                                     id={name}
                                                     name={`${name}[]`}
-                                                    type="file"
                                                     multiple={
                                                         kind.value !==
                                                         'resignation_letter'
                                                     }
                                                     accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                                                    maxSizeMb={10}
+                                                    maxFiles={5}
                                                 />
                                                 <InputError
                                                     message={

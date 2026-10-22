@@ -6,6 +6,7 @@ use App\Enums\OffboardingFileKind;
 use App\Models\OffboardingCase;
 use App\Models\OffboardingCaseFile;
 use App\Models\User;
+use App\Support\Files\UploadFiler;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
@@ -16,6 +17,8 @@ use Illuminate\Support\Facades\Storage;
 class OffboardingFiles
 {
     public const DISK = 'local';
+
+    public function __construct(private readonly UploadFiler $filer) {}
 
     /**
      * @param  list<UploadedFile>  $files
@@ -28,13 +31,15 @@ class OffboardingFiles
         }
 
         foreach ($files as $file) {
+            $stored = $this->filer->store($file, "offboarding-files/{$case->company_id}/{$case->id}", self::DISK);
+
             $case->files()->create([
                 'company_id' => $case->company_id,
                 'kind' => $kind,
-                'path' => $file->store("offboarding-files/{$case->company_id}/{$case->id}", self::DISK),
+                'path' => $stored['path'],
                 'original_name' => $file->getClientOriginalName(),
                 'mime_type' => $file->getClientMimeType(),
-                'size_bytes' => (int) $file->getSize(),
+                'size_bytes' => $stored['size'],
                 'uploaded_by_user_id' => $by->id,
             ]);
         }

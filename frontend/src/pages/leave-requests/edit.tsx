@@ -1,6 +1,7 @@
 import { Form, Head } from '@inertiajs/react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
+import LimitedFileInput from '@/components/limited-file-input';
 import { TimeframeFields } from '@/components/timeframe-fields';
 import { LeaveHistory } from '@/components/leave-request-detail';
 import { Button } from '@/components/ui/button';
@@ -213,11 +214,12 @@ export default function LeaveRequestEdit({
                                         ))}
                                     </ul>
                                 )}
-                                <Input
+                                <LimitedFileInput
                                     name="attachments[]"
-                                    type="file"
                                     multiple
                                     accept=".pdf,.jpg,.jpeg,.png"
+                                    maxSizeMb={5}
+                                    maxFiles={5}
                                 />
                                 <p className="text-xs text-muted-foreground">
                                     Centang untuk menghapus lampiran lama.

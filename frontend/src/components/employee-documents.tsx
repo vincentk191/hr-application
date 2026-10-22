@@ -2,6 +2,7 @@ import { Form, router } from '@inertiajs/react';
 import { Download, Lock } from 'lucide-react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
+import LimitedFileInput from '@/components/limited-file-input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -262,11 +263,11 @@ function DocumentCard({
                                 <Label htmlFor={`file-${document.id}`}>
                                     Berkas baru
                                 </Label>
-                                <Input
+                                <LimitedFileInput
                                     id={`file-${document.id}`}
                                     name="file"
-                                    type="file"
                                     accept={ACCEPT}
+                                    maxSizeMb={10}
                                     required
                                 />
                                 <InputError message={errors.file} />
@@ -366,11 +367,11 @@ export function EmployeeDocuments({
                             />
                             <div className="grid gap-2 sm:col-span-2">
                                 <Label htmlFor="document-file">Berkas</Label>
-                                <Input
+                                <LimitedFileInput
                                     id="document-file"
                                     name="file"
-                                    type="file"
                                     accept={ACCEPT}
+                                    maxSizeMb={10}
                                     required
                                 />
                                 <p className="text-xs text-muted-foreground">

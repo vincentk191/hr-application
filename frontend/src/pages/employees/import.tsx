@@ -1,5 +1,6 @@
 import { Form, Head } from '@inertiajs/react';
 import InputError from '@/components/input-error';
+import LimitedFileInput from '@/components/limited-file-input';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { index, importMethod } from '@/routes/employees';
@@ -58,11 +59,11 @@ export default function EmployeesImport({
                                 <label htmlFor="file" className="text-sm">
                                     Berkas CSV
                                 </label>
-                                <Input
+                                <LimitedFileInput
                                     id="file"
                                     name="file"
-                                    type="file"
                                     accept=".csv,.txt"
+                                    maxSizeMb={2}
                                     required
                                 />
                                 <InputError message={errors.file} />

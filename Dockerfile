@@ -12,9 +12,11 @@ FROM ${PHP_IMAGE} AS base
 # libpq-dev  -> pdo_pgsql (PostgreSQL is the only supported database here)
 # libzip-dev -> zip, needed by Composer and later by Laravel Excel
 # libicu-dev -> intl, for Indonesian date and number formatting
+# ghostscript -> shrinks uploaded PDFs (config/uploads.php); without it they are stored as uploaded
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
         unzip \
+        ghostscript \
         libpq-dev \
         libzip-dev \
         libicu-dev \

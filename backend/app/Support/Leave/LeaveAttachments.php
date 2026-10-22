@@ -5,6 +5,7 @@ namespace App\Support\Leave;
 use App\Models\LeaveRequest;
 use App\Models\LeaveRequestAttachment;
 use App\Models\User;
+use App\Support\Files\UploadFiler;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
@@ -16,18 +17,22 @@ class LeaveAttachments
 {
     public const DISK = 'local';
 
+    public function __construct(private readonly UploadFiler $filer) {}
+
     /**
      * @param  list<UploadedFile>  $files
      */
     public function store(LeaveRequest $leave, array $files, User $by): void
     {
         foreach ($files as $file) {
+            $stored = $this->filer->store($file, "leave-attachments/{$leave->company_id}/{$leave->id}", self::DISK);
+
             $leave->attachments()->create([
                 'company_id' => $leave->company_id,
-                'path' => $file->store("leave-attachments/{$leave->company_id}/{$leave->id}", self::DISK),
+                'path' => $stored['path'],
                 'original_name' => $file->getClientOriginalName(),
                 'mime_type' => $file->getClientMimeType(),
-                'size_bytes' => (int) $file->getSize(),
+                'size_bytes' => $stored['size'],
                 'uploaded_by_user_id' => $by->id,
             ]);
         }

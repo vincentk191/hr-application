@@ -1,5 +1,6 @@
 import { Form, Head, router } from '@inertiajs/react';
 import InputError from '@/components/input-error';
+import LimitedFileInput from '@/components/limited-file-input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -198,11 +199,11 @@ function UploadCard({
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="file">Berkas (CSV)</Label>
-                        <Input
+                        <LimitedFileInput
                             id="file"
                             name="file"
-                            type="file"
                             accept=".csv,.txt"
+                            maxSizeMb={20}
                             required
                         />
                         <InputError message={errors.file} />
