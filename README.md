@@ -259,7 +259,64 @@ Open UDP 51820 in the firewall. Reach the wg-easy page only through an SSH tunne
 (`ssh -L 51821:127.0.0.1:51821 <user>@<server>`, then `http://localhost:51821`), sign in with `WG_ADMIN_USER` /
 `WG_ADMIN_PASSWORD`, add a client for each person who needs the private entrance (supervisors, department heads, anyone who
 approves, checklist owners, Management, HR, admins), and have them scan the QR code in the WireGuard app. With the VPN on, they
-browse to `http://172.30.0.10`. Delete a person's client when they leave.
+browse to `https://<vpn-host>` once step 7.5 is done (plain `http://172.30.0.10` until then). Delete a person's client when
+they leave.
+
+### 7.5 HTTPS over the VPN
+
+Elevated people get the install, the service worker and a real certificate too, not just plain `http://172.30.0.10`.
+This uses its own hostname, `<vpn-host>` — separate from `<hr-host>`, so elevated people end up with a second
+bookmark/PWA install for VPN use — in exchange for needing nothing beyond a DNS record and a certificate: no proxy,
+no change to what a WireGuard peer's traffic touches. `$entrance` in `docker/server/nginx.conf.template` was always
+keyed on the connection's source address, not the hostname, so nothing about which screens open changes; only the
+address and the padlock are new. Skip this section to stay on plain `http://172.30.0.10` instead — nothing else here
+depends on it.
+
+1. **Add one DNS record**, at whichever provider holds the domain: type `A`, name `vpn` or similar, **172.30.0.10**
+   (not the server's public IP — this is deliberate, see below). `172.30.0.10` is a private address
+   (`172.16.0.0/12`), unreachable from the internet, so publishing it is harmless: off the VPN the name resolves but
+   nothing answers; on the VPN, the peer's Allowed IPs already route that one address through the tunnel. No split
+   DNS, no extra container, nothing proxied through the server.
+2. **Get the certificate with a DNS-01 challenge**, since `172.30.0.10` cannot be reached from the internet the way
+   `certbot --nginx` needs (that only works for the public hostname in step 5, which stays unchanged). If the DNS
+   provider has a certbot plugin (`certbot dns-cloudflare`, `dns-route53`, …), use it for a fully automatic renewal.
+   **idwebhost does not offer one**, so instead:
+   ```bash
+   certbot certonly --manual --preferred-challenges dns -d <vpn-host>
+   ```
+   Certbot prints a TXT record (`_acme-challenge.<vpn-host>`) and waits. Add exactly that record at idwebhost, wait
+   a minute or two for it to propagate (`dig +short TXT _acme-challenge.<vpn-host>` from the server should show it),
+   then press Enter to let Certbot verify and issue the certificate.
+3. **Set the hostname and rebuild.** In `docker/server/.env`, set `VPN_HOSTNAME=<vpn-host>` (no scheme, no port —
+   the exact name the certificate was issued for), then:
+   ```bash
+   docker compose -f docker-compose.server.yml --env-file docker/server/.env up -d --build
+   docker compose -f docker-compose.server.yml --env-file docker/server/.env exec web nginx -t
+   ```
+   `nginx -t` must say "syntax is ok" / "test is successful". If it instead complains it cannot load a certificate,
+   `VPN_HOSTNAME` does not match the name on the certificate (`certbot certificates` on the host lists what exists).
+4. **Install the reload hook once**, so a renewal actually reaches the `web` container (it mounts the host's
+   certificates read-only and does not otherwise notice a new one):
+   ```bash
+   cp docker/server/reload-after-renew.sh /etc/letsencrypt/renewal-hooks/deploy/hr-app.sh
+   chmod +x /etc/letsencrypt/renewal-hooks/deploy/hr-app.sh
+   ```
+   Edit `REPO_DIR` in that file first if the clone is not at `/opt/hr-application`. This also covers the *public*
+   certificate's own automatic renewals, so install it even if you only care about those.
+5. **Renew by hand, every 60-90 days** (the certificate is valid 90; renew with time to spare). Without a DNS
+   provider API, Certbot's own timer cannot do this one unattended — it will skip it silently when it runs
+   automatically, same as every other manual DNS-01 certificate. Repeat step 2's command; a successful run also
+   triggers step 4's hook, so there is nothing else to do afterward. If Certbot has your real email from setup, it
+   sends a reminder as the expiry approaches — a calendar reminder of your own is cheap insurance regardless.
+6. **Verify**, on a phone with the WireGuard app:
+   - VPN **off**: `https://<vpn-host>` does not load (no route to a private address) — expected, not a bug.
+   - VPN **on**: it loads with a valid certificate, and an elevated account can use the email sign-in and open
+     `/employees` etc.
+   - Install the PWA from `https://<vpn-host>` while connected. It is a separate install from the public one at
+     `https://<hr-host>` — two icons, each only useful on its own network.
+
+Rolling back: remove the TLS `server` block from `docker/server/nginx.conf.template`, unset `VPN_HOSTNAME` (or leave
+it — the public entrance does not need it), rebuild, and remove the DNS record and the renewal hook.
 
 ### Day to day
 
@@ -317,8 +374,8 @@ docker image prune -f       # images no container uses
 ### Not built yet (before this is a hardened production)
 
 Mandatory 2FA for elevated accounts, a WAF or proxy-level throttling, the Management accounts (they wait on the client's
-details), HTTPS on the private entrance (so install and the service worker work only on the public hostname), Web Push (alerts
-are in-app only), scheduled backups, and a server of its own if the public entrance should not share a machine with other sites.
+details), Web Push (alerts are in-app only), scheduled backups, and a server of its own if the public entrance should not
+share a machine with other sites.
 Details and the open items per screen are in [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ---
@@ -338,6 +395,7 @@ Server settings are in `docker/server/.env` (template: `docker/server/server.env
 | `ENTRANCE_DEFAULT`                       | leave unset on a server: a request Nginx cannot place then counts as public                           |
 | `TRUSTED_PROXIES`                        | proxies whose forwarded address and scheme the app believes (default `127.0.0.1,::1`)                 |
 | `WG_HOST`, `WG_ADMIN_USER`, `WG_ADMIN_PASSWORD` | WireGuard: the public address peers connect to, and the admin page login                       |
+| `VPN_HOSTNAME`                           | a hostname of its own for the VPN entrance, DNS-pointed at `172.30.0.10`. Required once HTTPS over the VPN is set up (step 7.5), which names the certificate Nginx serves there |
 | `FEATURE_ATTENDANCE`                     | `false` removes attendance: its pages, scanner ingest API, profile tab, dashboard card, admin screens and the 09:00 notice (404). The calendar and its holidays stay, because leave day counts need them. On by default; nothing is deleted |
 | `INITIAL_ADMIN_NAME`, `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PASSWORD` | the first System Admin, created by `db:seed` on a real server; remove the password afterwards |
 | `ATTENDANCE_DEVICE_TIMEZONE`, `ATTENDANCE_WORK_START`, `ATTENDANCE_WORK_END`, `ATTENDANCE_LATE_GRACE_MINUTES` | attendance defaults (`Asia/Jakarta`, 08:00, 17:00, 10) |

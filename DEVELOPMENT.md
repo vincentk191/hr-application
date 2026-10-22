@@ -934,8 +934,10 @@ feel right on real phones before building on it.
 ### Phase 7 — Deployment & VPN
 
 Not screens. Two Nginx server blocks (the private one bound to the WireGuard address only, the public one
-serving only the self-service allowlist), PHP-FPM, queue worker and scheduler units, DNS-01 certificate for
-the private name `hr.cmp.id` and an ordinary certificate for the public hostname, **WireGuard + wg-easy only
+serving only the self-service allowlist), PHP-FPM, queue worker and scheduler units, a DNS-01 certificate for the
+private name (README "HTTPS over the VPN"; a same-hostname, split-horizon-DNS design was considered and dropped
+2026-10-22 — the DNS provider has no API, and routing every connected peer's DNS queries through the server for
+that was not worth it) and an ordinary certificate for the public hostname, **WireGuard + wg-easy only
 (no Tailscale)**, separate Linux user and DB credentials, and a check from outside that the public IP serves
 only the allowlist. With a public entrance, a small VPS of its own is recommended over sharing the CMP one.
 
@@ -960,10 +962,22 @@ public. That machine is a WireGuard peer, limited to the app's private HTTPS por
   that reaches the stack without the header counts as the host itself. The outside checks in the README are the test.
 - **Shipping without attendance** (`FEATURE_ATTENDANCE=false`): see the change log. The calendar and `calendar-events` stay
   on purpose, because leave day counts need the holidays.
-- **Private entrance is plain HTTP over WireGuard** (`http://172.30.0.10`), so the service worker and the PWA install work
-  only on the public hostname. Do not set `SESSION_SECURE_COOKIE` until the private side has HTTPS, or private sign-in breaks.
+- **HTTPS over the VPN, a hostname of its own (2026-10-22, README "HTTPS over the VPN").** Opt-in (README step 7.5):
+  a new `server { listen 172.30.0.10:443 ssl; }` block in `nginx.conf.template` uses `VPN_HOSTNAME`, a name separate
+  from the public one, DNS-pointed straight at `172.30.0.10` — a private address, unreachable from the internet, so
+  publishing it is harmless and needs no split-horizon resolver: off the VPN the name resolves but nothing answers,
+  on the VPN the peer's existing Allowed IPs already route it through the tunnel. The certificate (shared into the
+  `web` container read-only from `/etc/letsencrypt` on the host) is obtained by DNS-01, since that address cannot be
+  reached from the internet the way `certbot --nginx` needs for the public one. The project's DNS provider
+  (idwebhost) has no API, so this certificate cannot renew unattended; `docker/server/reload-after-renew.sh`,
+  installed as a Certbot deploy hook, reloads both Nginxes whenever either certificate does renew — automatically
+  for the public one, by hand every 60-90 days for this one (the README says how). `$entrance` was already keyed on
+  source address, not hostname, so nothing in the app itself changed. Elevated people end up with a second
+  bookmark/PWA install (one per hostname) rather than one that changes behaviour with the network, which was judged
+  the smaller cost. Skipping 7.5 leaves the private entrance on plain HTTP exactly as before, install and service
+  worker working only on the public hostname.
 - **Not built yet:** mandatory 2FA, a WAF or proxy-level throttling, the Management accounts (waiting on the client's
-  details, `CORE-USR-007`), Web Push, and the HTTPS certificate for the private name (`hr.cmp.id`, DNS-01).
+  details, `CORE-USR-007`), and Web Push.
 - **PHP security releases need a fresh base image.** `docker-compose.server.yml` builds on the floating `php:8.4-fpm` tag, so
   a patch release (for example 8.4.27, 2026-10-21, the "php2shell" fix) only arrives when the image is rebuilt with
   `--pull --no-cache`. Workers must be restarted (`up -d` recreates them) before the fix is live.

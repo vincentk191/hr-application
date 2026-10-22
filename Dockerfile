@@ -117,3 +117,5 @@ CMD ["php-fpm"]
 FROM nginx:1.27-alpine AS web
 COPY --from=assets /var/www/backend/public /var/www/backend/public
 COPY docker/server/nginx.conf.template /etc/nginx/templates/default.conf.template
+# Not a template (no ${...} placeholders): copied straight in, not through envsubst.
+COPY docker/server/nginx-locations.conf /etc/nginx/snippets/hr-locations.conf

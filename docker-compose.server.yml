@@ -96,11 +96,20 @@ services:
         restart: unless-stopped
         environment:
             OFFICE_CIDR: ${OFFICE_CIDR:-192.168.0.0/16}
+            # The hostname served over the VPN on 443 (README, "HTTPS over the VPN"): its own name, separate from
+            # the public one, resolved in ordinary DNS to this stack's private address. Leave unset only on a server
+            # that has not set that up yet, but then also remove the TLS server block from
+            # docker/server/nginx.conf.template, or Nginx will not start (it cannot find a certificate for an empty
+            # hostname).
+            VPN_HOSTNAME: ${VPN_HOSTNAME:?set VPN_HOSTNAME in docker/server/.env}
         ports:
             # The office / LAN reaches the app here. Set WEB_BIND to the server's LAN address to keep it off other interfaces.
             - '${WEB_BIND:-0.0.0.0}:${WEB_PORT:-8090}:80'
         volumes:
             - appstorage:/var/www/backend/storage:ro
+            # Read-only, and the whole directory rather than just live/<host>: Certbot's live/ files are symlinks
+            # into archive/, which only resolve if both are mounted at the same path they have on the host.
+            - /etc/letsencrypt:/etc/letsencrypt:ro
         depends_on:
             - app
         networks:

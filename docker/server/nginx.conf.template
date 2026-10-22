@@ -42,50 +42,35 @@ server {
     add_header X-Content-Type-Options "nosniff" always;
     add_header Referrer-Policy "same-origin" always;
 
-    # The service worker must be revalidated every time, and may control the whole site.
-    location = /sw.js {
-        add_header Cache-Control "no-cache";
-        add_header Service-Worker-Allowed "/";
-        try_files $uri =404;
-    }
+    # Plain HTTP here is either the host's proxy (which has already done the https, and says so with its header)
+    # or an internal hop that never claims to be encrypted; either way the real answer is what it says.
+    set $https_flag $forwarded_https;
+    include /etc/nginx/snippets/hr-locations.conf;
+}
 
-    location = /manifest.webmanifest {
-        add_header Cache-Control "no-cache";
-        default_type application/manifest+json;
-        try_files $uri =404;
-    }
+# HTTPS reachable only from WireGuard peers (README, "HTTPS over the VPN"): its own hostname and certificate,
+# separate from the public entrance's — VPN_HOSTNAME resolves (in ordinary public DNS) to this address, 172.30.0.10,
+# which is private and unreachable from the internet, so the name is harmless to publish and needs no split-horizon
+# DNS. VPN_HOSTNAME must be the exact name that certificate was issued for (DNS-01; see the README), and the renewal
+# hook (docker/server/reload-after-renew.sh) must reload this container too, or a renewed certificate never reaches
+# it — which, with no DNS provider API, is a manual step each time (the README says how often and how).
+server {
+    listen 172.30.0.10:443 ssl;
+    server_name ${VPN_HOSTNAME};
 
-    # Built files have a hash in their name.
-    location /build/ {
-        add_header Cache-Control "public, max-age=31536000, immutable";
-        try_files $uri =404;
-    }
+    ssl_certificate     /etc/letsencrypt/live/${VPN_HOSTNAME}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${VPN_HOSTNAME}/privkey.pem;
 
-    location / {
-        try_files $uri $uri/ /index.php?$query_string;
-    }
+    root /var/www/backend/public;
+    index index.php;
 
-    # Docker's own resolver, and a variable, so Nginx looks `app` up again instead of keeping the address it had when it
-    # started: the app container gets a new address whenever it is recreated, and a fixed one gives a 502 until Nginx restarts.
-    resolver 127.0.0.11 valid=10s;
+    client_max_body_size 30m;
+    server_tokens off;
 
-    location = /index.php {
-        include fastcgi_params;
-        set $php_upstream app:9000;
-        fastcgi_pass $php_upstream;
-        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
-        fastcgi_param DOCUMENT_ROOT $realpath_root;
-        fastcgi_param ENTRANCE $entrance;
-        fastcgi_param HTTPS $forwarded_https;
-        # The app's pages send long response headers (the Link preload hints for the built assets, and cookies). The
-        # default buffer is 4k or 8k, and a header that does not fit is a 502 ("upstream sent too big header").
-        fastcgi_buffer_size 32k;
-        fastcgi_buffers 16 16k;
-        fastcgi_busy_buffers_size 32k;
-        fastcgi_read_timeout 60s;
-    }
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "same-origin" always;
 
-    # Nothing else is run as PHP, and dot files are never served.
-    location ~ \.php$ { return 404; }
-    location ~ /\.(?!well-known) { deny all; }
+    # This Nginx terminates the TLS itself here, so this is never a forwarded claim.
+    set $https_flag on;
+    include /etc/nginx/snippets/hr-locations.conf;
 }
