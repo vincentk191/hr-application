@@ -266,12 +266,53 @@ browse to `http://172.30.0.10`. Delete a person's client when they leave.
 | Task               | Command or note                                                                                                       |
 | ------------------ | --------------------------------------------------------------------------------------------------------------------- |
 | Update             | `git pull`, then the `up -d --build` command. Migrations run when `app` starts. A permission added to the code reaches existing roles only when granted in the admin panel |
+| Update PHP itself  | `up -d --build` reuses a cached copy of the `php:8.4-fpm` base image. For a PHP security release, run `... build --pull --no-cache app` and then `... up -d` (it restarts the workers), and check `... exec app php -v` |
+| Check space        | `docker system df`, `docker volume ls`, `df -h /`, `docker stats --no-stream`                                          |
+| Reset test data    | testing server only (`APP_ENV=staging`): `... exec app php artisan migrate:fresh --force`, then the seeders in step 4. Refused when `APP_ENV=production` |
+| A profile was closed by mistake, or someone returns | on the employee's profile, **Aktifkan kembali** (HR). It reopens the profile, clears the exit date and switches the sign-in offboarding turned off back on. A scanner mapping is not restored |
 | Change the env     | edit `docker/server/.env`, run `up -d` again (the configuration is cached when a container starts)                    |
 | Back up the data   | `... exec -T db pg_dump -U hr_app hr_app \| gzip > hr-$(date +%F).sql.gz`, and the `hr-server_appstorage` volume (documents and photos) |
 | Logs               | `docker compose -f docker-compose.server.yml logs -f app web queue`                                                   |
 | Roll back          | remove the Nginx site file and run `nginx -t && nginx -s reload`; `docker compose -f docker-compose.server.yml down` (volumes are kept); remove the DNS record |
 
 In the table, `...` stands for `docker compose -f docker-compose.server.yml --env-file docker/server/.env`.
+
+### Keeping the server lean
+
+Rebuilding leaves old images and build cache behind (several GB after a few rebuilds). The two commands below remove only
+what no container uses, so they are safe on a server that also runs other stacks:
+
+```bash
+docker builder prune -f     # build cache
+docker image prune -f       # images no container uses
+```
+
+- **Never** run `docker system prune --volumes` or `... down -v`. They delete volumes, and these hold your data:
+  `hr-server_pgdata` (the database), `hr-server_appstorage` (documents and photos) and `hr-server_wgdata` (the WireGuard
+  peers). `... down` on its own keeps them. To remove one deliberately, stop the stack and run
+  `docker volume rm hr-server_pgdata`, for example.
+- **Swap.** A server with none kills a process when memory runs out, possibly the database. A 2 GB swap file is cheap insurance:
+  ```bash
+  fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+  echo '/swapfile none swap sw 0 0' >> /etc/fstab
+  ```
+- **Limits.** The stack caps its own memory so it cannot starve other apps on the host (`mem_limit` in
+  `docker-compose.server.yml`: `app` 1.5 GB, `db` 1 GB, `queue` 512 MB, `scheduler` 256 MB), and PHP-FPM runs 3 to 12 workers
+  (`docker/php/php-fpm-pool.conf`). That is sized for about 150 employees; a container that goes over its cap is killed and
+  restarted.
+- **Logs.** Containers log to Docker's JSON files, which are not size-limited yet. Check them with `docker system df -v` if
+  space shrinks without explanation.
+
+### Uploaded files
+
+- **Size limits** (per file): leave attachments 5 MB (up to 5), employee documents and offboarding files 10 MB, profile photos
+  2 MB, employee CSV imports 2 MB, attendance logs 20 MB. The file pickers check these in the browser first. Nginx
+  (`client_max_body_size`) and PHP (`post_max_size`) allow 30 MB for one form, which is what five 5 MB attachments need.
+  Keep the host Nginx site from step 5 at 30m too.
+- **PDF compression.** Leave attachments and offboarding files are shrunk with Ghostscript when they are stored; a PDF
+  under 200 KB, one Ghostscript cannot read, or one that does not come out smaller is stored as uploaded. **Employee
+  documents are never compressed**, because rewriting a signed PDF breaks its signature. Photos are shrunk in the browser.
+  Turn PDF compression off with `UPLOADS_COMPRESS_PDF=false`. The image installs `ghostscript` (see the `Dockerfile`).
 
 ### Not built yet (before this is a hardened production)
 
@@ -301,6 +342,7 @@ Server settings are in `docker/server/.env` (template: `docker/server/server.env
 | `INITIAL_ADMIN_NAME`, `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PASSWORD` | the first System Admin, created by `db:seed` on a real server; remove the password afterwards |
 | `ATTENDANCE_DEVICE_TIMEZONE`, `ATTENDANCE_WORK_START`, `ATTENDANCE_WORK_END`, `ATTENDANCE_LATE_GRACE_MINUTES` | attendance defaults (`Asia/Jakarta`, 08:00, 17:00, 10) |
 | `SESSION_LIFETIME`                       | idle expiry in minutes (120)                                                                          |
+| `UPLOADS_COMPRESS_PDF`, `UPLOADS_GHOSTSCRIPT`, `UPLOADS_PDF_PRESET` | shrink stored PDFs (`true`, `gs`, `/ebook`); `/screen` is smaller and softer, `/printer` larger and sharper. See `backend/config/uploads.php` |
 
 ---
 

@@ -964,6 +964,28 @@ public. That machine is a WireGuard peer, limited to the app's private HTTPS por
   only on the public hostname. Do not set `SESSION_SECURE_COOKIE` until the private side has HTTPS, or private sign-in breaks.
 - **Not built yet:** mandatory 2FA, a WAF or proxy-level throttling, the Management accounts (waiting on the client's
   details, `CORE-USR-007`), Web Push, and the HTTPS certificate for the private name (`hr.cmp.id`, DNS-01).
+- **PHP security releases need a fresh base image.** `docker-compose.server.yml` builds on the floating `php:8.4-fpm` tag, so
+  a patch release (for example 8.4.27, 2026-10-21, the "php2shell" fix) only arrives when the image is rebuilt with
+  `--pull --no-cache`. Workers must be restarted (`up -d` recreates them) before the fix is live.
+- **Resource sizing (2026-10-22).** One VPS shared with other stacks. `mem_limit` on `app`, `db`, `queue` and `scheduler`, and
+  `docker/php/php-fpm-pool.conf` (dynamic, 3 to 12 workers, recycled after 500 requests), are sized for 100 to 150 employees. Notifications are
+  database rows read on page load and the only polling is the 30 second discussion refresh, so load is a few requests per
+  second at most. Container logs are not size-limited yet.
+- **Uploads (2026-10-22).** `App\Support\Files\UploadFiler` stores every leave attachment, offboarding file and employee
+  document. It shrinks PDFs with Ghostscript (`config/uploads.php`) and falls back to the original on any failure, so
+  compression cannot block a filing. Employee documents pass `compress: false` because a rewrite breaks signatures.
+  Per-file limits stay in each validation rule; the browser repeats them in `LimitedFileInput`. Nginx and PHP allow 30 MB
+  per request; keep the host proxy at the same figure.
+- **Closing and reopening a profile.** The create and edit forms accept only `active`; a profile becomes inactive only through
+  an offboarding case and is locked (`EmployeePolicy::update`). `EmployeePolicy::reactivate` and `ReactivateEmployee` bring
+  it back (return, or closed by mistake): they clear `exited_on` and switch the account offboarding disabled back on,
+  roles untouched. The scanner mapping offboarding ended is not restored.
+- **Adding an employee while viewing all companies.** A company-less HR Admin has no active company, so the create form asks for
+  one (`company_id`, required only in that state) and department, position and manager must belong to it.
+- **Phone layout (2026-10-22).** From the `md` breakpoint up the app is unchanged. Below it: lists render as cards (Perubahan
+  data, Pengajuan, Direktori) with the table kept for wider screens; search and filters move into `FilterSheet`; and
+  `MobileTabBar` replaces the side menu, with "Lainnya" holding the rest. `useNavItems` feeds both the sidebar and the bar so
+  they cannot disagree.
 
 ### Decided 2026-10-14 (all built; first-run seeding covers the System Admin only)
 

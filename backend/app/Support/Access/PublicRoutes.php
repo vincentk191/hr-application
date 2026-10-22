@@ -30,7 +30,7 @@ class PublicRoutes
         'leave-attachments.download',
         'employees.show', 'employees.edit', 'employees.update', 'employees.summary', 'employees.changes.create', 'employees.changes.store',
         'documents.download', 'profile-changes.destroy',
-        'profile.edit', 'profile.update', 'profile.destroy', 'user-password.update', 'security.edit', 'appearance.edit',
+        'user-password.update', 'security.edit', 'appearance.edit',
     ];
 
     /** Route URIs (no name) served on the public entrance. */
@@ -40,7 +40,7 @@ class PublicRoutes
     public const PRIVATE_PREFIXES = [
         'filament.', 'livewire.', 'default-livewire.', 'api.', 'attendance.', 'calendar-events.', 'punches.', 'offboarding.',
         'storage.', 'sanctum.', 'boost.', 'verification.', 'password.request', 'password.email', 'password.reset', 'password.update',
-        'employees.index', 'employees.create', 'employees.store', 'employees.activation', 'employees.photo', 'employees.import', 'employees.export',
+        'employees.index', 'employees.create', 'employees.store', 'employees.activation', 'employees.reactivate', 'employees.photo', 'employees.import', 'employees.export',
         'documents.store', 'documents.update', 'documents.destroy', 'documents.versions',
         'profile-changes.index', 'profile-changes.decide', 'profile-changes.photo', 'leave-requests.decision',
         'user-password.',

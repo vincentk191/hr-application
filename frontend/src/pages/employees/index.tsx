@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import { EmployeeDrawer } from '@/components/employee-drawer';
 import { EmployeeOrgChart } from '@/components/employee-org-chart';
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
     FilterButton,
     FilterSection,
@@ -79,6 +80,13 @@ export default function EmployeesIndex({
     const [search, setSearch] = useState(filters.search);
     const [openId, setOpenId] = useState<number | null>(null);
     const [filtersOpen, setFiltersOpen] = useState(false);
+    // The org chart does not fit a phone's width, so it is not offered there; a view already set to
+    // chart (the URL, or a window resized down) falls back to the card list instead of an empty page.
+    const isMobile = useIsMobile();
+    const views = isMobile
+        ? VIEWS.filter((view) => view.value !== 'chart')
+        : VIEWS;
+    const view = isMobile && filters.view === 'chart' ? 'list' : filters.view;
     // The directory arrives whole; the list and grid page through it, the org chart needs it all.
     const pagination = usePagination(employees.length);
     const pageOfEmployees = pagination.slice(employees);
@@ -167,14 +175,14 @@ export default function EmployeesIndex({
                     />
 
                     <div className="seg">
-                        {VIEWS.map((view) => (
+                        {views.map((item) => (
                             <button
-                                key={view.value}
+                                key={item.value}
                                 type="button"
-                                onClick={() => apply({ view: view.value })}
-                                data-on={filters.view === view.value}
+                                onClick={() => apply({ view: item.value })}
+                                data-on={view === item.value}
                             >
-                                {view.label}
+                                {item.label}
                             </button>
                         ))}
                     </div>
@@ -250,7 +258,7 @@ export default function EmployeesIndex({
                 </div>
 
                 {/* Phone: one card per employee. The full profile is a tap away. */}
-                {filters.view !== 'chart' && (
+                {view !== 'chart' && (
                     <>
                         <div className="flex flex-col gap-3 md:hidden">
                             {employees.length === 0 && (
@@ -315,14 +323,14 @@ export default function EmployeesIndex({
                     </>
                 )}
 
-                {filters.view === 'chart' && (
+                {view === 'chart' && (
                     <EmployeeOrgChart
                         employees={employees}
                         onOpen={setOpenId}
                     />
                 )}
 
-                {filters.view === 'grid' && (
+                {view === 'grid' && (
                     <>
                         <div className="hidden gap-3 sm:grid-cols-2 md:grid lg:grid-cols-3">
                             {pageOfEmployees.map((employee) => (
@@ -384,7 +392,7 @@ export default function EmployeesIndex({
                     </>
                 )}
 
-                {filters.view === 'list' && (
+                {view === 'list' && (
                     <div className="surface hidden md:block">
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm">

@@ -298,3 +298,26 @@ describe('adding an employee while every company is being viewed', function () {
             ->assertSessionHasErrors('employee_number');
     });
 });
+
+it('carries a change of the employee name over to their account', function () {
+    $account = User::factory()->create(['company_id' => $this->company->id, 'name' => 'Nama Lama']);
+    $employee = Employee::factory()->forCompany($this->company)->create(['user_id' => $account->id, 'full_name' => 'Nama Lama']);
+
+    $this->actingAs($this->hr)->put(route('employees.update', $employee), [
+        'employee_number' => $employee->employee_number,
+        'national_id' => $employee->national_id,
+        'full_name' => 'Nama Baru',
+        'employment_status' => EmploymentStatus::Active->value,
+    ])->assertRedirect();
+
+    expect($account->refresh()->name)->toBe('Nama Baru');
+});
+
+it('leaves the account alone when something other than the name changes', function () {
+    $account = User::factory()->create(['company_id' => $this->company->id, 'name' => 'Nama Akun']);
+    $employee = Employee::factory()->forCompany($this->company)->create(['user_id' => $account->id, 'full_name' => 'Nama Karyawan']);
+
+    $employee->update(['phone' => '0812-0000-0000']);
+
+    expect($account->refresh()->name)->toBe('Nama Akun');
+});

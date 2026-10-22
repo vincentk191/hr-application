@@ -127,6 +127,19 @@ class Employee extends Model
     ];
 
     /**
+     * The name on a person's login is the one on their employee record: a change to the record (an HR edit, an
+     * approved change request, an import) carries over to the account. Nobody edits the account's name itself.
+     */
+    protected static function booted(): void
+    {
+        static::updated(function (self $employee): void {
+            if ($employee->user_id !== null && $employee->wasChanged('full_name')) {
+                User::query()->whereKey($employee->user_id)->update(['name' => $employee->full_name]);
+            }
+        });
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array

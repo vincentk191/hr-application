@@ -120,7 +120,7 @@ it('refuses everything that is not self-service on the public entrance, whoever 
 });
 
 it('serves an employee their own pages on the public entrance', function () {
-    foreach (['dashboard', 'leave-requests.index', 'leave-requests.create', 'notifications.index', 'profile.edit', 'appearance.edit'] as $name) {
+    foreach (['dashboard', 'leave-requests.index', 'leave-requests.create', 'notifications.index', 'appearance.edit'] as $name) {
         onPublic($this->sinta->user)->get(route($name))->assertOk();
     }
 

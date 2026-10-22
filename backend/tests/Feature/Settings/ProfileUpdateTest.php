@@ -2,85 +2,42 @@
 
 use App\Models\User;
 
-test('profile page is displayed', function () {
+/**
+ * A person's name and email are not theirs to edit, and they cannot delete their own account: the account's name comes
+ * from the employee record HR keeps, an email is never used to sign in, and an account is closed by offboarding.
+ * What is left under Pengaturan is the password and the appearance.
+ */
+test('settings opens on the appearance page', function () {
     $user = User::factory()->create();
 
-    $response = $this
-        ->actingAs($user)
-        ->get(route('profile.edit'));
-
-    $response->assertOk();
+    $this->actingAs($user)->get('/settings')->assertRedirect('/settings/appearance');
+    $this->actingAs($user)->get(route('appearance.edit'))->assertOk();
 });
 
-test('profile information can be updated', function () {
-    $user = User::factory()->create();
+test('there is no page to edit the name or email, and none to delete the account', function () {
+    $user = User::factory()->create(['name' => 'Nama Asli', 'email' => 'asli@example.com']);
 
-    $response = $this
-        ->actingAs($user)
-        ->patch(route('profile.update'), [
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
-
-    $response
-        ->assertSessionHasNoErrors()
-        ->assertRedirect(route('profile.edit'));
+    $this->actingAs($user)->get('/settings/profile')->assertNotFound();
+    $this->actingAs($user)->patch('/settings/profile', ['name' => 'Nama Baru', 'email' => 'baru@example.com'])->assertStatus(404);
+    $this->actingAs($user)->delete('/settings/profile', ['password' => 'password'])->assertStatus(404);
 
     $user->refresh();
 
-    expect($user->name)->toBe('Test User');
-    expect($user->email)->toBe('test@example.com');
-    // An email is never verified in this app (CORE-REG-004), so changing it must not lock the account out.
-    expect($user->email_verified_at)->not->toBeNull();
+    expect($user->name)->toBe('Nama Asli')
+        ->and($user->email)->toBe('asli@example.com');
 });
 
-test('email verification status is unchanged when the email address is unchanged', function () {
+test('the password can still be changed', function () {
     $user = User::factory()->create();
 
-    $response = $this
-        ->actingAs($user)
-        ->patch(route('profile.update'), [
-            'name' => 'Test User',
-            'email' => $user->email,
-        ]);
+    $this->actingAs($user)
+        ->withSession(['auth.password_confirmed_at' => time()])
+        ->put(route('user-password.update'), [
+            'current_password' => 'password',
+            'password' => 'Sandi-Baru-12345',
+            'password_confirmation' => 'Sandi-Baru-12345',
+        ])
+        ->assertSessionHasNoErrors();
 
-    $response
-        ->assertSessionHasNoErrors()
-        ->assertRedirect(route('profile.edit'));
-
-    expect($user->refresh()->email_verified_at)->not->toBeNull();
-});
-
-test('user can delete their account', function () {
-    $user = User::factory()->create();
-
-    $response = $this
-        ->actingAs($user)
-        ->delete(route('profile.destroy'), [
-            'password' => 'password',
-        ]);
-
-    $response
-        ->assertSessionHasNoErrors()
-        ->assertRedirect(route('home'));
-
-    $this->assertGuest();
-    expect($user->fresh())->toBeNull();
-});
-
-test('correct password must be provided to delete account', function () {
-    $user = User::factory()->create();
-
-    $response = $this
-        ->actingAs($user)
-        ->from(route('profile.edit'))
-        ->delete(route('profile.destroy'), [
-            'password' => 'wrong-password',
-        ]);
-
-    $response
-        ->assertSessionHasErrors('password')
-        ->assertRedirect(route('profile.edit'));
-
-    expect($user->fresh())->not->toBeNull();
+    expect(Hash::check('Sandi-Baru-12345', $user->refresh()->password))->toBeTrue();
 });

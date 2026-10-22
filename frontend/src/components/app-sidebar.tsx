@@ -10,7 +10,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { useNavItems } from '@/hooks/use-nav-items';
-import { edit as editProfile } from '@/routes/profile';
+import { edit as editSettings } from '@/routes/appearance';
 
 export function AppSidebar() {
     const { version } = usePage().props;
@@ -33,7 +33,7 @@ export function AppSidebar() {
                             asChild
                             className="h-11 rounded-xl px-3 text-[15px] font-medium text-muted-foreground"
                         >
-                            <Link href={editProfile()} prefetch>
+                            <Link href={editSettings()} prefetch>
                                 <Settings />
                                 <span>Pengaturan</span>
                             </Link>

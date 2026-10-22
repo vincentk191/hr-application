@@ -17,7 +17,7 @@ import {
 } from '@/routes/employees';
 import { index as leaveRequestsIndex } from '@/routes/leave-requests';
 import { index as notificationsIndex } from '@/routes/notifications';
-import { edit as editProfile } from '@/routes/profile';
+import { edit as editSettings } from '@/routes/appearance';
 import type { NavItem } from '@/types';
 
 const TAB_URLS = [
@@ -69,7 +69,7 @@ export function MobileTabBar() {
                   },
               ]
             : []),
-        { title: 'Pengaturan', href: editProfile(), icon: Settings },
+        { title: 'Pengaturan', href: editSettings(), icon: Settings },
     ];
     const sheetItems = [...more, ...extras];
     const moreCount = more.reduce((sum, item) => sum + (item.badge ?? 0), 0);
