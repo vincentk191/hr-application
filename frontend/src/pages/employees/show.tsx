@@ -7,7 +7,7 @@ import { EmployeeTeamTab } from '@/components/employee-team';
 import { LeaveRequestDetail } from '@/components/leave-request-detail';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { edit } from '@/routes/employees';
+import { edit, reactivate } from '@/routes/employees';
 import { activate, reject } from '@/routes/employees/activation';
 import { create as requestChange } from '@/routes/employees/changes';
 import type { BreadcrumbItem } from '@/types';
@@ -31,6 +31,8 @@ type Props = {
     /** The employee registered an account that HR has not yet activated. */
     accountPending: boolean;
     canActivateAccount: boolean;
+    /** The profile is closed and this viewer may bring it back. */
+    canReactivate: boolean;
     /** Absent until the tab asks for it; null when this viewer may not see it. */
     attendance?: Timesheet | YearTimesheet | null;
     canCorrectAttendance: boolean;
@@ -177,6 +179,7 @@ export default function EmployeeShow({
     canRequestChange,
     accountPending,
     canActivateAccount,
+    canReactivate,
     team,
 }: Props) {
     const { features } = usePage().props;
@@ -236,6 +239,27 @@ export default function EmployeeShow({
                             <Link href={edit(employee.id).url}>Ubah data</Link>
                         </Button>
                     )}
+                    {canReactivate && (
+                        <Button
+                            variant="outline"
+                            data-test="reactivate-employee"
+                            onClick={() => {
+                                if (
+                                    window.confirm(
+                                        `Aktifkan kembali ${employee.name}? Profil bisa diubah lagi dan akun masuknya diaktifkan kembali. Riwayat offboarding tetap tersimpan.`,
+                                    )
+                                ) {
+                                    router.post(
+                                        reactivate(employee.id).url,
+                                        {},
+                                        { preserveScroll: true },
+                                    );
+                                }
+                            }}
+                        >
+                            Aktifkan kembali
+                        </Button>
+                    )}
                     {canRequestChange && (
                         <Button asChild variant="outline">
                             <Link href={requestChange(employee.id).url}>
@@ -260,10 +284,9 @@ export default function EmployeeShow({
                             <Button
                                 variant="outline"
                                 onClick={() =>
-                                    router.delete(
-                                        reject(employee.id).url,
-                                        { preserveScroll: true },
-                                    )
+                                    router.delete(reject(employee.id).url, {
+                                        preserveScroll: true,
+                                    })
                                 }
                             >
                                 Tolak
@@ -317,18 +340,16 @@ export default function EmployeeShow({
                         (item) =>
                             (item.key !== 'team' || team) &&
                             (item.key !== 'attendance' || features.attendance),
-                    ).map(
-                        (item) => (
-                            <button
-                                key={item.key}
-                                type="button"
-                                onClick={() => setTab(item.key)}
-                                data-on={tab === item.key}
-                            >
-                                {item.label}
-                            </button>
-                        ),
-                    )}
+                    ).map((item) => (
+                        <button
+                            key={item.key}
+                            type="button"
+                            onClick={() => setTab(item.key)}
+                            data-on={tab === item.key}
+                        >
+                            {item.label}
+                        </button>
+                    ))}
                 </nav>
 
                 {tab === 'overview' && (
@@ -345,10 +366,7 @@ export default function EmployeeShow({
                                 value={employee.joinedOn}
                             />
                             <Field label="Keluar" value={employee.exitedOn} />
-                            <Field
-                                label="Akun"
-                                value={employee.accountLabel}
-                            />
+                            <Field label="Akun" value={employee.accountLabel} />
                         </Card>
 
                         <Card title="Kontak & darurat">

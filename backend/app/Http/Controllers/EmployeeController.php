@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Employees\ReactivateEmployee;
 use App\Enums\DocumentCategory;
 use App\Enums\EmploymentStatus;
 use App\Enums\EmploymentType;
@@ -174,6 +175,7 @@ class EmployeeController extends Controller
             // An account the employee registered and HR has not yet activated (CORE-ACC-006).
             'accountPending' => $employee->user_id !== null && User::query()->whereKey($employee->user_id)->where('awaiting_activation', true)->exists(),
             'canActivateAccount' => $user->can('activateAccount', $employee),
+            'canReactivate' => $user->can('reactivate', $employee),
             'canManageDocuments' => $user->can('create', EmployeeDocument::class),
             'canRestrictDocuments' => $user->can(Permission::ViewSensitiveData->value),
             // Loaded only when the tab is opened (router.reload with `only`), so the profile does
@@ -289,6 +291,20 @@ class EmployeeController extends Controller
         return to_route('employees.show', $employee);
     }
 
+    /**
+     * Bring a closed profile back (a return, or one closed by mistake). Closing goes only through offboarding.
+     */
+    public function reactivate(Request $request, Employee $employee, ReactivateEmployee $reactivate): RedirectResponse
+    {
+        $this->authorize('reactivate', $employee);
+
+        $reactivate->handle($employee, $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "{$employee->full_name} diaktifkan kembali."]);
+
+        return back();
+    }
+
     public function edit(Request $request, Employee $employee): Response
     {
         $this->authorize('update', $employee);
@@ -346,10 +362,8 @@ class EmployeeController extends Controller
                     'company_id' => $employee->company_id,
                     'label' => "{$employee->full_name} ({$employee->employee_number})",
                 ]),
-            'employmentStatuses' => array_map(
-                fn (EmploymentStatus $status): array => ['value' => $status->value, 'label' => $status->label()],
-                EmploymentStatus::cases(),
-            ),
+            // A profile is only closed by offboarding, so the forms offer nothing but active.
+            'employmentStatuses' => [['value' => EmploymentStatus::Active->value, 'label' => EmploymentStatus::Active->label()]],
             'employmentTypes' => array_map(
                 fn (EmploymentType $type): array => ['value' => $type->value, 'label' => $type->label()],
                 EmploymentType::cases(),

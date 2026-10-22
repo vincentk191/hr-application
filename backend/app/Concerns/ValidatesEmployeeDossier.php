@@ -47,7 +47,8 @@ trait ValidatesEmployeeDossier
                 ->when($companyId !== null, fn ($rule) => $rule->where('company_id', $companyId))],
             'manager_id' => ['nullable', 'integer', Rule::exists(Employee::class, 'id')
                 ->when($companyId !== null, fn ($rule) => $rule->where('company_id', $companyId))],
-            'employment_status' => ['required', Rule::enum(EmploymentStatus::class)],
+            // A profile is only closed by an offboarding case, and only brought back by reactivating it.
+            'employment_status' => ['required', Rule::enum(EmploymentStatus::class)->only(EmploymentStatus::Active)],
             'employment_type' => ['nullable', Rule::enum(EmploymentType::class)],
             // The notice period in the contract, in days: what an offboarding case is checked against.
             'notice_days' => ['nullable', 'integer', 'min:0', 'max:365'],
@@ -99,6 +100,7 @@ trait ValidatesEmployeeDossier
     protected function dossierMessages(): array
     {
         return [
+            'employment_status.enum' => 'Profil hanya ditutup lewat offboarding dan dibuka kembali lewat "Aktifkan kembali".',
             'company_id.required' => 'Pilih perusahaan.',
             'company_id.exists' => 'Perusahaan ini tidak ditemukan.',
             'employee_number.required' => 'Isi ID karyawan.',

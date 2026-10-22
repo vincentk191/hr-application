@@ -95,6 +95,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('employees', [EmployeeController::class, 'store'])->name('employees.store');
     Route::post('employees/{employee}/activation', [EmployeeAccountController::class, 'activate'])->name('employees.activation.activate');
     Route::delete('employees/{employee}/activation', [EmployeeAccountController::class, 'reject'])->name('employees.activation.reject');
+    Route::post('employees/{employee}/reactivation', [EmployeeController::class, 'reactivate'])->name('employees.reactivate');
     Route::get('employees/{employee}', [EmployeeController::class, 'show'])->name('employees.show');
     Route::get('employees/{employee}/photo', [EmployeePhotoController::class, 'show'])->name('employees.photo');
     Route::get('profile-changes/{profileChange}/photo/{side}', [EmployeePhotoController::class, 'change'])->name('profile-changes.photo');

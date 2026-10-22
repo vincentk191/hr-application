@@ -110,6 +110,18 @@ class EmployeePolicy
     }
 
     /**
+     * Bringing a closed profile back: a person who returns, or a profile closed by mistake. Same people as may edit
+     * a profile, but never someone's own, and only a profile that is closed.
+     */
+    public function reactivate(User $user, Employee $employee): bool
+    {
+        return $employee->employment_status === EmploymentStatus::Inactive
+            && ! $this->isSelf($user, $employee)
+            && $user->can(Permission::UpdateEmployees->value)
+            && $user->canAccessCompany($employee->company_id);
+    }
+
+    /**
      * Dossier records are never deleted. Offboarding flips the record to inactive and locks
      * it (OFF-SIG-009), because attendance, leave and case history reference it.
      */
