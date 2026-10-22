@@ -931,6 +931,49 @@ feel right on real phones before building on it.
 - **Still open:** Web Push, saved drafts, the Sanctum API for approvals (which will be private-entrance only), iPhone
   testing of the home-screen install, and what "installed" should open at.
 
+#### Web Push — scope (2026-10-22, not started)
+
+Checked against the current code: the installable shell above has no push plumbing at all — `sw.js` has no
+`push` or `notificationclick` listener, there is no VAPID key anywhere, and `CORE-NOT` (Notifications) is
+in-app/database-channel only, by the same deliberate choice noted there and under Known gaps. This is the
+full list of what adding it touches, so the work is not picked up half-done:
+
+- **Dependency.** `laravel-notification-channels/webpush` (wraps `minishlink/web-push`) is the natural fit —
+  it is a **new composer dependency**, which per this repo's own rule needs approval before adding.
+- **Keys.** A VAPID key pair in `.env` (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`), generated
+  once per environment and never committed; `.env.example` gets the placeholder names only.
+- **Storage.** A `push_subscriptions` migration (endpoint, keys, `user_id`, company-tagged like everything
+  else under `BelongsToCompany` if it is to respect scoping) — one browser/device can hold several
+  subscriptions per user, so this is its own table, not a column on `users`.
+- **Channel wiring.** `InAppNotice` gains a `toWebPush()` alongside its existing `toDatabase()` (or a second
+  notification class, if the two payloads diverge enough) so `Notifier` keeps being the one place that
+  decides what gets sent and to whom; the database channel stays the source of truth, Web Push becomes an
+  additional delivery for the same notices listed under `CORE-NOT` (leave, attendance, document notices). A
+  failed push (expired subscription, 410 Gone) must prune the row, not raise.
+- **Dispatch.** Sent through the existing database queue (`queue:work`, no Redis) — never synchronously in the
+  request that triggers the notice, since a push provider round-trip has no place blocking an HTTP response.
+- **Routes.** A subscribe/unsubscribe pair, under the employee's own session — these belong on the **public
+  entrance's self-service allowlist** (`CORE-ACC-002`), not behind WireGuard, since staff are exactly who this
+  is for; add them to the Phase 6b route audit's allowlist when built, or they default-deny like everything else.
+- **Frontend.** A permission-request step (`Notification.requestPermission()`) and `pushManager.subscribe()`
+  call, posting the subscription to the new route — most naturally offered from `InstallBanner` or right after
+  install, not on every page load. Needs its own hook alongside `useInstallPrompt`.
+- **Service worker.** `sw.js` currently only serves the offline page and caches `/build/` and `/fonts/` — it
+  explicitly keeps no data. Push adds a `push` listener (show the notification) and a `notificationclick`
+  listener (focus/open the right page); neither needs to touch the cache-nothing-personal rule above, since a
+  push payload is shown and discarded, not stored.
+- **iOS constraint.** Safari only delivers Web Push to a PWA actually **installed** to the home screen (iOS
+  16.4+); a subscribe prompt shown in the browser tab on iPhone will silently fail. The permission UI needs
+  to check for standalone/installed display mode first and tell the employee to install if not.
+- **Depends on `CORE-ACC`.** Since the subscribe route and the prompt live on the public entrance, this
+  should land after (or alongside) the Phase 6b route audit, not before — otherwise it's one more route to
+  retrofit into the allowlist rather than one classed correctly from the start.
+
+Sequencing: VAPID keys + migration + `push_subscriptions` model → channel wiring on `InAppNotice` (queued) →
+subscribe/unsubscribe routes on the public allowlist → frontend subscribe hook + `sw.js` listeners → iOS
+install-gate check. Each step is independently testable (Pest feature tests for the routes and the queued
+job faking the webpush client; no browser automation needed for the backend half).
+
 ### Phase 7 — Deployment & VPN
 
 Not screens. Two Nginx server blocks (the private one bound to the WireGuard address only, the public one
@@ -968,14 +1011,35 @@ public. That machine is a WireGuard peer, limited to the app's private HTTPS por
   publishing it is harmless and needs no split-horizon resolver: off the VPN the name resolves but nothing answers,
   on the VPN the peer's existing Allowed IPs already route it through the tunnel. The certificate (shared into the
   `web` container read-only from `/etc/letsencrypt` on the host) is obtained by DNS-01, since that address cannot be
-  reached from the internet the way `certbot --nginx` needs for the public one. The project's DNS provider
-  (idwebhost) has no API, so this certificate cannot renew unattended; `docker/server/reload-after-renew.sh`,
-  installed as a Certbot deploy hook, reloads both Nginxes whenever either certificate does renew — automatically
-  for the public one, by hand every 60-90 days for this one (the README says how). `$entrance` was already keyed on
-  source address, not hostname, so nothing in the app itself changed. Elevated people end up with a second
-  bookmark/PWA install (one per hostname) rather than one that changes behaviour with the network, which was judged
-  the smaller cost. Skipping 7.5 leaves the private entrance on plain HTTP exactly as before, install and service
-  worker working only on the public hostname.
+  reached from the internet the way `certbot --nginx` needs for the public one. `docker/server/reload-after-renew.sh`,
+  installed as a Certbot deploy hook, reloads both Nginxes whenever either certificate does renew. `$entrance` was
+  already keyed on source address, not hostname, so nothing in the app itself changed. Elevated people end up with a
+  second bookmark/PWA install (one per hostname) rather than one that changes behaviour with the network, which was
+  judged the smaller cost. Skipping 7.5 leaves the private entrance on plain HTTP exactly as before, install and
+  service worker working only on the public hostname.
+- **DNS moving to Cloudflare, planned, not started (2026-10-22).** The project's registrar, idwebhost, has no API
+  and its panel offers no TXT record type at all, so `VPN_HOSTNAME`'s certificate (above) cannot renew unattended
+  from there — every 60-90 days by hand, forever, unless the domain moves. Two ways around that were considered and
+  rejected, both because the people using this are not technical, which was weighted above what was cheapest to
+  build:
+  - **A private CA, self-signed certificate.** No DNS change needed at all, but every elevated person has to
+    install and trust a root certificate by hand on every device — on iPhone, a profile install *and* a separate,
+    easy-to-miss "enable full trust" toggle under Certificate Trust Settings. Exactly the kind of step that fails
+    silently for someone who does not know what a certificate is, and it is them who then sees the warning.
+  - **Tailscale instead of WireGuard + wg-easy.** Solves the certificate problem outright (`tailscale cert`/`serve`
+    issues and renews real certificates with no DNS work at all), but reverses the explicit "WireGuard + wg-easy
+    only (no Tailscale)" decision above, needs `App\Support\Access\Entrance` and `nginx.conf.template` reworked
+    (source-IP entrance detection does not carry over to how Tailscale routes), replaces the server's own
+    `hr-vpn.cahayamatahari.id`-style address with Tailscale's `*.ts.net` one, and adds a third-party coordination
+    dependency — a bigger and riskier change than the other two options for an app holding NIK, bank and health
+    data, for a problem that is really just "one DNS provider cannot do TXT records."
+
+  The plan instead: migrate the domain's DNS to Cloudflare (free, has a certbot plugin, fixes the CAA-record gap
+  from the security review in the same move), *then* follow README step 7.5 as written — nothing in `VPN_HOSTNAME`,
+  `nginx.conf.template` or `docker-compose.server.yml` is provider-specific, so none of that changes when this
+  happens. Needs: recreating the existing DNS records on Cloudflare before cutting over (mail records especially —
+  check what idwebhost actually holds first), then switching the domain's nameservers at idwebhost (a registrar
+  setting, not the limited DNS editor pictured above).
 - **Not built yet:** mandatory 2FA, a WAF or proxy-level throttling, the Management accounts (waiting on the client's
   details, `CORE-USR-007`), and Web Push.
 - **PHP security releases need a fresh base image.** `docker-compose.server.yml` builds on the floating `php:8.4-fpm` tag, so

@@ -264,6 +264,13 @@ they leave.
 
 ### 7.5 HTTPS over the VPN
 
+**Planned, not started** (decided 2026-10-22, see `DEVELOPMENT.md` Phase 7): the domain's DNS is moving to Cloudflare
+first, so step 2 below can use an automatic DNS-01 plugin instead of idwebhost's manual one — chosen specifically
+because the people using this are not technical, and a self-signed certificate (the other way around idwebhost's
+missing TXT support) would ask each of them to install and trust a root certificate by hand, which is exactly the
+kind of step that goes wrong silently for someone who does not know what a certificate is. The steps below still
+work as written once `VPN_HOSTNAME`'s DNS lives wherever it ends up; only step 2's exact commands change.
+
 Elevated people get the install, the service worker and a real certificate too, not just plain `http://172.30.0.10`.
 This uses its own hostname, `<vpn-host>` — separate from `<hr-host>`, so elevated people end up with a second
 bookmark/PWA install for VPN use — in exchange for needing nothing beyond a DNS record and a certificate: no proxy,
@@ -278,15 +285,17 @@ depends on it.
    nothing answers; on the VPN, the peer's Allowed IPs already route that one address through the tunnel. No split
    DNS, no extra container, nothing proxied through the server.
 2. **Get the certificate with a DNS-01 challenge**, since `172.30.0.10` cannot be reached from the internet the way
-   `certbot --nginx` needs (that only works for the public hostname in step 5, which stays unchanged). If the DNS
-   provider has a certbot plugin (`certbot dns-cloudflare`, `dns-route53`, …), use it for a fully automatic renewal.
-   **idwebhost does not offer one**, so instead:
-   ```bash
-   certbot certonly --manual --preferred-challenges dns -d <vpn-host>
-   ```
-   Certbot prints a TXT record (`_acme-challenge.<vpn-host>`) and waits. Add exactly that record at idwebhost, wait
-   a minute or two for it to propagate (`dig +short TXT _acme-challenge.<vpn-host>` from the server should show it),
-   then press Enter to let Certbot verify and issue the certificate.
+   `certbot --nginx` needs (that only works for the public hostname in step 5, which stays unchanged).
+   - **With the domain on Cloudflare** (the plan — see above): `certbot dns-cloudflare` fully automates this, TXT
+     record and all, and keeps renewing it without anyone touching anything afterward.
+   - **Still on idwebhost**, which has no TXT records or API: do it by hand, and note it in the diary — it cannot
+     renew unattended, so repeat this command every 60-90 days:
+     ```bash
+     certbot certonly --manual --preferred-challenges dns -d <vpn-host>
+     ```
+     Certbot prints a TXT record (`_acme-challenge.<vpn-host>`) and waits. Add exactly that record at idwebhost,
+     wait a minute or two for it to propagate (`dig +short TXT _acme-challenge.<vpn-host>` from the server should
+     show it), then press Enter to let Certbot verify and issue the certificate.
 3. **Set the hostname and rebuild.** In `docker/server/.env`, set `VPN_HOSTNAME=<vpn-host>` (no scheme, no port —
    the exact name the certificate was issued for), then:
    ```bash
@@ -303,11 +312,13 @@ depends on it.
    ```
    Edit `REPO_DIR` in that file first if the clone is not at `/opt/hr-application`. This also covers the *public*
    certificate's own automatic renewals, so install it even if you only care about those.
-5. **Renew by hand, every 60-90 days** (the certificate is valid 90; renew with time to spare). Without a DNS
-   provider API, Certbot's own timer cannot do this one unattended — it will skip it silently when it runs
-   automatically, same as every other manual DNS-01 certificate. Repeat step 2's command; a successful run also
-   triggers step 4's hook, so there is nothing else to do afterward. If Certbot has your real email from setup, it
-   sends a reminder as the expiry approaches — a calendar reminder of your own is cheap insurance regardless.
+5. **Renewal.** With the `dns-cloudflare` plugin this is automatic, same as the public certificate — nothing to do.
+   Doing step 2 the idwebhost way instead means doing it **by hand, every 60-90 days** (the certificate is valid
+   90; renew with time to spare): without a DNS provider API, Certbot's own timer cannot do this one unattended — it
+   skips it silently when it runs automatically, same as every other manual DNS-01 certificate. Repeat step 2's
+   command; a successful run still triggers step 4's hook, so there is nothing else to do afterward. If Certbot has
+   your real email from setup, it sends a reminder as the expiry approaches — a calendar reminder of your own is
+   cheap insurance regardless.
 6. **Verify**, on a phone with the WireGuard app:
    - VPN **off**: `https://<vpn-host>` does not load (no route to a private address) — expected, not a bug.
    - VPN **on**: it loads with a valid certificate, and an elevated account can use the email sign-in and open
