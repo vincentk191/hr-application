@@ -1,8 +1,14 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import { EmployeeDrawer } from '@/components/employee-drawer';
 import { EmployeeOrgChart } from '@/components/employee-org-chart';
+import {
+    FilterButton,
+    FilterSection,
+    FilterSheet,
+} from '@/components/filter-sheet';
 import { MultiSelectFilter } from '@/components/multi-select-filter';
 import { Pagination, usePagination } from '@/components/pagination';
 import { Badge } from '@/components/ui/badge';
@@ -37,6 +43,16 @@ type Props = {
     canCreate: boolean;
 };
 
+const SORTS = [
+    { value: 'name', label: 'Nama' },
+    { value: 'joined', label: 'Terbaru bergabung' },
+] as const;
+
+const toggled = (list: string[], value: string) =>
+    list.includes(value)
+        ? list.filter((item) => item !== value)
+        : [...list, value];
+
 const VIEWS = [
     { value: 'list', label: 'List' },
     { value: 'grid', label: 'Grid' },
@@ -62,6 +78,7 @@ export default function EmployeesIndex({
 }: Props) {
     const [search, setSearch] = useState(filters.search);
     const [openId, setOpenId] = useState<number | null>(null);
+    const [filtersOpen, setFiltersOpen] = useState(false);
     // The directory arrives whole; the list and grid page through it, the org chart needs it all.
     const pagination = usePagination(employees.length);
     const pageOfEmployees = pagination.slice(employees);
@@ -91,6 +108,17 @@ export default function EmployeesIndex({
         ...filters.statuses.map((value) => ['statuses[]', value]),
     ]).toString()}`;
 
+    const activeFilters =
+        (filters.search !== '' ? 1 : 0) +
+        filters.departments.length +
+        filters.positions.length +
+        filters.statuses.length;
+
+    const clearFilters = () => {
+        setSearch('');
+        apply({ search: '', departments: [], positions: [], statuses: [] });
+    };
+
     const isFiltered =
         filters.search !== '' ||
         filters.departments.length > 0 ||
@@ -108,7 +136,7 @@ export default function EmployeesIndex({
                             event.preventDefault();
                             apply({});
                         }}
-                        className="flex-1 sm:max-w-xs"
+                        className="hidden flex-1 sm:max-w-xs md:block"
                     >
                         <Input
                             value={search}
@@ -127,11 +155,16 @@ export default function EmployeesIndex({
                             })
                         }
                         aria-label="Urutkan"
-                        className="h-10 rounded-xl border border-input bg-card px-3 text-sm"
+                        className="hidden h-10 rounded-xl border border-input bg-card px-3 text-sm md:block"
                     >
                         <option value="name">Nama</option>
                         <option value="joined">Terbaru bergabung</option>
                     </select>
+
+                    <FilterButton
+                        count={activeFilters}
+                        onClick={() => setFiltersOpen(true)}
+                    />
 
                     <div className="seg">
                         {VIEWS.map((view) => (
@@ -162,7 +195,7 @@ export default function EmployeesIndex({
                     )}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="hidden flex-wrap items-center gap-2 md:flex">
                     {statuses.map((status) => (
                         <button
                             key={status.value}
@@ -216,6 +249,72 @@ export default function EmployeesIndex({
                     )}
                 </div>
 
+                {/* Phone: one card per employee. The full profile is a tap away. */}
+                {filters.view !== 'chart' && (
+                    <>
+                        <div className="flex flex-col gap-3 md:hidden">
+                            {employees.length === 0 && (
+                                <p className="surface p-6 text-center text-sm text-muted-foreground">
+                                    Tidak ada karyawan.
+                                </p>
+                            )}
+                            {pageOfEmployees.map((employee) => (
+                                <Link
+                                    key={employee.id}
+                                    href={show(employee.id).url}
+                                    className="surface flex flex-col gap-3 p-4"
+                                >
+                                    <span className="flex items-center gap-3">
+                                        <EmployeeAvatar
+                                            name={employee.name}
+                                            photoUrl={employee.photoUrl}
+                                            className="size-11"
+                                        />
+                                        <span className="min-w-0 flex-1">
+                                            <span className="block truncate font-semibold">
+                                                {employee.name}
+                                            </span>
+                                            <span className="block truncate text-sm text-muted-foreground">
+                                                {employee.position ?? '—'}
+                                            </span>
+                                        </span>
+                                        {!employee.isActive && (
+                                            <Badge variant="secondary">
+                                                {employee.status}
+                                            </Badge>
+                                        )}
+                                        <ChevronRight
+                                            className="size-4 text-muted-foreground"
+                                            aria-hidden
+                                        />
+                                    </span>
+                                    <span className="grid grid-cols-2 gap-3 border-t pt-3">
+                                        <span>
+                                            <span className="label-mono block">
+                                                Perusahaan
+                                            </span>
+                                            <span className="block text-sm font-medium">
+                                                {employee.company ?? '—'}
+                                            </span>
+                                        </span>
+                                        <span>
+                                            <span className="label-mono block">
+                                                Departemen
+                                            </span>
+                                            <span className="block text-sm font-medium">
+                                                {employee.department ?? '—'}
+                                            </span>
+                                        </span>
+                                    </span>
+                                </Link>
+                            ))}
+                        </div>
+                        <div className="surface empty:hidden md:hidden">
+                            <Pagination pagination={pagination} />
+                        </div>
+                    </>
+                )}
+
                 {filters.view === 'chart' && (
                     <EmployeeOrgChart
                         employees={employees}
@@ -225,7 +324,7 @@ export default function EmployeesIndex({
 
                 {filters.view === 'grid' && (
                     <>
-                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        <div className="hidden gap-3 sm:grid-cols-2 md:grid lg:grid-cols-3">
                             {pageOfEmployees.map((employee) => (
                                 <Link
                                     key={employee.id}
@@ -279,14 +378,14 @@ export default function EmployeesIndex({
                                 </p>
                             )}
                         </div>
-                        <div className="surface empty:hidden">
+                        <div className="surface hidden empty:hidden md:block">
                             <Pagination pagination={pagination} />
                         </div>
                     </>
                 )}
 
                 {filters.view === 'list' && (
-                    <div className="surface">
+                    <div className="surface hidden md:block">
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm">
                                 <thead className="bg-muted/50 text-left">
@@ -381,6 +480,108 @@ export default function EmployeesIndex({
                     </div>
                 )}
             </div>
+
+            <FilterSheet
+                open={filtersOpen}
+                onOpenChange={setFiltersOpen}
+                onReset={clearFilters}
+                showLabel={`Tampilkan ${employees.length} karyawan`}
+            >
+                <form
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        apply({});
+                    }}
+                >
+                    <Input
+                        value={search}
+                        onChange={(event) => setSearch(event.target.value)}
+                        onBlur={() => search !== filters.search && apply({})}
+                        placeholder="Cari nama atau ID…"
+                        aria-label="Cari karyawan"
+                    />
+                </form>
+
+                <FilterSection title="Urutkan">
+                    <div className="seg w-full">
+                        {SORTS.map((sort) => (
+                            <button
+                                key={sort.value}
+                                type="button"
+                                className="flex-1"
+                                data-on={filters.sort === sort.value}
+                                onClick={() => apply({ sort: sort.value })}
+                            >
+                                {sort.label}
+                            </button>
+                        ))}
+                    </div>
+                </FilterSection>
+
+                <FilterSection title="Status">
+                    <div className="flex flex-wrap gap-2">
+                        {statuses.map((status) => (
+                            <button
+                                key={status.value}
+                                type="button"
+                                className="chip"
+                                data-on={filters.statuses.includes(
+                                    status.value,
+                                )}
+                                onClick={() => toggleStatus(status.value)}
+                            >
+                                {status.label}
+                            </button>
+                        ))}
+                    </div>
+                </FilterSection>
+
+                <FilterSection title="Departemen">
+                    <div className="flex flex-wrap gap-2">
+                        {departments.map((name) => (
+                            <button
+                                key={name}
+                                type="button"
+                                className="chip"
+                                data-on={filters.departments.includes(name)}
+                                onClick={() =>
+                                    apply({
+                                        departments: toggled(
+                                            filters.departments,
+                                            name,
+                                        ),
+                                    })
+                                }
+                            >
+                                {name}
+                            </button>
+                        ))}
+                    </div>
+                </FilterSection>
+
+                <FilterSection title="Jabatan">
+                    <div className="flex flex-wrap gap-2">
+                        {positions.map((name) => (
+                            <button
+                                key={name}
+                                type="button"
+                                className="chip"
+                                data-on={filters.positions.includes(name)}
+                                onClick={() =>
+                                    apply({
+                                        positions: toggled(
+                                            filters.positions,
+                                            name,
+                                        ),
+                                    })
+                                }
+                            >
+                                {name}
+                            </button>
+                        ))}
+                    </div>
+                </FilterSection>
+            </FilterSheet>
 
             <EmployeeDrawer
                 employeeId={openId}

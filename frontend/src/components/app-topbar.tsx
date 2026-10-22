@@ -24,7 +24,7 @@ export function AppTopbar() {
     return (
         <>
         <header className="sticky top-0 z-30 flex h-(--topbar-h) shrink-0 items-center gap-2 border-b bg-card px-3 sm:gap-4 sm:px-6">
-            <SidebarTrigger className="-ml-1 shrink-0" />
+            <SidebarTrigger className="-ml-1 hidden shrink-0 md:inline-flex" />
 
             {branding?.logoUrl && (
                 <Link href={dashboard()} className="shrink-0">
