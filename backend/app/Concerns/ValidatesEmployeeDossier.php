@@ -4,6 +4,7 @@ namespace App\Concerns;
 
 use App\Enums\EmploymentStatus;
 use App\Enums\EmploymentType;
+use App\Models\Company;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Position;
@@ -23,23 +24,29 @@ trait ValidatesEmployeeDossier
      */
     protected function dossierRules(?Employee $ignoring = null): array
     {
+        $companyId = $this->dossierCompanyId($ignoring);
+
         return [
+            ...$this->companyRules($ignoring),
             // Unique within the company, not group-wide: two companies may both have an 001.
             'employee_number' => [
                 'required', 'string', 'max:50',
                 Rule::unique(Employee::class, 'employee_number')
-                    ->where('company_id', $this->activeCompanyId())
+                    ->where('company_id', $companyId)
                     ->ignore($ignoring),
             ],
             'full_name' => ['required', 'string', 'max:255'],
             // Profile picture: an image only, and small enough for a directory card.
             'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'remove_photo' => ['nullable', 'boolean'],
-            // Department, position and manager are resolved through the company scope, so a
-            // record from another company simply does not exist to be selected.
-            'department_id' => ['nullable', 'integer', Rule::exists(Department::class, 'id')],
-            'position_id' => ['nullable', 'integer', Rule::exists(Position::class, 'id')],
-            'manager_id' => ['nullable', 'integer', Rule::exists(Employee::class, 'id')],
+            // Department, position and manager must belong to the record's own company, so a record from
+            // another company cannot be selected.
+            'department_id' => ['nullable', 'integer', Rule::exists(Department::class, 'id')
+                ->when($companyId !== null, fn ($rule) => $rule->where('company_id', $companyId))],
+            'position_id' => ['nullable', 'integer', Rule::exists(Position::class, 'id')
+                ->when($companyId !== null, fn ($rule) => $rule->where('company_id', $companyId))],
+            'manager_id' => ['nullable', 'integer', Rule::exists(Employee::class, 'id')
+                ->when($companyId !== null, fn ($rule) => $rule->where('company_id', $companyId))],
             'employment_status' => ['required', Rule::enum(EmploymentStatus::class)],
             'employment_type' => ['nullable', Rule::enum(EmploymentType::class)],
             // The notice period in the contract, in days: what an offboarding case is checked against.
@@ -92,6 +99,8 @@ trait ValidatesEmployeeDossier
     protected function dossierMessages(): array
     {
         return [
+            'company_id.required' => 'Pilih perusahaan.',
+            'company_id.exists' => 'Perusahaan ini tidak ditemukan.',
             'employee_number.required' => 'Isi ID karyawan.',
             'employee_number.unique' => 'ID karyawan ini sudah dipakai di perusahaan ini.',
             'full_name.required' => 'Isi nama lengkap.',
@@ -113,5 +122,31 @@ trait ValidatesEmployeeDossier
     {
         return app(CompanyContext::class)->companyId()
             ?? $this->user()?->company_id;
+    }
+
+    /**
+     * Someone viewing every company at once has no active company to file a new record under, so the form
+     * asks for one. With a company active, or on an existing record, the field is not asked for or read.
+     *
+     * @return array<string, mixed>
+     */
+    private function companyRules(?Employee $ignoring): array
+    {
+        if ($ignoring !== null || $this->activeCompanyId() !== null) {
+            return [];
+        }
+
+        return ['company_id' => ['required', 'integer', Rule::exists(Company::class, 'id')]];
+    }
+
+    /**
+     * The company the record's checks are made against: its own when it exists, else the active one, else the
+     * one chosen in the form.
+     */
+    private function dossierCompanyId(?Employee $ignoring): ?int
+    {
+        return $ignoring?->company_id
+            ?? $this->activeCompanyId()
+            ?? ($this->filled('company_id') ? $this->integer('company_id') : null);
     }
 }

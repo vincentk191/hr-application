@@ -220,3 +220,81 @@ it('offers positions and managers scoped to the company', function () {
             ->has('departments', 1)
         );
 });
+
+describe('adding an employee while every company is being viewed', function () {
+    beforeEach(function () {
+        // A group-level HR Admin has no company of their own, so the view starts on all companies and none is active.
+        $this->admin = User::factory()->create(['company_id' => null]);
+        $this->admin->assignRole(Role::HrAdmin->value);
+    });
+
+    it('offers the companies to choose from', function () {
+        $this->actingAs($this->admin)
+            ->get(route('employees.create'))
+            ->assertInertia(fn (Assert $page) => $page->has('companies', Company::count()));
+
+        $this->actingAs($this->hr)
+            ->get(route('employees.create'))
+            ->assertInertia(fn (Assert $page) => $page->where('companies', null));
+    });
+
+    it('files the employee under the company that was chosen', function () {
+        $this->actingAs($this->admin)
+            ->post(route('employees.store'), [
+                'company_id' => $this->company->id,
+                'employee_number' => 'EMP-7001',
+                'national_id' => '3174000000007001',
+                'full_name' => 'Karyawan Pilihan',
+                'employment_status' => EmploymentStatus::Active->value,
+            ])
+            ->assertRedirect();
+
+        expect(Employee::acrossCompanies()->firstWhere('employee_number', 'EMP-7001')->company_id)
+            ->toBe($this->company->id);
+    });
+
+    it('asks for a company on the field instead of failing without a message', function () {
+        $this->actingAs($this->admin)
+            ->from(route('employees.create'))
+            ->post(route('employees.store'), [
+                'employee_number' => 'EMP-7002',
+                'national_id' => '3174000000007002',
+                'full_name' => 'Tanpa Perusahaan',
+                'employment_status' => EmploymentStatus::Active->value,
+            ])
+            ->assertSessionHasErrors('company_id');
+
+        expect(Employee::acrossCompanies()->where('employee_number', 'EMP-7002')->exists())->toBeFalse();
+    });
+
+    it('refuses a department from a different company than the one chosen', function () {
+        $foreign = Department::factory()->forCompany(Company::factory()->create())->create();
+
+        $this->actingAs($this->admin)
+            ->from(route('employees.create'))
+            ->post(route('employees.store'), [
+                'company_id' => $this->company->id,
+                'employee_number' => 'EMP-7003',
+                'national_id' => '3174000000007003',
+                'full_name' => 'Salah Departemen',
+                'employment_status' => EmploymentStatus::Active->value,
+                'department_id' => $foreign->id,
+            ])
+            ->assertSessionHasErrors('department_id');
+    });
+
+    it('checks the employee number against the chosen company', function () {
+        Employee::factory()->forCompany($this->company)->create(['employee_number' => 'EMP-0001']);
+
+        $this->actingAs($this->admin)
+            ->from(route('employees.create'))
+            ->post(route('employees.store'), [
+                'company_id' => $this->company->id,
+                'employee_number' => 'EMP-0001',
+                'national_id' => '3174000000007004',
+                'full_name' => 'Duplikat',
+                'employment_status' => EmploymentStatus::Active->value,
+            ])
+            ->assertSessionHasErrors('employee_number');
+    });
+});

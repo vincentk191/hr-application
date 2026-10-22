@@ -1,4 +1,5 @@
 import { Form } from '@inertiajs/react';
+import { useState } from 'react';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import InputError from '@/components/input-error';
 import { PhotoInput } from '@/components/photo-input';
@@ -13,9 +14,11 @@ import type {
 } from '@/types/employee';
 
 export type EmployeeFormOptions = {
-    departments: Option[];
-    positions: (Option & { department_id: number })[];
-    managers: ManagerOption[];
+    /** Set only while every company is being viewed: a new employee then needs one chosen. */
+    companies: Option[] | null;
+    departments: (Option & { company_id: number })[];
+    positions: (Option & { department_id: number; company_id: number })[];
+    managers: (ManagerOption & { company_id: number })[];
     employmentStatuses: ValueOption[];
     employmentTypes: ValueOption[];
 };
@@ -102,6 +105,15 @@ export function EmployeeForm({
     canEditSensitive: boolean;
     submitLabel: string;
 }) {
+    const [companyId, setCompanyId] = useState('');
+    // Viewing every company at once, a new employee has no company yet: it is chosen first, and the
+    // departments, positions and managers on offer are that company's.
+    const choosesCompany = options.companies !== null && employee === undefined;
+    const inChosenCompany = <T extends { company_id: number }>(items: T[]) =>
+        choosesCompany
+            ? items.filter((item) => String(item.company_id) === companyId)
+            : items;
+
     return (
         <Form
             action={action}
@@ -136,6 +148,32 @@ export function EmployeeForm({
                     </Section>
 
                     <Section title="Kepegawaian">
+                        {choosesCompany && (
+                            <div className="grid gap-2 sm:col-span-2">
+                                <Label htmlFor="company_id">Perusahaan</Label>
+                                <select
+                                    id="company_id"
+                                    name="company_id"
+                                    required
+                                    value={companyId}
+                                    onChange={(event) =>
+                                        setCompanyId(event.target.value)
+                                    }
+                                    className={selectClasses}
+                                >
+                                    <option value="">Pilih perusahaan</option>
+                                    {options.companies?.map((company) => (
+                                        <option
+                                            key={company.id}
+                                            value={company.id}
+                                        >
+                                            {company.name}
+                                        </option>
+                                    ))}
+                                </select>
+                                <InputError message={errors.company_id} />
+                            </div>
+                        )}
                         <TextField
                             name="employee_number"
                             label="ID karyawan"
@@ -160,14 +198,16 @@ export function EmployeeForm({
                                 className={selectClasses}
                             >
                                 <option value="">—</option>
-                                {options.departments.map((department) => (
-                                    <option
-                                        key={department.id}
-                                        value={department.id}
-                                    >
-                                        {department.name}
-                                    </option>
-                                ))}
+                                {inChosenCompany(options.departments).map(
+                                    (department) => (
+                                        <option
+                                            key={department.id}
+                                            value={department.id}
+                                        >
+                                            {department.name}
+                                        </option>
+                                    ),
+                                )}
                             </select>
                             <InputError message={errors.department_id} />
                         </div>
@@ -181,14 +221,16 @@ export function EmployeeForm({
                                 className={selectClasses}
                             >
                                 <option value="">—</option>
-                                {options.positions.map((position) => (
-                                    <option
-                                        key={position.id}
-                                        value={position.id}
-                                    >
-                                        {position.name}
-                                    </option>
-                                ))}
+                                {inChosenCompany(options.positions).map(
+                                    (position) => (
+                                        <option
+                                            key={position.id}
+                                            value={position.id}
+                                        >
+                                            {position.name}
+                                        </option>
+                                    ),
+                                )}
                             </select>
                             <InputError message={errors.position_id} />
                         </div>
@@ -202,7 +244,7 @@ export function EmployeeForm({
                                 className={selectClasses}
                             >
                                 <option value="">—</option>
-                                {options.managers
+                                {inChosenCompany(options.managers)
                                     .filter(
                                         (manager) =>
                                             manager.id !== employee?.id,

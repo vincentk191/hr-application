@@ -8,6 +8,7 @@ use App\Enums\EmploymentType;
 use App\Enums\Permission;
 use App\Http\Requests\StoreEmployeeRequest;
 use App\Http\Requests\UpdateEmployeeRequest;
+use App\Models\Company;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
@@ -19,6 +20,7 @@ use App\Models\User;
 use App\Models\WorkflowStep;
 use App\Support\Attendance\DailyAttendance;
 use App\Support\Attendance\EmployeeTimesheet;
+use App\Support\CompanyContext;
 use App\Support\CsvDownload;
 use App\Support\Employees\TeamSlice;
 use App\Support\Features;
@@ -332,11 +334,16 @@ class EmployeeController extends Controller
     private function formOptions(): array
     {
         return [
-            'departments' => Department::orderBy('name')->get(['id', 'name']),
-            'positions' => Position::orderBy('name')->get(['id', 'name', 'department_id']),
-            'managers' => Employee::query()->active()->orderBy('full_name')->get(['id', 'full_name', 'employee_number'])
+            // Only offered while every company is being viewed: a new record then needs one chosen.
+            'companies' => app(CompanyContext::class)->companyId() === null
+                ? Company::orderBy('name')->get(['id', 'name'])
+                : null,
+            'departments' => Department::orderBy('name')->get(['id', 'name', 'company_id']),
+            'positions' => Position::orderBy('name')->get(['id', 'name', 'department_id', 'company_id']),
+            'managers' => Employee::query()->active()->orderBy('full_name')->get(['id', 'full_name', 'employee_number', 'company_id'])
                 ->map(fn (Employee $employee): array => [
                     'id' => $employee->id,
+                    'company_id' => $employee->company_id,
                     'label' => "{$employee->full_name} ({$employee->employee_number})",
                 ]),
             'employmentStatuses' => array_map(

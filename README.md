@@ -225,7 +225,7 @@ server {
     listen 80;
     listen [::]:80;
     server_name <hr-host>;
-    client_max_body_size 25m;
+    client_max_body_size 30m;
     location / {
         proxy_pass http://127.0.0.1:8090;
         proxy_set_header Host $host;
