@@ -15,12 +15,13 @@ use Spatie\Activitylog\Support\LogOptions;
  * (ATT-WIZ-001).
  *
  * Not company-scoped by the usual trait, because a group-wide holiday has no company. Instead
- * `appliesTo()` says whether it covers a given company and department, and who may see or change
- * an event is decided by the controller and the form request.
+ * `appliesTo()` says whether it covers a given company, department and Cabang, and who may see or
+ * change an event is decided by the controller and the form request.
  *
  * @property int $id
  * @property int|null $company_id
  * @property int|null $department_id
+ * @property int|null $branch_id
  * @property string $title
  * @property string $kind
  * @property Carbon $starts_on
@@ -31,7 +32,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['company_id', 'department_id', 'title', 'kind', 'starts_on', 'ends_on', 'series_id', 'repeat', 'created_by_user_id'])]
+#[Fillable(['company_id', 'department_id', 'branch_id', 'title', 'kind', 'starts_on', 'ends_on', 'series_id', 'repeat', 'created_by_user_id'])]
 class CalendarEvent extends Model
 {
     use LogsActivity;
@@ -127,15 +128,29 @@ class CalendarEvent extends Model
     }
 
     /**
-     * Whether this event covers someone in the given company and department.
+     * @return BelongsTo<Branch, $this>
      */
-    public function appliesTo(?int $companyId, ?int $departmentId): bool
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class)->withoutGlobalScopes();
+    }
+
+    /**
+     * Whether this event covers someone in the given company, department and Cabang. Each of the
+     * three narrows it only when the event names one; an event naming a Cabang does not cover
+     * someone whose Cabang is not known.
+     */
+    public function appliesTo(?int $companyId, ?int $departmentId, ?int $branchId): bool
     {
         if ($this->company_id !== null && $this->company_id !== $companyId) {
             return false;
         }
 
-        return $this->department_id === null || $this->department_id === $departmentId;
+        if ($this->department_id !== null && $this->department_id !== $departmentId) {
+            return false;
+        }
+
+        return $this->branch_id === null || $this->branch_id === $branchId;
     }
 
     /**
@@ -144,7 +159,7 @@ class CalendarEvent extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['company_id', 'department_id', 'title', 'kind', 'starts_on', 'ends_on', 'repeat'])
+            ->logOnly(['company_id', 'department_id', 'branch_id', 'title', 'kind', 'starts_on', 'ends_on', 'repeat'])
             ->logOnlyDirty()
             ->dontLogEmptyChanges()
             ->useLogName('calendar');

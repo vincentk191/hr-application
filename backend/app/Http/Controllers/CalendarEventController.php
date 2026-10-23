@@ -33,7 +33,7 @@ class CalendarEventController extends Controller
         // One ordinary row per occurrence, made together: either the whole series exists or none of it.
         $events = DB::transaction(fn (): array => array_map(
             fn (array $days): CalendarEvent => CalendarEvent::create([
-                ...$request->safe()->only(['title', 'kind', 'company_id', 'department_id']),
+                ...$request->safe()->only(['title', 'kind', 'company_id', 'department_id', 'branch_id']),
                 'starts_on' => $days[0]->toDateString(),
                 'ends_on' => $days[1]->toDateString(),
                 'series_id' => $series,

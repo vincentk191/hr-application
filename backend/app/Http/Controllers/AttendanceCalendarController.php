@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\AttendanceDayStatus;
 use App\Enums\Permission;
 use App\Models\AttendanceEnrolMap;
+use App\Models\Branch;
 use App\Models\CalendarEvent;
 use App\Models\Company;
 use App\Models\Department;
@@ -69,7 +70,7 @@ class AttendanceCalendarController extends Controller
             'months' => $data['view'] === 'year' ? $this->months($data['records'], $data['result']['dates'], $data['result']['dataThrough'], $schedule, $attendance) : [],
             'summary' => $this->summary($attendance->tally($data['records'], $data['result']['dates']), count($data['rows'])),
             'onLeave' => $this->onLeave($data['rows'], $data['from'], $data['to'], $data['filters']['leaveType']),
-            'events' => $this->events($request, $data['from'], $data['to']),
+            'events' => $this->events($request, $data['from'], $data['to'], $data['filters']['branches']),
             'eventForm' => $this->eventForm($request),
             'filters' => $data['filters'],
             'options' => [
@@ -218,11 +219,13 @@ class AttendanceCalendarController extends Controller
 
     /**
      * Holidays and events inside the range, among those this user may see: group-wide ones, and
-     * those for the company being viewed (or their own, if they are bound to one).
+     * those for the company being viewed (or their own, if they are bound to one). With Cabang chosen
+     * in the filter, those narrowed to some other Cabang are left out; the ones for every Cabang stay.
      *
+     * @param  list<string>  $branchNames
      * @return array<int, array<string, mixed>>
      */
-    private function events(Request $request, CarbonImmutable $from, CarbonImmutable $to): array
+    private function events(Request $request, CarbonImmutable $from, CarbonImmutable $to, array $branchNames = []): array
     {
         $user = $request->user();
         $activeCompany = app(CompanyContext::class)->companyId();
@@ -230,11 +233,14 @@ class AttendanceCalendarController extends Controller
         $sizes = [];
 
         $events = CalendarEvent::query()
-            ->with(['company:id,code', 'department:id,name'])
+            ->with(['company:id,code', 'department:id,name', 'branch:id,name'])
             ->whereDate('starts_on', '<=', $to->toDateString())
             ->whereDate('ends_on', '>=', $from->toDateString())
             ->when($activeCompany !== null, fn (Builder $query) => $query->where(
                 fn (Builder $inner) => $inner->whereNull('company_id')->orWhere('company_id', $activeCompany),
+            ))
+            ->when($branchNames !== [], fn (Builder $query) => $query->where(
+                fn (Builder $inner) => $inner->whereNull('branch_id')->orWhereIn('branch_id', Branch::query()->whereIn('name', $branchNames)->select('id')),
             ))
             ->orderBy('starts_on')
             ->get();
@@ -257,11 +263,10 @@ class AttendanceCalendarController extends Controller
                 // Set for an event that is one of a series: how it repeats and how many there are.
                 'repeat' => $event->repeat === null ? null : (CalendarEvent::REPEATS[$event->repeat] ?? null),
                 'seriesSize' => $event->series_id === null ? 1 : (int) ($sizes[$event->series_id] ?? 1),
-                'scope' => match (true) {
-                    $event->company_id === null => 'Semua perusahaan',
-                    $event->department_id === null => $event->company->code,
-                    default => $event->department->name.' · '.$event->company->code,
-                },
+                // The narrowest first: "Surabaya · Gudang · CMP-A".
+                'scope' => $event->company_id === null
+                    ? 'Semua perusahaan'
+                    : collect([$event->branch?->name, $event->department?->name, $event->company->code])->filter()->implode(' · '),
                 'canDelete' => $user->can(Permission::ManageCalendarEvents->value)
                     && ($user->isParentWide() || ($event->company_id !== null && $event->company_id === $user->company_id)),
             ])
@@ -291,6 +296,10 @@ class AttendanceCalendarController extends Controller
         return [
             'canBeGroupWide' => $user->isParentWide(),
             'companies' => $companies,
+            'branches' => Branch::acrossCompanies()
+                ->whereIn('company_id', $companies->pluck('id'))
+                ->orderBy('name')
+                ->get(['id', 'company_id', 'name']),
             'departments' => Department::acrossCompanies()
                 ->whereIn('company_id', $companies->pluck('id'))
                 ->orderBy('name')

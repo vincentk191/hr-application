@@ -156,7 +156,7 @@ class LeaveRequest extends Model
 
     /**
      * The working days a leave covers, both ends included (REQ-WIZ-005): Monday to Friday, less the
-     * holidays and company events that apply to this employee's company and department.
+     * holidays and company events that apply to this employee's company, department and Cabang.
      *
      * It uses the same definition of a working day as the attendance calendar, so the two cannot
      * disagree. The count is fixed when the request is filed; a holiday added afterwards does not
@@ -164,6 +164,6 @@ class LeaveRequest extends Model
      */
     public static function workingDays(CarbonInterface $startOn, CarbonInterface $endOn, Employee $employee): int
     {
-        return app(WorkingDays::class)->between($startOn, $endOn, $employee->company_id, $employee->department_id);
+        return app(WorkingDays::class)->between($startOn, $endOn, $employee->company_id, $employee->department_id, $employee->branch_id);
     }
 }

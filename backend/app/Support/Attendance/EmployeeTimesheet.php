@@ -43,6 +43,7 @@ class EmployeeTimesheet
                 'exited' => $employee->exited_on?->toDateString(),
                 'company' => $employee->company_id,
                 'department' => $employee->department_id,
+                'branch' => $employee->branch_id,
             ],
         ]);
 
@@ -119,6 +120,7 @@ class EmployeeTimesheet
                 'exited' => $employee->exited_on?->toDateString(),
                 'company' => $employee->company_id,
                 'department' => $employee->department_id,
+                'branch' => $employee->branch_id,
             ],
         ]);
 

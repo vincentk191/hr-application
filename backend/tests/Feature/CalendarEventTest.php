@@ -4,10 +4,12 @@ use App\Enums\AttendanceDayStatus;
 use App\Enums\Role;
 use App\Models\AttendanceEnrolMap;
 use App\Models\AttendancePunch;
+use App\Models\Branch;
 use App\Models\CalendarEvent;
 use App\Models\Company;
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\LeaveRequest;
 use App\Models\User;
 use App\Support\Attendance\DayClassifier;
 use App\Support\Attendance\WorkingDays;
@@ -130,6 +132,40 @@ it('applies a department event to that department only', function () {
         ->and(dayRecord($this->groupHr, $this->budi, '2026-10-06')['status'])->toBe('present');
 });
 
+it('applies a Cabang event to that Cabang only, and narrows further with a department', function () {
+    $surabaya = Branch::factory()->forCompany($this->a)->create(['name' => 'Surabaya']);
+    $ops = Department::factory()->forCompany($this->a)->create();
+    $surabayaStaff = eventEmployee($this->a, 'Staf Surabaya');
+    $surabayaStaff->update(['branch_id' => $surabaya->id]);
+    $surabayaOps = eventEmployee($this->a, 'Ops Surabaya', $ops);
+    $surabayaOps->update(['branch_id' => $surabaya->id]);
+    $pusatOps = eventEmployee($this->a, 'Ops Pusat', $ops);
+
+    holiday(['company_id' => $this->a->id, 'branch_id' => $surabaya->id, 'title' => 'Hari jadi Surabaya']);
+    holiday(['company_id' => $this->a->id, 'branch_id' => $surabaya->id, 'department_id' => $ops->id, 'title' => 'Pelatihan Ops Surabaya', 'starts_on' => '2026-10-07', 'ends_on' => '2026-10-07']);
+
+    foreach ([$this->budi, $surabayaStaff, $surabayaOps, $pusatOps] as $who) {
+        eventScan($who, '2026-10-05 08:00:00');
+    }
+
+    // Budi (Pusat) scans on the days that follow, so the log reaches the 8th and each of those days
+    // counts as one people were expected to come in, rather than "no data yet" or a day nobody scanned.
+    foreach (['06', '07', '08'] as $day) {
+        eventScan($this->budi, "2026-10-{$day} 08:00:00");
+    }
+
+    // The 6th is Surabaya's alone: Pusat staff who did not scan are absent, not on holiday.
+    expect(dayRecord($this->groupHr, $surabayaStaff, '2026-10-06')['status'])->toBe('off')
+        ->and(dayRecord($this->groupHr, $surabayaStaff, '2026-10-06')['event'])->toBe('Hari jadi Surabaya')
+        ->and(dayRecord($this->groupHr, $pusatOps, '2026-10-06')['status'])->toBe('absent')
+        ->and(dayRecord($this->groupHr, $this->budi, '2026-10-06')['status'])->toBe('present');
+
+    // The 7th is Surabaya's operations only: neither Surabaya's other staff nor Pusat's operations.
+    expect(dayRecord($this->groupHr, $surabayaOps, '2026-10-07')['status'])->toBe('off')
+        ->and(dayRecord($this->groupHr, $surabayaStaff, '2026-10-07')['status'])->toBe('absent')
+        ->and(dayRecord($this->groupHr, $pusatOps, '2026-10-07')['status'])->toBe('absent');
+});
+
 it('raises no absence issue on a holiday', function () {
     holiday();
     eventScan($this->budi, '2026-10-05 08:00:00');
@@ -163,11 +199,31 @@ it('counts working days as weekdays less the holidays that apply', function () {
     $to = CarbonImmutable::parse('2026-10-11');
 
     // Mon-Fri is five; the two holiday days leave three for company A, and B also loses Friday.
-    expect($days->between($from, $to, $this->a->id, null))->toBe(3)
-        ->and($days->between($from, $to, $this->b->id, null))->toBe(2)
-        ->and($days->isWorkingDay(CarbonImmutable::parse('2026-10-07'), $this->a->id, null))->toBeFalse()
-        ->and($days->isWorkingDay(CarbonImmutable::parse('2026-10-10'), $this->a->id, null))->toBeFalse() // Saturday
-        ->and($days->isWorkingDay(CarbonImmutable::parse('2026-10-05'), $this->a->id, null))->toBeTrue();
+    expect($days->between($from, $to, $this->a->id, null, null))->toBe(3)
+        ->and($days->between($from, $to, $this->b->id, null, null))->toBe(2)
+        ->and($days->isWorkingDay(CarbonImmutable::parse('2026-10-07'), $this->a->id, null, null))->toBeFalse()
+        ->and($days->isWorkingDay(CarbonImmutable::parse('2026-10-10'), $this->a->id, null, null))->toBeFalse() // Saturday
+        ->and($days->isWorkingDay(CarbonImmutable::parse('2026-10-05'), $this->a->id, null, null))->toBeTrue();
+});
+
+it('takes a Cabang holiday off the working days and the leave days of that Cabang only', function () {
+    $surabaya = Branch::factory()->forCompany($this->a)->create(['name' => 'Surabaya']);
+    $surabayaStaff = eventEmployee($this->a, 'Staf Surabaya');
+    $surabayaStaff->update(['branch_id' => $surabaya->id]);
+    holiday(['company_id' => $this->a->id, 'branch_id' => $surabaya->id, 'title' => 'Hari jadi Surabaya', 'starts_on' => '2026-10-07', 'ends_on' => '2026-10-07']);
+
+    $days = app(WorkingDays::class);
+    $from = CarbonImmutable::parse('2026-10-05');
+    $to = CarbonImmutable::parse('2026-10-09');
+
+    expect($days->between($from, $to, $this->a->id, null, $surabaya->id))->toBe(4)
+        ->and($days->between($from, $to, $this->a->id, null, $this->budi->branch_id))->toBe(5)
+        // Someone whose Cabang is not known is not covered by a Cabang's holiday.
+        ->and($days->between($from, $to, $this->a->id, null, null))->toBe(5)
+        ->and($days->isWorkingDay(CarbonImmutable::parse('2026-10-07'), $this->a->id, null, $surabaya->id))->toBeFalse()
+        ->and($days->isWorkingDay(CarbonImmutable::parse('2026-10-07'), $this->a->id, null, $this->budi->branch_id))->toBeTrue()
+        ->and(LeaveRequest::workingDays($from, $to, $surabayaStaff->refresh()))->toBe(4)
+        ->and(LeaveRequest::workingDays($from, $to, $this->budi))->toBe(5);
 });
 
 // --- Adding ---
@@ -213,6 +269,28 @@ it('checks that a department belongs to the chosen company', function () {
     ])->assertSessionHasErrors('department_id');
 
     expect(CalendarEvent::count())->toBe(0);
+});
+
+it('stores the Cabang an event is narrowed to, and checks it belongs to the chosen company', function () {
+    $surabaya = Branch::factory()->forCompany($this->a)->create();
+    $foreign = Branch::factory()->forCompany($this->b)->create();
+    $event = ['title' => 'Libur Surabaya', 'kind' => 'holiday', 'starts_on' => '2026-10-20', 'ends_on' => '2026-10-20'];
+
+    $this->actingAs($this->groupHr)->post(route('calendar-events.store'), [...$event, 'company_id' => $this->a->id, 'branch_id' => $foreign->id])
+        ->assertSessionHasErrors(['branch_id' => 'Cabang tidak ditemukan di perusahaan itu.']);
+    $this->actingAs($this->groupHr)->post(route('calendar-events.store'), [...$event, 'branch_id' => $surabaya->id])
+        ->assertSessionHasErrors(['branch_id' => 'Pilih perusahaan untuk cabang ini.']);
+
+    expect(CalendarEvent::count())->toBe(0);
+
+    $this->actingAs($this->hrA)->post(route('calendar-events.store'), [...$event, 'branch_id' => $surabaya->id])->assertRedirect();
+
+    expect(CalendarEvent::firstOrFail()->branch_id)->toBe($surabaya->id);
+
+    // A company-bound HR admin cannot reach another company's Cabang by sending its id.
+    $this->actingAs($this->hrA)->post(route('calendar-events.store'), [...$event, 'title' => 'Salah', 'branch_id' => $foreign->id])
+        ->assertSessionHasErrors('branch_id');
+    expect(CalendarEvent::count())->toBe(1);
 });
 
 it('validates the title, kind and dates', function () {
@@ -270,6 +348,31 @@ it('lists the events in range with a label for who they cover, and who may delet
         ->and(collect($events)->firstWhere('title', 'Semua')['canDelete'])->toBeFalse()
         ->and(collect($events)->firstWhere('title', 'Milik A')['scope'])->toBe('CMP-A')
         ->and(collect($events)->firstWhere('title', 'Milik A')['canDelete'])->toBeTrue();
+});
+
+it('labels a Cabang event by its narrowest scope, and narrows the list when a Cabang is filtered', function () {
+    $surabaya = Branch::factory()->forCompany($this->a)->create(['name' => 'Surabaya']);
+    $medan = Branch::factory()->forCompany($this->a)->create(['name' => 'Medan']);
+    $ops = Department::factory()->forCompany($this->a)->create(['name' => 'Gudang']);
+
+    holiday(['title' => 'Semua']);
+    holiday(['title' => 'Milik Surabaya', 'company_id' => $this->a->id, 'branch_id' => $surabaya->id, 'starts_on' => '2026-10-07', 'ends_on' => '2026-10-07']);
+    holiday(['title' => 'Gudang Medan', 'company_id' => $this->a->id, 'branch_id' => $medan->id, 'department_id' => $ops->id, 'starts_on' => '2026-10-08', 'ends_on' => '2026-10-08']);
+
+    $events = fn (string $query = '') => collect($this->actingAs($this->hrA)->get('/attendance/calendar?view=month&date=2026-10-15'.$query)
+        ->viewData('page')['props']['events']);
+
+    expect($events()->pluck('title')->all())->toBe(['Semua', 'Milik Surabaya', 'Gudang Medan'])
+        ->and($events()->firstWhere('title', 'Milik Surabaya')['scope'])->toBe('Surabaya · CMP-A')
+        ->and($events()->firstWhere('title', 'Gudang Medan')['scope'])->toBe('Medan · Gudang · CMP-A')
+        // Chosen Cabang keeps the events for everyone and its own, and drops the other's.
+        ->and($events('&branches[]=Surabaya')->pluck('title')->all())->toBe(['Semua', 'Milik Surabaya'])
+        ->and($events('&branches[]=Surabaya&branches[]=Medan')->pluck('title')->all())->toBe(['Semua', 'Milik Surabaya', 'Gudang Medan']);
+
+    $form = $this->actingAs($this->hrA)->get('/attendance/calendar')->viewData('page')['props']['eventForm'];
+
+    // Pusat is the company's default, made with its first employee.
+    expect(collect($form['branches'])->pluck('name')->sort()->values()->all())->toBe(['Medan', 'Pusat', 'Surabaya']);
 });
 
 it('offers a company-bound user only their own company on the form', function () {

@@ -377,6 +377,21 @@ it('keeps expecting data over a holiday that only covers one company or departme
         ->and($status['expectedThrough'])->toBe('2026-10-12');
 });
 
+it('keeps expecting data over a holiday that only covers one Cabang', function () {
+    mapPin('1042', $this->employee);
+    app(IngestPunches::class)->handle([[
+        'sn' => 'SN1', 'pin' => '1042', 'scan_at' => CarbonImmutable::parse('2026-10-09 17:00:00', 'Asia/Jakarta')->utc(),
+        'verify_mode' => null, 'inout_mode' => null,
+    ]], 'manual-file');
+
+    CalendarEvent::create(['title' => 'Libur cabang', 'kind' => 'holiday', 'starts_on' => '2026-10-12', 'ends_on' => '2026-10-12', 'branch_id' => $this->employee->branch_id]);
+
+    $status = app(CaptureStatus::class)->resolve(CarbonImmutable::parse('2026-10-13 09:00:00', 'Asia/Jakarta'));
+
+    expect($status['state'])->toBe('late')
+        ->and($status['expectedThrough'])->toBe('2026-10-12');
+});
+
 it('reports never when nothing has been loaded', function () {
     expect(app(CaptureStatus::class)->resolve()['state'])->toBe('never');
 });

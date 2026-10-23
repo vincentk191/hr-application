@@ -168,6 +168,7 @@ export type CalendarEventRow = {
 export type EventFormOptions = {
     canBeGroupWide: boolean;
     companies: { id: number; code: string; name: string }[];
+    branches: { id: number; company_id: number; name: string }[];
     departments: { id: number; company_id: number; name: string }[];
 };
 

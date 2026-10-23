@@ -94,7 +94,7 @@ class EmployeeRoster
      * The employment window of each person, in the shape DailyAttendance takes.
      *
      * @param  Collection<int, Employee>  $employees
-     * @return array<int, array{joined: string|null, exited: string|null, company: int|null, department: int|null}>
+     * @return array<int, array{joined: string|null, exited: string|null, company: int|null, department: int|null, branch: int|null}>
      */
     public function windows(Collection $employees): array
     {
@@ -104,6 +104,7 @@ class EmployeeRoster
                 'exited' => $employee->exited_on?->toDateString(),
                 'company' => $employee->company_id,
                 'department' => $employee->department_id,
+                'branch' => $employee->branch_id,
             ],
         ])->all();
     }

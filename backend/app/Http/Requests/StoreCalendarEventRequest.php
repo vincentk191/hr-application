@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\Permission;
+use App\Models\Branch;
 use App\Models\CalendarEvent;
 use App\Models\Company;
 use App\Models\Department;
@@ -15,7 +16,7 @@ use Illuminate\Validation\Validator;
  * Add a holiday or company event (ATT-WIZ-001).
  *
  * Who may add what is settled here, not on the form: a company-pinned HR admin can only add events
- * for their own company and its departments, whatever the form says. Only a parent-wide account
+ * for their own company and its departments and Cabang, whatever the form says. Only a parent-wide account
  * can add a group-wide holiday or choose another company.
  */
 class StoreCalendarEventRequest extends FormRequest
@@ -53,6 +54,8 @@ class StoreCalendarEventRequest extends FormRequest
             // Empty means the whole group; only a parent-wide user's request can leave it empty.
             'company_id' => ['nullable', 'integer', Rule::exists(Company::class, 'id')],
             'department_id' => ['nullable', 'integer'],
+            // Empty means every Cabang of the company. Checked against the company in after().
+            'branch_id' => ['nullable', 'integer'],
         ];
     }
 
@@ -77,24 +80,38 @@ class StoreCalendarEventRequest extends FormRequest
 
                 $this->checkRepeat($validator, $data);
 
-                if (! empty($data['department_id'])) {
-                    if (empty($data['company_id'])) {
-                        $validator->errors()->add('department_id', 'Pilih perusahaan untuk departemen ini.');
-
-                        return;
-                    }
-
-                    $belongs = Department::acrossCompanies()
-                        ->whereKey($data['department_id'])
-                        ->where('company_id', $data['company_id'])
-                        ->exists();
-
-                    if (! $belongs) {
-                        $validator->errors()->add('department_id', 'Departemen tidak ditemukan di perusahaan itu.');
-                    }
-                }
+                $this->checkBelongsToCompany($validator, $data, 'department_id', Department::class, 'departemen');
+                $this->checkBelongsToCompany($validator, $data, 'branch_id', Branch::class, 'cabang');
             },
         ];
+    }
+
+    /**
+     * A department or Cabang can only narrow an event to a company, and must be that company's own.
+     *
+     * @param  array<string, mixed>  $data
+     * @param  class-string<Branch|Department>  $model
+     */
+    private function checkBelongsToCompany(Validator $validator, array $data, string $field, string $model, string $label): void
+    {
+        if (empty($data[$field])) {
+            return;
+        }
+
+        if (empty($data['company_id'])) {
+            $validator->errors()->add($field, "Pilih perusahaan untuk {$label} ini.");
+
+            return;
+        }
+
+        $belongs = $model::acrossCompanies()
+            ->whereKey($data[$field])
+            ->where('company_id', $data['company_id'])
+            ->exists();
+
+        if (! $belongs) {
+            $validator->errors()->add($field, ucfirst($label).' tidak ditemukan di perusahaan itu.');
+        }
     }
 
     /**

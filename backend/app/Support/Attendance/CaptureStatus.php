@@ -71,7 +71,7 @@ class CaptureStatus
 
     /**
      * The last Monday-to-Friday day strictly before the given one that is not a group-wide holiday
-     * or event. The look-back is bounded: no event runs longer than CalendarEvent::MAX_DAYS, and a
+     * or event (one narrowed to a company, department or Cabang leaves the others scanning). The look-back is bounded: no event runs longer than CalendarEvent::MAX_DAYS, and a
      * run of back-to-back ones cannot send this around forever.
      */
     private function previousWorkingDay(CarbonImmutable $day): CarbonImmutable
@@ -79,6 +79,7 @@ class CaptureStatus
         $closures = CalendarEvent::query()
             ->whereNull('company_id')
             ->whereNull('department_id')
+            ->whereNull('branch_id')
             ->whereDate('ends_on', '<', $day->toDateString())
             ->whereDate('ends_on', '>=', $day->subDays(120)->toDateString())
             ->get(['starts_on', 'ends_on']);

@@ -37,6 +37,9 @@ function AddEventForm({
         }
     };
 
+    const branches = options.branches.filter(
+        (branch) => String(branch.company_id) === company,
+    );
     const departments = options.departments.filter(
         (department) => String(department.company_id) === company,
     );
@@ -159,6 +162,27 @@ function AddEventForm({
                             company-bound user regardless, this just keeps the form honest. */}
                         <InputError message={errors.company_id} />
                     </div>
+                    {branches.length > 0 && (
+                        <div className="grid gap-1">
+                            <Label htmlFor="event-branch">
+                                Cabang (opsional)
+                            </Label>
+                            <select
+                                id="event-branch"
+                                name="branch_id"
+                                defaultValue=""
+                                className={selectClasses}
+                            >
+                                <option value="">Semua cabang</option>
+                                {branches.map((branch) => (
+                                    <option key={branch.id} value={branch.id}>
+                                        {branch.name}
+                                    </option>
+                                ))}
+                            </select>
+                            <InputError message={errors.branch_id} />
+                        </div>
+                    )}
                     {departments.length > 0 && (
                         <div className="grid gap-1">
                             <Label htmlFor="event-department">

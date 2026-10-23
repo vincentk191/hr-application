@@ -32,7 +32,7 @@ class DailyAttendance
     ) {}
 
     /**
-     * @param  array<int, array{joined: string|null, exited: string|null, company: int|null, department: int|null}>  $employees  keyed by employee id
+     * @param  array<int, array{joined: string|null, exited: string|null, company: int|null, department: int|null, branch: int|null}>  $employees  keyed by employee id
      * @return array{
      *     records: array<int, array<string, array{status: string, in: string|null, out: string|null, punches: int, minutes: int|null, duplicate: bool, event: string|null}>>,
      *     dataThrough: string|null,
@@ -63,7 +63,7 @@ class DailyAttendance
 
             foreach ($employees as $employeeId => $employment) {
                 $punches = $byEmployee[$employeeId][$date] ?? null;
-                $event = $this->eventFor($eventsByDate[$date] ?? [], $employment['company'], $employment['department']);
+                $event = $this->eventFor($eventsByDate[$date] ?? [], $employment['company'], $employment['department'], $employment['branch']);
                 $employed = ($employment['joined'] === null || $date >= $employment['joined'])
                     && ($employment['exited'] === null || $date <= $employment['exited']);
 
@@ -129,10 +129,10 @@ class DailyAttendance
      *
      * @param  list<CalendarEvent>  $events
      */
-    private function eventFor(array $events, ?int $companyId, ?int $departmentId): ?string
+    private function eventFor(array $events, ?int $companyId, ?int $departmentId, ?int $branchId): ?string
     {
         foreach ($events as $event) {
-            if ($event->appliesTo($companyId, $departmentId)) {
+            if ($event->appliesTo($companyId, $departmentId, $branchId)) {
                 return $event->title;
             }
         }
