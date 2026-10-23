@@ -6,9 +6,10 @@ import InputError from '@/components/input-error';
 import LimitedFileInput from '@/components/limited-file-input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { OffboardingChecklistPanel } from '@/components/offboarding-checklist';
+import { PhaseActions } from '@/components/phase-actions';
+import type { PhaseAction } from '@/components/phase-actions';
 import { WorkflowDiscussion } from '@/components/workflow-discussion';
 import {
     cancel,
@@ -292,11 +293,265 @@ export default function OffboardingShow({
         item.stage === 'closed' ? 'sign_off' : current,
     );
 
+    // The stage's actions, in the order the desktop header shows them. `rank` is the phone's order: what the stage
+    // is waiting for first (its two best go in the bar), the rarer and the destructive ones under "⋯".
+    const phaseActions: PhaseAction[] = [
+        ...(item.canEdit
+            ? [
+                  {
+                      key: 'edit',
+                      label: 'Ubah',
+                      rank: 4,
+                      render: (label: string, className?: string) => (
+                          <Button
+                              asChild
+                              variant="outline"
+                              className={className}
+                          >
+                              <Link href={edit(item.id).url}>{label}</Link>
+                          </Button>
+                      ),
+                  },
+              ]
+            : []),
+        ...(item.canDecide
+            ? [
+                  {
+                      key: 'reject',
+                      label: 'Tolak',
+                      rank: 2,
+                      render: (label: string, className?: string) => (
+                          <DecisionDialog
+                              form={decide.form(item.id)}
+                              decision="reject"
+                              title={`Tolak pengajuan — ${item.employee.name}`}
+                              subtitle={`${item.reference} · dikembalikan ke ${item.createdBy ?? 'pemohon'}`}
+                              fieldLabel="Catatan untuk pemohon"
+                              hint="Wajib diisi · terkirim ke pemohon lewat notifikasi"
+                              required
+                              confirmLabel="Kirim penolakan"
+                              footnote="Pengajuan kembali ke draft"
+                              destructive
+                              trigger={
+                                  <Button
+                                      variant="outline"
+                                      data-test="reject-case"
+                                      className={className}
+                                  >
+                                      {label}
+                                  </Button>
+                              }
+                          />
+                      ),
+                  },
+                  {
+                      key: 'approve',
+                      label: 'Setujui',
+                      rank: 1,
+                      render: (label: string, className?: string) => (
+                          <DecisionDialog
+                              form={decide.form(item.id)}
+                              decision="approve"
+                              title={`Setujui pengajuan — ${item.employee.name}`}
+                              subtitle={`${item.reference} · checklist offboarding dimulai`}
+                              fieldLabel="Catatan (opsional)"
+                              confirmLabel="Setujui"
+                              footnote="Checklist dimulai"
+                              trigger={
+                                  <Button
+                                      data-test="approve-case"
+                                      className={className}
+                                  >
+                                      {label}
+                                  </Button>
+                              }
+                          />
+                      ),
+                  },
+              ]
+            : []),
+        ...(item.canChangeLastDay
+            ? [
+                  {
+                      key: 'last-day',
+                      label: 'Ubah hari terakhir',
+                      short: 'Hari terakhir',
+                      rank: 5,
+                      render: (label: string, className?: string) => (
+                          <LastDayDialog
+                              item={item}
+                              label={label}
+                              className={className}
+                          />
+                      ),
+                  },
+              ]
+            : []),
+        ...(item.canCancel
+            ? [
+                  {
+                      key: 'cancel',
+                      label: 'Batalkan kasus',
+                      short: 'Batalkan',
+                      rank: 6,
+                      render: (label: string, className?: string) => (
+                          <DecisionDialog
+                              form={cancel.form(item.id)}
+                              decision="cancel"
+                              title={`Batalkan kasus — ${item.employee.name}`}
+                              subtitle={`${item.reference} · pengunduran diri ditarik atau kasus keliru`}
+                              fieldLabel="Alasan pembatalan"
+                              hint="Wajib diisi · semua pihak diberi tahu · tidak ada yang dinonaktifkan"
+                              required
+                              confirmLabel="Batalkan kasus"
+                              footnote="Kasus disimpan sebagai Dibatalkan"
+                              destructive
+                              trigger={
+                                  <Button
+                                      variant="outline"
+                                      data-test="cancel-case"
+                                      className={className}
+                                  >
+                                      {label}
+                                  </Button>
+                              }
+                          />
+                      ),
+                  },
+              ]
+            : []),
+        ...(item.canSendBack
+            ? [
+                  {
+                      key: 'send-back',
+                      label: 'Kembalikan ke checklist',
+                      short: 'Kembalikan',
+                      rank: 3,
+                      render: (label: string, className?: string) => (
+                          <DecisionDialog
+                              form={sendBack.form(item.id)}
+                              decision="send-back"
+                              title={`Kembalikan ke checklist — ${item.employee.name}`}
+                              subtitle={`${item.reference} · tanda tangan yang sudah ada dihapus`}
+                              fieldLabel="Apa yang perlu diperbaiki"
+                              hint="Wajib diisi · masuk ke komentar dan dikirim ke pemilik checklist"
+                              required
+                              confirmLabel="Kembalikan"
+                              footnote="Kasus kembali ke tahap Checklist"
+                              trigger={
+                                  <Button
+                                      variant="outline"
+                                      data-test="send-back"
+                                      className={className}
+                                  >
+                                      {label}
+                                  </Button>
+                              }
+                          />
+                      ),
+                  },
+              ]
+            : []),
+        ...(item.canClose && item.signoff
+            ? [
+                  {
+                      key: 'close',
+                      label: 'Tutup kasus',
+                      short: 'Tutup',
+                      rank: 1,
+                      render: (label: string, className?: string) => (
+                          <Button
+                              data-test="close-case"
+                              className={className}
+                              disabled={
+                                  (item.signoff?.closeBlockers.length ?? 0) > 0
+                              }
+                              title={
+                                  (item.signoff?.closeBlockers.length ?? 0) > 0
+                                      ? item.signoff?.closeBlockers.join(' ')
+                                      : undefined
+                              }
+                              onClick={() =>
+                                  router.post(
+                                      close(item.id).url,
+                                      {},
+                                      { preserveScroll: true },
+                                  )
+                              }
+                          >
+                              {label}
+                          </Button>
+                      ),
+                  },
+              ]
+            : []),
+        ...(item.checklist?.canApprove
+            ? [
+                  {
+                      key: 'approve-checklist',
+                      label: 'Setujui checklist',
+                      short: 'Setujui',
+                      rank: 1,
+                      render: (label: string, className?: string) => (
+                          <Button
+                              data-test="approve-checklist"
+                              className={className}
+                              onClick={() =>
+                                  router.post(
+                                      approveChecklist(item.id).url,
+                                      {},
+                                      { preserveScroll: true },
+                                  )
+                              }
+                          >
+                              {label}
+                          </Button>
+                      ),
+                  },
+              ]
+            : []),
+        ...(item.canProceed && item.checklist
+            ? [
+                  {
+                      key: 'proceed',
+                      label: 'Lanjut ke sign-off',
+                      short: 'Lanjut',
+                      rank: 1,
+                      render: (label: string, className?: string) => (
+                          <Button
+                              data-test="proceed-signoff"
+                              className={className}
+                              disabled={!item.checklist?.approved}
+                              title={
+                                  item.checklist?.approved
+                                      ? undefined
+                                      : item.checklist?.progress.ready
+                                        ? 'HR perlu menyetujui checklist dulu.'
+                                        : item.checklist?.progress.blockers.join(
+                                              ' ',
+                                          )
+                              }
+                              onClick={() =>
+                                  router.post(
+                                      proceed(item.id).url,
+                                      {},
+                                      { preserveScroll: true },
+                                  )
+                              }
+                          >
+                              {label}
+                          </Button>
+                      ),
+                  },
+              ]
+            : []),
+    ];
+
     return (
         <>
             <Head title={`${item.reference} · ${item.employee.name}`} />
 
-            <div className="w-full space-y-5 p-4">
+            <div className="w-full space-y-5 p-4 max-md:pb-24">
                 <header className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                         <h1 className="text-2xl font-extrabold tracking-tight">
@@ -309,165 +564,20 @@ export default function OffboardingShow({
                         <Badge className="mt-2">{item.statusLabel}</Badge>
                     </div>
 
-                    <div
-                        className="flex flex-wrap items-center gap-2"
-                        data-test="phase-actions"
-                    >
-                        {item.canEdit && (
-                            <Button asChild variant="outline">
-                                <Link href={edit(item.id).url}>Ubah</Link>
-                            </Button>
-                        )}
-                        {item.canDecide && (
-                            <>
-                                <DecisionDialog
-                                    form={decide.form(item.id)}
-                                    decision="reject"
-                                    title={`Tolak pengajuan — ${item.employee.name}`}
-                                    subtitle={`${item.reference} · dikembalikan ke ${item.createdBy ?? 'pemohon'}`}
-                                    fieldLabel="Catatan untuk pemohon"
-                                    hint="Wajib diisi · terkirim ke pemohon lewat notifikasi"
-                                    required
-                                    confirmLabel="Kirim penolakan"
-                                    footnote="Pengajuan kembali ke draft"
-                                    destructive
-                                    trigger={
-                                        <Button
-                                            variant="outline"
-                                            data-test="reject-case"
-                                        >
-                                            Tolak
-                                        </Button>
-                                    }
-                                />
-                                <DecisionDialog
-                                    form={decide.form(item.id)}
-                                    decision="approve"
-                                    title={`Setujui pengajuan — ${item.employee.name}`}
-                                    subtitle={`${item.reference} · checklist offboarding dimulai`}
-                                    fieldLabel="Catatan (opsional)"
-                                    confirmLabel="Setujui"
-                                    footnote="Checklist dimulai"
-                                    trigger={
-                                        <Button data-test="approve-case">
-                                            Setujui
-                                        </Button>
-                                    }
-                                />
-                            </>
-                        )}
-                        {item.canChangeLastDay && <LastDayDialog item={item} />}
-                        {item.canCancel && (
-                            <DecisionDialog
-                                form={cancel.form(item.id)}
-                                decision="cancel"
-                                title={`Batalkan kasus — ${item.employee.name}`}
-                                subtitle={`${item.reference} · pengunduran diri ditarik atau kasus keliru`}
-                                fieldLabel="Alasan pembatalan"
-                                hint="Wajib diisi · semua pihak diberi tahu · tidak ada yang dinonaktifkan"
-                                required
-                                confirmLabel="Batalkan kasus"
-                                footnote="Kasus disimpan sebagai Dibatalkan"
-                                destructive
-                                trigger={
-                                    <Button
-                                        variant="outline"
-                                        data-test="cancel-case"
-                                    >
-                                        Batalkan kasus
-                                    </Button>
-                                }
+                    <PhaseActions
+                        actions={phaseActions}
+                        extra={
+                            <WorkflowDiscussion
+                                discussion={discussion}
+                                reference={item.reference}
+                                subject={item.employee.name ?? ''}
+                                currentStageLabel={item.stageLabel}
+                                canComment={item.canComment}
+                                postUrl={storeComment(item.id).url}
+                                readUrl={readComments(item.id).url}
                             />
-                        )}
-                        {item.canSendBack && (
-                            <DecisionDialog
-                                form={sendBack.form(item.id)}
-                                decision="send-back"
-                                title={`Kembalikan ke checklist — ${item.employee.name}`}
-                                subtitle={`${item.reference} · tanda tangan yang sudah ada dihapus`}
-                                fieldLabel="Apa yang perlu diperbaiki"
-                                hint="Wajib diisi · masuk ke komentar dan dikirim ke pemilik checklist"
-                                required
-                                confirmLabel="Kembalikan"
-                                footnote="Kasus kembali ke tahap Checklist"
-                                trigger={
-                                    <Button
-                                        variant="outline"
-                                        data-test="send-back"
-                                    >
-                                        Kembalikan ke checklist
-                                    </Button>
-                                }
-                            />
-                        )}
-                        {item.canClose && item.signoff && (
-                            <Button
-                                data-test="close-case"
-                                disabled={item.signoff.closeBlockers.length > 0}
-                                title={
-                                    item.signoff.closeBlockers.length > 0
-                                        ? item.signoff.closeBlockers.join(' ')
-                                        : undefined
-                                }
-                                onClick={() =>
-                                    router.post(
-                                        close(item.id).url,
-                                        {},
-                                        { preserveScroll: true },
-                                    )
-                                }
-                            >
-                                Tutup kasus
-                            </Button>
-                        )}
-                        {item.checklist?.canApprove && (
-                            <Button
-                                data-test="approve-checklist"
-                                onClick={() =>
-                                    router.post(
-                                        approveChecklist(item.id).url,
-                                        {},
-                                        { preserveScroll: true },
-                                    )
-                                }
-                            >
-                                Setujui checklist
-                            </Button>
-                        )}
-                        {item.canProceed && item.checklist && (
-                            <Button
-                                data-test="proceed-signoff"
-                                disabled={!item.checklist.approved}
-                                title={
-                                    item.checklist.approved
-                                        ? undefined
-                                        : item.checklist.progress.ready
-                                          ? 'HR perlu menyetujui checklist dulu.'
-                                          : item.checklist.progress.blockers.join(
-                                                ' ',
-                                            )
-                                }
-                                onClick={() =>
-                                    router.post(
-                                        proceed(item.id).url,
-                                        {},
-                                        { preserveScroll: true },
-                                    )
-                                }
-                            >
-                                Lanjut ke sign-off
-                            </Button>
-                        )}
-                        <WorkflowDiscussion
-                            discussion={discussion}
-                            reference={item.reference}
-                            subject={item.employee.name ?? ''}
-                            currentStageLabel={item.stageLabel}
-                            canComment={item.canComment}
-                            postUrl={storeComment(item.id).url}
-                            readUrl={readComments(item.id).url}
-                        />
-                    </div>
+                        }
+                    />
                 </header>
 
                 <Tracker

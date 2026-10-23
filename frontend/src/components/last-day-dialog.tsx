@@ -21,14 +21,27 @@ import type { OffboardingCase } from '@/types/offboarding';
  * approval is needed, but Management and the others in the case are told and the change is written in the
  * discussion. Not possible once the exit has been applied.
  */
-export function LastDayDialog({ item }: { item: OffboardingCase }) {
+export function LastDayDialog({
+    item,
+    label = 'Ubah hari terakhir',
+    className,
+}: {
+    item: OffboardingCase;
+    /** The trigger's text; shorter in a phone's action bar. */
+    label?: string;
+    className?: string;
+}) {
     const [open, setOpen] = useState(false);
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button variant="outline" data-test="change-last-day">
-                    Ubah hari terakhir
+                <Button
+                    variant="outline"
+                    data-test="change-last-day"
+                    className={className}
+                >
+                    {label}
                 </Button>
             </DialogTrigger>
             <DialogContent className="gap-0 overflow-hidden rounded-none border-2 border-foreground p-0 sm:max-w-xl">

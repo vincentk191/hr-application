@@ -2,6 +2,7 @@ import { Form, Head, Link, setLayoutProps } from '@inertiajs/react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
 import LimitedFileInput from '@/components/limited-file-input';
+import { PhaseActions } from '@/components/phase-actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -43,8 +44,7 @@ function tenure(joinedOn: string | null): string {
     const months = Math.max(
         0,
         Math.floor(
-            (Date.now() - new Date(joinedOn).getTime()) /
-                (30.44 * 86400000),
+            (Date.now() - new Date(joinedOn).getTime()) / (30.44 * 86400000),
         ),
     );
 
@@ -105,9 +105,11 @@ export default function OffboardingForm({
 
     return (
         <>
-            <Head title={existing ? existing.reference : 'Kasus offboarding baru'} />
+            <Head
+                title={existing ? existing.reference : 'Kasus offboarding baru'}
+            />
 
-            <div className="w-full max-w-5xl space-y-5 p-4">
+            <div className="w-full max-w-5xl space-y-5 p-4 max-md:pb-24">
                 <header>
                     <div className="flex items-start justify-between gap-3">
                         <h1 className="text-2xl font-extrabold tracking-tight">
@@ -115,28 +117,46 @@ export default function OffboardingForm({
                                 ? `Draft ${existing.reference} · ${existing.employee.name}`
                                 : 'Kasus offboarding baru'}
                         </h1>
-                        <div
-                            className="flex flex-wrap items-center gap-2"
-                            data-test="phase-actions"
-                        >
-                            <Button
-                                type="submit"
-                                form="offboarding-form"
-                                variant="outline"
-                                data-test="save-draft"
-                            >
-                                Simpan draft
-                            </Button>
-                            <Button
-                                type="submit"
-                                form="offboarding-form"
-                                name="send"
-                                value="1"
-                                data-test="send-case"
-                            >
-                                Kirim untuk persetujuan
-                            </Button>
-                            {existing &&
+                        <PhaseActions
+                            actions={[
+                                {
+                                    key: 'save',
+                                    label: 'Simpan draft',
+                                    short: 'Simpan',
+                                    rank: 2,
+                                    render: (label, className) => (
+                                        <Button
+                                            type="submit"
+                                            form="offboarding-form"
+                                            variant="outline"
+                                            data-test="save-draft"
+                                            className={className}
+                                        >
+                                            {label}
+                                        </Button>
+                                    ),
+                                },
+                                {
+                                    key: 'send',
+                                    label: 'Kirim untuk persetujuan',
+                                    short: 'Kirim',
+                                    rank: 1,
+                                    render: (label, className) => (
+                                        <Button
+                                            type="submit"
+                                            form="offboarding-form"
+                                            name="send"
+                                            value="1"
+                                            data-test="send-case"
+                                            className={className}
+                                        >
+                                            {label}
+                                        </Button>
+                                    ),
+                                },
+                            ]}
+                            extra={
+                                existing &&
                                 discussion &&
                                 discussion.items.length > 0 && (
                                     <WorkflowDiscussion
@@ -148,8 +168,9 @@ export default function OffboardingForm({
                                         postUrl={storeComment(existing.id).url}
                                         readUrl={readComments(existing.id).url}
                                     />
-                                )}
-                        </div>
+                                )
+                            }
+                        />
                     </div>
                     <p className="text-sm text-muted-foreground">
                         HR membuat kasus; Manajemen menyetujuinya; lalu
@@ -182,7 +203,9 @@ export default function OffboardingForm({
                 >
                     {({ processing, errors }) => (
                         <>
-                            <div className={step === 1 ? 'space-y-5' : 'hidden'}>
+                            <div
+                                className={step === 1 ? 'space-y-5' : 'hidden'}
+                            >
                                 <fieldset className="surface grid gap-4 p-4">
                                     <legend className="label-mono px-1">
                                         Karyawan
@@ -240,8 +263,8 @@ export default function OffboardingForm({
                                                         {candidate.reportsCount}{' '}
                                                         orang. Bawahannya harus
                                                         dipindahkan ke atasan
-                                                        baru sebelum kasus
-                                                        bisa ditutup.
+                                                        baru sebelum kasus bisa
+                                                        ditutup.
                                                     </p>
                                                 )}
                                                 {candidate.headOf.length >
@@ -341,7 +364,9 @@ export default function OffboardingForm({
                                                 </option>
                                             ))}
                                         </select>
-                                        <InputError message={errors.exit_type} />
+                                        <InputError
+                                            message={errors.exit_type}
+                                        />
                                     </div>
                                     <div className="grid gap-4 sm:grid-cols-2">
                                         <div className="grid gap-2">
@@ -458,13 +483,11 @@ export default function OffboardingForm({
                                         />
                                         <p className="text-xs text-muted-foreground">
                                             Manajemen membacanya sebelum
-                                            memutuskan. Gaji dan pembayaran akhir
-                                            diurus di luar sistem ini.
+                                            memutuskan. Gaji dan pembayaran
+                                            akhir diurus di luar sistem ini.
                                         </p>
                                         <InputError
-                                            message={
-                                                errors.compensation_reason
-                                            }
+                                            message={errors.compensation_reason}
                                         />
                                     </div>
                                 </fieldset>
@@ -492,7 +515,9 @@ export default function OffboardingForm({
                                             >
                                                 <Label htmlFor={name}>
                                                     {kind.label}
-                                                    {mandatory ? ' (WAJIB)' : ''}
+                                                    {mandatory
+                                                        ? ' (WAJIB)'
+                                                        : ''}
                                                 </Label>
                                                 {have.map((file) => (
                                                     <label
@@ -552,7 +577,9 @@ export default function OffboardingForm({
                                 </Button>
                             </div>
 
-                            <div className={step === 2 ? 'space-y-5' : 'hidden'}>
+                            <div
+                                className={step === 2 ? 'space-y-5' : 'hidden'}
+                            >
                                 <section className="surface space-y-3 p-4 text-sm">
                                     <h2 className="label-mono">Ringkasan</h2>
                                     <dl className="grid gap-3 sm:grid-cols-2">
@@ -573,8 +600,7 @@ export default function OffboardingForm({
                                             <dd>
                                                 {exitTypes.find(
                                                     (type) =>
-                                                        type.value ===
-                                                        exitType,
+                                                        type.value === exitType,
                                                 )?.label ?? '—'}
                                             </dd>
                                         </div>
@@ -620,8 +646,8 @@ export default function OffboardingForm({
                                         Alur persetujuan
                                     </h2>
                                     <p>
-                                        01 · Manajemen menyetujui, lalu checklist
-                                        dimulai
+                                        01 · Manajemen menyetujui, lalu
+                                        checklist dimulai
                                     </p>
                                     <p className="text-muted-foreground">
                                         Kasus dikirim ke Manajemen di atas

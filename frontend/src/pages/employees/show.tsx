@@ -422,7 +422,9 @@ export default function EmployeeShow({
                     </div>
                 </div>
 
-                <nav className="pill-tabs flex-nowrap overflow-x-auto md:flex-wrap md:overflow-visible">
+                {/* Phone: every tab shares the row equally, in smaller, tighter type, so none has to slide out of
+                    view. Tablet and up: the usual pills. */}
+                <nav className="pill-tabs flex-nowrap gap-0.5 md:flex-wrap md:gap-1">
                     {TABS.filter(
                         (item) =>
                             (item.key !== 'team' || team) &&
@@ -433,7 +435,7 @@ export default function EmployeeShow({
                             type="button"
                             onClick={() => setTab(item.key)}
                             data-on={tab === item.key}
-                            className="shrink-0"
+                            className="min-w-0 flex-1 truncate px-1 text-[11px] tracking-normal md:flex-none md:px-4 md:text-xs md:tracking-wide"
                         >
                             {item.label}
                         </button>

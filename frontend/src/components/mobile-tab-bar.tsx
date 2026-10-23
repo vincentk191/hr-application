@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { Bell, Menu, Settings, User } from 'lucide-react';
+import { Menu, Settings, User } from 'lucide-react';
 import { useState } from 'react';
 import {
     Sheet,
@@ -16,7 +16,6 @@ import {
     index as employeesIndex,
 } from '@/routes/employees';
 import { index as leaveRequestsIndex } from '@/routes/leave-requests';
-import { index as notificationsIndex } from '@/routes/notifications';
 import { edit as editSettings } from '@/routes/appearance';
 import type { NavItem } from '@/types';
 
@@ -58,8 +57,8 @@ export function MobileTabBar() {
     const isActive = (item: NavItem) =>
         isCurrentUrl(item.href, undefined, toUrl(item.href) !== TAB_URLS[0]);
 
+    // Notifications are not listed: the bell in the top bar already opens them on every page.
     const extras: NavItem[] = [
-        { title: 'Notifikasi', href: notificationsIndex(), icon: Bell },
         ...(auth.employeeId
             ? [
                   {
@@ -75,8 +74,9 @@ export function MobileTabBar() {
     const moreCount = more.reduce((sum, item) => sum + (item.badge ?? 0), 0);
     const moreActive = sheetItems.some((item) => isActive(item));
 
+    // A fixed height (h-16 on the list below), so a page's own action bar can sit exactly on top of it.
     const tabClass = (active: boolean) =>
-        `flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium ${active ? 'text-primary' : 'text-muted-foreground'}`;
+        `flex h-full flex-col items-center justify-center gap-0.5 text-[11px] font-medium ${active ? 'text-primary' : 'text-muted-foreground'}`;
     const pillClass = (active: boolean) =>
         `relative rounded-full px-4 py-1 ${active ? 'bg-primary/15' : ''}`;
 
@@ -88,7 +88,7 @@ export function MobileTabBar() {
                 data-test="mobile-tab-bar"
             >
                 <ul
-                    className="grid"
+                    className="grid h-16"
                     style={{
                         gridTemplateColumns: `repeat(${tabs.length + 1}, minmax(0, 1fr))`,
                     }}
