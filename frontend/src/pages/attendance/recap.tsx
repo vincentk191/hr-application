@@ -35,27 +35,31 @@ type Row = Figures & {
     id: number;
     name: string;
     number: string;
+    branch: string | null;
     department: string | null;
 };
 
-type DepartmentTotal = Figures & { name: string | null; employees: number };
+type GroupTotal = Figures & { name: string | null; employees: number };
 
 type PeriodTotal = Figures & { label: string; from: string; to: string };
 
 type Props = {
     rows: Row[];
     truncated: boolean;
-    departments: DepartmentTotal[];
+    branches: GroupTotal[];
+    departments: GroupTotal[];
     periods: PeriodTotal[];
     total: Figures & { employees: number };
     filters: {
         from: string;
         to: string;
+        branches: string[];
         departments: string[];
         team: number | null;
         search: string;
     };
     options: {
+        branches: string[];
         departments: string[];
         teams: { id: number; full_name: string }[];
     };
@@ -63,7 +67,7 @@ type Props = {
     capture: CaptureStatus;
 };
 
-type View = 'employee' | 'period' | 'department';
+type View = 'employee' | 'period' | 'branch' | 'department';
 
 /** One line of the table, whichever way the recap is being cut. */
 type TableRow = {
@@ -77,6 +81,7 @@ type TableRow = {
 const VIEWS: { value: View; label: string; column: string }[] = [
     { value: 'employee', label: 'Per karyawan', column: 'Karyawan' },
     { value: 'period', label: 'Per periode', column: 'Periode' },
+    { value: 'branch', label: 'Per cabang', column: 'Cabang' },
     { value: 'department', label: 'Per departemen', column: 'Departemen' },
 ];
 
@@ -185,13 +190,14 @@ function RecapTable({
 }
 
 /**
- * The attendance recap (EMP-ATT-003): totals for a period, cut per employee, per period or per
- * department from the dropdown on the table's title, with a grand total and a CSV of the same.
+ * The attendance recap (EMP-ATT-003): totals for a period, cut per employee, per period, per Cabang
+ * or per department from the dropdown on the table's title, with a grand total and a CSV of the same.
  * Counts are days (one person on one day), derived from the same days as the calendar.
  */
 export default function AttendanceRecap({
     rows,
     truncated,
+    branches,
     departments,
     periods,
     total,
@@ -231,7 +237,10 @@ export default function AttendanceRecap({
             rows: shownRows.map((row) => ({
                 key: row.id,
                 title: row.name,
-                subtitle: row.department ?? row.number,
+                subtitle:
+                    [row.branch, row.department]
+                        .filter(Boolean)
+                        .join(' · ') || row.number,
                 href: employeeShow(row.id),
                 figures: row,
             })),
@@ -252,6 +261,17 @@ export default function AttendanceRecap({
             totalLabel: 'Total',
             empty: 'Tidak ada periode.',
         },
+        branch: {
+            hint: `${branches.length} cabang`,
+            rows: branches.map((branch) => ({
+                key: branch.name ?? '—',
+                title: branch.name ?? 'Tanpa cabang',
+                subtitle: `${branch.employees} karyawan`,
+                figures: branch,
+            })),
+            totalLabel: 'Total',
+            empty: 'Tidak ada cabang.',
+        },
         department: {
             hint: `${departments.length} departemen`,
             rows: departments.map((department) => ({
@@ -271,6 +291,7 @@ export default function AttendanceRecap({
         return {
             from: next.from,
             to: next.to,
+            branches: next.branches,
             departments: next.departments,
             team: next.team ?? '',
             search: next.search,
@@ -379,6 +400,12 @@ export default function AttendanceRecap({
                         ))}
                     </select>
 
+                    <MultiSelectFilter
+                        label="Cabang"
+                        options={options.branches}
+                        selected={filters.branches}
+                        onChange={(branches) => go({ branches })}
+                    />
                     <MultiSelectFilter
                         label="Departemen"
                         options={options.departments}

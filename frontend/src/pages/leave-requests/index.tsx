@@ -45,7 +45,11 @@ export default function LeaveRequestsIndex({
 }: {
     requests: LeaveRequestRow[];
     filters: LeaveRequestFilters;
-    options: { types: ValueOption[]; departments: string[] };
+    options: {
+        types: ValueOption[];
+        branches: string[];
+        departments: string[];
+    };
     waitingOnMe: number;
     approvedThisMonth: number;
 }) {
@@ -53,6 +57,7 @@ export default function LeaveRequestsIndex({
     const activeFilters =
         (filters.status !== 'all' ? 1 : 0) +
         (filters.type ? 1 : 0) +
+        (filters.branch ? 1 : 0) +
         (filters.department ? 1 : 0) +
         (filters.month ? 1 : 0);
 
@@ -64,6 +69,7 @@ export default function LeaveRequestsIndex({
             {
                 status: next.status === 'all' ? undefined : next.status,
                 type: next.type ?? undefined,
+                branch: next.branch ?? undefined,
                 department: next.department ?? undefined,
                 month: next.month ?? undefined,
             },
@@ -79,6 +85,10 @@ export default function LeaveRequestsIndex({
 
     if (filters.type) {
         exportQuery.set('type', filters.type);
+    }
+
+    if (filters.branch) {
+        exportQuery.set('branch', filters.branch);
     }
 
     if (filters.department) {
@@ -178,6 +188,23 @@ export default function LeaveRequestsIndex({
                         {options.types.map((type) => (
                             <option key={type.value} value={type.value}>
                                 {type.label}
+                            </option>
+                        ))}
+                    </select>
+                    <select
+                        aria-label="Cabang"
+                        className="h-9 rounded-md border bg-card px-2 text-sm"
+                        value={filters.branch ?? ''}
+                        onChange={(event) =>
+                            go({
+                                branch: event.target.value || null,
+                            })
+                        }
+                    >
+                        <option value="">Semua cabang</option>
+                        {options.branches.map((branch) => (
+                            <option key={branch} value={branch}>
+                                {branch}
                             </option>
                         ))}
                     </select>
@@ -442,6 +469,7 @@ export default function LeaveRequestsIndex({
                     go({
                         status: 'all',
                         type: null,
+                        branch: null,
                         department: null,
                         month: null,
                     })
@@ -483,6 +511,30 @@ export default function LeaveRequestsIndex({
                                 onClick={() => go({ type: type.value })}
                             >
                                 {type.label}
+                            </button>
+                        ))}
+                    </div>
+                </FilterSection>
+
+                <FilterSection title="Cabang">
+                    <div className="flex flex-wrap gap-2">
+                        <button
+                            type="button"
+                            className="chip"
+                            data-on={!filters.branch}
+                            onClick={() => go({ branch: null })}
+                        >
+                            Semua
+                        </button>
+                        {options.branches.map((branch) => (
+                            <button
+                                key={branch}
+                                type="button"
+                                className="chip"
+                                data-on={filters.branch === branch}
+                                onClick={() => go({ branch })}
+                            >
+                                {branch}
                             </button>
                         ))}
                     </div>

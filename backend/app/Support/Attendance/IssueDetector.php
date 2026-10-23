@@ -31,7 +31,7 @@ class IssueDetector
     /**
      * @param  Collection<int, Employee>  $employees
      * @return list<array{
-     *     key: string, employeeId: int, name: string, number: string, department: string|null,
+     *     key: string, employeeId: int, name: string, number: string, branch: string|null, department: string|null,
      *     date: string, type: string, typeLabel: string, detail: string,
      *     resolution: array{by: string|null, at: string|null, reason: string}|null
      * }>
@@ -55,6 +55,7 @@ class IssueDetector
                         'employeeId' => $employee->id,
                         'name' => $employee->full_name,
                         'number' => $employee->employee_number,
+                        'branch' => $employee->branch?->name,
                         'department' => $employee->department?->name,
                         'date' => $date,
                         'type' => $type->value,

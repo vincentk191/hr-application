@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Enums\EmploymentStatus;
 use App\Enums\EmploymentType;
+use App\Models\Branch;
 use App\Models\Company;
 use App\Models\Department;
 use App\Models\Employee;
@@ -25,6 +26,11 @@ class EmployeeFactory extends Factory
     {
         return [
             'company_id' => Company::factory(),
+            // Every employee has a Cabang. Unless a test asks for a particular one, it is the
+            // company's "Pusat", so people made for one company share an office.
+            'branch_id' => fn (array $attributes): int => Branch::acrossCompanies()
+                ->firstOrCreate(['company_id' => $attributes['company_id'], 'name' => 'Pusat'])
+                ->id,
             'user_id' => null,
             'employee_number' => $this->faker->unique()->numerify('EMP-####'),
             'full_name' => $this->faker->name(),
@@ -51,6 +57,14 @@ class EmployeeFactory extends Factory
             'user_id' => User::factory()->state([
                 'company_id' => $attributes['company_id'] ?? null,
             ]),
+        ]);
+    }
+
+    public function inBranch(Branch $branch): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'company_id' => $branch->company_id,
+            'branch_id' => $branch->id,
         ]);
     }
 

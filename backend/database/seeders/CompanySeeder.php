@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Branch;
 use App\Models\Company;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -25,10 +26,13 @@ class CompanySeeder extends Seeder
         ];
 
         foreach ($companies as $company) {
-            Company::updateOrCreate(
+            $record = Company::updateOrCreate(
                 ['code' => $company['code']],
                 ['name' => $company['name'], 'is_active' => true],
             );
+
+            // Every company has at least one Cabang, or nobody could be added to it.
+            Branch::acrossCompanies()->firstOrCreate(['company_id' => $record->id, 'name' => 'Pusat']);
         }
     }
 }

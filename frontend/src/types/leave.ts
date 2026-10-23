@@ -33,6 +33,7 @@ export type LeaveRequestRow = {
     id: number;
     reference: string;
     employee: string | null;
+    branch: string | null;
     department: string | null;
     type: string;
     startOn: string;
@@ -72,6 +73,7 @@ export type EmployeeOption = {
 export type LeaveRequestFilters = {
     status: 'all' | 'mine' | 'waiting' | 'approved' | 'rejected';
     type: string | null;
+    branch: string | null;
     department: string | null;
     /** "YYYY-MM". */
     month: string | null;

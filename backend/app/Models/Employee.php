@@ -28,6 +28,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string $employee_number
  * @property string $full_name
  * @property string|null $photo_path
+ * @property int $branch_id
  * @property int|null $department_id
  * @property int|null $position_id
  * @property int|null $manager_id
@@ -68,6 +69,7 @@ use Spatie\Activitylog\Support\LogOptions;
     'employee_number',
     'full_name',
     'photo_path',
+    'branch_id',
     'department_id',
     'position_id',
     'manager_id',
@@ -175,6 +177,16 @@ class Employee extends Model
     public function documents(): HasMany
     {
         return $this->hasMany(EmployeeDocument::class);
+    }
+
+    /**
+     * The office this employee works from.
+     *
+     * @return BelongsTo<Branch, $this>
+     */
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
     }
 
     /**
@@ -303,6 +315,7 @@ class Employee extends Model
                 'company_id',
                 'employee_number',
                 'full_name',
+                'branch_id',
                 'department_id',
                 'position_id',
                 'manager_id',

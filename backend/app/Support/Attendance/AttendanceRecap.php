@@ -9,7 +9,7 @@ use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 
 /**
- * Attendance totals for a period, per employee and per department (EMP-ATT-003).
+ * Attendance totals for a period, per employee, per Cabang and per department (EMP-ATT-003).
  *
  * Built from the same derived days as the calendar and the profile timesheet, so a total here can
  * always be traced to the days that make it up. Counts are in days (one person on one day); worked
@@ -23,6 +23,7 @@ class AttendanceRecap
      * @param  Collection<int, Employee>  $employees
      * @return array{
      *     rows: list<array<string, mixed>>,
+     *     branches: list<array<string, mixed>>,
      *     departments: list<array<string, mixed>>,
      *     periods: list<array<string, mixed>>,
      *     total: array<string, int|float>,
@@ -44,6 +45,7 @@ class AttendanceRecap
                 'id' => $employee->id,
                 'name' => $employee->full_name,
                 'number' => $employee->employee_number,
+                'branch' => $employee->branch?->name,
                 'department' => $employee->department?->name,
                 ...$this->figures($counts, $minutes),
             ];
@@ -51,7 +53,8 @@ class AttendanceRecap
 
         return [
             'rows' => $rows,
-            'departments' => $this->byDepartment($rows),
+            'branches' => $this->groupedBy($rows, 'branch'),
+            'departments' => $this->groupedBy($rows, 'department'),
             'periods' => $this->byPeriod($result['records'], $result['dates']),
             'total' => $this->sum($rows),
             'dataThrough' => $result['dataThrough'],
@@ -139,30 +142,33 @@ class AttendanceRecap
     }
 
     /**
+     * Totals per value of a row's field, such as its Cabang or department; people with none are
+     * grouped under a null name.
+     *
      * @param  list<array<string, mixed>>  $rows
      * @return list<array<string, mixed>>
      */
-    private function byDepartment(array $rows): array
+    private function groupedBy(array $rows, string $field): array
     {
         $groups = [];
 
         foreach ($rows as $row) {
-            $groups[(string) ($row['department'] ?? '')][] = $row;
+            $groups[(string) ($row[$field] ?? '')][] = $row;
         }
 
         ksort($groups);
 
-        $departments = [];
+        $totals = [];
 
         foreach ($groups as $name => $members) {
-            $departments[] = [
+            $totals[] = [
                 'name' => $name === '' ? null : $name,
                 'employees' => count($members),
                 ...$this->sum($members),
             ];
         }
 
-        return $departments;
+        return $totals;
     }
 
     /**

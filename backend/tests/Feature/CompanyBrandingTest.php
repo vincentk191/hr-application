@@ -79,11 +79,11 @@ it('lets a company be created with a colour, and without one', function () {
     $this->actingAs($this->admin);
 
     Livewire::test(CreateCompany::class)
-        ->fillForm(['code' => 'BLU', 'name' => 'Biru', 'brand_color' => '#0000ff', 'is_active' => true])
+        ->fillForm(['code' => 'BLU', 'name' => 'Biru', 'brand_color' => '#0000ff', 'is_active' => true, 'branches' => [['name' => 'Pusat']]])
         ->call('create')
         ->assertHasNoFormErrors();
     Livewire::test(CreateCompany::class)
-        ->fillForm(['code' => 'PLN', 'name' => 'Polos', 'is_active' => true])
+        ->fillForm(['code' => 'PLN', 'name' => 'Polos', 'is_active' => true, 'branches' => [['name' => 'Pusat']]])
         ->call('create')
         ->assertHasNoFormErrors();
 

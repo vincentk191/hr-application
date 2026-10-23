@@ -2,6 +2,7 @@
 
 use App\Enums\EmploymentStatus;
 use App\Enums\Role;
+use App\Models\Branch;
 use App\Models\Company;
 use App\Models\Employee;
 use App\Models\OffboardingCase;
@@ -358,6 +359,19 @@ it('summarises the open cases by stage, and filters them', function () {
 
     $this->actingAs($this->hr)->get(route('offboarding.index', ['status' => 'checklist']))
         ->assertInertia(fn (Assert $page) => $page->has('cases', 1)->where('cases.0.employee.name', 'Lukas'));
+});
+
+it('filters the cases by the Cabang of the person leaving', function () {
+    submittedCase($this->sinta);
+    submittedCase($this->lukas);
+    $this->lukas->update(['branch_id' => Branch::factory()->forCompany($this->company)->create(['name' => 'Medan'])->id]);
+
+    $this->actingAs($this->hr)->get(route('offboarding.index', ['status' => 'all', 'branch' => 'Medan']))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('cases', 1)
+            ->where('cases.0.employee.name', 'Lukas')
+            ->where('filters.branch', 'Medan')
+            ->where('branches', ['Medan', 'Pusat']));
 });
 
 // --- Comments and files ---

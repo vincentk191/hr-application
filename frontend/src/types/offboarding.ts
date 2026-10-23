@@ -31,6 +31,7 @@ export type OffboardingRow = {
 
 export type OffboardingFilters = {
     status: string;
+    branch: string | null;
     department: string | null;
     lastDay: 'week' | 'month' | 'quarter' | null;
 };

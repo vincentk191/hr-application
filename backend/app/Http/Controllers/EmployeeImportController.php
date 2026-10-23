@@ -25,7 +25,7 @@ class EmployeeImportController extends Controller
      * @var list<string>
      */
     public const COLUMNS = [
-        'ID karyawan', 'Nama', 'Departemen', 'Jabatan', 'ID atasan', 'Status', 'Tipe',
+        'ID karyawan', 'Nama', 'Cabang', 'Departemen', 'Jabatan', 'ID atasan', 'Status', 'Tipe',
         'Tanggal bergabung', 'Tanggal keluar', 'Email', 'Telepon', 'Alamat', 'NIK',
     ];
 
@@ -73,7 +73,7 @@ class EmployeeImportController extends Controller
 
         return CsvDownload::stream('templat-karyawan.csv', [
             self::COLUMNS,
-            ['EMP-001', 'Budi Santoso', 'Operasional', 'Staf', '', 'Aktif', 'Tetap', '2024-01-15', '', 'budi@example.com', '0812-0000-0000', 'Jl. Contoh No. 1', '3174000000000001'],
+            ['EMP-001', 'Budi Santoso', 'Pusat', 'Operasional', 'Staf', '', 'Aktif', 'Tetap', '2024-01-15', '', 'budi@example.com', '0812-0000-0000', 'Jl. Contoh No. 1', '3174000000000001'],
         ]);
     }
 

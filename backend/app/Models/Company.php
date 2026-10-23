@@ -63,6 +63,14 @@ class Company extends Model
     }
 
     /**
+     * @return HasMany<Branch, $this>
+     */
+    public function branches(): HasMany
+    {
+        return $this->hasMany(Branch::class);
+    }
+
+    /**
      * @return HasMany<Department, $this>
      */
     public function departments(): HasMany

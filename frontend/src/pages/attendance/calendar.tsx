@@ -78,6 +78,7 @@ type Props = {
     onLeave: { people: number; entries: LeaveEntry[]; more: number };
     filters: CalendarFilters;
     options: {
+        branches: string[];
         departments: string[];
         statuses: StatusOption[];
         teams: { id: number; full_name: string }[];
@@ -246,7 +247,9 @@ function DayRows({
                                         {row.name}
                                     </Link>
                                     <div className="text-xs text-muted-foreground">
-                                        {row.department ?? row.number}
+                                        {[row.branch, row.department]
+                                            .filter(Boolean)
+                                            .join(' · ') || row.number}
                                     </div>
                                     <div className="text-xs text-muted-foreground md:hidden">
                                         {[
@@ -500,6 +503,7 @@ export default function AttendanceCalendar(props: Props) {
             {
                 view: changes.view ?? view,
                 date: changes.date ?? anchor,
+                branches: next.branches,
                 departments: next.departments,
                 statuses: next.statuses,
                 search: next.search,
@@ -516,6 +520,7 @@ export default function AttendanceCalendar(props: Props) {
             : [...list, value];
 
     const hasFilters =
+        filters.branches.length > 0 ||
         filters.departments.length > 0 ||
         filters.statuses.length > 0 ||
         filters.team !== null ||
@@ -526,6 +531,7 @@ export default function AttendanceCalendar(props: Props) {
     const exportUrl = `${exportRoute().url}?${new URLSearchParams([
         ['view', view],
         ['date', anchor],
+        ...filters.branches.map((name) => ['branches[]', name]),
         ...filters.departments.map((name) => ['departments[]', name]),
         ...filters.statuses.map((status) => ['statuses[]', status]),
         ['search', filters.search],
@@ -674,6 +680,7 @@ export default function AttendanceCalendar(props: Props) {
 
                 <FilterButton
                     count={
+                        filters.branches.length +
                         filters.departments.length +
                         filters.statuses.length +
                         (filters.team !== null ? 1 : 0) +
@@ -699,6 +706,12 @@ export default function AttendanceCalendar(props: Props) {
                         />
                     </form>
 
+                    <MultiSelectFilter
+                        label="Cabang"
+                        options={options.branches}
+                        selected={filters.branches}
+                        onChange={(branches) => go({ filters: { branches } })}
+                    />
                     <MultiSelectFilter
                         label="Departemen"
                         options={options.departments}
@@ -792,6 +805,7 @@ export default function AttendanceCalendar(props: Props) {
                                 setSearch('');
                                 go({
                                     filters: {
+                                        branches: [],
                                         departments: [],
                                         statuses: [],
                                         search: '',
@@ -919,6 +933,7 @@ export default function AttendanceCalendar(props: Props) {
                     setSearch('');
                     go({
                         filters: {
+                            branches: [],
                             departments: [],
                             statuses: [],
                             search: '',
@@ -975,6 +990,31 @@ export default function AttendanceCalendar(props: Props) {
                                     {status.code} · {status.label}
                                 </button>
                             ))}
+                    </div>
+                </FilterSection>
+
+                <FilterSection title="Cabang">
+                    <div className="flex flex-wrap gap-2">
+                        {options.branches.map((name) => (
+                            <button
+                                key={name}
+                                type="button"
+                                className="chip"
+                                data-on={filters.branches.includes(name)}
+                                onClick={() =>
+                                    go({
+                                        filters: {
+                                            branches: toggle(
+                                                filters.branches,
+                                                name,
+                                            ),
+                                        },
+                                    })
+                                }
+                            >
+                                {name}
+                            </button>
+                        ))}
                     </div>
                 </FilterSection>
 

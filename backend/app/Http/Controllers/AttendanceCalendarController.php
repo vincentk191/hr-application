@@ -73,6 +73,7 @@ class AttendanceCalendarController extends Controller
             'eventForm' => $this->eventForm($request),
             'filters' => $data['filters'],
             'options' => [
+                'branches' => OrganisationNames::branches($request->user()),
                 'departments' => OrganisationNames::departments($request->user()),
                 'teams' => $roster->teamLeads($request->user()),
                 'leaveTypes' => RequestType::query()->ordered()->get()
@@ -120,7 +121,7 @@ class AttendanceCalendarController extends Controller
                 $lines[] = [$month['label'], $counts['present'], $counts['late'], $counts['early_leave'], $counts['absent'], $counts['leave'], $month['rate'], $month['workdays']];
             }
         } else {
-            $lines[] = ['Karyawan', 'ID', 'Departemen', ...$data['result']['dates'], 'Hadir', 'Terlambat', 'Pulang cepat', 'Tidak hadir', 'Cuti'];
+            $lines[] = ['Karyawan', 'ID', 'Cabang', 'Departemen', ...$data['result']['dates'], 'Hadir', 'Terlambat', 'Pulang cepat', 'Tidak hadir', 'Cuti'];
 
             foreach ($data['rows'] as $row) {
                 $counts = $attendance->tally([$row['id'] => $row['days']], $data['result']['dates']);
@@ -128,6 +129,7 @@ class AttendanceCalendarController extends Controller
                 $lines[] = [
                     $row['name'],
                     $row['number'],
+                    $row['branch'] ?? '',
                     $row['department'] ?? '',
                     ...array_map(fn (string $date): string => $this->cell($row['days'][$date] ?? null), $data['result']['dates']),
                     $counts['present'], $counts['late'], $counts['early_leave'], $counts['absent'], $counts['leave'],
@@ -184,6 +186,7 @@ class AttendanceCalendarController extends Controller
         $leaveType = RequestType::query()->where('code', $request->string('leave_type')->toString())->value('code');
 
         $filters = [
+            'branches' => OrganisationNames::fromInput($request->input('branches')),
             'departments' => OrganisationNames::fromInput($request->input('departments')),
             'statuses' => array_values(array_intersect(
                 (array) $request->input('statuses', []),
@@ -194,7 +197,7 @@ class AttendanceCalendarController extends Controller
             'leaveType' => $leaveType,
         ];
 
-        $employees = $roster->between($from, $to, $filters['departments'], $filters['search'], $filters['team'], $filters['leaveType'], $request->user());
+        $employees = $roster->between($from, $to, $filters['departments'], $filters['search'], $filters['team'], $filters['leaveType'], $request->user(), $filters['branches']);
 
         $result = $attendance->forRange($from, $to, $roster->windows($employees));
         $withScannerId = AttendanceEnrolMap::acrossCompanies()->pluck('employee_id')->flip();
@@ -369,6 +372,7 @@ class AttendanceCalendarController extends Controller
                 'id' => $employee->id,
                 'name' => $employee->full_name,
                 'number' => $employee->employee_number,
+                'branch' => $employee->branch?->name,
                 'department' => $employee->department?->name,
                 'position' => $employee->position?->name,
                 'manager' => $employee->manager?->full_name,

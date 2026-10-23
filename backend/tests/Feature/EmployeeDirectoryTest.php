@@ -2,6 +2,7 @@
 
 use App\Enums\EmploymentStatus;
 use App\Enums\Role;
+use App\Models\Branch;
 use App\Models\Company;
 use App\Models\Department;
 use App\Models\Employee;
@@ -95,11 +96,14 @@ it('reports the filtered count against the company total', function () {
 });
 
 it('creates an employee in the active company', function () {
+    $branch = Branch::factory()->forCompany($this->company)->create();
+
     $this->actingAs($this->hr)
         ->post(route('employees.store'), [
             'employee_number' => 'EMP-9001',
             'national_id' => '3174000000009001',
             'full_name' => 'Karyawan Baru',
+            'branch_id' => $branch->id,
             'employment_status' => EmploymentStatus::Active->value,
             'base_salary_idr' => 7500000,
         ])
@@ -110,7 +114,67 @@ it('creates an employee in the active company', function () {
     expect($employee)->not->toBeNull()
         // Filled by BelongsToCompany from the active company (EMP-ADD-004).
         ->and($employee->company_id)->toBe($this->company->id)
+        ->and($employee->branch_id)->toBe($branch->id)
         ->and($employee->base_salary_idr)->toBe(7500000);
+});
+
+it('will not create an employee without a Cabang, or in another company\'s', function () {
+    $foreign = Branch::factory()->forCompany(Company::factory()->create())->create();
+
+    $payload = [
+        'employee_number' => 'EMP-9002',
+        'national_id' => '3174000000009002',
+        'full_name' => 'Tanpa Cabang',
+        'employment_status' => EmploymentStatus::Active->value,
+    ];
+
+    $this->actingAs($this->hr)->from(route('employees.create'))
+        ->post(route('employees.store'), $payload)
+        ->assertSessionHasErrors(['branch_id' => 'Pilih cabang.']);
+
+    $this->actingAs($this->hr)->from(route('employees.create'))
+        ->post(route('employees.store'), [...$payload, 'branch_id' => $foreign->id])
+        ->assertSessionHasErrors(['branch_id' => 'Cabang ini tidak ditemukan di perusahaan ini.']);
+
+    expect(Employee::acrossCompanies()->where('employee_number', 'EMP-9002')->exists())->toBeFalse();
+});
+
+it('moves an employee to another Cabang, and leaves it alone when the field is not sent', function () {
+    $surabaya = Branch::factory()->forCompany($this->company)->create();
+    $employee = Employee::factory()->forCompany($this->company)->create();
+    $original = $employee->branch_id;
+
+    $update = fn (array $extra) => $this->actingAs($this->hr)->put(route('employees.update', $employee), [
+        'employee_number' => $employee->employee_number,
+        'national_id' => $employee->national_id,
+        'full_name' => 'Nama Tetap',
+        'employment_status' => EmploymentStatus::Active->value,
+        ...$extra,
+    ])->assertRedirect();
+
+    $update([]);
+    expect($employee->fresh()->branch_id)->toBe($original);
+
+    $update(['branch_id' => $surabaya->id]);
+    expect($employee->fresh()->branch_id)->toBe($surabaya->id);
+});
+
+it('filters by Cabang, and offers only Cabang the viewer can reach', function () {
+    $surabaya = Branch::factory()->forCompany($this->company)->create(['name' => 'Surabaya']);
+    $medan = Branch::factory()->forCompany($this->company)->create(['name' => 'Medan']);
+    Employee::factory()->inBranch($surabaya)->count(2)->create();
+    Employee::factory()->inBranch($medan)->create();
+
+    $this->actingAs($this->hr)
+        ->get(route('employees.index', ['branches' => ['Surabaya']]))
+        ->assertInertia(fn (Assert $page) => $page->has('employees', 2)
+            ->where('employees.0.branch', 'Surabaya')
+            ->where('total', 3)
+            ->where('branches', ['Medan', 'Surabaya']));
+
+    $this->actingAs($this->hr)
+        ->get(route('employees.index', ['branches' => ['Surabaya', 'Medan']]))
+        ->assertInertia(fn (Assert $page) => $page->has('employees', 3));
 });
 
 it('keeps employee numbers unique per company, not group-wide', function () {
@@ -245,6 +309,7 @@ describe('adding an employee while every company is being viewed', function () {
                 'employee_number' => 'EMP-7001',
                 'national_id' => '3174000000007001',
                 'full_name' => 'Karyawan Pilihan',
+                'branch_id' => Branch::factory()->forCompany($this->company)->create()->id,
                 'employment_status' => EmploymentStatus::Active->value,
             ])
             ->assertRedirect();

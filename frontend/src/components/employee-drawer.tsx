@@ -201,6 +201,7 @@ function DrawerBody({
                     </h2>
                     <p className="text-sm text-muted-foreground">
                         {employee.position ?? '—'}
+                        {employee.branch ? ` · ${employee.branch}` : ''}
                         {employee.department ? ` · ${employee.department}` : ''}
                     </p>
                 </div>

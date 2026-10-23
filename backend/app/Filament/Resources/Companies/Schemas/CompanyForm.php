@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Companies\Schemas;
 use App\Support\Branding;
 use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Schema;
@@ -51,6 +52,24 @@ class CompanyForm
                     ->label('Aktif')
                     ->helperText('Perusahaan tidak dihapus, hanya dinonaktifkan.')
                     ->default(true),
+                // Every employee belongs to a Cabang, so a company starts with at least one. Later ones,
+                // for a new office, are added under Cabang in the menu, where a Cabang still holding
+                // employees cannot be deleted.
+                Repeater::make('branches')
+                    ->label('Cabang')
+                    ->helperText('Kantor perusahaan di tiap kota. Cabang berikutnya ditambahkan lewat menu Cabang.')
+                    ->relationship()
+                    ->schema([
+                        TextInput::make('name')
+                            ->label('Nama cabang')
+                            ->required()
+                            ->maxLength(255)
+                            ->distinct(),
+                    ])
+                    ->minItems(1)
+                    ->defaultItems(1)
+                    ->addActionLabel('Tambah cabang')
+                    ->visibleOn('create'),
             ]);
     }
 }

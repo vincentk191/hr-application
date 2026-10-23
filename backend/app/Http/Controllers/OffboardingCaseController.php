@@ -56,6 +56,7 @@ class OffboardingCaseController extends Controller
         $with = ['employee.position:id,name', 'employee.department:id,name', 'creator:id,name', 'workflow'];
 
         $cases = $this->narrowed($visible()->with($with), $filters)
+            ->when($filters['branch'] !== null, fn (Builder $query) => $query->whereHas('employee.branch', fn (Builder $branch) => $branch->where('name', $filters['branch'])))
             ->when($filters['department'] !== null, fn (Builder $query) => $query->whereHas('employee.department', fn (Builder $department) => $department->where('name', $filters['department'])))
             ->latest('id')
             ->get();
@@ -80,6 +81,7 @@ class OffboardingCaseController extends Controller
                     ->all(),
                 'oldestDays' => $oldest,
             ],
+            'branches' => OrganisationNames::branches($user),
             'departments' => OrganisationNames::departments($user),
             'canCreate' => $user->can('create', OffboardingCase::class),
         ]);
@@ -89,7 +91,7 @@ class OffboardingCaseController extends Controller
      * The status and last-day filters, which apply to every list the dashboard builds.
      *
      * @param  Builder<OffboardingCase>  $query
-     * @param  array{status: string, department: string|null, lastDay: string|null}  $filters
+     * @param  array{status: string, branch: string|null, department: string|null, lastDay: string|null}  $filters
      * @return Builder<OffboardingCase>
      */
     private function narrowed(Builder $query, array $filters): Builder
@@ -108,7 +110,7 @@ class OffboardingCaseController extends Controller
     }
 
     /**
-     * @return array{status: string, department: string|null, lastDay: string|null}
+     * @return array{status: string, branch: string|null, department: string|null, lastDay: string|null}
      */
     private function filters(Request $request): array
     {
@@ -117,6 +119,7 @@ class OffboardingCaseController extends Controller
 
         return [
             'status' => in_array($status, ['open', 'draft', 'submitted', 'checklist', 'sign_off', 'closed', 'cancelled', 'all'], true) ? $status : 'open',
+            'branch' => trim($request->string('branch')->toString()) ?: null,
             'department' => trim($request->string('department')->toString()) ?: null,
             'lastDay' => in_array($lastDay, ['week', 'month', 'quarter'], true) ? $lastDay : null,
         ];

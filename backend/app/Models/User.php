@@ -11,6 +11,8 @@ use Filament\Panel;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -136,6 +138,22 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         }
 
         return $this->company_id === ($company instanceof Company ? $company->id : $company);
+    }
+
+    /**
+     * Limit a query to the accounts that may look at the given company's data: its own accounts and
+     * every parent-wide one. The same rule as canAccessCompany(), for when the people are chosen in
+     * the database rather than filtered afterwards.
+     *
+     * @param  Builder<static>  $query
+     */
+    #[Scope]
+    protected function accessingCompany(Builder $query, Company|int $company): void
+    {
+        $query->where(function (Builder $query) use ($company): void {
+            $query->whereNull('company_id')
+                ->orWhere('company_id', $company instanceof Company ? $company->id : $company);
+        });
     }
 
     /**

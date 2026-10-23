@@ -324,6 +324,9 @@ export default function EmployeeShow({
                                 {employee.position
                                     ? ` · ${employee.position}`
                                     : ''}
+                                {employee.branch
+                                    ? ` · ${employee.branch}`
+                                    : ''}
                                 {employee.department
                                     ? ` · ${employee.department}`
                                     : ''}
@@ -445,6 +448,7 @@ export default function EmployeeShow({
                 {tab === 'overview' && (
                     <div className="grid gap-3 lg:grid-cols-2">
                         <Card title="Kepegawaian">
+                            <Field label="Cabang" value={employee.branch} />
                             <Field
                                 label="Departemen"
                                 value={employee.department}

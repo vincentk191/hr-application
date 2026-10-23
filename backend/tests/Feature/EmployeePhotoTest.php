@@ -2,6 +2,7 @@
 
 use App\Enums\EmploymentStatus;
 use App\Enums\Role;
+use App\Models\Branch;
 use App\Models\Company;
 use App\Models\Employee;
 use App\Models\User;
@@ -42,6 +43,7 @@ function newEmployeePayload(array $overrides = []): array
         'employee_number' => 'EMP-7001',
         'national_id' => '3174000000007001',
         'full_name' => 'Dewi Lestari',
+        'branch_id' => Branch::factory()->forCompany(test()->company)->create()->id,
         'employment_status' => EmploymentStatus::Active->value,
         ...$overrides,
     ];

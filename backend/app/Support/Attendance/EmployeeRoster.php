@@ -12,7 +12,7 @@ use Illuminate\Support\Collection;
 
 /**
  * Who the attendance screens consider for a date range: employees who were employed at any point
- * in it, optionally narrowed by department and a name or number search.
+ * in it, optionally narrowed by Cabang, department and a name or number search.
  *
  * Read through the company scope, so it is the active company, or every company in the combined
  * view. The calendar and the issues screen both use it, so they always look at the same people.
@@ -21,15 +21,17 @@ class EmployeeRoster
 {
     /**
      * @param  list<string>  $departments
+     * @param  list<string>  $branches
      * @return Collection<int, Employee>
      */
-    public function between(CarbonInterface $from, CarbonInterface $to, array $departments = [], string $search = '', ?int $teamLead = null, ?string $leaveType = null, ?User $viewer = null): Collection
+    public function between(CarbonInterface $from, CarbonInterface $to, array $departments = [], string $search = '', ?int $teamLead = null, ?string $leaveType = null, ?User $viewer = null, array $branches = []): Collection
     {
         return Employee::query()
             ->when($viewer !== null, fn (Builder $query) => $query->visibleTo($viewer))
-            ->with(['department:id,name', 'position:id,name', 'manager:id,full_name'])
+            ->with(['branch:id,name', 'department:id,name', 'position:id,name', 'manager:id,full_name'])
             ->where(fn (Builder $query) => $query->whereNull('joined_on')->orWhereDate('joined_on', '<=', $to->toDateString()))
             ->where(fn (Builder $query) => $query->whereNull('exited_on')->orWhereDate('exited_on', '>=', $from->toDateString()))
+            ->when($branches !== [], fn (Builder $query) => $query->whereHas('branch', fn (Builder $branch) => $branch->whereIn('name', $branches)))
             ->when($departments !== [], fn (Builder $query) => $query->whereHas('department', fn (Builder $department) => $department->whereIn('name', $departments)))
             ->when($search !== '', fn (Builder $query) => $query->where(
                 fn (Builder $inner) => $inner
@@ -39,7 +41,7 @@ class EmployeeRoster
             ->when($teamLead !== null, fn (Builder $query) => $query->whereIn('id', $this->teamOf($teamLead)))
             ->when($leaveType !== null, fn (Builder $query) => $query->whereIn('id', $this->onLeaveOfType($leaveType, $from, $to)))
             ->orderBy('full_name')
-            ->get(['id', 'company_id', 'full_name', 'employee_number', 'department_id', 'position_id', 'manager_id', 'joined_on', 'exited_on']);
+            ->get(['id', 'company_id', 'full_name', 'employee_number', 'branch_id', 'department_id', 'position_id', 'manager_id', 'joined_on', 'exited_on']);
     }
 
     /**

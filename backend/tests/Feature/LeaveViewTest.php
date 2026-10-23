@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\Role;
+use App\Models\Branch;
 use App\Models\Company;
 use App\Models\Department;
 use App\Models\Employee;
@@ -109,10 +110,29 @@ it('has a "waiting on you" filter that only holds what this person may decide', 
 it('ignores filters it does not know, rather than showing nothing', function () {
     lvRequest($this->budi);
 
-    $props = queue('?status=bogus&type=nope&month=2026-13&department=abc');
+    $props = queue('?status=bogus&type=nope&month=2026-13&branch=xyz&department=abc');
 
     expect($props['requests'])->toHaveCount(1)
-        ->and($props['filters'])->toBe(['status' => 'all', 'type' => null, 'department' => null, 'month' => null]);
+        ->and($props['filters'])->toBe(['status' => 'all', 'type' => null, 'branch' => null, 'department' => null, 'month' => null]);
+});
+
+it('filters the queue by Cabang, shows it on each row and in the export', function () {
+    $medan = Branch::factory()->forCompany($this->company)->create(['name' => 'Medan']);
+    $this->siti->update(['branch_id' => $medan->id]);
+
+    $atBudi = lvRequest($this->budi);
+    $atSiti = lvRequest($this->siti);
+
+    $props = queue('?branch=Medan');
+
+    expect(collect($props['requests'])->pluck('id')->all())->toBe([$atSiti->id])
+        ->and($props['requests'][0]['branch'])->toBe('Medan')
+        ->and($props['options']['branches'])->toBe(['Medan', 'Pusat'])
+        ->and(collect(queue('')['requests'])->pluck('id')->sort()->values()->all())->toBe(collect([$atBudi->id, $atSiti->id])->sort()->values()->all());
+
+    $csv = $this->actingAs($this->hr)->get('/leave-requests/export?branch=Medan')->streamedContent();
+
+    expect($csv)->toContain('Karyawan,Cabang,Departemen')->toContain('Siti')->not->toContain('Budi');
 });
 
 it('says how many were approved this month', function () {

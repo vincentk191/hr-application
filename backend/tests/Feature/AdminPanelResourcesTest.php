@@ -34,11 +34,13 @@ it('lets a system admin create and deactivate a company', function () {
     $this->actingAs(adminFor(Role::SystemAdmin));
 
     Livewire::test(CreateCompany::class)
-        ->fillForm(['code' => 'XYZ', 'name' => 'Xyz Corp', 'is_active' => true])
+        ->fillForm(['code' => 'XYZ', 'name' => 'Xyz Corp', 'is_active' => true, 'branches' => [['name' => 'Pusat'], ['name' => 'Surabaya']]])
         ->call('create')
         ->assertHasNoFormErrors();
 
     $company = Company::where('code', 'XYZ')->firstOrFail();
+
+    expect($company->branches()->orderBy('name')->pluck('name')->all())->toBe(['Pusat', 'Surabaya']);
 
     Livewire::test(EditCompany::class, ['record' => $company->getKey()])
         ->fillForm(['is_active' => false])

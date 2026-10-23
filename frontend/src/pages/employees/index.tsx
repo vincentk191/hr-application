@@ -38,6 +38,7 @@ type Props = {
     employees: EmployeeRow[];
     filters: EmployeeFilters;
     total: number;
+    branches: string[];
     departments: string[];
     positions: string[];
     statuses: ValueOption[];
@@ -72,6 +73,7 @@ export default function EmployeesIndex({
     employees,
     filters,
     total,
+    branches,
     departments,
     positions,
     statuses,
@@ -112,6 +114,7 @@ export default function EmployeesIndex({
     const exportUrl = `${exportMethod().url}?${new URLSearchParams([
         ['search', search],
         ['sort', filters.sort],
+        ...filters.branches.map((name) => ['branches[]', name]),
         ...filters.departments.map((name) => ['departments[]', name]),
         ...filters.positions.map((name) => ['positions[]', name]),
         ...filters.statuses.map((value) => ['statuses[]', value]),
@@ -119,17 +122,25 @@ export default function EmployeesIndex({
 
     const activeFilters =
         (filters.search !== '' ? 1 : 0) +
+        filters.branches.length +
         filters.departments.length +
         filters.positions.length +
         filters.statuses.length;
 
     const clearFilters = () => {
         setSearch('');
-        apply({ search: '', departments: [], positions: [], statuses: [] });
+        apply({
+            search: '',
+            branches: [],
+            departments: [],
+            positions: [],
+            statuses: [],
+        });
     };
 
     const isFiltered =
         filters.search !== '' ||
+        filters.branches.length > 0 ||
         filters.departments.length > 0 ||
         filters.positions.length > 0 ||
         filters.statuses.length > 0;
@@ -218,6 +229,12 @@ export default function EmployeesIndex({
                     ))}
 
                     <MultiSelectFilter
+                        label="Cabang"
+                        options={branches}
+                        selected={filters.branches}
+                        onChange={(branches) => apply({ branches })}
+                    />
+                    <MultiSelectFilter
                         label="Departemen"
                         options={departments}
                         selected={filters.departments}
@@ -242,15 +259,7 @@ export default function EmployeesIndex({
                     {isFiltered && (
                         <button
                             type="button"
-                            onClick={() => {
-                                setSearch('');
-                                apply({
-                                    search: '',
-                                    departments: [],
-                                    positions: [],
-                                    statuses: [],
-                                });
-                            }}
+                            onClick={clearFilters}
                             className="underline"
                         >
                             Hapus filter
@@ -308,6 +317,14 @@ export default function EmployeesIndex({
                                         </span>
                                         <span>
                                             <span className="label-mono block">
+                                                Cabang
+                                            </span>
+                                            <span className="block text-sm font-medium">
+                                                {employee.branch ?? '—'}
+                                            </span>
+                                        </span>
+                                        <span>
+                                            <span className="label-mono block">
                                                 Departemen
                                             </span>
                                             <span className="block text-sm font-medium">
@@ -361,6 +378,9 @@ export default function EmployeesIndex({
                                             {employee.company
                                                 ? ` · ${employee.company}`
                                                 : ''}
+                                            {employee.branch
+                                                ? ` · ${employee.branch}`
+                                                : ''}
                                         </span>
                                         <span className="text-sm text-muted-foreground">
                                             {employee.position ?? '—'}
@@ -407,6 +427,9 @@ export default function EmployeesIndex({
                                             Perusahaan
                                         </th>
                                         <th className="p-3 font-medium">
+                                            Cabang
+                                        </th>
+                                        <th className="p-3 font-medium">
                                             Departemen
                                         </th>
                                         <th className="p-3 font-medium">
@@ -430,7 +453,7 @@ export default function EmployeesIndex({
                                     {employees.length === 0 && (
                                         <tr>
                                             <td
-                                                colSpan={9}
+                                                colSpan={10}
                                                 className="p-6 text-center text-muted-foreground"
                                             >
                                                 Tidak ada karyawan.
@@ -453,6 +476,9 @@ export default function EmployeesIndex({
                                             </td>
                                             <td className="p-3">
                                                 {employee.company ?? '—'}
+                                            </td>
+                                            <td className="p-3">
+                                                {employee.branch ?? '—'}
                                             </td>
                                             <td className="p-3">
                                                 {employee.department ?? '—'}
@@ -540,6 +566,29 @@ export default function EmployeesIndex({
                                 onClick={() => toggleStatus(status.value)}
                             >
                                 {status.label}
+                            </button>
+                        ))}
+                    </div>
+                </FilterSection>
+
+                <FilterSection title="Cabang">
+                    <div className="flex flex-wrap gap-2">
+                        {branches.map((name) => (
+                            <button
+                                key={name}
+                                type="button"
+                                className="chip"
+                                data-on={filters.branches.includes(name)}
+                                onClick={() =>
+                                    apply({
+                                        branches: toggled(
+                                            filters.branches,
+                                            name,
+                                        ),
+                                    })
+                                }
+                            >
+                                {name}
                             </button>
                         ))}
                     </div>

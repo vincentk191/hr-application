@@ -2,6 +2,7 @@
 
 namespace App\Support\Notifications;
 
+use App\Enums\Permission;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
 use App\Models\LeaveRequest;
@@ -447,12 +448,17 @@ class Notifier
     }
 
     /**
+     * Chosen in the database: this runs once for every document that needs attention, so it must not
+     * load every account and ask each one for its permissions.
+     *
      * @return Collection<int, User>
      */
     private function documentManagers(int $companyId): Collection
     {
-        return User::query()->where('is_active', true)->get()
-            ->filter(fn (User $user): bool => $user->can('manage-documents') && $user->canAccessCompany($companyId))
-            ->values();
+        return User::query()
+            ->where('is_active', true)
+            ->permission(Permission::ManageDocuments->value)
+            ->accessingCompany($companyId)
+            ->get();
     }
 }

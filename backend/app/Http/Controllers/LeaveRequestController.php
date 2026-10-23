@@ -54,6 +54,7 @@ class LeaveRequestController extends Controller
             'options' => [
                 'types' => RequestType::query()->ordered()->get(['code', 'label'])
                     ->map(fn (RequestType $type): array => ['value' => $type->code, 'label' => $type->label])->values(),
+                'branches' => OrganisationNames::branches($request->user()),
                 'departments' => OrganisationNames::departments($request->user()),
             ],
             // What is waiting on this person, and what was approved this month (REQ-DSH-001).
@@ -73,12 +74,12 @@ class LeaveRequestController extends Controller
         $this->authorize('viewAny', LeaveRequest::class);
 
         $rows = collect($this->filtered($request->user(), $this->filters($request)))->map(fn (array $row): array => [
-            $row['reference'], $row['employee'], $row['department'], $row['type'], $row['startOn'], $row['endOn'],
+            $row['reference'], $row['employee'], $row['branch'], $row['department'], $row['type'], $row['startOn'], $row['endOn'],
             $row['timeframe'], $row['days'], $row['stageLabel'], $row['waitingOn'], $row['submittedAt'],
         ]);
 
         return CsvDownload::stream('pengajuan-'.now()->format('Y-m-d').'.csv', [
-            ['Pengajuan', 'Karyawan', 'Departemen', 'Jenis', 'Dari', 'Sampai', 'Jam', 'Hari kerja', 'Status', 'Menunggu', 'Diajukan'],
+            ['Pengajuan', 'Karyawan', 'Cabang', 'Departemen', 'Jenis', 'Dari', 'Sampai', 'Jam', 'Hari kerja', 'Status', 'Menunggu', 'Diajukan'],
             ...$rows,
         ]);
     }
@@ -87,12 +88,13 @@ class LeaveRequestController extends Controller
      * What the queue is narrowed by, read from the query string. Anything unrecognised is dropped, so
      * a stale or hand-edited link just shows the whole queue.
      *
-     * @return array{status: string, type: string|null, department: string|null, month: string|null}
+     * @return array{status: string, type: string|null, branch: string|null, department: string|null, month: string|null}
      */
     private function filters(Request $request): array
     {
         $type = $request->string('type')->toString();
         $month = $request->string('month')->toString();
+        $branch = $request->string('branch')->toString();
         $department = $request->string('department')->toString();
 
         return [
@@ -100,13 +102,14 @@ class LeaveRequestController extends Controller
                 ? $request->string('status')->toString()
                 : 'all',
             'type' => $type !== '' && RequestType::query()->where('code', $type)->exists() ? $type : null,
+            'branch' => in_array($branch, OrganisationNames::branches(), true) ? $branch : null,
             'department' => in_array($department, OrganisationNames::departments(), true) ? $department : null,
             'month' => preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $month) === 1 ? $month : null,
         ];
     }
 
     /**
-     * @param  array{status: string, type: string|null, department: string|null, month: string|null}  $filters
+     * @param  array{status: string, type: string|null, branch: string|null, department: string|null, month: string|null}  $filters
      * @return array<int, array<string, mixed>>
      */
     private function filtered(User $user, array $filters): array
@@ -115,8 +118,9 @@ class LeaveRequestController extends Controller
 
         return LeaveRequest::query()
             ->visibleTo($user)
-            ->with(['employee:id,full_name,employee_number,department_id,user_id,company_id', 'employee.department:id,name', 'workflow.steps.decidedBy:id,name', 'workflow.comments.author:id,name', 'attachments', 'type'])
+            ->with(['employee:id,full_name,employee_number,branch_id,department_id,user_id,company_id', 'employee.branch:id,name', 'employee.department:id,name', 'workflow.steps.decidedBy:id,name', 'workflow.comments.author:id,name', 'attachments', 'type'])
             ->when($filters['type'] !== null, fn (Builder $query) => $query->where('leave_type', $filters['type']))
+            ->when($filters['branch'] !== null, fn (Builder $query) => $query->whereHas('employee', fn (Builder $employee) => $employee->whereHas('branch', fn (Builder $branch) => $branch->where('name', $filters['branch']))))
             ->when($filters['department'] !== null, fn (Builder $query) => $query->whereHas('employee', fn (Builder $employee) => $employee->whereHas('department', fn (Builder $department) => $department->where('name', $filters['department']))))
             // A month catches any request whose days touch it.
             ->when($monthStart !== null, fn (Builder $query) => $query
@@ -280,6 +284,7 @@ class LeaveRequestController extends Controller
             'id' => $leave->id,
             'reference' => $leave->reference(),
             'employee' => $leave->employee?->full_name,
+            'branch' => $leave->employee?->branch?->name,
             'department' => $leave->employee?->department?->name,
             'type' => $leave->typeLabel(),
             'timeframe' => $leave->timeframe(),

@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Branch;
 use App\Models\Company;
 use App\Models\Department;
 use App\Models\Employee;
@@ -82,6 +83,7 @@ it('tags a new record with the active company', function () {
     companyContext()->setCompany($acme);
 
     $employee = Employee::create([
+        'branch_id' => Branch::factory()->forCompany($acme)->create()->id,
         'employee_number' => 'EMP-0001',
         'full_name' => 'Budi Santoso',
     ]);
@@ -98,6 +100,7 @@ it('keeps an explicitly set company when creating a record', function () {
     // An explicit company_id is honoured, so parent-wide tooling can still place a record.
     $employee = Employee::create([
         'company_id' => $other->id,
+        'branch_id' => Branch::factory()->forCompany($other)->create()->id,
         'employee_number' => 'EMP-0002',
         'full_name' => 'Siti Aminah',
     ]);

@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\Permission;
 use App\Enums\Role;
 use App\Models\AttendanceEnrolMap;
 use App\Models\AttendanceIssueResolution;
@@ -226,6 +227,34 @@ it('leaves a document with no date, or far off, alone', function () {
     $this->artisan('notifications:document-expiry')->assertSuccessful();
 
     expect(notifTitles($this->hr))->toBe([]);
+});
+
+it('tells only active document managers who may see that company, however they were given the permission', function () {
+    $parentWide = User::factory()->create(['company_id' => null]);
+    $parentWide->assignRole(Role::HrAdmin->value);
+
+    $otherCompanyHr = notifUser(Role::HrAdmin, Company::factory()->create());
+
+    $inactiveHr = notifUser(Role::HrAdmin, $this->company);
+    $inactiveHr->forceFill(['is_active' => false])->save();
+
+    $granted = notifUser(Role::Employee, $this->company);
+    $granted->givePermissionTo(Permission::ManageDocuments->value);
+
+    EmployeeDocument::create([
+        'company_id' => $this->company->id, 'employee_id' => $this->staff->id, 'category' => 'contract',
+        'title' => 'Kontrak kerja', 'is_restricted' => false, 'expires_on' => '2026-10-20',
+    ]);
+
+    $this->artisan('notifications:document-expiry')->assertSuccessful();
+
+    expect($this->hr->notifications()->count())->toBe(1)
+        ->and($parentWide->notifications()->count())->toBe(1)
+        ->and($granted->notifications()->count())->toBe(1)
+        ->and($otherCompanyHr->notifications()->count())->toBe(0)
+        ->and($inactiveHr->notifications()->count())->toBe(0)
+        ->and($this->boss->notifications()->count())->toBe(0)
+        ->and($this->staffUser->notifications()->count())->toBe(0);
 });
 
 // --- The list ---

@@ -50,12 +50,14 @@ export default function OffboardingIndex({
     cases,
     filters,
     summary,
+    branches,
     departments,
     canCreate,
 }: {
     cases: OffboardingRow[];
     filters: OffboardingFilters;
     summary: OffboardingSummary;
+    branches: string[];
     departments: string[];
     canCreate: boolean;
 }) {
@@ -64,6 +66,7 @@ export default function OffboardingIndex({
     const go = (next: Partial<Record<string, string | null>>) => {
         const query = {
             status: filters.status,
+            branch: filters.branch,
             department: filters.department,
             last_day: filters.lastDay,
             ...next,
@@ -134,6 +137,19 @@ export default function OffboardingIndex({
                             </button>
                         ))}
                     </div>
+                    <select
+                        className={selectClasses}
+                        value={filters.branch ?? ''}
+                        onChange={(event) => go({ branch: event.target.value })}
+                        aria-label="Cabang"
+                    >
+                        <option value="">Cabang: semua</option>
+                        {branches.map((name) => (
+                            <option key={name} value={name}>
+                                {name}
+                            </option>
+                        ))}
+                    </select>
                     <select
                         className={selectClasses}
                         value={filters.department ?? ''}

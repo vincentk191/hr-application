@@ -2,6 +2,7 @@
 
 use App\Enums\Role;
 use App\Http\Middleware\SetActiveCompany;
+use App\Models\Branch;
 use App\Models\Company;
 use App\Models\Department;
 use App\Models\Employee;
@@ -19,6 +20,9 @@ beforeEach(function () {
     $this->seed(RoleSeeder::class);
     $this->company = Company::factory()->create();
     $this->other = Company::factory()->create();
+    // A company always has a Cabang; the one named Pusat is also what the employee factory files people under.
+    $this->pusat = Branch::factory()->forCompany($this->company)->create(['name' => 'Pusat']);
+    Branch::factory()->forCompany($this->other)->create(['name' => 'Pusat']);
     $this->hr = User::factory()->create(['company_id' => $this->company->id]);
     $this->hr->assignRole(Role::HrAdmin->value);
     $this->warehouse = Department::factory()->forCompany($this->company)->create(['name' => 'Gudang']);
@@ -91,6 +95,36 @@ it('accepts Indonesian headers and a semicolon delimiter', function () {
 
     expect(employeeImportResult()['created'])->toBe(1)
         ->and(Employee::where('employee_number', 'K-9')->first()->department_id)->toBe($this->warehouse->id);
+});
+
+it('files each row under the Cabang it names', function () {
+    $surabaya = Branch::factory()->forCompany($this->company)->create(['name' => 'Surabaya']);
+
+    importEmployeesCsv("ID,Nama,Cabang\nK-1,Budi,surabaya\nK-2,Siti,Pusat\n");
+
+    expect(employeeImportResult())->toMatchArray(['created' => 2, 'rejected' => 0])
+        ->and(Employee::where('employee_number', 'K-1')->value('branch_id'))->toBe($surabaya->id)
+        ->and(Employee::where('employee_number', 'K-2')->value('branch_id'))->toBe($this->pusat->id);
+});
+
+it('files a row that names no Cabang under the company\'s only one, so a file from before Cabang still loads', function () {
+    importEmployeesCsv("ID,Nama\nK-3,Dewi\n");
+
+    expect(employeeImportResult())->toMatchArray(['created' => 1, 'rejected' => 0])
+        ->and(Employee::where('employee_number', 'K-3')->value('branch_id'))->toBe($this->pusat->id);
+});
+
+it('rejects a row whose Cabang does not exist, or is blank when the company has several', function () {
+    Branch::factory()->forCompany($this->company)->create(['name' => 'Surabaya']);
+
+    importEmployeesCsv("ID,Nama,Cabang\nK-1,Budi,Medan\nK-2,Siti,\nK-3,Dewi,Surabaya\n");
+
+    $result = employeeImportResult();
+
+    expect($result)->toMatchArray(['created' => 1, 'rejected' => 2])
+        ->and($result['errors'][0])->toContain('Baris 2')->toContain('cabang "Medan" belum ada')
+        ->and($result['errors'][1])->toContain('Baris 3')->toContain('cabang kosong')
+        ->and(Employee::where('employee_number', 'K-3')->exists())->toBeTrue();
 });
 
 it('skips an employee number that already exists, without changing the record', function () {

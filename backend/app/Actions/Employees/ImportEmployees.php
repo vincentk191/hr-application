@@ -4,6 +4,7 @@ namespace App\Actions\Employees;
 
 use App\Enums\EmploymentStatus;
 use App\Enums\EmploymentType;
+use App\Models\Branch;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Position;
@@ -23,8 +24,10 @@ use SplFileObject;
  *  - Bad rows are rejected one by one with their line number; good rows still load.
  *  - Columns are found by header name (English or Indonesian). Bank, payroll and health columns
  *    are not imported: they are sensitive, and are entered on the profile by someone allowed to.
- *  - A department or position must already exist by name, and the manager is given as an employee
- *    number, either already in the company or elsewhere in the same file. Nothing is auto-created.
+ *  - A Cabang, department or position must already exist by name, and the manager is given as an
+ *    employee number, either already in the company or elsewhere in the same file. Nothing is
+ *    auto-created. Every employee needs a Cabang: a blank one is read as the company's only Cabang,
+ *    so a file made before Cabang existed still loads, and is an error once there are several.
  *  - With $dryRun nothing is written: the outcome is what an import would do.
  */
 class ImportEmployees
@@ -39,6 +42,7 @@ class ImportEmployees
     public const ALIASES = [
         'employee_number' => ['idkaryawan', 'employeenumber', 'employeeid', 'nomorkaryawan', 'nip', 'empno', 'id'],
         'full_name' => ['nama', 'namalengkap', 'fullname', 'name'],
+        'branch' => ['cabang', 'branch', 'kantor', 'office'],
         'department' => ['departemen', 'department', 'divisi'],
         'position' => ['jabatan', 'position', 'posisi'],
         'manager' => ['idatasan', 'atasan', 'manager', 'managerid', 'idmanager'],
@@ -79,6 +83,7 @@ class ImportEmployees
         [$rows, $errors] = $this->read($path);
         $total = count($rows) + count($errors);
 
+        $branches = $this->namesToIds(Branch::acrossCompanies()->where('company_id', $companyId)->get(['id', 'name']));
         $departments = $this->namesToIds(Department::acrossCompanies()->where('company_id', $companyId)->get(['id', 'name']));
         $positions = $this->namesToIds(Position::acrossCompanies()->where('company_id', $companyId)->get(['id', 'name']));
         $existing = Employee::acrossCompanies()->where('company_id', $companyId)->pluck('id', 'employee_number')
@@ -98,7 +103,7 @@ class ImportEmployees
                 continue;
             }
 
-            $problem = $this->validate($row, $departments, $positions, $record);
+            $problem = $this->validate($row, $branches, $departments, $positions, $record);
 
             if ($problem !== null) {
                 $errors[] = "Baris {$row['line']}: {$problem}";
@@ -239,13 +244,26 @@ class ImportEmployees
      * Turn one row into the attributes to store, or say what is wrong with it.
      *
      * @param  array<string, mixed>  $row
+     * @param  array<string, int>  $branches
      * @param  array<string, int>  $departments
      * @param  array<string, int>  $positions
      * @param  array<string, mixed>|null  $record
      */
-    private function validate(array $row, array $departments, array $positions, ?array &$record): ?string
+    private function validate(array $row, array $branches, array $departments, array $positions, ?array &$record): ?string
     {
         $record = null;
+
+        if ($row['branch'] !== null) {
+            $branch = $branches[mb_strtolower($row['branch'])] ?? null;
+
+            if ($branch === null) {
+                return "cabang \"{$row['branch']}\" belum ada.";
+            }
+        } elseif (count($branches) === 1) {
+            $branch = array_values($branches)[0];
+        } else {
+            return 'cabang kosong.';
+        }
 
         $department = null;
         if ($row['department'] !== null) {
@@ -323,6 +341,7 @@ class ImportEmployees
         $record = [
             'employee_number' => $row['employee_number'],
             'full_name' => $row['full_name'],
+            'branch_id' => $branch,
             'department_id' => $department,
             'position_id' => $position,
             'employment_status' => $status,
@@ -441,7 +460,7 @@ class ImportEmployees
     }
 
     /**
-     * @param  iterable<Department|Position>  $models
+     * @param  iterable<Branch|Department|Position>  $models
      * @return array<string, int>
      */
     private function namesToIds(iterable $models): array

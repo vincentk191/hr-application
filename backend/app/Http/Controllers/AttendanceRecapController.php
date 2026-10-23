@@ -43,12 +43,13 @@ class AttendanceRecapController extends Controller
         $filters = [
             'from' => $from->toDateString(),
             'to' => $to->toDateString(),
+            'branches' => OrganisationNames::fromInput($request->input('branches')),
             'departments' => OrganisationNames::fromInput($request->input('departments')),
             'team' => $request->integer('team') ?: null,
             'search' => trim((string) $request->string('search')),
         ];
 
-        $employees = $roster->between($from, $to, $filters['departments'], $filters['search'], $filters['team'], viewer: $request->user());
+        $employees = $roster->between($from, $to, $filters['departments'], $filters['search'], $filters['team'], viewer: $request->user(), branches: $filters['branches']);
         $result = $recap->build($from, $to, $employees);
 
         if ($request->string('export')->toString() === 'csv') {
@@ -58,11 +59,13 @@ class AttendanceRecapController extends Controller
         return Inertia::render('attendance/recap', [
             'rows' => array_slice($result['rows'], 0, self::MAX_ROWS),
             'truncated' => count($result['rows']) > self::MAX_ROWS,
+            'branches' => $result['branches'],
             'departments' => $result['departments'],
             'periods' => $result['periods'],
             'total' => $result['total'] + ['employees' => count($result['rows'])],
             'filters' => $filters,
             'options' => [
+                'branches' => OrganisationNames::branches($request->user()),
                 'departments' => OrganisationNames::departments($request->user()),
                 'teams' => $roster->teamLeads($request->user()),
             ],
@@ -72,14 +75,14 @@ class AttendanceRecapController extends Controller
     }
 
     /**
-     * @param  array{rows: list<array<string, mixed>>, departments: list<array<string, mixed>>, periods: list<array<string, mixed>>, total: array<string, int|float>, dataThrough: string|null}  $result
+     * @param  array{rows: list<array<string, mixed>>, branches: list<array<string, mixed>>, departments: list<array<string, mixed>>, periods: list<array<string, mixed>>, total: array<string, int|float>, dataThrough: string|null}  $result
      * @param  array<string, mixed>  $filters
      */
     private function export(array $result, array $filters): StreamedResponse
     {
         $hours = fn (int $minutes): string => number_format($minutes / 60, 2, '.', '');
 
-        $header = ['Karyawan', 'ID', 'Departemen', 'Hadir', 'Terlambat', 'Pulang cepat', 'Tidak hadir', 'Cuti', 'Belum ada data', 'Jam kerja'];
+        $header = ['Karyawan', 'ID', 'Cabang', 'Departemen', 'Hadir', 'Terlambat', 'Pulang cepat', 'Tidak hadir', 'Cuti', 'Belum ada data', 'Jam kerja'];
 
         $figures = fn (array $row): array => [
             $row['present'], $row['late'], $row['earlyLeave'], $row['absent'], $row['leave'], $row['noData'], $hours((int) $row['minutes']),
@@ -92,25 +95,32 @@ class AttendanceRecapController extends Controller
         ];
 
         foreach ($result['rows'] as $row) {
-            $lines[] = [$row['name'], $row['number'], $row['department'] ?? '', ...$figures($row)];
+            $lines[] = [$row['name'], $row['number'], $row['branch'] ?? '', $row['department'] ?? '', ...$figures($row)];
+        }
+
+        $lines[] = [];
+        $lines[] = ['Per cabang'];
+
+        foreach ($result['branches'] as $branch) {
+            $lines[] = [$branch['name'] ?? '(tanpa cabang)', $branch['employees'].' karyawan', '', '', ...$figures($branch)];
         }
 
         $lines[] = [];
         $lines[] = ['Per departemen'];
 
         foreach ($result['departments'] as $department) {
-            $lines[] = [$department['name'] ?? '(tanpa departemen)', $department['employees'].' karyawan', '', ...$figures($department)];
+            $lines[] = [$department['name'] ?? '(tanpa departemen)', $department['employees'].' karyawan', '', '', ...$figures($department)];
         }
 
         $lines[] = [];
         $lines[] = ['Per periode'];
 
         foreach ($result['periods'] as $period) {
-            $lines[] = [$period['label'], "{$period['from']} s/d {$period['to']}", '', ...$figures($period)];
+            $lines[] = [$period['label'], "{$period['from']} s/d {$period['to']}", '', '', ...$figures($period)];
         }
 
         $lines[] = [];
-        $lines[] = ['Total', count($result['rows']).' karyawan', '', ...$figures($result['total'])];
+        $lines[] = ['Total', count($result['rows']).' karyawan', '', '', ...$figures($result['total'])];
 
         return CsvDownload::stream("rekap-absensi-{$filters['from']}-{$filters['to']}.csv", $lines);
     }

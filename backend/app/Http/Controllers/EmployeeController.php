@@ -9,6 +9,7 @@ use App\Enums\EmploymentType;
 use App\Enums\Permission;
 use App\Http\Requests\StoreEmployeeRequest;
 use App\Http\Requests\UpdateEmployeeRequest;
+use App\Models\Branch;
 use App\Models\Company;
 use App\Models\Department;
 use App\Models\Employee;
@@ -55,13 +56,14 @@ class EmployeeController extends Controller
         $user = $request->user();
 
         $employees = $this->filteredQuery($filters, $user)
-            ->with(['company:id,name', 'department:id,name', 'position:id,name', 'manager:id,full_name', 'user:id,is_active'])
+            ->with(['company:id,name', 'branch:id,name', 'department:id,name', 'position:id,name', 'manager:id,full_name', 'user:id,is_active'])
             ->get();
 
         return Inertia::render('employees/index', [
             'employees' => $employees->map(fn (Employee $employee): array => $this->summarise($employee)),
             'filters' => $filters,
             'total' => Employee::query()->visibleTo($user)->count(),
+            'branches' => OrganisationNames::branches($user),
             'departments' => OrganisationNames::departments($user),
             'positions' => OrganisationNames::positions($user),
             'statuses' => array_map(
@@ -76,12 +78,13 @@ class EmployeeController extends Controller
      * The directory's filters as read from the query string, shared by the list and its export so
      * the file always matches what is on screen.
      *
-     * @return array{search: string, departments: list<string>, positions: list<string>, statuses: list<mixed>, sort: string, view: string}
+     * @return array{search: string, branches: list<string>, departments: list<string>, positions: list<string>, statuses: list<mixed>, sort: string, view: string}
      */
     private function filtersFrom(Request $request): array
     {
         return [
             'search' => trim((string) $request->string('search')),
+            'branches' => OrganisationNames::fromInput($request->input('branches')),
             'departments' => OrganisationNames::fromInput($request->input('departments')),
             'positions' => OrganisationNames::fromInput($request->input('positions')),
             'statuses' => array_values(array_intersect(
@@ -98,7 +101,7 @@ class EmployeeController extends Controller
     }
 
     /**
-     * @param  array{search: string, departments: list<string>, positions: list<string>, statuses: list<mixed>, sort: string, view: string}  $filters
+     * @param  array{search: string, branches: list<string>, departments: list<string>, positions: list<string>, statuses: list<mixed>, sort: string, view: string}  $filters
      * @return Builder<Employee>
      */
     private function filteredQuery(array $filters, User $viewer): Builder
@@ -110,6 +113,7 @@ class EmployeeController extends Controller
                     ->where('full_name', 'like', "%{$filters['search']}%")
                     ->orWhere('employee_number', 'like', "%{$filters['search']}%"),
             ))
+            ->when($filters['branches'] !== [], fn (Builder $query) => $query->whereHas('branch', fn (Builder $branch) => $branch->whereIn('name', $filters['branches'])))
             ->when($filters['departments'] !== [], fn (Builder $query) => $query->whereHas('department', fn (Builder $department) => $department->whereIn('name', $filters['departments'])))
             ->when($filters['positions'] !== [], fn (Builder $query) => $query->whereHas('position', fn (Builder $position) => $position->whereIn('name', $filters['positions'])))
             ->when($filters['statuses'] !== [], fn (Builder $query) => $query->whereIn('employment_status', $filters['statuses']))
@@ -126,7 +130,7 @@ class EmployeeController extends Controller
         $this->authorize('viewAny', Employee::class);
 
         $employees = $this->filteredQuery($this->filtersFrom($request), $request->user())
-            ->with(['department:id,name', 'position:id,name', 'manager:id,employee_number'])
+            ->with(['branch:id,name', 'department:id,name', 'position:id,name', 'manager:id,employee_number'])
             ->get();
 
         activity('employee')
@@ -137,6 +141,7 @@ class EmployeeController extends Controller
         $rows = $employees->map(fn (Employee $employee): array => [
             $employee->employee_number,
             $employee->full_name,
+            $employee->branch?->name,
             $employee->department?->name,
             $employee->position?->name,
             $employee->manager?->employee_number,
@@ -160,7 +165,7 @@ class EmployeeController extends Controller
     {
         $this->authorize('view', $employee);
 
-        $employee->load(['department:id,name', 'position:id,name', 'manager:id,full_name', 'company:id,code,name', 'user:id,is_active']);
+        $employee->load(['branch:id,name', 'department:id,name', 'position:id,name', 'manager:id,full_name', 'company:id,code,name', 'user:id,is_active']);
 
         $user = $request->user();
 
@@ -196,7 +201,7 @@ class EmployeeController extends Controller
     {
         $this->authorize('view', $employee);
 
-        $employee->load(['department:id,name', 'position:id,name', 'manager:id,full_name', 'company:id,code,name', 'user:id,is_active']);
+        $employee->load(['branch:id,name', 'department:id,name', 'position:id,name', 'manager:id,full_name', 'company:id,code,name', 'user:id,is_active']);
 
         $user = $request->user();
 
@@ -354,6 +359,7 @@ class EmployeeController extends Controller
             'companies' => app(CompanyContext::class)->companyId() === null
                 ? Company::orderBy('name')->get(['id', 'name'])
                 : null,
+            'branches' => Branch::orderBy('name')->get(['id', 'name', 'company_id']),
             'departments' => Department::orderBy('name')->get(['id', 'name', 'company_id']),
             'positions' => Position::orderBy('name')->get(['id', 'name', 'department_id', 'company_id']),
             'managers' => Employee::query()->active()->orderBy('full_name')->get(['id', 'full_name', 'employee_number', 'company_id'])
@@ -384,6 +390,7 @@ class EmployeeController extends Controller
             'name' => $employee->full_name,
             'photoUrl' => $employee->photoUrl(),
             'company' => $employee->company?->name,
+            'branch' => $employee->branch?->name,
             'department' => $employee->department?->name,
             'position' => $employee->position?->name,
             'manager' => $employee->manager?->full_name,
@@ -406,6 +413,7 @@ class EmployeeController extends Controller
         return [
             ...$this->summarise($employee),
             'companyCode' => $employee->company?->code,
+            'branchId' => $employee->branch_id,
             'departmentId' => $employee->department_id,
             'positionId' => $employee->position_id,
             'employmentStatus' => $employee->employment_status->value,

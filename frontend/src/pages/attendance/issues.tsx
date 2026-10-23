@@ -16,6 +16,7 @@ type Issue = {
     employeeId: number;
     name: string;
     number: string;
+    branch: string | null;
     department: string | null;
     date: string;
     type: string;
@@ -35,11 +36,13 @@ type Props = {
         from: string;
         to: string;
         types: string[];
+        branches: string[];
         departments: string[];
         state: State;
     };
     options: {
         types: { value: string; label: string }[];
+        branches: string[];
         departments: string[];
     };
     dataThrough: string | null;
@@ -102,6 +105,7 @@ export default function AttendanceIssues({
                 from: next.from,
                 to: next.to,
                 types: next.types,
+                branches: next.branches,
                 departments: next.departments,
                 state: next.state,
             },
@@ -249,6 +253,12 @@ export default function AttendanceIssues({
                     <span className="mx-1 hidden h-5 border-l sm:block" />
 
                     <MultiSelectFilter
+                        label="Cabang"
+                        options={options.branches}
+                        selected={filters.branches}
+                        onChange={(branches) => go({ branches })}
+                    />
+                    <MultiSelectFilter
                         label="Departemen"
                         options={options.departments}
                         selected={filters.departments}
@@ -394,7 +404,9 @@ export default function AttendanceIssues({
                                                 {issue.name}
                                             </Link>
                                             <div className="text-xs text-muted-foreground">
-                                                {issue.department ??
+                                                {[issue.branch, issue.department]
+                                                    .filter(Boolean)
+                                                    .join(' · ') ||
                                                     issue.number}
                                             </div>
                                         </td>

@@ -6,6 +6,7 @@ use App\Filament\Pages\ManageWorkingHours;
 use App\Filament\Resources\ActivityLogs\ActivityLogResource;
 use App\Filament\Resources\AttendanceAgents\AttendanceAgentResource;
 use App\Filament\Resources\AttendanceIngestRequests\AttendanceIngestRequestResource;
+use App\Filament\Resources\Branches\BranchResource;
 use App\Filament\Resources\Companies\CompanyResource;
 use App\Filament\Resources\Departments\DepartmentResource;
 use App\Filament\Resources\OffboardingItems\OffboardingItemResource;
@@ -76,6 +77,7 @@ class AdminPanelProvider extends PanelProvider
             ActivityLogResource::class,
             AttendanceAgentResource::class,
             AttendanceIngestRequestResource::class,
+            BranchResource::class,
             CompanyResource::class,
             DepartmentResource::class,
             OffboardingItemResource::class,

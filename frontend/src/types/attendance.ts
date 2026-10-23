@@ -86,6 +86,7 @@ export type CalendarRow = {
     id: number;
     name: string;
     number: string;
+    branch: string | null;
     department: string | null;
     position: string | null;
     /** Name of the employee's supervisor. */
@@ -173,6 +174,7 @@ export type EventFormOptions = {
 export type StatusOption = { value: DayStatus; label: string; code: string };
 
 export type CalendarFilters = {
+    branches: string[];
     departments: string[];
     statuses: DayStatus[];
     search: string;

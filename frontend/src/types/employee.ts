@@ -8,6 +8,8 @@ export type EmployeeRow = {
     photoUrl: string | null;
     /** The operating company the employee belongs to. */
     company: string | null;
+    /** The office (Cabang) the employee works from. */
+    branch: string | null;
     department: string | null;
     position: string | null;
     manager: string | null;
@@ -31,6 +33,7 @@ export type EmployeePayroll = {
 
 export type EmployeeDetail = EmployeeRow & {
     companyCode: string | null;
+    branchId: number;
     departmentId: number | null;
     positionId: number | null;
     employmentStatus: string;
@@ -69,6 +72,7 @@ export type EmployeeDetail = EmployeeRow & {
 
 export type EmployeeFilters = {
     search: string;
+    branches: string[];
     departments: string[];
     positions: string[];
     statuses: string[];

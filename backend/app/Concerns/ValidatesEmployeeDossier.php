@@ -4,6 +4,7 @@ namespace App\Concerns;
 
 use App\Enums\EmploymentStatus;
 use App\Enums\EmploymentType;
+use App\Models\Branch;
 use App\Models\Company;
 use App\Models\Department;
 use App\Models\Employee;
@@ -39,8 +40,11 @@ trait ValidatesEmployeeDossier
             // Profile picture: an image only, and small enough for a directory card.
             'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'remove_photo' => ['nullable', 'boolean'],
-            // Department, position and manager must belong to the record's own company, so a record from
-            // another company cannot be selected.
+            // Cabang, department, position and manager must belong to the record's own company, so a record
+            // from another company cannot be selected. Every employee has a Cabang, so a new one must be
+            // given; an existing record keeps its own when the field is left out.
+            'branch_id' => [$ignoring === null ? 'required' : 'sometimes', 'integer', Rule::exists(Branch::class, 'id')
+                ->when($companyId !== null, fn ($rule) => $rule->where('company_id', $companyId))],
             'department_id' => ['nullable', 'integer', Rule::exists(Department::class, 'id')
                 ->when($companyId !== null, fn ($rule) => $rule->where('company_id', $companyId))],
             'position_id' => ['nullable', 'integer', Rule::exists(Position::class, 'id')
@@ -106,6 +110,8 @@ trait ValidatesEmployeeDossier
             'employee_number.required' => 'Isi ID karyawan.',
             'employee_number.unique' => 'ID karyawan ini sudah dipakai di perusahaan ini.',
             'full_name.required' => 'Isi nama lengkap.',
+            'branch_id.required' => 'Pilih cabang.',
+            'branch_id.exists' => 'Cabang ini tidak ditemukan di perusahaan ini.',
             'national_id.required' => 'Isi NIK.',
             'national_id.regex' => 'NIK harus 16 digit angka.',
             'national_id.unique' => 'NIK ini sudah terdaftar pada karyawan lain.',

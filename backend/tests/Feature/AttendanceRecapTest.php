@@ -3,6 +3,7 @@
 use App\Enums\Role;
 use App\Models\AttendanceEnrolMap;
 use App\Models\AttendancePunch;
+use App\Models\Branch;
 use App\Models\Company;
 use App\Models\Department;
 use App\Models\Employee;
@@ -148,6 +149,33 @@ it('is closed to roles without the permission and scoped to the company', functi
     expect($names)->not->toContain('Orang Lain');
 });
 
+it('totals each Cabang and narrows every attendance screen to the ones chosen', function () {
+    $surabaya = Branch::factory()->forCompany($this->company)->create(['name' => 'Surabaya']);
+    $this->dewi->update(['branch_id' => $surabaya->id]);
+    recapData();
+
+    $props = $this->actingAs($this->hr)->get('/attendance/recap?from=2026-10-05&to=2026-10-06')->assertOk()->viewData('page')['props'];
+    $branches = collect($props['branches'])->keyBy('name');
+
+    expect($branches['Pusat']['employees'])->toBe(2)
+        ->and($branches['Pusat']['late'])->toBe(1)
+        ->and($branches['Surabaya']['employees'])->toBe(1)
+        ->and($branches['Surabaya']['present'])->toBe(1)
+        ->and($props['options']['branches'])->toBe(['Pusat', 'Surabaya']);
+
+    $filtered = $this->actingAs($this->hr)->get('/attendance/recap?from=2026-10-05&to=2026-10-06&branches[]=Surabaya')->viewData('page')['props'];
+
+    expect(collect($filtered['rows'])->pluck('name')->all())->toBe(['Dewi'])
+        ->and($filtered['total']['employees'])->toBe(1);
+
+    $calendar = $this->actingAs($this->hr)->get('/attendance/calendar?view=week&date=2026-10-05&branches[]=Surabaya')->viewData('page')['props'];
+    $issues = $this->actingAs($this->hr)->get('/attendance/issues?from=2026-10-05&to=2026-10-06&state=all&branches[]=Surabaya')->viewData('page')['props'];
+
+    expect(collect($calendar['rows'])->pluck('name')->all())->toBe(['Dewi'])
+        ->and(collect($calendar['rows'])->pluck('branch')->unique()->all())->toBe(['Surabaya'])
+        ->and(collect($issues['issues'])->pluck('name')->unique()->all())->toBe(['Dewi']);
+});
+
 // --- Exports ---
 
 it('exports the recap as CSV with department subtotals and a total', function () {
@@ -159,8 +187,10 @@ it('exports the recap as CSV with department subtotals and a total', function ()
 
     expect($csv)->toStartWith("\xEF\xBB\xBF")
         ->and($csv)->toContain('Rekap absensi')
-        ->and($csv)->toContain('Karyawan,ID,Departemen,Hadir,Terlambat')
+        ->and($csv)->toContain('Karyawan,ID,Cabang,Departemen,Hadir,Terlambat')
         ->and($csv)->toContain('Budi,')
+        ->and($csv)->toContain('Per cabang')
+        ->and($csv)->toContain('Pusat,"3 karyawan"')
         ->and($csv)->toContain('Per departemen')
         ->and($csv)->toContain('Operasional,"2 karyawan"')
         ->and($csv)->toContain('Total,"3 karyawan"')

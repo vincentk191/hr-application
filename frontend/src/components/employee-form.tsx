@@ -16,6 +16,7 @@ import type {
 export type EmployeeFormOptions = {
     /** Set only while every company is being viewed: a new employee then needs one chosen. */
     companies: Option[] | null;
+    branches: (Option & { company_id: number })[];
     departments: (Option & { company_id: number })[];
     positions: (Option & { department_id: number; company_id: number })[];
     managers: (ManagerOption & { company_id: number })[];
@@ -107,7 +108,7 @@ export function EmployeeForm({
 }) {
     const [companyId, setCompanyId] = useState('');
     // Viewing every company at once, a new employee has no company yet: it is chosen first, and the
-    // departments, positions and managers on offer are that company's.
+    // Cabang, departments, positions and managers on offer are that company's.
     const choosesCompany = options.companies !== null && employee === undefined;
     const inChosenCompany = <T extends { company_id: number }>(items: T[]) =>
         choosesCompany
@@ -188,6 +189,30 @@ export function EmployeeForm({
                             error={errors.full_name}
                             required
                         />
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="branch_id">Cabang</Label>
+                            <select
+                                id="branch_id"
+                                name="branch_id"
+                                defaultValue={employee?.branchId ?? ''}
+                                className={selectClasses}
+                                required
+                            >
+                                <option value="">Pilih cabang</option>
+                                {inChosenCompany(options.branches).map(
+                                    (branch) => (
+                                        <option
+                                            key={branch.id}
+                                            value={branch.id}
+                                        >
+                                            {branch.name}
+                                        </option>
+                                    ),
+                                )}
+                            </select>
+                            <InputError message={errors.branch_id} />
+                        </div>
 
                         <div className="grid gap-2">
                             <Label htmlFor="department_id">Departemen</Label>
