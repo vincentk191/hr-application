@@ -40,7 +40,7 @@ class LeaveLimits
      * The types a form may offer, each with its limit: the ones switched on, in the administrators'
      * order, plus the one a request being corrected already has even if it has since been switched off.
      *
-     * @return array<int, array{value: string, label: string, maxDays: int|null, backDays: int|null}>
+     * @return array<int, array{value: string, label: string, kind: string, maxDays: int|null, backDays: int|null}>
      */
     public function options(?string $alsoCode = null): array
     {
@@ -51,6 +51,7 @@ class LeaveLimits
             ->map(fn (RequestType $type): array => [
                 'value' => $type->code,
                 'label' => $type->label,
+                'kind' => $type->absence_kind->value,
                 'maxDays' => $type->max_days > 0 ? $type->max_days : null,
                 'backDays' => $type->max_back_days > 0 ? $type->max_back_days : null,
             ])

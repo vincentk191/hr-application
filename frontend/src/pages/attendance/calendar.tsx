@@ -86,7 +86,13 @@ type Props = {
     };
     dataThrough: string | null;
     capture: CaptureStatus;
-    schedule: { start: string; end: string; lateAfter: string };
+    schedule: {
+        start: string;
+        end: string;
+        /** When Friday ends, if it differs from the other weekdays. */
+        fridayEnd: string | null;
+        lateAfter: string;
+    };
     canManageAttendance: boolean;
 };
 
@@ -587,8 +593,8 @@ export default function AttendanceCalendar(props: Props) {
                 {features.attendance && capture.state !== 'current' && (
                     <p className="surface border-amber-500/60 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
                         {capture.state === 'never'
-                            ? 'Belum ada log pemindai yang diunggah.'
-                            : `Log pemindai terakhir sampai ${dataThrough}; seharusnya sampai ${capture.expectedThrough}.`}{' '}
+                            ? 'Belum ada Laporan Absensi yang diunggah.'
+                            : `Laporan Absensi terakhir sampai ${dataThrough}; seharusnya sampai ${capture.expectedThrough}.`}{' '}
                         Hari setelah data terakhir ditandai "belum ada data",
                         bukan tidak hadir.
                         {canManageAttendance && (
@@ -598,7 +604,7 @@ export default function AttendanceCalendar(props: Props) {
                                     href={device()}
                                     className="underline underline-offset-4"
                                 >
-                                    Unggah log
+                                    Unggah laporan
                                 </Link>
                             </>
                         )}
@@ -673,8 +679,10 @@ export default function AttendanceCalendar(props: Props) {
 
                     <span className="hidden text-xs text-muted-foreground md:block">
                         Data sampai {dataThrough ?? '—'} · jam kerja{' '}
-                        {schedule.start}–{schedule.end}, terlambat setelah{' '}
-                        {schedule.lateAfter}
+                        {schedule.start}–{schedule.end}
+                        {schedule.fridayEnd &&
+                            ` (Jumat sampai ${schedule.fridayEnd})`}
+                        , terlambat setelah {schedule.lateAfter}
                     </span>
                 </div>
 

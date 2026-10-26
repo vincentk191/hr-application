@@ -2,10 +2,12 @@
 
 namespace App\Actions\Leave;
 
+use App\Enums\AbsenceKind;
 use App\Enums\LeaveRequestStage;
 use App\Enums\Role;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
+use App\Models\RequestType;
 use App\Models\User;
 use App\Support\Leave\LeaveAttachments;
 use App\Support\Notifications\Notifier;
@@ -51,7 +53,7 @@ class SubmitLeaveRequest
 
             app(LeaveAttachments::class)->store($request, $files, $submittedBy);
 
-            $this->engine->start($request, $this->definition, $this->chain($employee), $submittedBy);
+            $this->engine->start($request, $this->definition, $this->chain($employee, $attributes['leave_type']), $submittedBy);
 
             return $request;
         });
@@ -94,14 +96,19 @@ class SubmitLeaveRequest
      * drift to another supervisor. When that person is themselves an HR Admin (the employee reports
      * to HR) they decide it as the Atasan, like anyone else.
      *
-     * One exception keeps a request from being stuck: an employee with no Atasan on record, or one
-     * with no login or a deactivated account, has nobody who could approve, so the request goes to
-     * HR Admin instead.
+     * Two exceptions: an employee with no Atasan on record, or one with no login or a deactivated
+     * account, has nobody who could approve, so the request goes to HR Admin instead. And a sakit
+     * request always goes to HR Admin: it asks HR to turn a day already marked Alpa into Sakit, which
+     * is HR's record to correct, not the Atasan's to grant.
      *
      * @return list<StepBlueprint>
      */
-    public function chain(Employee $employee): array
+    public function chain(Employee $employee, ?string $leaveType = null): array
     {
+        if ($leaveType !== null && RequestType::query()->where('code', $leaveType)->value('absence_kind') === AbsenceKind::Sakit) {
+            return [StepBlueprint::forRole('HR Admin (ubah Alpa menjadi Sakit)', Role::HrAdmin)];
+        }
+
         $supervisor = $employee->manager?->user;
 
         if ($supervisor !== null && $supervisor->is_active) {

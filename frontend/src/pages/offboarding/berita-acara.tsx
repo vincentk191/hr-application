@@ -78,7 +78,9 @@ export default function BeritaAcara({ case: item }: { case: OffboardingCase }) {
                         <Field label="Atasan langsung">
                             {item.employee.manager ?? '—'}
                         </Field>
-                        <Field label="Jenis keluar">{item.exitType ?? '—'}</Field>
+                        <Field label="Jenis keluar">
+                            {item.exitType ?? '—'}
+                        </Field>
                         <Field label="Tanggal pemberitahuan">
                             {item.noticeOn ?? '—'}
                         </Field>
@@ -99,8 +101,8 @@ export default function BeritaAcara({ case: item }: { case: OffboardingCase }) {
                         </h2>
                         {item.chain.map((step) => (
                             <p key={step.label}>
-                                {step.decidedBy ?? step.approver ?? step.label} ·{' '}
-                                {step.statusLabel}
+                                {step.decidedBy ?? step.approver ?? step.label}{' '}
+                                · {step.statusLabel}
                                 {step.decidedAt ? ` · ${step.decidedAt}` : ''}
                             </p>
                         ))}

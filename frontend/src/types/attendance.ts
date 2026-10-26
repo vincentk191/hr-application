@@ -20,6 +20,7 @@ export type AttendanceImportRow = {
     duplicates: number;
     unmapped: number;
     rejected: number;
+    autoMapped: number;
     firstScanAt: string | null;
     lastScanAt: string | null;
     errors: string[];
@@ -59,6 +60,66 @@ export type SyncAgent = {
 };
 
 export type EmployeeOption = { id: number; label: string; number: string };
+
+/** A Cabang whose attendance arrives as a rekapitulasi. */
+export type RekapBranchOption = { id: number; label: string };
+
+export type RekapStatus = 'draft' | 'confirmed' | 'superseded';
+
+/** One uploaded rekapitulasi in the history on the data page. */
+export type RekapHistoryRow = {
+    id: number;
+    at: string | null;
+    by: string | null;
+    file: string | null;
+    branch: string | null;
+    periodStart: string;
+    periodEnd: string;
+    status: RekapStatus;
+    rows: number;
+};
+
+export type RekapMatchStatus =
+    | 'matched'
+    | 'ambiguous'
+    | 'unmatched'
+    | 'skipped';
+
+/** One line of a rekapitulasi preview. */
+export type RekapLine = {
+    id: number;
+    number: number;
+    name: string;
+    position: string | null;
+    zonaFile: string | null;
+    zonaApp: string | null;
+    /** The file's Zona is unknown or differs from the profile. */
+    zonaMismatch: boolean;
+    alpa: number;
+    izin: number;
+    sakit: number;
+    telat: number;
+    filePotongan: number | null;
+    computedPotongan: number;
+    /** The Cabang's total for this line is not what the app works out. */
+    potonganMismatch: boolean;
+    exempt: boolean;
+    status: RekapMatchStatus;
+    statusLabel: string;
+    employeeId: number | null;
+    employee: string | null;
+};
+
+export type RekapSummary = {
+    total: number;
+    matched: number;
+    needAttention: number;
+    skipped: number;
+    zonaMismatches: number;
+    potonganMismatches: number;
+    fileTotal: number;
+    computedTotal: number;
+};
 
 export type DayStatus =
     | 'present'

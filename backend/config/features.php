@@ -18,4 +18,14 @@ return [
 
     'attendance' => filter_var(env('FEATURE_ATTENDANCE', true), FILTER_VALIDATE_BOOLEAN),
 
+    /*
+    | The on-site sync agents that pushed scanner punches automatically: their ingest API, the agent
+    | screens in the admin panel, "Sinkronkan sekarang" and the agent warnings. Off by default since
+    | October 2026, when capture became a manual import of the scanner export at head office and a
+    | per-period rekap from the other Cabang. Kept rather than deleted so it can come back; it only
+    | ever works with attendance itself on.
+    */
+
+    'attendance_agents' => filter_var(env('FEATURE_ATTENDANCE_AGENTS', false), FILTER_VALIDATE_BOOLEAN),
+
 ];

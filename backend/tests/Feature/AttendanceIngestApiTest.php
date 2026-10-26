@@ -21,8 +21,10 @@ use Livewire\Livewire;
 /**
  * The attendance ingest endpoint the on-site sync agent pushes to (ATT-CAL-003), its scoped tokens
  * (CORE-AUT-008), throttling (CORE-AUT-007), and the status and log around it (ATT-DEV-001/003/004).
+ * The agents are switched off by default (FEATURE_ATTENDANCE_AGENTS); these tests switch them on.
  */
 beforeEach(function () {
+    config(['features.attendance_agents' => true]);
     $this->seed(RoleSeeder::class);
     config(['attendance.device_timezone' => 'Asia/Jakarta']);
     $this->company = Company::factory()->create();

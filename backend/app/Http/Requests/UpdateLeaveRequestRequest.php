@@ -54,6 +54,8 @@ class UpdateLeaveRequestRequest extends FormRequest
                 if ($leave->attachments->count() - $removing + $adding > self::MAX_ATTACHMENTS) {
                     $validator->errors()->add('attachments', 'Lampiran maksimal '.self::MAX_ATTACHMENTS.' berkas.');
                 }
+
+                $this->checkSakitAttachment($validator, $leave->attachments->count() - $removing);
             },
         ];
     }

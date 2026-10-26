@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\RequestTypes;
 
+use App\Enums\AbsenceKind;
 use App\Enums\Permission;
 use App\Filament\Resources\RequestTypes\Pages\CreateRequestType;
 use App\Filament\Resources\RequestTypes\Pages\EditRequestType;
@@ -11,11 +12,13 @@ use App\Models\RequestType;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
@@ -84,13 +87,22 @@ class RequestTypeResource extends Resource
                 ->integer()
                 ->minValue(1)
                 ->maxValue(365),
+            Select::make('absence_kind')
+                ->label('Dihitung sebagai')
+                ->helperText('Izin: diajukan untuk hari yang akan datang. Sakit: karyawan sudah ditandai Alpa, lalu mengajukan untuk hari yang lewat dengan lampiran (wajib), dan HR Admin yang memutuskan; bila disetujui, Alpa menjadi Sakit. Jenis lain (mis. cuti tahunan) bukan keduanya.')
+                ->options(collect(AbsenceKind::cases())->mapWithKeys(fn (AbsenceKind $kind): array => [$kind->value => $kind->label()])->all())
+                ->default(AbsenceKind::None->value)
+                ->required()
+                ->live()
+                ->native(false),
             TextInput::make('max_back_days')
                 ->label('Boleh mundur (hari)')
-                ->helperText('Berapa hari kalender ke belakang pengajuan jenis ini boleh dimulai, mis. 3 untuk cuti sakit. Kosongkan jika tidak boleh mundur. Admin HR dan Manajemen tidak dibatasi.')
+                ->helperText('Berapa hari kalender ke belakang pengajuan jenis ini boleh dimulai, mis. 3 untuk cuti sakit. Kosongkan jika tidak boleh mundur. Admin HR dan Manajemen tidak dibatasi. Wajib diisi untuk jenis Sakit, karena sakit selalu diajukan setelah harinya lewat.')
                 ->numeric()
                 ->integer()
                 ->minValue(1)
-                ->maxValue(365),
+                ->maxValue(365)
+                ->required(fn (Get $get): bool => $get('absence_kind') === AbsenceKind::Sakit->value),
             TextInput::make('sort_order')
                 ->label('Urutan')
                 ->helperText('Yang lebih kecil tampil lebih dulu di formulir.')
@@ -111,6 +123,7 @@ class RequestTypeResource extends Resource
             ->columns([
                 TextColumn::make('label')->label('Nama')->searchable()->sortable(),
                 TextColumn::make('code')->label('Kode')->color('gray'),
+                TextColumn::make('absence_kind')->label('Dihitung sebagai')->formatStateUsing(fn (AbsenceKind $state): string => $state->label()),
                 TextColumn::make('max_days')->label('Maks. hari kerja')->placeholder('Tanpa batas')->sortable(),
                 TextColumn::make('max_back_days')->label('Boleh mundur')->placeholder('Tidak')->suffix(' hari')->sortable(),
                 TextColumn::make('requests_count')

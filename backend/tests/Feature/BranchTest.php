@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\AttendanceSource;
 use App\Enums\Role;
 use App\Filament\Resources\Branches\Pages\CreateBranch;
 use App\Filament\Resources\Branches\Pages\EditBranch;
@@ -47,6 +48,30 @@ it('lets the system admin add a Cabang to a company when a new office opens', fu
         ->assertHasNoFormErrors();
 
     expect($branch->fresh()->name)->toBe('Surabaya Timur');
+});
+
+it('starts a Cabang on the scanner as its attendance source', function () {
+    $branch = Branch::factory()->forCompany($this->company)->create();
+
+    expect($branch->attendance_source)->toBe(AttendanceSource::Scanner)
+        ->and($branch->fresh()->attendance_source)->toBe(AttendanceSource::Scanner);
+});
+
+it('lets HR Admin set where a Cabang\'s attendance comes from, but not rename it or add one', function () {
+    $branch = Branch::factory()->forCompany($this->company)->create(['name' => 'Medan']);
+    $hr = branchUser(Role::HrAdmin);
+    $this->actingAs($hr);
+
+    Livewire::test(EditBranch::class, ['record' => $branch->getKey()])
+        ->fillForm(['name' => 'Medan Baru', 'attendance_source' => 'rekap'])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($branch->fresh()->attendance_source)->toBe(AttendanceSource::Rekap)
+        ->and($branch->fresh()->name)->toBe('Medan');
+
+    expect($hr->can('create', Branch::class))->toBeFalse()
+        ->and($hr->can('delete', $branch))->toBeFalse();
 });
 
 it('keeps a Cabang name unique within a company, but not across companies', function () {

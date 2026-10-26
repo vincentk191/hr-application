@@ -19,6 +19,8 @@ use Database\Seeders\RoleSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 /**
  * Loading a scanner log by hand, and what happens to each punch in it (ATT-DEV).
@@ -60,6 +62,33 @@ function parseCsv(string ...$lines): array
     } finally {
         unlink($path);
     }
+}
+
+function fingerspotExport(): UploadedFile
+{
+    return new UploadedFile(base_path('tests/Fixtures/fingerspot-export.xlsx'), 'export laporan.xlsx', null, null, true);
+}
+
+/**
+ * The Fingerspot daily report for Friday 23-10-2026: nine employee-days, six with scans (one of them left early) and
+ * three without (absent, maternity leave, a business trip).
+ */
+function fingerspotDailyReport(): UploadedFile
+{
+    return new UploadedFile(base_path('tests/Fixtures/fingerspot-laporan-harian.xlsx'), '20261023 ABSESI FINGERSPOT.xlsx', null, null, true);
+}
+
+/**
+ * @param  list<list<mixed>>  $rows
+ */
+function xlsx(array $rows): UploadedFile
+{
+    $spreadsheet = new Spreadsheet;
+    $spreadsheet->getActiveSheet()->fromArray($rows, null, 'A1', true);
+    $path = tempnam(sys_get_temp_dir(), 'scanlog').'.xlsx';
+    (new Xlsx($spreadsheet))->save($path);
+
+    return new UploadedFile($path, 'log.xlsx', null, null, true);
 }
 
 function mapPin(string $pin, Employee $employee, string $sn = 'SN1', ?string $from = null, ?string $to = null): void
@@ -123,7 +152,185 @@ it('refuses a file with no recognisable PIN or date column', function () {
         ->toThrow(InvalidScanLog::class);
 });
 
+it('reads the Fingerspot export laporan, title row and all', function () {
+    $parsed = app(ScanLogParser::class)->parse(fingerspotExport()->getRealPath(), 'Asia/Jakarta');
+
+    expect($parsed['total'])->toBe(28)
+        ->and($parsed['errors'])->toBe([])
+        ->and($parsed['rows'][0])->toMatchArray([
+            'pin' => '2056',
+            'nip' => '621101011225001',
+            'sn' => '66208025470046',
+            'verify_mode' => 1,
+            'inout_mode' => 1,
+        ])
+        ->and($parsed['rows'][0]['scan_at']->toDateTimeString())->toBe('2026-10-12 10:07:29');
+});
+
+it('reads the Fingerspot daily report: a punch per scan, days without a scan skipped', function () {
+    $parsed = app(ScanLogParser::class)->parse(fingerspotDailyReport()->getRealPath(), 'Asia/Jakarta');
+
+    // Six employee-days with an in and an out scan. The other three carry no scan, so nothing is filed for them: the
+    // dashboard works out absence from its own data, and leave from its own requests, not from Fingerspot's columns.
+    expect($parsed['total'])->toBe(12)
+        ->and($parsed['errors'])->toBe([])
+        ->and($parsed['rows'])->toHaveCount(12)
+        ->and($parsed['rows'][0])->toMatchArray([
+            'pin' => '1009',
+            'nip' => '141276211004006',
+            'sn' => '66208025470046',
+            'verify_mode' => null,
+            'inout_mode' => null,
+        ])
+        // 07:54:15 and 17:35:55 on the scanner's clock (UTC+7).
+        ->and($parsed['rows'][0]['scan_at']->toDateTimeString())->toBe('2026-10-23 00:54:15')
+        ->and($parsed['rows'][1]['scan_at']->toDateTimeString())->toBe('2026-10-23 10:35:55')
+        ->and(array_intersect(array_column($parsed['rows'], 'pin'), ['1039', '1068', '2006']))->toBe([]);
+});
+
+it('reads break scans from the daily report and counts a bad scan without losing the rest of its row', function () {
+    $file = xlsx([
+        ['Tanggal', 'PIN', 'NIP', 'Scan masuk', 'SN scan masuk', 'Scan istirahat 1', 'Scan istirahat 2', 'Scan pulang', 'SN scan pulang'],
+        ['05-10-2026', '1042', 'NIP-1', '07:55:10', 'SN1', '12:01:00', '12:45:00', 'bukan jam', 'SN1'],
+        ['05-10-2026', '1043', 'NIP-2', '', '', '', '', '', ''],
+    ]);
+
+    $parsed = app(ScanLogParser::class)->parse($file->getRealPath(), 'Asia/Jakarta');
+
+    // Three good scans and one bad; the break scans have no serial of their own and take the day's.
+    expect($parsed['total'])->toBe(4)
+        ->and($parsed['rows'])->toHaveCount(3)
+        ->and(array_unique(array_column($parsed['rows'], 'sn')))->toBe(['SN1'])
+        ->and($parsed['errors'])->toHaveCount(1)
+        ->and($parsed['errors'][0])->toContain('Baris 2')->toContain('Scan pulang');
+});
+
+it('refuses a daily report that has no date column', function () {
+    expect(fn () => parseCsv('PIN,Scan masuk', '1042,07:55:10'))->toThrow(InvalidScanLog::class);
+});
+
+it('finds the header below title rows in a CSV', function () {
+    $parsed = parseCsv('Laporan scan;;', 'Periode: Oktober;;', 'PIN;Tanggal scan;NIP', '1042;05-10-2026 07:55:10;EMP-1');
+
+    expect($parsed['rows'])->toHaveCount(1)
+        ->and($parsed['rows'][0]['nip'])->toBe('EMP-1')
+        ->and($parsed['rows'][0]['scan_at']->toDateTimeString())->toBe('2026-10-05 00:55:10');
+});
+
+it('reads real Excel date and time cells', function () {
+    // 46300 is 2026-10-05 in Excel's calendar; 0.33 of a day is 07:55:12.
+    $file = xlsx([['PIN', 'Tanggal', 'Jam'], [1042, 46300, 0.33]]);
+
+    $parsed = app(ScanLogParser::class)->parse($file->getRealPath(), 'Asia/Jakarta');
+
+    expect($parsed['rows'][0]['pin'])->toBe('1042')
+        ->and($parsed['rows'][0]['scan_at']->toDateTimeString())->toBe('2026-10-05 00:55:12');
+});
+
+it('reads an HTML table saved under an .xls name', function () {
+    $path = tempnam(sys_get_temp_dir(), 'scanlog');
+    file_put_contents($path, '<html><body><table><tr><td>PIN</td><td>Tanggal scan</td></tr><tr><td>1042</td><td>05-10-2026 07:55:10</td></tr></table></body></html>');
+
+    try {
+        $parsed = app(ScanLogParser::class)->parse($path, 'Asia/Jakarta');
+    } finally {
+        unlink($path);
+    }
+
+    expect($parsed['rows'])->toHaveCount(1)
+        ->and($parsed['rows'][0]['scan_at']->toDateTimeString())->toBe('2026-10-05 00:55:10');
+});
+
 // --- Importing ---
+
+it('imports the Fingerspot export without a typed serial, mapping PINs by NIP', function () {
+    $staffH = Employee::factory()->forCompany($this->company)->create(['employee_number' => '621101011225001']);
+
+    $this->actingAs($this->hr)
+        ->post(route('attendance.imports.store'), ['file' => fingerspotExport()])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+
+    $import = AttendanceImport::first();
+
+    expect($import->device_sn)->toBe('66208025470046')
+        ->and($import->auto_mapped)->toBe(1)
+        ->and($import->accepted)->toBe(2)
+        ->and($import->unmapped)->toBe(26)
+        ->and(AttendancePunch::acrossCompanies()->where('employee_id', $staffH->id)->count())->toBe(2)
+        ->and(AttendanceEnrolMap::acrossCompanies()->where('pin', '2056')->value('employee_id'))->toBe($staffH->id);
+});
+
+it('imports the Fingerspot daily report, mapping PINs by NIP', function () {
+    $alaina = Employee::factory()->forCompany($this->company)->create(['employee_number' => '141276211004006']);
+
+    $this->actingAs($this->hr)
+        ->post(route('attendance.imports.store'), ['file' => fingerspotDailyReport()])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+
+    $import = AttendanceImport::first();
+
+    // The counts still add up scan by scan: 12 read, 2 filed for the one mapped person, 10 waiting for a mapping.
+    expect($import->device_sn)->toBe('66208025470046')
+        ->and($import->rows_total)->toBe(12)
+        ->and($import->rejected)->toBe(0)
+        ->and($import->auto_mapped)->toBe(1)
+        ->and($import->accepted)->toBe(2)
+        ->and($import->unmapped)->toBe(10)
+        ->and(AttendancePunch::acrossCompanies()->where('employee_id', $alaina->id)->count())->toBe(2);
+});
+
+it('does nothing the second time the same daily report is loaded', function () {
+    Employee::factory()->forCompany($this->company)->create(['employee_number' => '141276211004006']);
+
+    $this->actingAs($this->hr)->post(route('attendance.imports.store'), ['file' => fingerspotDailyReport()]);
+    $this->actingAs($this->hr)->post(route('attendance.imports.store'), ['file' => fingerspotDailyReport()]);
+
+    $second = AttendanceImport::latest('id')->first();
+
+    expect($second->accepted)->toBe(0)
+        ->and($second->duplicates)->toBe(12)
+        ->and(AttendancePunch::acrossCompanies()->count())->toBe(2);
+});
+
+it('leaves a PIN alone when it already has a mapping or its NIP is ambiguous', function () {
+    Employee::factory()->forCompany($this->company)->create(['employee_number' => 'NIP-1']);
+    Employee::factory()->forCompany($this->company)->create(['employee_number' => 'NIP-2']);
+    Employee::factory()->forCompany(Company::factory()->create())->create(['employee_number' => 'NIP-2']);
+    mapPin('1042', $this->employee, 'SN1', null, '2026-09-30');
+
+    $this->actingAs($this->hr)->post(route('attendance.imports.store'), [
+        'device_sn' => 'SN1',
+        'file' => csv('pin,nip,scan_at', '1042,NIP-1,2026-10-05 07:55:10', '7,NIP-2,2026-10-05 07:56:00'),
+    ]);
+
+    expect(AttendanceImport::first()->auto_mapped)->toBe(0)
+        ->and(AttendanceEnrolMap::acrossCompanies()->count())->toBe(1)
+        ->and(AttendanceUnmappedPunch::count())->toBe(2);
+});
+
+it('asks for the serial when the file does not carry one', function () {
+    $this->actingAs($this->hr)
+        ->post(route('attendance.imports.store'), ['file' => csv('pin,scan_at', '1042,2026-10-05 07:55:10')])
+        ->assertSessionHasErrors('file');
+
+    expect(AttendanceImport::count())->toBe(0);
+});
+
+it('accepts a spreadsheet and refuses other kinds of file', function () {
+    mapPin('1042', $this->employee);
+
+    $this->actingAs($this->hr)->post(route('attendance.imports.store'), [
+        'device_sn' => 'SN1', 'file' => xlsx([['PIN', 'Tanggal scan'], ['1042', '05-10-2026 07:55:10']]),
+    ])->assertSessionHasNoErrors();
+
+    $this->actingAs($this->hr)->post(route('attendance.imports.store'), [
+        'device_sn' => 'SN1', 'file' => UploadedFile::fake()->create('log.pdf', 10),
+    ])->assertSessionHasErrors('file');
+
+    expect(AttendancePunch::acrossCompanies()->count())->toBe(1);
+});
 
 it('files punches for a mapped PIN under that employee and company', function () {
     mapPin('1042', $this->employee);
@@ -257,9 +464,10 @@ it('rejects an unreadable file with a message, and records no import', function 
     expect(AttendanceImport::count())->toBe(0);
 });
 
-it('requires a serial number and a file', function () {
+it('requires a file', function () {
     $this->actingAs($this->hr)->post(route('attendance.imports.store'), [])
-        ->assertSessionHasErrors(['device_sn', 'file']);
+        ->assertSessionHasErrors('file')
+        ->assertSessionDoesntHaveErrors('device_sn');
 });
 
 // --- Access ---

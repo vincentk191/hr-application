@@ -32,6 +32,7 @@ class DayClassifier
      * @param  bool  $stillWorking  the day is today and it is not yet end of day
      * @param  bool  $hasScannerId  a scanner ID is mapped to this person on this date
      * @param  bool  $isHoliday  a holiday or company event covers this person on this date
+     * @param  string|null  $endsAt  when work ends on this date, "HH:MM"; the schedule's usual end when not given
      */
     public function classify(
         WorkSchedule $schedule,
@@ -45,6 +46,7 @@ class DayClassifier
         bool $stillWorking = false,
         bool $hasScannerId = true,
         bool $isHoliday = false,
+        ?string $endsAt = null,
     ): AttendanceDayStatus {
         if (! $dataCoversDay) {
             // Past the log nothing can be said about attendance, but a holiday or approved leave is
@@ -66,7 +68,7 @@ class DayClassifier
             }
 
             // A lone punch cannot be an early departure: there is no departure to judge.
-            if ($punchCount > 1 && ! $stillWorking && $lastOut !== null && $lastOut < $schedule->end) {
+            if ($punchCount > 1 && ! $stillWorking && $lastOut !== null && $lastOut < ($endsAt ?? $schedule->end)) {
                 return AttendanceDayStatus::EarlyLeave;
             }
 

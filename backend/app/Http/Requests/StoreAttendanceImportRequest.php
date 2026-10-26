@@ -17,8 +17,8 @@ class StoreAttendanceImportRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'device_sn' => ['required', 'string', 'max:100'],
-            'file' => ['required', 'file', 'mimes:csv,txt', 'max:'.config('attendance.max_upload_kb')],
+            'device_sn' => ['nullable', 'string', 'max:100'],
+            'file' => ['required', 'file', 'extensions:csv,txt,xls,xlsx', 'max:'.config('attendance.max_upload_kb')],
         ];
     }
 
@@ -28,9 +28,8 @@ class StoreAttendanceImportRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'device_sn.required' => 'Isi nomor seri (SN) pemindai.',
             'file.required' => 'Pilih berkas log yang akan diunggah.',
-            'file.mimes' => 'Berkas harus berformat CSV. Jika dari Excel, simpan sebagai CSV terlebih dahulu.',
+            'file.extensions' => 'Berkas harus berformat Excel (.xls, .xlsx) atau CSV.',
             'file.max' => 'Ukuran berkas terlalu besar.',
         ];
     }

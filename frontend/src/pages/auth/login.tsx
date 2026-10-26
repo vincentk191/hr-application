@@ -29,7 +29,8 @@ export default function Login({ status, canRegister }: Props) {
     const [email, setEmail] = useState('');
 
     const mayUseEmail = !entrance?.public;
-    const login = byEmail && mayUseEmail ? email : `${nik.trim()}|${number.trim()}`;
+    const login =
+        byEmail && mayUseEmail ? email : `${nik.trim()}|${number.trim()}`;
 
     return (
         <>
@@ -114,8 +115,8 @@ export default function Login({ status, canRegister }: Props) {
                                 />
                                 <InputError message={errors.password} />
                                 <p className="text-xs text-muted-foreground">
-                                    Lupa kata sandi? Hubungi HR untuk mengaturnya
-                                    ulang.
+                                    Lupa kata sandi? Hubungi HR untuk
+                                    mengaturnya ulang.
                                 </p>
                             </div>
 

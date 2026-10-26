@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Support\CsvDownload;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RoleSeeder;
+use Illuminate\Http\UploadedFile;
 use Inertia\Testing\AssertableInertia as Assert;
 
 /**
@@ -268,6 +269,8 @@ it('filters the calendar to people with approved leave of a kind', function () {
     $approve = function (Employee $employee, string $type) {
         test()->actingAs(test()->hr)->post(route('leave-requests.store'), [
             'employee_id' => $employee->id, 'leave_type' => $type, 'start_on' => '2026-10-06', 'end_on' => '2026-10-06', 'reason' => 'Perlu',
+            // Sakit needs proof.
+            'attachments' => $type === 'sick' ? [UploadedFile::fake()->create('surat.pdf', 10, 'application/pdf')] : [],
         ])->assertRedirect();
         test()->actingAs(test()->hr)->put(route('leave-requests.decision', LeaveRequest::latest('id')->first()), ['decision' => 'approve'])->assertRedirect();
     };

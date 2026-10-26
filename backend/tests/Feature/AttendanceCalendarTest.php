@@ -14,6 +14,7 @@ use App\Support\Attendance\DayClassifier;
 use App\Support\Attendance\WorkSchedule;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RoleSeeder;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -338,6 +339,8 @@ function leaveFor(Employee $employee, string $from, ?string $to = null, ?string 
 {
     test()->actingAs(test()->hr)->post(route('leave-requests.store'), [
         'employee_id' => $employee->id, 'leave_type' => $type, 'start_on' => $from, 'end_on' => $to ?? $from, 'reason' => 'Perlu',
+        // Sakit needs proof.
+        'attachments' => $type === 'sick' ? [UploadedFile::fake()->create('surat.pdf', 10, 'application/pdf')] : [],
     ])->assertSessionHasNoErrors();
 
     $leave = LeaveRequest::query()->latest('id')->firstOrFail();

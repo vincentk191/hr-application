@@ -77,6 +77,6 @@ class AgentStatus
     {
         $time = $now->format('H:i');
 
-        return $this->schedule->isWorkday($now) && $time >= $this->schedule->start && $time < $this->schedule->end;
+        return $this->schedule->isWorkday($now) && $time >= $this->schedule->start && $time < $this->schedule->endFor($now);
     }
 }

@@ -4,6 +4,7 @@ namespace App\Concerns;
 
 use App\Enums\EmploymentStatus;
 use App\Enums\EmploymentType;
+use App\Enums\Zona;
 use App\Models\Branch;
 use App\Models\Company;
 use App\Models\Department;
@@ -56,6 +57,8 @@ trait ValidatesEmployeeDossier
             'employment_type' => ['nullable', Rule::enum(EmploymentType::class)],
             // The notice period in the contract, in days: what an offboarding case is checked against.
             'notice_days' => ['nullable', 'integer', 'min:0', 'max:365'],
+            // Optional: left out, a new employee is Hijau and an existing one keeps their Zona.
+            'zona' => ['sometimes', Rule::enum(Zona::class)],
             'joined_on' => ['nullable', 'date'],
             'exited_on' => ['nullable', 'date', 'after_or_equal:joined_on'],
 
@@ -104,6 +107,7 @@ trait ValidatesEmployeeDossier
     protected function dossierMessages(): array
     {
         return [
+            'zona.enum' => 'Pilih Zona Hijau, Merah, atau Hitam.',
             'employment_status.enum' => 'Profil hanya ditutup lewat offboarding dan dibuka kembali lewat "Aktifkan kembali".',
             'company_id.required' => 'Pilih perusahaan.',
             'company_id.exists' => 'Perusahaan ini tidak ditemukan.',

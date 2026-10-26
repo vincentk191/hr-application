@@ -9,6 +9,7 @@ use App\Http\Controllers\AttendanceImportController;
 use App\Http\Controllers\AttendanceIssueController;
 use App\Http\Controllers\AttendancePunchController;
 use App\Http\Controllers\AttendanceRecapController;
+use App\Http\Controllers\AttendanceRekapController;
 use App\Http\Controllers\CalendarEventController;
 use App\Http\Controllers\CompanySwitcherController;
 use App\Http\Controllers\DashboardController;
@@ -126,9 +127,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('attendance/issues', [AttendanceIssueController::class, 'index'])->name('attendance.issues');
         Route::post('attendance/issues/resolve', [AttendanceIssueController::class, 'resolve'])->name('attendance.issues.resolve');
         Route::post('attendance/issues/reopen', [AttendanceIssueController::class, 'reopen'])->name('attendance.issues.reopen');
-        Route::post('attendance/agents/sync-now', [AttendanceAgentController::class, 'syncNow'])->name('attendance.agents.sync-now');
+        Route::post('attendance/agents/sync-now', [AttendanceAgentController::class, 'syncNow'])
+            ->middleware('feature:attendance_agents')
+            ->name('attendance.agents.sync-now');
         Route::get('attendance/device', [AttendanceDeviceController::class, 'index'])->name('attendance.device');
         Route::post('attendance/imports', [AttendanceImportController::class, 'store'])->name('attendance.imports.store');
+        Route::post('attendance/rekaps', [AttendanceRekapController::class, 'store'])->name('attendance.rekaps.store');
+        Route::get('attendance/rekaps/{rekap}', [AttendanceRekapController::class, 'show'])->name('attendance.rekaps.show');
+        Route::put('attendance/rekaps/{rekap}/rows/{row}', [AttendanceRekapController::class, 'linkRow'])->name('attendance.rekaps.rows.update');
+        Route::post('attendance/rekaps/{rekap}/confirm', [AttendanceRekapController::class, 'confirm'])->name('attendance.rekaps.confirm');
+        Route::delete('attendance/rekaps/{rekap}', [AttendanceRekapController::class, 'destroy'])->name('attendance.rekaps.destroy');
         Route::post('attendance/enrol-maps', [AttendanceEnrolMapController::class, 'store'])
             ->name('attendance.enrol-maps.store');
         Route::delete('attendance/enrol-maps/{enrolMap}', [AttendanceEnrolMapController::class, 'destroy'])

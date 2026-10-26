@@ -32,7 +32,8 @@ export function useInstallPrompt(): {
 
         window.addEventListener('beforeinstallprompt', onPrompt);
 
-        return () => window.removeEventListener('beforeinstallprompt', onPrompt);
+        return () =>
+            window.removeEventListener('beforeinstallprompt', onPrompt);
     }, []);
 
     const standalone =
@@ -40,7 +41,8 @@ export function useInstallPrompt(): {
         (navigator as Navigator & { standalone?: boolean }).standalone === true;
     const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
 
-    const mode = standalone || dismissed ? null : event ? 'prompt' : ios ? 'ios' : null;
+    const mode =
+        standalone || dismissed ? null : event ? 'prompt' : ios ? 'ios' : null;
 
     return {
         mode,

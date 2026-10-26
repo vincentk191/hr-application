@@ -7,6 +7,7 @@ use App\Enums\DocumentCategory;
 use App\Enums\EmploymentStatus;
 use App\Enums\EmploymentType;
 use App\Enums\Permission;
+use App\Enums\Zona;
 use App\Http\Requests\StoreEmployeeRequest;
 use App\Http\Requests\UpdateEmployeeRequest;
 use App\Models\Branch;
@@ -374,6 +375,10 @@ class EmployeeController extends Controller
                 fn (EmploymentType $type): array => ['value' => $type->value, 'label' => $type->label()],
                 EmploymentType::cases(),
             ),
+            'zonas' => array_map(
+                fn (Zona $zona): array => ['value' => $zona->value, 'label' => $zona->label()],
+                Zona::cases(),
+            ),
         ];
     }
 
@@ -419,6 +424,7 @@ class EmployeeController extends Controller
             'employmentStatus' => $employee->employment_status->value,
             'employmentType' => $employee->employment_type?->value,
             'noticeDays' => $employee->notice_days,
+            'zona' => $employee->zona->value,
             'exitedOn' => $employee->exited_on?->toDateString(),
             'contact' => $employee->only([
                 'email', 'phone', 'address', 'national_id',

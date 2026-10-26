@@ -48,8 +48,8 @@ export default function OffboardingOwner({
                 </header>
 
                 <p className="text-sm text-muted-foreground">
-                    Anda memegang bagian checklist ini. Pilih item yang
-                    berlaku, tekan Daftar selesai, lalu centang saat selesai.
+                    Anda memegang bagian checklist ini. Pilih item yang berlaku,
+                    tekan Daftar selesai, lalu centang saat selesai.
                 </p>
 
                 <OffboardingChecklistPanel

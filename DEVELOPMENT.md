@@ -65,6 +65,41 @@ listed in the checklist below. Nothing here is committed yet: changes are left f
 
 ## Change log (latest first)
 
+- **2026-10-26 (branch rekapitulasi import, plan step 4).** Migration `create_attendance_rekaps_tables`:
+  `attendance_rekaps` (Cabang, dates, `status` draft | confirmed | superseded) and `attendance_rekap_rows` (the
+  counts, `file_potongan`, the app's `computed_potongan`, `match_status` from `RekapMatch`).
+  - `RekapParser` finds columns by their headings (NAMA, JABATAN, ZONA, ALPA, IZIN, SAKIT, TELAT, TOTAL POTONGAN) and the
+    dates from the "21/09/2026 s.d 20/10/2026" cell, falling back to the month in Periode. A non-whole count fails the
+    upload with its row number. Fixture: `tests/Fixtures/rekap-cabang.xls`.
+  - `ImportRekap` stores a **draft** and matches NAMA to employees **of the chosen Cabang only** (case and punctuation
+    ignored; one active match = matched, none = unmatched, several = ambiguous; one employee is never tied to two lines).
+    `ConfirmRekap` refuses while a line is unmatched or ambiguous, then replaces a confirmed file for the same Cabang
+    and dates. Overlapping other dates are warned about, not blocked.
+  - `PotonganCalculator` + `attendance.potongan` in config: rate by Zona x (Alpa + Izin) + half the rate x Telat; Sakit
+    free; position exactly `SUPERVISOR` or a Periode mentioning `SETAHUN` is exempt. The employee's profile Zona is used;
+    the file's Zona and TOTAL POTONGAN are only compared against it and flagged in the preview (the app's figure wins).
+  - UI: "Unggah rekapitulasi cabang" card on the data page (only Cabang whose Sumber absensi is Rekapitulasi), preview at
+    `attendance/rekaps/{id}`. Step 5 reads confirmed rekaps; step 6 puts both uploads on one page with two tabs.
+
+- **2026-10-26 (absence tags, plan step 3).** Migration `add_attendance_source_zona_and_absence_kind`:
+  `branches.attendance_source` (`scanner` default | `rekap`, `AttendanceSource`), `employees.zona` (`hijau` default |
+  `merah` | `hitam`, `Zona`, optional on the form), `request_types.absence_kind` (`none` | `izin` | `sakit`,
+  `AbsenceKind`; `sick` backfilled to `sakit`).
+  - Sakit: needs an attachment (`checkSakitAttachment`), needs `max_back_days` on the type, and its approval chain is the
+    HR Admin role, not the Atasan (`SubmitLeaveRequest::chain`). Approved leave already outranks an absent day, so Alpa
+    becomes leave; step 5 splits leave into izin/sakit/other with `absence_kind`.
+  - `BranchPolicy`: whoever holds `manage-attendance-device` may open and edit a Cabang (the name is read-only to them);
+    create and delete stay with `manage-companies`.
+
+- **2026-10-26 (attendance by manual import).** Capture is now manual: head office imports the Fingerspot export, other
+  Cabang will send a per-period rekap (import still to come).
+  - Scanner import reads the Fingerspot "export laporan" as is: `.xls`/`.xlsx` (Laravel Excel, which needs `gd` in the
+    image) or CSV, HTML saved as `.xls`, header found below title rows, "Tanggal scan" as the date-time, "I/O". The SN is
+    optional when the file has one. An unmapped PIN is mapped to the one employee whose number equals its NIP
+    (`attendance_imports.auto_mapped`). Fixtures: `tests/Fixtures/fingerspot-export.xlsx`, `rekap-cabang.xls`.
+  - `FEATURE_ATTENDANCE_AGENTS` (default **off**) hides the sync agents without deleting them: ingest API and "sync now"
+    404, admin screens closed, agent card and warning gone (`AttendanceFeatureSwitchTest`).
+
 - **2026-10-21 (deployment readiness).**
   - `SystemAdminSeeder`: a real server's `db:seed` creates the roles and one company-less System Admin from
     `INITIAL_ADMIN_*` (`config/initial_admin.php`), and no placeholder companies (`SystemAdminSeederTest`).

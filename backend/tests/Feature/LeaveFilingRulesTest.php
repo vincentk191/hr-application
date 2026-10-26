@@ -8,6 +8,7 @@ use App\Models\RequestType;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RoleSeeder;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -123,9 +124,11 @@ it('reads today in Jakarta, not in UTC', function () {
 it('lets a kind allow a number of calendar days back, and no more', function () {
     RequestType::query()->where('code', 'sick')->update(['max_back_days' => 3]);
 
+    $proof = fn (): array => ['attachments' => [UploadedFile::fake()->create('surat-dokter.pdf', 10, 'application/pdf')]];
+
     // Monday 19th is one day back; Friday 16th is four days back.
-    ruleFile($this->sinta->user, $this->sinta, ['leave_type' => 'sick', 'start_on' => '2026-10-19', 'end_on' => '2026-10-19'])->assertRedirect();
-    ruleFile($this->sinta->user, $this->sinta, ['leave_type' => 'sick', 'start_on' => '2026-10-16', 'end_on' => '2026-10-16'])
+    ruleFile($this->sinta->user, $this->sinta, ['leave_type' => 'sick', 'start_on' => '2026-10-19', 'end_on' => '2026-10-19', ...$proof()])->assertRedirect();
+    ruleFile($this->sinta->user, $this->sinta, ['leave_type' => 'sick', 'start_on' => '2026-10-16', 'end_on' => '2026-10-16', ...$proof()])
         ->assertSessionHasErrors(['start_on' => 'Cuti sakit hanya boleh dimulai paling lama 3 hari ke belakang.']);
     // A kind with no setting still refuses.
     ruleFile($this->sinta->user, $this->sinta, ['leave_type' => 'annual', 'start_on' => '2026-10-19', 'end_on' => '2026-10-19'])
@@ -156,6 +159,57 @@ it('lets a rejected request be sent again with its past dates unchanged, but not
     $resend()->assertSessionHasNoErrors();
 
     expect(ruleStage())->toBe('submitted');
+});
+
+// --- Sakit: turning an Alpa into Sakit ---
+
+it('needs proof for a sakit request, and for no other kind', function () {
+    RequestType::query()->where('code', 'sick')->update(['max_back_days' => 3]);
+    $past = ['start_on' => '2026-10-19', 'end_on' => '2026-10-19'];
+
+    ruleFile($this->sinta->user, $this->sinta, ['leave_type' => 'sick', ...$past])
+        ->assertSessionHasErrors(['attachments' => 'Lampirkan bukti sakit, mis. surat dokter.']);
+    expect(LeaveRequest::count())->toBe(0);
+
+    ruleFile($this->sinta->user, $this->sinta, ['leave_type' => 'sick', ...$past, 'attachments' => [UploadedFile::fake()->create('surat.pdf', 10, 'application/pdf')]])
+        ->assertSessionHasNoErrors();
+
+    // Annual leave, for a coming day, needs none.
+    ruleFile($this->sinta->user, $this->sinta)->assertSessionHasNoErrors();
+});
+
+it('sends a sakit request to HR Admin instead of the Atasan, and every other kind to the Atasan', function () {
+    RequestType::query()->where('code', 'sick')->update(['max_back_days' => 3]);
+
+    ruleFile($this->sinta->user, $this->sinta, [
+        'leave_type' => 'sick', 'start_on' => '2026-10-19', 'end_on' => '2026-10-19',
+        'attachments' => [UploadedFile::fake()->create('surat.pdf', 10, 'application/pdf')],
+    ])->assertSessionHasNoErrors();
+
+    $sakit = LeaveRequest::query()->latest('id')->firstOrFail()->workflow->steps()->firstOrFail();
+
+    ruleFile($this->sinta->user, $this->sinta)->assertSessionHasNoErrors();
+    $annual = LeaveRequest::query()->latest('id')->firstOrFail()->workflow->steps()->firstOrFail();
+
+    expect($sakit->approver_user_id)->toBeNull()
+        ->and($sakit->canBeDecidedBy($this->hr))->toBeTrue()
+        ->and($sakit->canBeDecidedBy($this->rudi->user))->toBeFalse()
+        ->and($annual->approver_user_id)->toBe($this->rudi->user->id);
+});
+
+it('lets HR Admin approve a sakit request, which the Atasan cannot', function () {
+    RequestType::query()->where('code', 'sick')->update(['max_back_days' => 3]);
+
+    ruleFile($this->sinta->user, $this->sinta, [
+        'leave_type' => 'sick', 'start_on' => '2026-10-19', 'end_on' => '2026-10-19',
+        'attachments' => [UploadedFile::fake()->create('surat.pdf', 10, 'application/pdf')],
+    ])->assertSessionHasNoErrors();
+    $leave = LeaveRequest::query()->latest('id')->firstOrFail();
+
+    $this->actingAs($this->rudi->user)->put(route('leave-requests.decision', $leave), ['decision' => 'approve'])->assertForbidden();
+    $this->actingAs($this->hr)->put(route('leave-requests.decision', $leave), ['decision' => 'approve'])->assertRedirect();
+
+    expect($leave->refresh()->workflow->current_stage)->toBe('approved');
 });
 
 // --- Filed by the Atasan ---

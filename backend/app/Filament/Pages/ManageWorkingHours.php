@@ -53,6 +53,7 @@ class ManageWorkingHours extends Page
         $this->form->fill([
             'start' => $schedule->start,
             'end' => $schedule->end,
+            'end_friday' => $schedule->fridayEnd,
             'late_grace_minutes' => $schedule->lateGraceMinutes,
         ]);
     }
@@ -75,6 +76,13 @@ class ManageWorkingHours extends Page
                 ->required()
                 ->after('start')
                 ->validationMessages(['after' => 'Jam pulang harus setelah jam masuk.']),
+            TimePicker::make('end_friday')
+                ->label('Jam pulang hari Jumat')
+                ->helperText('Kosongkan bila Jumat berakhir pada jam yang sama dengan hari lain.')
+                ->seconds(false)
+                ->nullable()
+                ->after('start')
+                ->validationMessages(['after' => 'Jam pulang Jumat harus setelah jam masuk.']),
             TextInput::make('late_grace_minutes')
                 ->label('Toleransi keterlambatan (menit)')
                 ->helperText('Scan masuk setelah jam masuk ditambah toleransi ini dihitung terlambat.')
@@ -112,17 +120,20 @@ class ManageWorkingHours extends Page
 
         $start = Carbon::parse($data['start'])->format('H:i');
         $end = Carbon::parse($data['end'])->format('H:i');
+        $endFriday = filled($data['end_friday'] ?? null) ? Carbon::parse($data['end_friday'])->format('H:i') : null;
         $grace = (int) $data['late_grace_minutes'];
 
         $settings->set(WorkSchedule::KEY_START, $start);
         $settings->set(WorkSchedule::KEY_END, $end);
+        // Saved even when empty, so that clearing it sticks instead of falling back to the config default again.
+        $settings->set(WorkSchedule::KEY_END_FRIDAY, $endFriday);
         $settings->set(WorkSchedule::KEY_GRACE, $grace);
 
         activity('settings')
             ->causedBy(auth()->user())
             ->withProperties([
-                'before' => ['start' => $before->start, 'end' => $before->end, 'late_grace_minutes' => $before->lateGraceMinutes],
-                'after' => ['start' => $start, 'end' => $end, 'late_grace_minutes' => $grace],
+                'before' => ['start' => $before->start, 'end' => $before->end, 'end_friday' => $before->fridayEnd, 'late_grace_minutes' => $before->lateGraceMinutes],
+                'after' => ['start' => $start, 'end' => $end, 'end_friday' => $endFriday, 'late_grace_minutes' => $grace],
             ])
             ->log('Working hours changed');
 

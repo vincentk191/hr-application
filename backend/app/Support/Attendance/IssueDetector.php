@@ -102,7 +102,8 @@ class IssueDetector
         }
 
         if ($record['status'] === AttendanceDayStatus::EarlyLeave->value) {
-            $found[] = [AttendanceIssueType::EarlyLeave, "Pulang {$record['out']}, jam pulang {$this->schedule->end}"];
+            $endsAt = $this->schedule->endFor(CarbonImmutable::parse($date));
+            $found[] = [AttendanceIssueType::EarlyLeave, "Pulang {$record['out']}, jam pulang {$endsAt}"];
         }
 
         if ($record['punches'] === 1 && $this->dayIsOver($date, $now)) {
@@ -124,7 +125,8 @@ class IssueDetector
     {
         $today = $now->toDateString();
 
-        return $date < $today || ($date === $today && $now->format('H:i') >= $this->schedule->end);
+        return $date < $today
+            || ($date === $today && $now->format('H:i') >= $this->schedule->endFor(CarbonImmutable::parse($date)));
     }
 
     /**

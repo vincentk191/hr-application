@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\AttendanceSource;
 use App\Models\AttendanceEnrolMap;
 use App\Models\AttendanceImport;
+use App\Models\AttendanceRekap;
 use App\Models\AttendanceUnmappedPunch;
+use App\Models\Branch;
 use App\Models\Employee;
 use App\Support\Attendance\AgentStatus;
 use App\Support\Attendance\CaptureStatus;
+use App\Support\Features;
 use Carbon\CarbonImmutable;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -35,7 +39,7 @@ class AttendanceDeviceController extends Controller
 
         return Inertia::render('attendance/device', [
             'status' => $status->resolve(),
-            'agents' => $agents->all(),
+            'agents' => Features::attendanceAgents() ? $agents->all() : null,
             'timezone' => $timezone,
             'lastDeviceSn' => AttendanceImport::query()->latest('id')->value('device_sn'),
             'knownDevices' => $this->knownDevices(),
@@ -55,9 +59,38 @@ class AttendanceDeviceController extends Controller
                     'duplicates' => $import->duplicates,
                     'unmapped' => $import->unmapped,
                     'rejected' => $import->rejected,
+                    'autoMapped' => $import->auto_mapped,
                     'firstScanAt' => $import->first_scan_at?->setTimezone($timezone)->toIso8601String(),
                     'lastScanAt' => $import->last_scan_at?->setTimezone($timezone)->toIso8601String(),
                     'errors' => $import->errors ?? [],
+                ])
+                ->all(),
+            'rekapBranches' => Branch::acrossCompanies()
+                ->where('attendance_source', AttendanceSource::Rekap->value)
+                ->with('company:id,code')
+                ->orderBy('name')
+                ->get()
+                ->map(fn (Branch $branch): array => [
+                    'id' => $branch->id,
+                    'label' => $branch->name.($branch->company ? " · {$branch->company->code}" : ''),
+                ])
+                ->all(),
+            'rekaps' => AttendanceRekap::acrossCompanies()
+                ->with(['branch:id,name', 'user:id,name'])
+                ->withCount('rows')
+                ->latest('id')
+                ->limit(self::HISTORY_LIMIT)
+                ->get()
+                ->map(fn (AttendanceRekap $rekap): array => [
+                    'id' => $rekap->id,
+                    'at' => $rekap->created_at?->setTimezone($timezone)->toIso8601String(),
+                    'by' => $rekap->user?->name,
+                    'file' => $rekap->original_name,
+                    'branch' => $rekap->branch?->name,
+                    'periodStart' => $rekap->period_start->toDateString(),
+                    'periodEnd' => $rekap->period_end->toDateString(),
+                    'status' => $rekap->status,
+                    'rows' => (int) $rekap->getAttribute('rows_count'),
                 ])
                 ->all(),
             'waiting' => $this->waitingIds($employees, $timezone),

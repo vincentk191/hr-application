@@ -2,6 +2,7 @@
 
 namespace App\Concerns;
 
+use App\Enums\AbsenceKind;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\RequestType;
@@ -39,7 +40,8 @@ trait ValidatesLeaveRequestFields
             'use_timeframe' => ['nullable', 'boolean'],
             'start_time' => ['nullable', 'required_if_accepted:use_timeframe', 'date_format:H:i'],
             'end_time' => ['nullable', 'required_if_accepted:use_timeframe', 'date_format:H:i', 'after:start_time'],
-            // Supporting documents are optional: a sick note, an invitation. Images and PDFs only.
+            // Supporting documents are optional (an invitation), except for sakit, which needs proof.
+            // Images and PDFs only.
             'attachments' => ['nullable', 'array', 'max:'.self::MAX_ATTACHMENTS],
             'attachments.*' => ['file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
         ];
@@ -119,6 +121,25 @@ trait ValidatesLeaveRequestFields
             $validator->errors()->add('start_on', 'Hari pertama tidak boleh sebelum hari ini.');
         } elseif ($daysBack > $allowed) {
             $validator->errors()->add('start_on', "{$type->label} hanya boleh dimulai paling lama {$allowed} hari ke belakang.");
+        }
+    }
+
+    /**
+     * A sakit request is proof for a day already marked Alpa, so it needs at least one attachment (a
+     * doctor's note). Every other kind keeps them optional.
+     *
+     * @param  int  $keptAttachments  attachments the request already has and keeps (a correction)
+     */
+    protected function checkSakitAttachment(Validator $validator, int $keptAttachments = 0): void
+    {
+        if ($validator->errors()->has('leave_type') || $validator->errors()->has('attachments')) {
+            return;
+        }
+
+        $kind = RequestType::query()->where('code', (string) $this->input('leave_type'))->value('absence_kind');
+
+        if ($kind === AbsenceKind::Sakit && $keptAttachments + count((array) $this->file('attachments', [])) === 0) {
+            $validator->errors()->add('attachments', 'Lampirkan bukti sakit, mis. surat dokter.');
         }
     }
 

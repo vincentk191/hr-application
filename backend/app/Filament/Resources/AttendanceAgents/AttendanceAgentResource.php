@@ -4,6 +4,7 @@ namespace App\Filament\Resources\AttendanceAgents;
 
 use App\Filament\Resources\AttendanceAgents\Pages\ManageAttendanceAgents;
 use App\Models\AttendanceAgent;
+use App\Support\Features;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
@@ -35,7 +36,7 @@ class AttendanceAgentResource extends Resource
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->can('manage-attendance-device') === true;
+        return Features::attendanceAgents() && auth()->user()?->can('manage-attendance-device') === true;
     }
 
     public static function form(Schema $schema): Schema

@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { Menu, Settings, User } from 'lucide-react';
+import { Home, Menu, Settings, User } from 'lucide-react';
 import { useState } from 'react';
 import {
     Sheet,
@@ -11,6 +11,7 @@ import { useCurrentUrl } from '@/hooks/use-current-url';
 import { useNavItems } from '@/hooks/use-nav-items';
 import { toUrl } from '@/lib/utils';
 import { dashboard } from '@/routes';
+import { calendar as attendanceCalendar } from '@/routes/attendance';
 import {
     show as employeeShow,
     index as employeesIndex,
@@ -19,15 +20,17 @@ import { index as leaveRequestsIndex } from '@/routes/leave-requests';
 import { edit as editSettings } from '@/routes/appearance';
 import type { NavItem } from '@/types';
 
-const TAB_URLS = [
-    toUrl(dashboard()),
+const HOME_URL = toUrl(dashboard());
+
+/** The tabs beside the raised home button, in order: two on its left, then one on its right before "Lainnya". */
+const SIDE_TAB_URLS = [
     toUrl(leaveRequestsIndex()),
     toUrl(employeesIndex()),
-    '/admin',
+    toUrl(attendanceCalendar()),
 ];
 
-/** What the first tab is called on a phone. */
-const TAB_LABELS: Record<string, string> = { [toUrl(dashboard())]: 'Beranda' };
+/** What the home tab is called on a phone. */
+const HOME_LABEL = 'Beranda';
 
 function Count({ count }: { count?: number }) {
     return count ? (
@@ -49,13 +52,27 @@ export function MobileTabBar() {
     const items = useNavItems();
 
     const flat = items.flatMap((item) => item.children ?? [item]);
-    const tabs = TAB_URLS.map((url) =>
+    const home = flat.find((item) => toUrl(item.href) === HOME_URL);
+    const sideTabs = SIDE_TAB_URLS.map((url) =>
         flat.find((item) => toUrl(item.href) === url),
     ).filter((item): item is NavItem => item !== undefined);
+    const tabs = home ? [home, ...sideTabs] : sideTabs;
     const more = flat.filter((item) => !tabs.includes(item));
 
+    // Home stays in the middle of five columns whatever this person may open: a missing tab leaves a gap.
+    const leftTabs = sideTabs.slice(0, 2);
+    const rightTabs = sideTabs.slice(2);
+    const leftCells: (NavItem | null)[] = [
+        ...leftTabs,
+        ...Array<null>(2 - leftTabs.length).fill(null),
+    ];
+    const rightCells: (NavItem | null)[] = [
+        ...rightTabs,
+        ...Array<null>(1 - rightTabs.length).fill(null),
+    ];
+
     const isActive = (item: NavItem) =>
-        isCurrentUrl(item.href, undefined, toUrl(item.href) !== TAB_URLS[0]);
+        isCurrentUrl(item.href, undefined, toUrl(item.href) !== HOME_URL);
 
     // Notifications are not listed: the bell in the top bar already opens them on every page.
     const extras: NavItem[] = [
@@ -80,6 +97,41 @@ export function MobileTabBar() {
     const pillClass = (active: boolean) =>
         `relative rounded-full px-4 py-1 ${active ? 'bg-primary/15' : ''}`;
 
+    const renderTab = (item: NavItem | null, index: number) => {
+        if (!item) {
+            return <li key={`gap-${index}`} aria-hidden="true" />;
+        }
+
+        const url = toUrl(item.href);
+        const active = isActive(item);
+
+        return (
+            <li key={url}>
+                {item.external ? (
+                    <a href={url} className={tabClass(false)}>
+                        <span className={pillClass(false)}>
+                            {item.icon && <item.icon className="size-5" />}
+                        </span>
+                        {item.title}
+                    </a>
+                ) : (
+                    <Link
+                        href={item.href}
+                        prefetch
+                        className={tabClass(active)}
+                        aria-current={active ? 'page' : undefined}
+                    >
+                        <span className={pillClass(active)}>
+                            {item.icon && <item.icon className="size-5" />}
+                            <Count count={item.badge} />
+                        </span>
+                        {item.title}
+                    </Link>
+                )}
+            </li>
+        );
+    };
+
     return (
         <>
             <nav
@@ -87,49 +139,29 @@ export function MobileTabBar() {
                 className="fixed inset-x-0 bottom-0 z-40 border-t bg-card pb-[env(safe-area-inset-bottom)] md:hidden"
                 data-test="mobile-tab-bar"
             >
-                <ul
-                    className="grid h-16"
-                    style={{
-                        gridTemplateColumns: `repeat(${tabs.length + 1}, minmax(0, 1fr))`,
-                    }}
-                >
-                    {tabs.map((item) => {
-                        const url = toUrl(item.href);
-                        const active = isActive(item);
-                        const label = TAB_LABELS[url] ?? item.title;
-
-                        return (
-                            <li key={url}>
-                                {item.external ? (
-                                    <a href={url} className={tabClass(false)}>
-                                        <span className={pillClass(false)}>
-                                            {item.icon && (
-                                                <item.icon className="size-5" />
-                                            )}
-                                        </span>
-                                        {label}
-                                    </a>
-                                ) : (
-                                    <Link
-                                        href={item.href}
-                                        prefetch
-                                        className={tabClass(active)}
-                                        aria-current={
-                                            active ? 'page' : undefined
-                                        }
-                                    >
-                                        <span className={pillClass(active)}>
-                                            {item.icon && (
-                                                <item.icon className="size-5" />
-                                            )}
-                                            <Count count={item.badge} />
-                                        </span>
-                                        {label}
-                                    </Link>
-                                )}
-                            </li>
-                        );
-                    })}
+                <ul className="grid h-16 grid-cols-5">
+                    {leftCells.map(renderTab)}
+                    {home ? (
+                        <li>
+                            <Link
+                                href={home.href}
+                                prefetch
+                                className={`${tabClass(isActive(home))} relative`}
+                                aria-current={
+                                    isActive(home) ? 'page' : undefined
+                                }
+                                data-test="tab-home"
+                            >
+                                <span className="absolute -top-6 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg ring-4 ring-card">
+                                    <Home className="size-6" />
+                                </span>
+                                <span className="mt-8">{HOME_LABEL}</span>
+                            </Link>
+                        </li>
+                    ) : (
+                        <li aria-hidden="true" />
+                    )}
+                    {rightCells.map(renderTab)}
                     <li>
                         <button
                             type="button"

@@ -153,12 +153,44 @@ it('keeps requests intact when a kind is renamed', function () {
 it('sets the maximum days on the kind itself', function () {
     $this->actingAs($this->hr);
     Livewire::test(EditRequestType::class, ['record' => RequestType::where('code', 'sick')->value('id')])
-        ->fillForm(['max_days' => 2])
+        ->fillForm(['max_days' => 2, 'max_back_days' => 3])
         ->call('save')
         ->assertHasNoFormErrors();
 
     fileTyped($this->staffUser, $this->staff, ['leave_type' => 'sick', 'start_on' => '2026-11-03', 'end_on' => '2026-11-06'])
         ->assertSessionHasErrors('end_on');
+});
+
+it('tags the seeded Cuti sakit as sakit and leaves the other kinds untagged', function () {
+    expect(RequestType::ordered()->get()->mapWithKeys(fn (RequestType $type): array => [$type->code => $type->absence_kind->value])->all())->toBe([
+        'sick' => 'sakit', 'annual' => 'none', 'maternity' => 'none',
+        'marriage' => 'none', 'bereavement' => 'none', 'unpaid' => 'none',
+    ]);
+
+    $this->actingAs($this->staffUser)->get(route('leave-requests.create'))
+        ->assertInertia(fn (Assert $page) => $page->where('leaveTypes', fn ($types) => collect($types)->firstWhere('value', 'sick')['kind'] === 'sakit'
+            && collect($types)->firstWhere('value', 'annual')['kind'] === 'none'));
+});
+
+it('lets HR tag a kind as izin, and needs a back-days limit before it can be sakit', function () {
+    $this->actingAs($this->hr);
+
+    Livewire::test(CreateRequestType::class)
+        ->fillForm(['label' => 'Izin keluar', 'absence_kind' => 'izin', 'is_active' => true])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    expect(RequestType::where('code', 'izin-keluar')->firstOrFail()->absence_kind->value)->toBe('izin');
+
+    Livewire::test(CreateRequestType::class)
+        ->fillForm(['label' => 'Sakit lainnya', 'absence_kind' => 'sakit', 'is_active' => true])
+        ->call('create')
+        ->assertHasFormErrors(['max_back_days' => 'required']);
+
+    Livewire::test(CreateRequestType::class)
+        ->fillForm(['label' => 'Sakit lainnya', 'absence_kind' => 'sakit', 'max_back_days' => 5, 'is_active' => true])
+        ->call('create')
+        ->assertHasNoFormErrors();
 });
 
 it('is for HR only', function () {

@@ -6,6 +6,7 @@ use App\Enums\Permission;
 use App\Models\EmployeeDocument;
 use App\Support\Attendance\AgentStatus;
 use App\Support\Attendance\CaptureStatus;
+use App\Support\Features;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -36,7 +37,7 @@ class DashboardController extends Controller
         return Inertia::render('dashboard', [
             // Only for the people who capture the scanner log; everyone else gets no card.
             'attendanceStatus' => $user->can('manage-attendance-device')
-                ? [...$status->resolve(), 'agentStale' => $agents->anyStale()]
+                ? [...$status->resolve(), 'agentStale' => Features::attendanceAgents() && $agents->anyStale()]
                 : null,
             'expiringDocuments' => $lapsing === null ? null : [
                 'total' => $lapsing->count(),

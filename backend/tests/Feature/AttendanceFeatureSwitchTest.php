@@ -31,6 +31,41 @@ it('opens the attendance pages when the feature is on', function (string $uri) {
     'device' => '/attendance/device',
 ]);
 
+describe('with the sync agents switched off, as they are by default', function () {
+    beforeEach(function () {
+        config(['features.attendance_agents' => false]);
+    });
+
+    it('returns 404 on the ingest API and on "sync now"', function () {
+        $token = AttendanceAgent::create(['name' => 'SERVER-CAMAT'])->issueToken();
+
+        $this->withToken($token)->postJson('/api/ingest/attendance', ['punches' => []])->assertNotFound();
+        $this->withToken($token)->getJson('/api/ingest/attendance/instructions')->assertNotFound();
+        $this->actingAs($this->hr)->post('/attendance/agents/sync-now')->assertNotFound();
+    });
+
+    it('closes the agent screens in the admin panel', function (string $uri) {
+        $this->actingAs($this->hr)->get($uri)->assertForbidden();
+    })->with([
+        'agents' => '/admin/attendance-agents',
+        'sync log' => '/admin/attendance-ingest-requests',
+    ]);
+
+    it('leaves agents off the data page and their warning off the dashboard, keeping the manual import', function () {
+        AttendanceAgent::create(['name' => 'SERVER-CAMAT']);
+
+        $this->actingAs($this->hr)->get('/attendance/device')->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('agents', null)->has('imports'));
+
+        $this->actingAs($this->hr)->get('/dashboard')
+            ->assertInertia(fn (Assert $page) => $page->where('attendanceStatus.agentStale', false));
+    });
+
+    it('is off unless asked for', function () {
+        expect(require config_path('features.php'))->toHaveKey('attendance_agents', false);
+    })->skip(fn (): bool => getenv('FEATURE_ATTENDANCE_AGENTS') !== false, 'FEATURE_ATTENDANCE_AGENTS is set in this environment');
+});
+
 describe('with attendance switched off', function () {
     beforeEach(function () {
         config(['features.attendance' => false]);

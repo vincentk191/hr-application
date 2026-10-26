@@ -59,7 +59,8 @@ class DailyAttendance
             $date = $day->toDateString();
             $dates[] = $date;
             $dataCoversDay = $dataThrough !== null && $date <= $dataThrough;
-            $stillWorking = $date === $now->toDateString() && $now->format('H:i') < $this->schedule->end;
+            $endsAt = $this->schedule->endFor($day);
+            $stillWorking = $date === $now->toDateString() && $now->format('H:i') < $endsAt;
 
             foreach ($employees as $employeeId => $employment) {
                 $punches = $byEmployee[$employeeId][$date] ?? null;
@@ -81,6 +82,7 @@ class DailyAttendance
                     $stillWorking,
                     $this->hasScannerId($scannerIds[$employeeId] ?? [], $date),
                     $event !== null,
+                    $endsAt,
                 );
 
                 $records[$employeeId][$date] = [

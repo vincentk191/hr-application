@@ -2,6 +2,7 @@
 
 use App\Enums\EmploymentStatus;
 use App\Enums\Role;
+use App\Enums\Zona;
 use App\Models\Branch;
 use App\Models\Company;
 use App\Models\Department;
@@ -116,6 +117,36 @@ it('creates an employee in the active company', function () {
         ->and($employee->company_id)->toBe($this->company->id)
         ->and($employee->branch_id)->toBe($branch->id)
         ->and($employee->base_salary_idr)->toBe(7500000);
+});
+
+it('puts a new employee in Zona Hijau unless HR picks another, and keeps it when the field is not sent', function () {
+    $branch = Branch::factory()->forCompany($this->company)->create();
+    $payload = fn (string $number, array $extra = []): array => [
+        'employee_number' => $number,
+        'national_id' => '3174'.str_pad(substr($number, -4), 12, '0', STR_PAD_LEFT),
+        'full_name' => "Karyawan {$number}",
+        'branch_id' => $branch->id,
+        'employment_status' => EmploymentStatus::Active->value,
+        ...$extra,
+    ];
+
+    $this->actingAs($this->hr)->post(route('employees.store'), $payload('EMP-9101'))->assertRedirect();
+    $this->actingAs($this->hr)->post(route('employees.store'), $payload('EMP-9102', ['zona' => 'merah']))->assertRedirect();
+    $this->actingAs($this->hr)->from(route('employees.create'))->post(route('employees.store'), $payload('EMP-9103', ['zona' => 'ungu']))
+        ->assertSessionHasErrors(['zona' => 'Pilih Zona Hijau, Merah, atau Hitam.']);
+
+    $hijau = Employee::firstWhere('employee_number', 'EMP-9101');
+    $merah = Employee::firstWhere('employee_number', 'EMP-9102');
+
+    expect($hijau->zona)->toBe(Zona::Hijau)
+        ->and($merah->zona)->toBe(Zona::Merah)
+        ->and(Employee::firstWhere('employee_number', 'EMP-9103'))->toBeNull();
+
+    $this->actingAs($this->hr)->put(route('employees.update', $merah), $payload('EMP-9102'))->assertRedirect();
+    expect($merah->fresh()->zona)->toBe(Zona::Merah);
+
+    $this->actingAs($this->hr)->put(route('employees.update', $merah), $payload('EMP-9102', ['zona' => 'hitam']))->assertRedirect();
+    expect($merah->fresh()->zona)->toBe(Zona::Hitam);
 });
 
 it('will not create an employee without a Cabang, or in another company\'s', function () {

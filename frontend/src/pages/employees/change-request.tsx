@@ -142,9 +142,7 @@ export default function ProfileChangeRequestPage({
                                                     key={field.name}
                                                     className="grid gap-2"
                                                 >
-                                                    <Label
-                                                        htmlFor={field.name}
-                                                    >
+                                                    <Label htmlFor={field.name}>
                                                         {field.label}
                                                     </Label>
                                                     {field.type === 'photo' ? (

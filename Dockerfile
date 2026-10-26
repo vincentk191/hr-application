@@ -10,7 +10,8 @@ ARG PHP_IMAGE=php:8.4-cli
 FROM ${PHP_IMAGE} AS base
 
 # libpq-dev  -> pdo_pgsql (PostgreSQL is the only supported database here)
-# libzip-dev -> zip, needed by Composer and later by Laravel Excel
+# libzip-dev -> zip, needed by Composer and by Laravel Excel
+# libpng-dev -> gd, which PhpSpreadsheet (under Laravel Excel) requires
 # libicu-dev -> intl, for Indonesian date and number formatting
 # ghostscript -> shrinks uploaded PDFs (config/uploads.php); without it they are stored as uploaded
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -19,10 +20,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         ghostscript \
         libpq-dev \
         libzip-dev \
+        libpng-dev \
         libicu-dev \
     && docker-php-ext-configure intl \
     && docker-php-ext-install -j"$(nproc)" \
         bcmath \
+        gd \
         intl \
         opcache \
         pcntl \

@@ -22,6 +22,7 @@ export type EmployeeFormOptions = {
     managers: (ManagerOption & { company_id: number })[];
     employmentStatuses: ValueOption[];
     employmentTypes: ValueOption[];
+    zonas: ValueOption[];
 };
 
 const selectClasses =
@@ -326,6 +327,27 @@ export function EmployeeForm({
                                 ))}
                             </select>
                             <InputError message={errors.employment_type} />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="zona">Zona</Label>
+                            <select
+                                id="zona"
+                                name="zona"
+                                defaultValue={employee?.zona ?? 'hijau'}
+                                className={selectClasses}
+                            >
+                                {options.zonas.map((zona) => (
+                                    <option key={zona.value} value={zona.value}>
+                                        {zona.label}
+                                    </option>
+                                ))}
+                            </select>
+                            <p className="text-xs text-muted-foreground">
+                                Menentukan besar potongan absensi. Hijau bila
+                                tidak diubah.
+                            </p>
+                            <InputError message={errors.zona} />
                         </div>
 
                         <TextField

@@ -171,7 +171,7 @@ export default function AttendanceIssues({
             <div className="flex flex-col gap-4 p-4">
                 {capture.state !== 'current' && (
                     <p className="surface border-amber-500/60 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
-                        Log pemindai{' '}
+                        Laporan Absensi{' '}
                         {capture.state === 'never'
                             ? 'belum pernah diunggah'
                             : `baru sampai ${dataThrough}`}
@@ -404,7 +404,10 @@ export default function AttendanceIssues({
                                                 {issue.name}
                                             </Link>
                                             <div className="text-xs text-muted-foreground">
-                                                {[issue.branch, issue.department]
+                                                {[
+                                                    issue.branch,
+                                                    issue.department,
+                                                ]
                                                     .filter(Boolean)
                                                     .join(' · ') ||
                                                     issue.number}

@@ -61,7 +61,7 @@ class ResubmitLeaveRequest
 
             $instance = $this->engine->reopen(
                 $leave->workflow,
-                $this->submit->chain($leave->employee),
+                $this->submit->chain($leave->employee, $leave->leave_type),
                 LeaveRequestStage::Submitted,
                 $by,
             );

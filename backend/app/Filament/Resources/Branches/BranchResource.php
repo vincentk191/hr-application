@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\Branches;
 
+use App\Enums\AttendanceSource;
+use App\Enums\Permission;
 use App\Filament\Resources\Branches\Pages\CreateBranch;
 use App\Filament\Resources\Branches\Pages\EditBranch;
 use App\Filament\Resources\Branches\Pages\ListBranches;
@@ -10,6 +12,7 @@ use App\Models\Branch;
 use BackedEnum;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Utilities\Get;
@@ -39,10 +42,19 @@ class BranchResource extends Resource
                 ->label('Nama')
                 ->required()
                 ->maxLength(255)
+                // HR may open a Cabang to set its attendance source; the name stays the System Admin's.
+                ->disabled(fn (): bool => auth()->user()?->can(Permission::ManageCompanies->value) !== true)
                 ->unique(
                     ignoreRecord: true,
                     modifyRuleUsing: fn (Unique $rule, Get $get) => $rule->where('company_id', $get('company_id')),
                 ),
+            Select::make('attendance_source')
+                ->label('Sumber absensi')
+                ->helperText('Pemindai: HR mengunggah Laporan Absensi dari mesin di cabang ini. Rekapitulasi: cabang tanpa mesin, PIC-nya mengirim rekap per periode.')
+                ->options(collect(AttendanceSource::cases())->mapWithKeys(fn (AttendanceSource $source): array => [$source->value => $source->label()])->all())
+                ->default(AttendanceSource::Scanner->value)
+                ->required()
+                ->native(false),
         ]);
     }
 
@@ -57,6 +69,9 @@ class BranchResource extends Resource
                 TextColumn::make('company.name')
                     ->label('Perusahaan')
                     ->sortable(),
+                TextColumn::make('attendance_source')
+                    ->label('Sumber absensi')
+                    ->formatStateUsing(fn (AttendanceSource $state): string => $state->label()),
                 TextColumn::make('employees_count')
                     ->label('Karyawan')
                     ->counts('employees'),

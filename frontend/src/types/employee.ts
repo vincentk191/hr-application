@@ -40,6 +40,8 @@ export type EmployeeDetail = EmployeeRow & {
     employmentType: string | null;
     /** Notice period in the contract, in days; the offboarding wizard checks against it. */
     noticeDays: number | null;
+    /** Sets the rate of attendance deductions: hijau, merah or hitam. */
+    zona: string;
     exitedOn: string | null;
     contact: {
         email: string | null;

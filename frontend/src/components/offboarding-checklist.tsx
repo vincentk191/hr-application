@@ -34,13 +34,7 @@ const STATUS_VARIANT: Record<
 
 const visit = { preserveScroll: true, preserveState: true } as const;
 
-function AdhocForm({
-    caseId,
-    groupId,
-}: {
-    caseId: number;
-    groupId: number;
-}) {
+function AdhocForm({ caseId, groupId }: { caseId: number; groupId: number }) {
     const [name, setName] = useState('');
     const [kind, setKind] = useState('process');
 
@@ -308,7 +302,9 @@ function Group({
                 )
             )}
 
-            {group.canAddItem && <AdhocForm caseId={caseId} groupId={group.id} />}
+            {group.canAddItem && (
+                <AdhocForm caseId={caseId} groupId={group.id} />
+            )}
 
             {group.canSelect && (
                 <div className="flex items-center gap-3 border-t pt-3">

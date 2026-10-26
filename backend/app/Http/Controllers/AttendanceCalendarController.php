@@ -92,6 +92,7 @@ class AttendanceCalendarController extends Controller
             'schedule' => [
                 'start' => $schedule->start,
                 'end' => $schedule->end,
+                'fridayEnd' => $schedule->fridayEnd,
                 'lateAfter' => $schedule->latestOnTime(),
             ],
             'canManageAttendance' => $request->user()->can('manage-attendance-device'),

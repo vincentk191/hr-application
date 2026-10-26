@@ -44,6 +44,7 @@ class StoreLeaveRequestRequest extends FormRequest
             function (Validator $validator): void {
                 $this->checkLeaveLimit($validator);
                 $this->checkBackdating($validator);
+                $this->checkSakitAttachment($validator);
 
                 if ($validator->errors()->has('employee_id')) {
                     return;

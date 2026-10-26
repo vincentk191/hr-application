@@ -45,7 +45,7 @@ enum Permission: string
             self::ViewDocuments => 'Lihat dokumen karyawan',
             self::ManageDocuments => 'Kelola dokumen karyawan',
             self::ViewSensitiveData => 'Lihat data sensitif (dokumen terbatas, bank, gaji, kesehatan)',
-            self::ManageAttendance => 'Kelola data absensi (impor log, pemetaan ID pemindai)',
+            self::ManageAttendance => 'Kelola data absensi (impor Laporan Absensi, pemetaan ID pemindai)',
             self::ViewAttendance => 'Lihat kalender absensi',
             self::CorrectAttendance => 'Koreksi data absensi (tambah / batalkan scan)',
             self::ManageCalendarEvents => 'Kelola hari libur dan acara',

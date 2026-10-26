@@ -34,15 +34,37 @@ return [
     | requirements do not define working hours, so these are assumptions.
     |
     | A scan after start + late_grace_minutes is late; a last scan before end, on a day with more
-    | than one scan, is an early departure. Saturday and Sunday are always non-working and are not
-    | configurable.
+    | than one scan, is an early departure. Friday may end later than the other weekdays (end_friday,
+    | empty for none). Saturday and Sunday are always non-working and are not configurable.
     |
     */
 
     'schedule' => [
         'start' => env('ATTENDANCE_WORK_START', '08:00'),
         'end' => env('ATTENDANCE_WORK_END', '17:00'),
+        'end_friday' => env('ATTENDANCE_WORK_END_FRIDAY', '17:30'),
         'late_grace_minutes' => (int) env('ATTENDANCE_LATE_GRACE_MINUTES', 10),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Attendance deductions (potongan)
+    |--------------------------------------------------------------------------
+    |
+    | The rate is per day, by the employee's Zona, in rupiah. A day of Alpa or Izin costs the whole
+    | rate and a Telat half of it; Sakit costs nothing. A Supervisor, and any rekapitulasi whose
+    | Periode is "SETAHUN" (a yearly summary), carry no deduction.
+    |
+    */
+
+    'potongan' => [
+        'rates' => [
+            'hitam' => 200000,
+            'merah' => 100000,
+            'hijau' => 50000,
+        ],
+        'exempt_positions' => ['SUPERVISOR'],
+        'exempt_periods' => ['SETAHUN'],
     ],
 
 ];

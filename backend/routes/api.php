@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::prefix('ingest/attendance')
-    ->middleware(['feature:attendance', 'auth:sanctum', 'abilities:attendance:ingest', 'throttle:attendance-ingest'])
+    ->middleware(['feature:attendance', 'feature:attendance_agents', 'auth:sanctum', 'abilities:attendance:ingest', 'throttle:attendance-ingest'])
     ->name('api.ingest.attendance.')
     ->group(function (): void {
         Route::post('/', [AttendanceIngestController::class, 'store'])->name('store');

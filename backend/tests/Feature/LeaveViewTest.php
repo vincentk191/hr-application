@@ -9,6 +9,7 @@ use App\Models\LeaveRequest;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RoleSeeder;
+use Illuminate\Http\UploadedFile;
 use Inertia\Testing\AssertableInertia as Assert;
 
 /**
@@ -55,9 +56,14 @@ function lvEmployee(Company $company, string $name, Department $department): Emp
  */
 function lvRequest(Employee $employee, array $overrides = [], ?string $decision = null, ?string $note = null): LeaveRequest
 {
-    test()->actingAs(test()->hr)->post(route('leave-requests.store'), [
-        'employee_id' => $employee->id, 'leave_type' => 'annual', 'start_on' => '2026-10-20', 'end_on' => '2026-10-21', ...$overrides,
-    ])->assertSessionHasNoErrors();
+    $payload = ['employee_id' => $employee->id, 'leave_type' => 'annual', 'start_on' => '2026-10-20', 'end_on' => '2026-10-21', ...$overrides];
+
+    // Sakit needs proof.
+    if ($payload['leave_type'] === 'sick') {
+        $payload['attachments'] = [UploadedFile::fake()->create('surat.pdf', 10, 'application/pdf')];
+    }
+
+    test()->actingAs(test()->hr)->post(route('leave-requests.store'), $payload)->assertSessionHasNoErrors();
 
     $leave = LeaveRequest::latest('id')->firstOrFail();
 

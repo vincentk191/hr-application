@@ -43,6 +43,7 @@ export default function LeaveRequestCreate({
     const selectedType = leaveTypes.find((item) => item.value === type);
     const maxDays = selectedType?.maxDays;
     const backDays = selectedType?.backDays;
+    const isSakit = selectedType?.kind === 'sakit';
 
     return (
         <>
@@ -178,7 +179,7 @@ export default function LeaveRequestCreate({
                                 <Label htmlFor="attachments">
                                     Lampiran{' '}
                                     <span className="text-muted-foreground">
-                                        (opsional)
+                                        {isSakit ? '(wajib)' : '(opsional)'}
                                     </span>
                                 </Label>
                                 <LimitedFileInput
@@ -198,10 +199,9 @@ export default function LeaveRequestCreate({
                             </div>
 
                             <p className="text-xs text-muted-foreground">
-                                Pengajuan dikirim ke atasan langsung karyawan
-                                untuk disetujui. HR Admin dapat melihat semua
-                                pengajuan dan diberi tahu, tetapi tidak
-                                menyetujuinya.
+                                {isSakit
+                                    ? 'Isi hari yang sudah lewat saat karyawan ditandai Alpa. Pengajuan sakit dikirim ke HR Admin; bila disetujui, Alpa pada hari itu berubah menjadi Sakit.'
+                                    : 'Pengajuan dikirim ke atasan langsung karyawan untuk disetujui. HR Admin dapat melihat semua pengajuan dan diberi tahu, tetapi tidak menyetujuinya.'}
                             </p>
 
                             <div className="flex gap-2">

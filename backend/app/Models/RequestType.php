@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\AbsenceKind;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
@@ -21,6 +22,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int $id
  * @property string $code
  * @property string $label
+ * @property AbsenceKind $absence_kind
  * @property int|null $max_days
  * @property int|null $max_back_days
  * @property bool $is_active
@@ -28,10 +30,14 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['code', 'label', 'max_days', 'max_back_days', 'is_active', 'sort_order'])]
+#[Fillable(['code', 'label', 'absence_kind', 'max_days', 'max_back_days', 'is_active', 'sort_order'])]
 class RequestType extends Model
 {
     use LogsActivity;
+
+    protected $attributes = [
+        'absence_kind' => 'none',
+    ];
 
     protected static function booted(): void
     {
@@ -48,6 +54,7 @@ class RequestType extends Model
     protected function casts(): array
     {
         return [
+            'absence_kind' => AbsenceKind::class,
             'is_active' => 'boolean',
             'max_days' => 'integer',
             'max_back_days' => 'integer',
@@ -102,7 +109,7 @@ class RequestType extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['code', 'label', 'max_days', 'max_back_days', 'is_active', 'sort_order'])
+            ->logOnly(['code', 'label', 'absence_kind', 'max_days', 'max_back_days', 'is_active', 'sort_order'])
             ->logOnlyDirty()
             ->dontLogEmptyChanges()
             ->useLogName('request-types');

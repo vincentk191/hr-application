@@ -4,6 +4,7 @@ namespace App\Filament\Resources\AttendanceIngestRequests;
 
 use App\Filament\Resources\AttendanceIngestRequests\Pages\ManageAttendanceIngestRequests;
 use App\Models\AttendanceIngestRequest;
+use App\Support\Features;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Support\Icons\Heroicon;
@@ -30,7 +31,7 @@ class AttendanceIngestRequestResource extends Resource
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->can('manage-attendance-device') === true;
+        return Features::attendanceAgents() && auth()->user()?->can('manage-attendance-device') === true;
     }
 
     public static function canCreate(): bool

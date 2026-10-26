@@ -109,9 +109,9 @@ function AttendanceStatusCard({
             </div>
             <p className="mt-2 text-sm text-muted-foreground">
                 {status.state === 'never'
-                    ? 'Belum ada log pemindai yang diunggah.'
+                    ? 'Belum ada Laporan Absensi yang diunggah.'
                     : status.state === 'late'
-                      ? `Log terakhir berhenti sebelum ${status.expectedThrough}. Unggah log hari kerja terbaru.`
+                      ? `Laporan Absensi terakhir berhenti sebelum ${status.expectedThrough}. Unggah Laporan Absensi hari kerja terbaru.`
                       : null}
                 {status.unmapped > 0
                     ? ` ${status.unmapped} scan menunggu pemetaan ID ke karyawan.`

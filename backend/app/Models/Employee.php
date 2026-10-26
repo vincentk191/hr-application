@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Concerns\BelongsToCompany;
 use App\Enums\EmploymentStatus;
 use App\Enums\EmploymentType;
+use App\Enums\Zona;
 use App\Support\Access\Entrance;
 use App\Support\ReportingLine;
 use Database\Factories\EmployeeFactory;
@@ -35,6 +36,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property EmploymentStatus $employment_status
  * @property EmploymentType|null $employment_type
  * @property int|null $notice_days
+ * @property Zona $zona sets the rate of attendance deductions; Hijau unless HR says otherwise
  * @property Carbon|null $joined_on
  * @property Carbon|null $exited_on
  * @property string|null $email
@@ -76,6 +78,7 @@ use Spatie\Activitylog\Support\LogOptions;
     'employment_status',
     'employment_type',
     'notice_days',
+    'zona',
     'joined_on',
     'exited_on',
     // Contact + emergency contact (EMP-DET-002)
@@ -126,6 +129,7 @@ class Employee extends Model
 
     protected $attributes = [
         'employment_status' => EmploymentStatus::Active->value,
+        'zona' => Zona::Hijau->value,
     ];
 
     /**
@@ -149,6 +153,7 @@ class Employee extends Model
         return [
             'employment_status' => EmploymentStatus::class,
             'employment_type' => EmploymentType::class,
+            'zona' => Zona::class,
             'joined_on' => 'date',
             'exited_on' => 'date',
             'last_medical_check_on' => 'date',
@@ -322,6 +327,7 @@ class Employee extends Model
                 'employment_status',
                 'employment_type',
                 'notice_days',
+                'zona',
                 'joined_on',
                 'exited_on',
                 'email',

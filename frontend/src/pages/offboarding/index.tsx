@@ -31,8 +31,7 @@ const LAST_DAYS: { value: string; label: string }[] = [
     { value: 'quarter', label: '3 bulan ke depan' },
 ];
 
-const selectClasses =
-    'border-input bg-card h-9 rounded-xl border px-3 text-sm';
+const selectClasses = 'border-input bg-card h-9 rounded-xl border px-3 text-sm';
 
 function Progress({ step }: { step: number }) {
     return (

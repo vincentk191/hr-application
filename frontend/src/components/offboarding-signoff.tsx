@@ -30,7 +30,10 @@ export function OffboardingImpactPanel({ item }: { item: OffboardingCase }) {
         ),
     );
 
-    if (!impact || (impact.reports.length === 0 && impact.headOf.length === 0)) {
+    if (
+        !impact ||
+        (impact.reports.length === 0 && impact.headOf.length === 0)
+    ) {
         return null;
     }
 
@@ -41,7 +44,9 @@ export function OffboardingImpactPanel({ item }: { item: OffboardingCase }) {
             className="surface space-y-3 border-amber-500/50 p-4"
             data-test="impact-panel"
         >
-            <h2 className="label-mono">Harus diselesaikan sebelum kasus ditutup</h2>
+            <h2 className="label-mono">
+                Harus diselesaikan sebelum kasus ditutup
+            </h2>
 
             {impact.reports.length > 0 && (
                 <div className="space-y-2">
@@ -129,9 +134,7 @@ function ExitInterview({ item }: { item: OffboardingCase }) {
             <section className="surface space-y-2 p-4">
                 <h2 className="label-mono">Wawancara keluar</h2>
                 {exit.skipped ? (
-                    <p className="text-sm">
-                        Dilewati: {exit.skippedReason}
-                    </p>
+                    <p className="text-sm">Dilewati: {exit.skippedReason}</p>
                 ) : (
                     <dl className="grid gap-3 text-sm sm:grid-cols-3">
                         <div>
@@ -213,7 +216,9 @@ function ExitInterview({ item }: { item: OffboardingCase }) {
                                             type="radio"
                                             name="rehire"
                                             value="1"
-                                            defaultChecked={exit.rehire === true}
+                                            defaultChecked={
+                                                exit.rehire === true
+                                            }
                                         />
                                         Ya
                                     </label>
@@ -249,7 +254,9 @@ function ExitInterview({ item }: { item: OffboardingCase }) {
                                 disabled={processing}
                                 data-test="save-interview"
                             >
-                                {skip ? 'Simpan (dilewati)' : 'Simpan wawancara'}
+                                {skip
+                                    ? 'Simpan (dilewati)'
+                                    : 'Simpan wawancara'}
                             </Button>
                             <Button
                                 type="button"
@@ -257,9 +264,7 @@ function ExitInterview({ item }: { item: OffboardingCase }) {
                                 variant="ghost"
                                 onClick={() => setSkip(!skip)}
                             >
-                                {skip
-                                    ? 'Isi wawancara'
-                                    : 'Lewati wawancara'}
+                                {skip ? 'Isi wawancara' : 'Lewati wawancara'}
                             </Button>
                             {exit.recorded && (
                                 <span className="label-mono">
@@ -358,10 +363,7 @@ export function OffboardingSignOffPanel({
     return (
         <div className="space-y-4">
             <section className="surface flex flex-wrap items-center justify-between gap-3 p-4">
-                <p
-                    className="text-sm font-medium"
-                    data-test="signoff-banner"
-                >
+                <p className="text-sm font-medium" data-test="signoff-banner">
                     {closed
                         ? `Kasus ditutup ${item.closedAt}. Profil karyawan dikunci.`
                         : !detailsDone

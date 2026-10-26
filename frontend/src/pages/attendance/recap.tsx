@@ -238,9 +238,8 @@ export default function AttendanceRecap({
                 key: row.id,
                 title: row.name,
                 subtitle:
-                    [row.branch, row.department]
-                        .filter(Boolean)
-                        .join(' · ') || row.number,
+                    [row.branch, row.department].filter(Boolean).join(' · ') ||
+                    row.number,
                 href: employeeShow(row.id),
                 figures: row,
             })),
@@ -322,7 +321,7 @@ export default function AttendanceRecap({
             <div className="flex flex-col gap-4 p-4">
                 {capture.state !== 'current' && (
                     <p className="surface border-amber-500/60 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
-                        Log pemindai{' '}
+                        Laporan Absensi{' '}
                         {capture.state === 'never'
                             ? 'belum pernah diunggah'
                             : `baru sampai ${dataThrough}`}

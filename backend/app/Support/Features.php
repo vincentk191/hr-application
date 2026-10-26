@@ -16,4 +16,12 @@ class Features
     {
         return self::enabled('attendance');
     }
+
+    /**
+     * The automatic sync agents. Nothing they do makes sense with attendance off, so that wins.
+     */
+    public static function attendanceAgents(): bool
+    {
+        return self::attendance() && self::enabled('attendance_agents');
+    }
 }

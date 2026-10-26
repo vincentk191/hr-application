@@ -203,8 +203,22 @@ companies. Then:
 4. Remove `INITIAL_ADMIN_PASSWORD` from the env file and run the `up -d` command again. Running the seeder again never
    resets an existing account.
 5. HR then adds the employees (one by one or the CSV import in the directory). Each needs a unique 16-digit NIK, because
-   staff register with NIK + employee ID and then HR activates the account. Set "Boleh mundur (hari)" on the sick-leave
-   kind under **Jenis pengajuan**, or nobody but HR and Management can file a sick day after the fact.
+   staff register with NIK + employee ID and then HR activates the account.
+6. HR sets up how absence is counted (admin panel, all of it saved in the database, so a later `up -d` never resets it):
+   - **Jenis pengajuan:** each kind has **Dihitung sebagai** (Izin, Sakit, or neither). *Cuti sakit* is Sakit after the
+     update migration. A Sakit kind **must** have "Boleh mundur (hari)" set: an employee is marked Alpa first, then files
+     the sick form for the past day within that many days, with an attachment (required). It goes to **HR Admin**, not
+     the Atasan, and approving it turns that Alpa into Sakit. Izin kinds are filed for coming days.
+   - **Cabang:** each has **Sumber absensi**, *Pemindai* (head office: HR uploads the Laporan Absensi from the machine,
+     the default) or *Rekapitulasi* (a branch without a machine: its PIC sends a per-period rekap). HR can change this;
+     only the System Admin adds, renames or removes a Cabang.
+   - **Rekapitulasi cabang:** on **Data absensi**, pick the Cabang and upload its "Rekapitulasi absen karyawan" Excel
+     file. It opens as a draft: names are matched to that Cabang's employees, unmatched ones are linked by hand or
+     skipped, and differences in Zona or in the deduction against the profile are marked in red (the app's figure is
+     used). Nothing counts until **Konfirmasi rekapitulasi**; confirming a corrected file for the same Cabang and dates
+     replaces the earlier one. Deduction rates are in `config/attendance.php` (`potongan`).
+   - **Zona** (Hijau, Merah, Hitam) is on each employee's profile and sets their deduction rate. Everyone is Hijau until
+     HR changes it.
 
 Until the https step is done, reach the app privately with an SSH tunnel: `ssh -L 8090:127.0.0.1:8090 <user>@<server>`, then
 open `http://localhost:8090`. That arrives as the private entrance.
@@ -408,8 +422,9 @@ Server settings are in `docker/server/.env` (template: `docker/server/server.env
 | `WG_HOST`, `WG_ADMIN_USER`, `WG_ADMIN_PASSWORD` | WireGuard: the public address peers connect to, and the admin page login                       |
 | `VPN_HOSTNAME`                           | a hostname of its own for the VPN entrance, DNS-pointed at `172.30.0.10`. Required once HTTPS over the VPN is set up (step 7.5), which names the certificate Nginx serves there |
 | `FEATURE_ATTENDANCE`                     | `false` removes attendance: its pages, scanner ingest API, profile tab, dashboard card, admin screens and the 09:00 notice (404). The calendar and its holidays stay, because leave day counts need them. On by default; nothing is deleted |
+| `FEATURE_ATTENDANCE_AGENTS`              | `true` brings back the automatic on-site sync agents: the ingest API, the agent and sync-log admin screens, "Sinkronkan sekarang" and the agent warnings. **Off by default**: attendance arrives by manual import. Needs `FEATURE_ATTENDANCE` on |
 | `INITIAL_ADMIN_NAME`, `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PASSWORD` | the first System Admin, created by `db:seed` on a real server; remove the password afterwards |
-| `ATTENDANCE_DEVICE_TIMEZONE`, `ATTENDANCE_WORK_START`, `ATTENDANCE_WORK_END`, `ATTENDANCE_LATE_GRACE_MINUTES` | attendance defaults (`Asia/Jakarta`, 08:00, 17:00, 10) |
+| `ATTENDANCE_DEVICE_TIMEZONE`, `ATTENDANCE_WORK_START`, `ATTENDANCE_WORK_END`, `ATTENDANCE_WORK_END_FRIDAY`, `ATTENDANCE_LATE_GRACE_MINUTES` | attendance defaults (`Asia/Jakarta`, 08:00, 17:00, Friday 17:30, 10). Used until someone saves their own under **Jam kerja** in the admin panel, which also has a field for Friday's end; leave it empty there for a Friday that ends like the other days |
 | `SESSION_LIFETIME`                       | idle expiry in minutes (120)                                                                          |
 | `UPLOADS_COMPRESS_PDF`, `UPLOADS_GHOSTSCRIPT`, `UPLOADS_PDF_PRESET` | shrink stored PDFs (`true`, `gs`, `/ebook`); `/screen` is smaller and softer, `/printer` larger and sharper. See `backend/config/uploads.php` |
 
@@ -420,6 +435,8 @@ Server settings are in `docker/server/.env` (template: `docker/server/server.env
 ```bash
 docker compose exec app php artisan test --compact        # all tests
 docker compose exec app php artisan test --filter=Workflow
+# The whole suite reads xlsx fixtures and passes 128 MB of PHP memory; on a host without Docker use
+#   php -d memory_limit=1G vendor/bin/pest --compact
 docker compose exec app vendor/bin/pint                   # format PHP
 docker compose exec app vendor/bin/phpstan analyse        # level 7
 docker compose exec vite npm run check                    # lint and format the front end

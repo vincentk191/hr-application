@@ -21,6 +21,7 @@ use Illuminate\Support\Carbon;
  * @property int $duplicates
  * @property int $unmapped
  * @property int $rejected
+ * @property int $auto_mapped
  * @property Carbon|null $first_scan_at
  * @property Carbon|null $last_scan_at
  * @property list<string>|null $errors
@@ -29,7 +30,7 @@ use Illuminate\Support\Carbon;
  */
 #[Fillable([
     'user_id', 'source', 'original_name', 'device_sn', 'rows_total', 'accepted', 'duplicates',
-    'unmapped', 'rejected', 'first_scan_at', 'last_scan_at', 'errors',
+    'unmapped', 'rejected', 'auto_mapped', 'first_scan_at', 'last_scan_at', 'errors',
 ])]
 class AttendanceImport extends Model
 {

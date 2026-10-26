@@ -167,9 +167,17 @@ export type OffboardingCase = OffboardingRow & {
     reason: string | null;
     compensationMonths: number;
     compensationReason: string | null;
-    noticeCheck: { given: number | null; required: number | null; short: boolean };
+    noticeCheck: {
+        given: number | null;
+        required: number | null;
+        short: boolean;
+    };
     submittedAt: string | null;
-    tabs: { stage: string; label: string; state: 'done' | 'current' | 'next' }[];
+    tabs: {
+        stage: string;
+        label: string;
+        state: 'done' | 'current' | 'next';
+    }[];
     files: OffboardingFile[];
     chain: OffboardingStep[];
     comments: OffboardingComment[];

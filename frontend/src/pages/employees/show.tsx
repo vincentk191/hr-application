@@ -324,9 +324,7 @@ export default function EmployeeShow({
                                 {employee.position
                                     ? ` · ${employee.position}`
                                     : ''}
-                                {employee.branch
-                                    ? ` · ${employee.branch}`
-                                    : ''}
+                                {employee.branch ? ` · ${employee.branch}` : ''}
                                 {employee.department
                                     ? ` · ${employee.department}`
                                     : ''}

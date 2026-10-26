@@ -9,23 +9,33 @@ import { device } from '@/routes/attendance';
 import { syncNow } from '@/routes/attendance/agents';
 import { destroy, store as storeMap } from '@/routes/attendance/enrol-maps';
 import { store as storeImport } from '@/routes/attendance/imports';
+import {
+    show as showRekap,
+    store as storeRekap,
+} from '@/routes/attendance/rekaps';
 import type { BreadcrumbItem } from '@/types';
 import type {
     AttendanceImportRow,
     CaptureStatus,
     EmployeeOption,
     EnrolMapRow,
+    RekapBranchOption,
+    RekapHistoryRow,
+    RekapStatus,
     SyncAgent,
     WaitingId,
 } from '@/types/attendance';
 
 type Props = {
     status: CaptureStatus;
-    agents: SyncAgent[];
+    /** Null while the automatic sync is switched off (FEATURE_ATTENDANCE_AGENTS). */
+    agents: SyncAgent[] | null;
     timezone: string;
     lastDeviceSn: string | null;
     knownDevices: string[];
     imports: AttendanceImportRow[];
+    rekapBranches: RekapBranchOption[];
+    rekaps: RekapHistoryRow[];
     waiting: WaitingId[];
     maps: EnrolMapRow[];
     employees: EmployeeOption[];
@@ -80,7 +90,7 @@ function StatusCard({ status }: { status: CaptureStatus }) {
             </dl>
             {status.state !== 'current' && (
                 <p className="mt-3 text-sm text-muted-foreground">
-                    Log dari pemindai belum diunggah sampai hari kerja terakhir.
+                    Laporan Absensi belum diunggah sampai hari kerja terakhir.
                     Hari-hari setelah data terakhir bukan berarti karyawan tidak
                     hadir; datanya hanya belum masuk.
                 </p>
@@ -172,23 +182,26 @@ function UploadCard({
             {({ processing, errors }) => (
                 <>
                     <div className="sm:col-span-2">
-                        <h2 className="font-medium">Unggah log pemindai</h2>
+                        <h2 className="font-medium">Unggah Laporan Absensi</h2>
                         <p className="text-sm text-muted-foreground">
-                            Berkas CSV hasil Download ScanLog. Mengunggah berkas
-                            yang sama atau tumpang tindih aman: scan yang sudah
-                            ada diabaikan.
+                            Laporan Absensi harian dari Fingerspot (Excel), atau
+                            log scan per baris dalam Excel atau CSV. Mengunggah
+                            berkas yang sama atau tumpang tindih aman: scan yang
+                            sudah ada diabaikan.
                         </p>
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="device_sn">
-                            Nomor seri pemindai (SN)
+                            Nomor seri pemindai (SN){' '}
+                            <span className="font-normal text-muted-foreground">
+                                — jika tidak ada di berkas
+                            </span>
                         </Label>
                         <Input
                             id="device_sn"
                             name="device_sn"
                             list="known-devices"
                             defaultValue={lastDeviceSn ?? ''}
-                            required
                         />
                         <datalist id="known-devices">
                             {knownDevices.map((serial) => (
@@ -198,30 +211,189 @@ function UploadCard({
                         <InputError message={errors.device_sn} />
                     </div>
                     <div className="grid gap-2">
-                        <Label htmlFor="file">Berkas (CSV)</Label>
+                        <Label htmlFor="file">Berkas (Excel atau CSV)</Label>
                         <LimitedFileInput
                             id="file"
                             name="file"
-                            accept=".csv,.txt"
+                            accept=".xls,.xlsx,.csv,.txt"
                             maxSizeMb={20}
                             required
                         />
                         <InputError message={errors.file} />
                     </div>
                     <p className="text-xs text-muted-foreground sm:col-span-2">
-                        Kolom yang dibutuhkan: PIN/ID dan tanggal-waktu scan
-                        (satu kolom, atau kolom tanggal dan jam terpisah). SN,
-                        verify, dan in/out bersifat opsional. Tanggal dibaca
-                        hari-dulu (31/12/2026).
+                        Laporan harian: yang dibaca hanya PIN, NIP, Tanggal,
+                        serta kolom Scan masuk, Scan istirahat 1/2, dan Scan
+                        pulang. Hari tanpa scan (tidak hadir, cuti, izin dinas)
+                        dilewati: status itu ditentukan dashboard dari data
+                        absensi dan pengajuan sendiri, bukan dari kolom
+                        Fingerspot. Log scan per baris: kolom PIN/ID dan
+                        tanggal-waktu scan (satu kolom, atau kolom tanggal dan
+                        jam terpisah); SN, verifikasi, dan I/O opsional. PIN
+                        yang belum dipetakan dipetakan otomatis bila NIP-nya
+                        sama dengan nomor karyawan. Tanggal dibaca hari-dulu
+                        (31/12/2026).
                     </p>
                     <div className="sm:col-span-2">
                         <Button type="submit" disabled={processing}>
-                            Impor log
+                            Impor laporan
                         </Button>
                     </div>
                 </>
             )}
         </Form>
+    );
+}
+
+/**
+ * The rekapitulasi a Cabang without a scanner sends for a period. The upload opens a preview to
+ * check; nothing counts until it is confirmed there.
+ */
+function RekapCard({
+    branches,
+    rekaps,
+}: {
+    branches: RekapBranchOption[];
+    rekaps: RekapHistoryRow[];
+}) {
+    const statusLabel: Record<RekapStatus, string> = {
+        draft: 'Draf',
+        confirmed: 'Dikonfirmasi',
+        superseded: 'Diganti',
+    };
+
+    return (
+        <section className="surface p-4">
+            <h2 className="font-medium">Unggah rekapitulasi cabang</h2>
+            <p className="text-sm text-muted-foreground">
+                Untuk cabang tanpa mesin absensi: berkas “Rekapitulasi absen
+                karyawan” (Excel) yang dikirim PIC cabang. Berkas dibuka dulu
+                sebagai draf untuk diperiksa, dan baru berlaku setelah
+                dikonfirmasi.
+            </p>
+
+            {branches.length === 0 ? (
+                <p className="mt-3 text-sm text-muted-foreground">
+                    Belum ada cabang yang memakai rekapitulasi. Atur “Sumber
+                    absensi” cabang di panel admin (Cabang).
+                </p>
+            ) : (
+                <Form
+                    action={storeRekap().url}
+                    method="post"
+                    resetOnSuccess={['file']}
+                    className="mt-3 grid gap-3 sm:grid-cols-2"
+                >
+                    {({ processing, errors }) => (
+                        <>
+                            <div className="grid gap-2">
+                                <Label htmlFor="rekap-branch">Cabang</Label>
+                                <select
+                                    id="rekap-branch"
+                                    name="branch_id"
+                                    required
+                                    defaultValue=""
+                                    className={selectClasses}
+                                >
+                                    <option value="">Pilih cabang…</option>
+                                    {branches.map((branch) => (
+                                        <option
+                                            key={branch.id}
+                                            value={branch.id}
+                                        >
+                                            {branch.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                <InputError message={errors.branch_id} />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="rekap-file">
+                                    Berkas (Excel)
+                                </Label>
+                                <LimitedFileInput
+                                    id="rekap-file"
+                                    name="file"
+                                    accept=".xls,.xlsx"
+                                    maxSizeMb={20}
+                                    required
+                                />
+                                <InputError message={errors.file} />
+                            </div>
+                            <div className="sm:col-span-2">
+                                <Button type="submit" disabled={processing}>
+                                    Periksa rekapitulasi
+                                </Button>
+                            </div>
+                        </>
+                    )}
+                </Form>
+            )}
+
+            {rekaps.length > 0 && (
+                <div className="mt-4 overflow-x-auto border-t">
+                    <table className="w-full text-sm">
+                        <thead className="bg-muted/50 text-left">
+                            <tr>
+                                <th className="p-3 font-medium">Cabang</th>
+                                <th className="p-3 font-medium">Periode</th>
+                                <th className="p-3 font-medium">Baris</th>
+                                <th className="p-3 font-medium">Status</th>
+                                <th className="p-3" />
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {rekaps.map((rekap) => (
+                                <tr key={rekap.id} className="border-t">
+                                    <td className="p-3">
+                                        {rekap.branch}
+                                        <div className="text-xs text-muted-foreground">
+                                            {rekap.file ?? '—'} ·{' '}
+                                            {formatDateTime(rekap.at)} ·{' '}
+                                            {rekap.by ?? '—'}
+                                        </div>
+                                    </td>
+                                    <td className="p-3 whitespace-nowrap">
+                                        {rekap.periodStart} s.d{' '}
+                                        {rekap.periodEnd}
+                                    </td>
+                                    <td className="p-3">{rekap.rows}</td>
+                                    <td className="p-3">
+                                        <Badge
+                                            variant={
+                                                rekap.status === 'draft'
+                                                    ? 'secondary'
+                                                    : rekap.status ===
+                                                        'confirmed'
+                                                      ? 'default'
+                                                      : 'outline'
+                                            }
+                                        >
+                                            {statusLabel[rekap.status]}
+                                        </Badge>
+                                    </td>
+                                    <td className="p-3 text-right">
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() =>
+                                                router.get(
+                                                    showRekap(rekap.id).url,
+                                                )
+                                            }
+                                        >
+                                            {rekap.status === 'draft'
+                                                ? 'Periksa'
+                                                : 'Lihat'}
+                                        </Button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </section>
     );
 }
 
@@ -394,6 +566,8 @@ export default function AttendanceDevice({
     lastDeviceSn,
     knownDevices,
     imports,
+    rekapBranches,
+    rekaps,
     waiting,
     maps,
     employees,
@@ -405,12 +579,14 @@ export default function AttendanceDevice({
             <div className="flex flex-col gap-4 p-4">
                 <StatusCard status={status} />
 
-                <AgentsCard agents={agents} />
+                {agents !== null && <AgentsCard agents={agents} />}
 
                 <UploadCard
                     lastDeviceSn={lastDeviceSn}
                     knownDevices={knownDevices}
                 />
+
+                <RekapCard branches={rekapBranches} rekaps={rekaps} />
 
                 <section className="surface">
                     <div className="p-4">
@@ -604,6 +780,12 @@ export default function AttendanceDevice({
                                             </td>
                                             <td className="p-3">
                                                 {row.accepted}
+                                                {row.autoMapped > 0 && (
+                                                    <div className="text-xs text-muted-foreground">
+                                                        {row.autoMapped} PIN
+                                                        dipetakan lewat NIP
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="p-3">
                                                 {row.duplicates}

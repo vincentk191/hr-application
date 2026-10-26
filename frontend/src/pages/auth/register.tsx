@@ -87,7 +87,9 @@ export default function Register({ passwordRules }: Props) {
                                 placeholder="Ulangi kata sandi"
                                 passwordrules={passwordRules}
                             />
-                            <InputError message={errors.password_confirmation} />
+                            <InputError
+                                message={errors.password_confirmation}
+                            />
                         </div>
 
                         <div className="grid gap-2">

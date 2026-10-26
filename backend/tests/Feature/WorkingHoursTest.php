@@ -89,6 +89,79 @@ it('rejects an end before the start and an out-of-range tolerance', function () 
     expect(app(AppSettings::class)->get(WorkSchedule::KEY_START))->toBeNull();
 });
 
+it('lets Friday end later than the other weekdays', function () {
+    config(['attendance.schedule' => ['start' => '08:00', 'end' => '17:00', 'end_friday' => '17:30', 'late_grace_minutes' => 10]]);
+
+    $schedule = WorkSchedule::current();
+
+    expect($schedule->fridayEnd)->toBe('17:30')
+        ->and($schedule->endFor(CarbonImmutable::parse('2026-10-22')))->toBe('17:00')  // Thursday
+        ->and($schedule->endFor(CarbonImmutable::parse('2026-10-23')))->toBe('17:30'); // Friday
+});
+
+it('ends every day alike when there is no Friday end', function () {
+    $schedule = WorkSchedule::current();
+
+    expect($schedule->fridayEnd)->toBeNull()
+        ->and($schedule->endFor(CarbonImmutable::parse('2026-10-23')))->toBe('17:00');
+});
+
+it('saves a Friday end from the admin page, and clearing it sticks over the config default', function () {
+    config(['attendance.schedule' => ['start' => '08:00', 'end' => '17:00', 'end_friday' => '17:30', 'late_grace_minutes' => 10]]);
+    $this->actingAs($this->hr);
+
+    Livewire::test(ManageWorkingHours::class)
+        ->assertSchemaStateSet(['end_friday' => '17:30'])
+        ->fillForm(['end_friday' => '18:00'])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect(WorkSchedule::current()->fridayEnd)->toBe('18:00');
+
+    Livewire::test(ManageWorkingHours::class)
+        ->fillForm(['end_friday' => null])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    // Emptied on purpose: Friday now ends with the other days, not back at the config's 17:30.
+    expect(WorkSchedule::current()->fridayEnd)->toBeNull();
+});
+
+it('rejects a Friday end before the start', function () {
+    $this->actingAs($this->hr);
+
+    Livewire::test(ManageWorkingHours::class)
+        ->fillForm(['start' => '08:00', 'end' => '17:00', 'end_friday' => '07:00', 'late_grace_minutes' => 10])
+        ->call('save')
+        ->assertHasFormErrors(['end_friday']);
+});
+
+it('counts leaving at 17:10 as early only on a Friday', function () {
+    config(['attendance.schedule' => ['start' => '08:00', 'end' => '17:00', 'end_friday' => '17:30', 'late_grace_minutes' => 10]]);
+
+    $company = Company::factory()->create();
+    $budi = Employee::factory()->forCompany($company)->create(['joined_on' => '2020-01-01']);
+    AttendanceEnrolMap::create(['company_id' => $company->id, 'employee_id' => $budi->id, 'device_sn' => 'SN1', 'pin' => 'P1']);
+
+    // Thursday 22 and Friday 23 October 2026: in at 08:00, out at 17:10.
+    foreach (['2026-10-22', '2026-10-23'] as $date) {
+        foreach (['08:00:00', '17:10:00'] as $time) {
+            AttendancePunch::create([
+                'company_id' => $company->id, 'employee_id' => $budi->id, 'device_sn' => 'SN1', 'pin' => 'P1',
+                'scan_at' => CarbonImmutable::parse("{$date} {$time}", 'Asia/Jakarta')->utc(), 'source' => 'manual-file',
+            ]);
+        }
+    }
+
+    $statusOn = fn (string $date) => collect(
+        $this->actingAs($this->hr)->get("/attendance/calendar?view=day&date={$date}")
+            ->assertOk()->assertInertia(fn (Assert $page) => $page)->viewData('page')['props']['rows'],
+    )->first()['days'][$date]['status'];
+
+    expect($statusOn('2026-10-22'))->toBe('present')
+        ->and($statusOn('2026-10-23'))->toBe('early_leave');
+});
+
 it('has no field for working days: Saturday and Sunday are never workdays', function () {
     $this->actingAs($this->hr);
 

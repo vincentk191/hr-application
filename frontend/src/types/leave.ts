@@ -58,6 +58,8 @@ export type LeaveRequestRow = {
 export type LeaveTypeOption = {
     value: string;
     label: string;
+    /** How the recap counts it. Sakit needs an attachment and is decided by HR Admin. */
+    kind: 'none' | 'izin' | 'sakit';
     /** Longest a single request of this type may be, or null for no limit. */
     maxDays: number | null;
     /** How many calendar days back a request of this type may start, or null for none. */

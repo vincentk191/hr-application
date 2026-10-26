@@ -84,7 +84,9 @@ export function ApprovalChain({
                             {step.status === 'approved' ? (
                                 <Check className="size-4" />
                             ) : (
-                                String(index + (withRequester ? 2 : 1)).padStart(2, '0')
+                                String(
+                                    index + (withRequester ? 2 : 1),
+                                ).padStart(2, '0')
                             )}
                         </span>
                         <div className="min-w-0">
