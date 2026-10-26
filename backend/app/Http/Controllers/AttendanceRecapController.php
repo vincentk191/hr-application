@@ -10,11 +10,13 @@ use App\Support\Attendance\CaptureStatus;
 use App\Support\Attendance\DailyAttendance;
 use App\Support\Attendance\DateRangeInput;
 use App\Support\Attendance\EmployeeRoster;
+use App\Support\Attendance\RecapWorkbook;
 use App\Support\CsvDownload;
 use App\Support\OrganisationNames;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -33,7 +35,7 @@ class AttendanceRecapController extends Controller
 
     private const MAX_ROWS = 500;
 
-    public function index(Request $request, AttendanceRecap $recap, EmployeeRoster $roster, DailyAttendance $attendance, CaptureStatus $capture): Response|StreamedResponse
+    public function index(Request $request, AttendanceRecap $recap, EmployeeRoster $roster, DailyAttendance $attendance, CaptureStatus $capture, RecapWorkbook $workbook): Response|StreamedResponse
     {
         abort_unless($request->user()->can(Permission::ViewAttendance->value), 403);
 
@@ -52,7 +54,13 @@ class AttendanceRecapController extends Controller
         $employees = $roster->between($from, $to, $filters['departments'], $filters['search'], $filters['team'], viewer: $request->user(), branches: $filters['branches']);
         $result = $recap->build($from, $to, $employees);
 
-        if ($request->string('export')->toString() === 'csv') {
+        $export = $request->string('export')->toString();
+
+        if ($export === 'xlsx') {
+            return $this->exportWorkbook($result, $filters, $workbook);
+        }
+
+        if ($export === 'csv') {
             return $this->export($result, $filters);
         }
 
@@ -72,6 +80,24 @@ class AttendanceRecapController extends Controller
             'dataThrough' => $result['dataThrough'],
             'rekapNotes' => $result['rekapNotes'],
             'capture' => $capture->resolve(),
+        ]);
+    }
+
+    /**
+     * The same tables as an Excel workbook, with a styled header and the deduction formatted by thousands.
+     * The CSV stays for anything that wants plain numbers.
+     *
+     * @param  array<string, mixed>  $result
+     * @param  array<string, mixed>  $filters
+     */
+    private function exportWorkbook(array $result, array $filters, RecapWorkbook $workbook): StreamedResponse
+    {
+        $book = $workbook->build($result, $filters);
+
+        return response()->streamDownload(function () use ($book): void {
+            (new Xlsx($book))->save('php://output');
+        }, "rekap-absensi-{$filters['from']}-{$filters['to']}.xlsx", [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
     }
 

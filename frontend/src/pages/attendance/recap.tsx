@@ -367,13 +367,15 @@ export default function AttendanceRecap({
             replace: true,
         });
 
-    const exportUrl = `${recapRoute().url}?${new URLSearchParams(
-        Object.entries({ ...query(), export: 'csv' }).flatMap(([key, value]) =>
-            Array.isArray(value)
-                ? value.map((item) => [`${key}[]`, String(item)])
-                : [[key, String(value)]],
-        ),
-    ).toString()}`;
+    const exportUrl = (format: 'xlsx' | 'csv') =>
+        `${recapRoute().url}?${new URLSearchParams(
+            Object.entries({ ...query(), export: format }).flatMap(
+                ([key, value]) =>
+                    Array.isArray(value)
+                        ? value.map((item) => [`${key}[]`, String(item)])
+                        : [[key, String(value)]],
+            ),
+        ).toString()}`;
 
     const shownViews = printing ? VIEWS : VIEWS.filter((v) => v.value === view);
 
@@ -491,7 +493,10 @@ export default function AttendanceRecap({
 
                     <div className="ml-auto flex gap-2">
                         <Button asChild variant="outline" size="sm">
-                            <a href={exportUrl}>Unduh CSV</a>
+                            <a href={exportUrl('xlsx')}>Unduh Excel</a>
+                        </Button>
+                        <Button asChild variant="ghost" size="sm">
+                            <a href={exportUrl('csv')}>CSV</a>
                         </Button>
                         <Button
                             variant="outline"

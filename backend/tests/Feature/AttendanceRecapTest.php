@@ -19,6 +19,7 @@ use Carbon\CarbonImmutable;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Http\UploadedFile;
 use Inertia\Testing\AssertableInertia as Assert;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 /**
  * The attendance recap, the CSV exports and the team / leave-type filters (EMP-ATT-003,
@@ -440,4 +441,53 @@ it('exports the new columns', function () {
 
     expect($csv)->toContain('Alpa,Izin,Sakit,Telat,"Potongan (Rp)",Zona,Sumber')
         ->and($csv)->toContain('75000,Hijau,pemindai');
+});
+
+it('downloads the recap as a styled Excel workbook with the deduction grouped by thousands', function () {
+    recapData();
+    $this->sari->update(['full_name' => '=HYPERLINK("http://example.test")']);
+
+    $response = $this->actingAs($this->hr)->get('/attendance/recap?from=2026-10-05&to=2026-10-06&export=xlsx');
+    $response->assertOk()->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+    $path = tempnam(sys_get_temp_dir(), 'recap').'.xlsx';
+    file_put_contents($path, $response->streamedContent());
+
+    try {
+        $book = IOFactory::load($path);
+    } finally {
+        unlink($path);
+    }
+
+    $sheet = $book->getSheetByName('Per karyawan');
+
+    expect($book->getSheetNames())->toBe(['Per karyawan', 'Per cabang', 'Per departemen', 'Per periode']);
+
+    // Header row 4: bold white on a dark fill, and the table is frozen under it.
+    $header = $sheet->getStyle('A4');
+    expect($sheet->getCell('A4')->getValue())->toBe('Karyawan')
+        ->and($header->getFont()->getBold())->toBeTrue()
+        ->and($header->getFont()->getColor()->getARGB())->toBe('FFFFFFFF')
+        ->and($header->getFill()->getStartColor()->getARGB())->toBe('FF1F2937')
+        ->and($sheet->getFreezePane())->toBe('B5');
+
+    $columns = collect(range(1, 16))->mapWithKeys(fn (int $i): array => [$sheet->getCell([$i, 4])->getValue() => $i]);
+    $rows = collect(range(5, 7))->mapWithKeys(fn (int $r): array => [$sheet->getCell([1, $r])->getValue() => $r]);
+    $potongan = $columns['Potongan (Rp)'];
+
+    // Sari: late the 5th and absent the 6th, Hijau: 75000, stored as a number and shown with a thousands separator.
+    // (renamed above to look like a formula, which is the row we want to check anyway).
+    $sari = $rows['=HYPERLINK("http://example.test")'];
+    $cell = $sheet->getCell([$potongan, $sari]);
+    expect($cell->getValue())->toBe(75000)
+        ->and($sheet->getStyle($cell->getCoordinate())->getNumberFormat()->getFormatCode())->toBe('#,##0')
+        ->and($sheet->getCell([$columns['Zona'], $sari])->getValue())->toBe('Hijau');
+
+    // The total line is bold, and a name that looks like a formula stays text.
+    $totalRow = 8;
+    expect($sheet->getCell([1, $totalRow])->getValue())->toBe('Total (3 karyawan)')
+        ->and($sheet->getStyle("A{$totalRow}")->getFont()->getBold())->toBeTrue()
+        ->and($sheet->getCell([$potongan, $totalRow])->getValue())->toBe(125000)
+        ->and($rows->keys()->contains('=HYPERLINK("http://example.test")'))->toBeTrue()
+        ->and($sheet->getCell([1, $rows['=HYPERLINK("http://example.test")']])->getDataType())->toBe('s');
 });
