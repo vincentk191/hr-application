@@ -65,6 +65,23 @@ listed in the checklist below. Nothing here is committed yet: changes are left f
 
 ## Change log (latest first)
 
+- **2026-10-26 (attendance tables on a phone).** The mobile pattern already used for Pengajuan, the directory and profile
+  changes, applied to the attendance screens: below `md` the wide table gives way to cards, and the filter row to one
+  **Cari & filter** button opening a bottom sheet (`FilterSheet`; new `ChipMultiSelect` for the multi-select ones).
+  - **Rekap absensi:** cards lead with the deduction and Alpa / Izin / Sakit / Telat, fold the other figures under
+    "Rincian lain", with a total card first; the four cuts are a segmented row; Excel / CSV / print sit in an overflow menu.
+    Print keeps the full table.
+  - **Masalah absensi:** one card per issue (checkbox, type, detail, actions); the type/Cabang/department filters are in the
+    sheet; the "excuse" bar is pinned above the tab bar.
+  - **Data absensi** (waiting IDs with the mapping form, ID mappings, import history, rekap history) and the **rekap
+    preview** lines are cards too. Front end only.
+
+- **2026-10-26 (recap download as Excel).** `?export=xlsx` on the recap streams a workbook from `RecapWorkbook`
+  (PhpSpreadsheet, already installed through Laravel Excel): one sheet per cut, a dark bold header, borders, frozen header
+  and filter, bold total line, real numbers, and the deduction formatted `#,##0` so Excel groups thousands by the reader's
+  locale. Every cell is written with an explicit type, so a name starting with `=` stays text. The screen's button is now
+  **Unduh Excel**, with the plain `CSV` (`?export=csv`, raw numbers, unchanged) beside it.
+
 - **2026-10-26 (one import page with two tabs, plan step 6).** `attendance/device.tsx` (Data absensi) now has a tab per
   upload: **Laporan Absensi (pemindai)** (status, agents when enabled, upload, IDs waiting, ID mappings, history) and
   **Rekapitulasi cabang** (Cabang that send one, upload, history, with the number of drafts on the tab). `?tab=rekap`

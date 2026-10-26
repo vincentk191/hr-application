@@ -42,6 +42,17 @@ type Props = {
     employees: EmployeeOption[];
 };
 
+/** Delete a scanner-ID mapping after asking; the scans already recorded stay. */
+function confirmDeleteMap(map: EnrolMapRow) {
+    if (
+        window.confirm(
+            `Hapus pemetaan PIN ${map.pin}? Scan yang sudah tercatat tetap ada.`,
+        )
+    ) {
+        router.delete(destroy(map.id).url, { preserveScroll: true });
+    }
+}
+
 /** The two things HR uploads: a scanner's Laporan Absensi, or a Cabang's rekapitulasi. */
 type ImportTab = 'scanner' | 'rekap';
 
@@ -335,7 +346,55 @@ function RekapCard({
             )}
 
             {rekaps.length > 0 && (
-                <div className="mt-4 overflow-x-auto border-t">
+                <ul className="mt-4 divide-y border-t md:hidden">
+                    {rekaps.map((rekap) => (
+                        <li
+                            key={rekap.id}
+                            className="flex items-start gap-3 py-3"
+                        >
+                            <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                    <span className="font-semibold">
+                                        {rekap.branch}
+                                    </span>
+                                    <Badge
+                                        variant={
+                                            rekap.status === 'draft'
+                                                ? 'secondary'
+                                                : rekap.status === 'confirmed'
+                                                  ? 'default'
+                                                  : 'outline'
+                                        }
+                                    >
+                                        {statusLabel[rekap.status]}
+                                    </Badge>
+                                </div>
+                                <p className="text-sm">
+                                    {rekap.periodStart} s.d {rekap.periodEnd} ·{' '}
+                                    {rekap.rows} baris
+                                </p>
+                                <p className="truncate text-xs text-muted-foreground">
+                                    {rekap.file ?? '—'} ·{' '}
+                                    {formatDateTime(rekap.at)} ·{' '}
+                                    {rekap.by ?? '—'}
+                                </p>
+                            </div>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() =>
+                                    router.get(showRekap(rekap.id).url)
+                                }
+                            >
+                                {rekap.status === 'draft' ? 'Periksa' : 'Lihat'}
+                            </Button>
+                        </li>
+                    ))}
+                </ul>
+            )}
+
+            {rekaps.length > 0 && (
+                <div className="mt-4 hidden overflow-x-auto border-t md:block">
                     <table className="w-full text-sm">
                         <thead className="bg-muted/50 text-left">
                             <tr>
@@ -401,6 +460,58 @@ function RekapCard({
     );
 }
 
+/** Map one waiting scanner ID to an employee. Shared by the table row and the phone card. */
+function WaitingMapForm({
+    row,
+    employees,
+}: {
+    row: WaitingId;
+    employees: EmployeeOption[];
+}) {
+    return (
+        <Form
+            action={storeMap().url}
+            method="post"
+            className="flex flex-wrap items-center gap-2"
+        >
+            {({ processing, errors }) => (
+                <>
+                    <input
+                        type="hidden"
+                        name="device_sn"
+                        value={row.deviceSn}
+                    />
+                    <input type="hidden" name="pin" value={row.pin} />
+                    <select
+                        name="employee_id"
+                        defaultValue={row.suggestedEmployeeId ?? ''}
+                        required
+                        aria-label={`Karyawan untuk PIN ${row.pin}`}
+                        className={`${selectClasses} w-full min-w-0 md:max-w-64`}
+                    >
+                        <option value="">Pilih karyawan…</option>
+                        {employees.map((employee) => (
+                            <option key={employee.id} value={employee.id}>
+                                {employee.label}
+                            </option>
+                        ))}
+                    </select>
+                    <Button type="submit" size="sm" disabled={processing}>
+                        Petakan
+                    </Button>
+                    {row.suggestedEmployeeId !== null && (
+                        <span className="text-xs text-muted-foreground">
+                            saran: ID sama dengan nomor karyawan
+                        </span>
+                    )}
+                    <InputError message={errors.pin} />
+                    <InputError message={errors.employee_id} />
+                </>
+            )}
+        </Form>
+    );
+}
+
 function WaitingRow({
     row,
     employees,
@@ -417,55 +528,35 @@ function WaitingRow({
                 {formatDateTime(row.firstAt)} – {formatDateTime(row.lastAt)}
             </td>
             <td className="p-3">
-                <Form
-                    action={storeMap().url}
-                    method="post"
-                    className="flex flex-wrap items-center gap-2"
-                >
-                    {({ processing, errors }) => (
-                        <>
-                            <input
-                                type="hidden"
-                                name="device_sn"
-                                value={row.deviceSn}
-                            />
-                            <input type="hidden" name="pin" value={row.pin} />
-                            <select
-                                name="employee_id"
-                                defaultValue={row.suggestedEmployeeId ?? ''}
-                                required
-                                aria-label={`Karyawan untuk PIN ${row.pin}`}
-                                className={`${selectClasses} max-w-64`}
-                            >
-                                <option value="">Pilih karyawan…</option>
-                                {employees.map((employee) => (
-                                    <option
-                                        key={employee.id}
-                                        value={employee.id}
-                                    >
-                                        {employee.label}
-                                    </option>
-                                ))}
-                            </select>
-                            <Button
-                                type="submit"
-                                size="sm"
-                                disabled={processing}
-                            >
-                                Petakan
-                            </Button>
-                            {row.suggestedEmployeeId !== null && (
-                                <span className="text-xs text-muted-foreground">
-                                    saran: ID sama dengan nomor karyawan
-                                </span>
-                            )}
-                            <InputError message={errors.pin} />
-                            <InputError message={errors.employee_id} />
-                        </>
-                    )}
-                </Form>
+                <WaitingMapForm row={row} employees={employees} />
             </td>
         </tr>
+    );
+}
+
+/** Phone: a waiting ID as a card, the mapping form under what is known about it. */
+function WaitingCard({
+    row,
+    employees,
+}: {
+    row: WaitingId;
+    employees: EmployeeOption[];
+}) {
+    return (
+        <li className="grid gap-2 p-4">
+            <div className="flex items-baseline justify-between gap-2">
+                <span className="font-mono text-base font-semibold">
+                    PIN {row.pin}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                    SN {row.deviceSn} · {row.punches} scan
+                </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+                {formatDateTime(row.firstAt)} – {formatDateTime(row.lastAt)}
+            </p>
+            <WaitingMapForm row={row} employees={employees} />
+        </li>
     );
 }
 
@@ -639,38 +730,49 @@ export default function AttendanceDevice({
                                     Tidak ada ID yang menunggu.
                                 </p>
                             ) : (
-                                <div className="overflow-x-auto border-t">
-                                    <table className="w-full text-sm">
-                                        <thead className="bg-muted/50 text-left">
-                                            <tr>
-                                                <th className="p-3 font-medium">
-                                                    PIN
-                                                </th>
-                                                <th className="p-3 font-medium">
-                                                    SN
-                                                </th>
-                                                <th className="p-3 font-medium">
-                                                    Scan
-                                                </th>
-                                                <th className="p-3 font-medium">
-                                                    Rentang
-                                                </th>
-                                                <th className="p-3 font-medium">
-                                                    Karyawan
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {waiting.map((row) => (
-                                                <WaitingRow
-                                                    key={`${row.deviceSn}|${row.pin}`}
-                                                    row={row}
-                                                    employees={employees}
-                                                />
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                <>
+                                    <ul className="divide-y border-t md:hidden">
+                                        {waiting.map((row) => (
+                                            <WaitingCard
+                                                key={`${row.deviceSn}|${row.pin}`}
+                                                row={row}
+                                                employees={employees}
+                                            />
+                                        ))}
+                                    </ul>
+                                    <div className="hidden overflow-x-auto border-t md:block">
+                                        <table className="w-full text-sm">
+                                            <thead className="bg-muted/50 text-left">
+                                                <tr>
+                                                    <th className="p-3 font-medium">
+                                                        PIN
+                                                    </th>
+                                                    <th className="p-3 font-medium">
+                                                        SN
+                                                    </th>
+                                                    <th className="p-3 font-medium">
+                                                        Scan
+                                                    </th>
+                                                    <th className="p-3 font-medium">
+                                                        Rentang
+                                                    </th>
+                                                    <th className="p-3 font-medium">
+                                                        Karyawan
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {waiting.map((row) => (
+                                                    <WaitingRow
+                                                        key={`${row.deviceSn}|${row.pin}`}
+                                                        row={row}
+                                                        employees={employees}
+                                                    />
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </>
                             )}
                         </section>
 
@@ -688,78 +790,113 @@ export default function AttendanceDevice({
                                     Belum ada pemetaan.
                                 </p>
                             ) : (
-                                <div className="overflow-x-auto border-t">
-                                    <table className="w-full text-sm">
-                                        <thead className="bg-muted/50 text-left">
-                                            <tr>
-                                                <th className="p-3 font-medium">
-                                                    PIN
-                                                </th>
-                                                <th className="p-3 font-medium">
-                                                    SN
-                                                </th>
-                                                <th className="p-3 font-medium">
-                                                    Karyawan
-                                                </th>
-                                                <th className="p-3 font-medium">
-                                                    Berlaku
-                                                </th>
-                                                <th className="p-3" />
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {maps.map((map) => (
-                                                <tr
-                                                    key={map.id}
-                                                    className="border-t"
-                                                >
-                                                    <td className="p-3 font-mono">
-                                                        {map.pin}
-                                                    </td>
-                                                    <td className="p-3">
-                                                        {map.deviceSn}
-                                                    </td>
-                                                    <td className="p-3">
+                                <>
+                                    <ul className="divide-y border-t md:hidden">
+                                        {maps.map((map) => (
+                                            <li
+                                                key={map.id}
+                                                className="flex items-start gap-3 p-4"
+                                            >
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-baseline justify-between gap-2">
+                                                        <span className="font-mono font-semibold">
+                                                            PIN {map.pin}
+                                                        </span>
+                                                        <span className="text-xs text-muted-foreground">
+                                                            SN {map.deviceSn}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-sm">
                                                         {map.employee} (
                                                         {map.employeeNumber})
                                                         {map.companyCode
                                                             ? ` · ${map.companyCode}`
                                                             : ''}
-                                                    </td>
-                                                    <td className="p-3 whitespace-nowrap">
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Berlaku{' '}
                                                         {map.validFrom ?? '—'} →{' '}
                                                         {map.validTo ?? '—'}
-                                                    </td>
-                                                    <td className="p-3 text-right">
-                                                        <Button
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            className="text-destructive"
-                                                            onClick={() => {
-                                                                if (
-                                                                    window.confirm(
-                                                                        `Hapus pemetaan PIN ${map.pin}? Scan yang sudah tercatat tetap ada.`,
-                                                                    )
-                                                                ) {
-                                                                    router.delete(
-                                                                        destroy(
-                                                                            map.id,
-                                                                        ).url,
-                                                                        {
-                                                                            preserveScroll: true,
-                                                                        },
-                                                                    );
-                                                                }
-                                                            }}
-                                                        >
-                                                            Hapus
-                                                        </Button>
-                                                    </td>
+                                                    </p>
+                                                </div>
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    className="text-destructive"
+                                                    onClick={() =>
+                                                        confirmDeleteMap(map)
+                                                    }
+                                                >
+                                                    Hapus
+                                                </Button>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                    <div className="hidden overflow-x-auto border-t md:block">
+                                        <table className="w-full text-sm">
+                                            <thead className="bg-muted/50 text-left">
+                                                <tr>
+                                                    <th className="p-3 font-medium">
+                                                        PIN
+                                                    </th>
+                                                    <th className="p-3 font-medium">
+                                                        SN
+                                                    </th>
+                                                    <th className="p-3 font-medium">
+                                                        Karyawan
+                                                    </th>
+                                                    <th className="p-3 font-medium">
+                                                        Berlaku
+                                                    </th>
+                                                    <th className="p-3" />
                                                 </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                            </thead>
+                                            <tbody>
+                                                {maps.map((map) => (
+                                                    <tr
+                                                        key={map.id}
+                                                        className="border-t"
+                                                    >
+                                                        <td className="p-3 font-mono">
+                                                            {map.pin}
+                                                        </td>
+                                                        <td className="p-3">
+                                                            {map.deviceSn}
+                                                        </td>
+                                                        <td className="p-3">
+                                                            {map.employee} (
+                                                            {map.employeeNumber}
+                                                            )
+                                                            {map.companyCode
+                                                                ? ` · ${map.companyCode}`
+                                                                : ''}
+                                                        </td>
+                                                        <td className="p-3 whitespace-nowrap">
+                                                            {map.validFrom ??
+                                                                '—'}{' '}
+                                                            →{' '}
+                                                            {map.validTo ?? '—'}
+                                                        </td>
+                                                        <td className="p-3 text-right">
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                className="text-destructive"
+                                                                onClick={() =>
+                                                                    confirmDeleteMap(
+                                                                        map,
+                                                                    )
+                                                                }
+                                                            >
+                                                                Hapus
+                                                            </Button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </>
                             )}
                         </section>
 
@@ -775,111 +912,211 @@ export default function AttendanceDevice({
                                     Belum ada impor.
                                 </p>
                             ) : (
-                                <div className="overflow-x-auto border-t">
-                                    <table className="w-full text-sm">
-                                        <thead className="bg-muted/50 text-left">
-                                            <tr>
-                                                <th className="p-3 font-medium">
-                                                    Diunggah
-                                                </th>
-                                                <th className="p-3 font-medium">
-                                                    Berkas
-                                                </th>
-                                                <th className="p-3 font-medium">
-                                                    Rentang scan
-                                                </th>
-                                                <th className="p-3 font-medium">
-                                                    Baru
-                                                </th>
-                                                <th className="p-3 font-medium">
-                                                    Duplikat
-                                                </th>
-                                                <th className="p-3 font-medium">
-                                                    Menunggu
-                                                </th>
-                                                <th className="p-3 font-medium">
-                                                    Ditolak
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {imports.map((row) => (
-                                                <tr
-                                                    key={row.id}
-                                                    className="border-t align-top"
-                                                >
-                                                    <td className="p-3 whitespace-nowrap">
-                                                        {formatDateTime(row.at)}
-                                                        <div className="text-xs text-muted-foreground">
-                                                            {row.by ?? '—'}
-                                                        </div>
-                                                    </td>
-                                                    <td className="p-3">
+                                <>
+                                    <ul className="divide-y border-t md:hidden">
+                                        {imports.map((row) => (
+                                            <li
+                                                key={row.id}
+                                                className="grid gap-2 p-4"
+                                            >
+                                                <div className="flex items-baseline justify-between gap-2">
+                                                    <span className="min-w-0 truncate font-semibold">
                                                         {row.file ?? '—'}
-                                                        <div className="text-xs text-muted-foreground">
-                                                            SN {row.deviceSn} ·{' '}
-                                                            {row.rowsTotal}{' '}
-                                                            baris
+                                                    </span>
+                                                    <span className="shrink-0 text-xs text-muted-foreground">
+                                                        {formatDateTime(row.at)}
+                                                    </span>
+                                                </div>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {row.by ?? '—'} · SN{' '}
+                                                    {row.deviceSn} ·{' '}
+                                                    {row.rowsTotal} baris ·{' '}
+                                                    {formatDateTime(
+                                                        row.firstScanAt,
+                                                    )}{' '}
+                                                    –{' '}
+                                                    {formatDateTime(
+                                                        row.lastScanAt,
+                                                    )}
+                                                </p>
+                                                <dl className="grid grid-cols-4 gap-2 text-center">
+                                                    {(
+                                                        [
+                                                            [
+                                                                'Baru',
+                                                                row.accepted,
+                                                            ],
+                                                            [
+                                                                'Duplikat',
+                                                                row.duplicates,
+                                                            ],
+                                                            [
+                                                                'Menunggu',
+                                                                row.unmapped,
+                                                            ],
+                                                            [
+                                                                'Ditolak',
+                                                                row.rejected,
+                                                            ],
+                                                        ] as [string, number][]
+                                                    ).map(([label, value]) => (
+                                                        <div
+                                                            key={label}
+                                                            className="rounded-xl bg-muted/50 p-2"
+                                                        >
+                                                            <dd className="text-base font-bold">
+                                                                {value}
+                                                            </dd>
+                                                            <dt className="text-[11px] text-muted-foreground">
+                                                                {label}
+                                                            </dt>
                                                         </div>
-                                                    </td>
-                                                    <td className="p-3 whitespace-nowrap">
-                                                        {formatDateTime(
-                                                            row.firstScanAt,
-                                                        )}{' '}
-                                                        –{' '}
-                                                        {formatDateTime(
-                                                            row.lastScanAt,
-                                                        )}
-                                                    </td>
-                                                    <td className="p-3">
-                                                        {row.accepted}
-                                                        {row.autoMapped > 0 && (
-                                                            <div className="text-xs text-muted-foreground">
-                                                                {row.autoMapped}{' '}
-                                                                PIN dipetakan
-                                                                lewat NIP
-                                                            </div>
-                                                        )}
-                                                    </td>
-                                                    <td className="p-3">
-                                                        {row.duplicates}
-                                                    </td>
-                                                    <td className="p-3">
-                                                        {row.unmapped}
-                                                    </td>
-                                                    <td className="p-3">
-                                                        {row.rejected}
-                                                        {row.errors.length >
-                                                            0 && (
-                                                            <details className="mt-1 text-xs text-muted-foreground">
-                                                                <summary className="cursor-pointer">
-                                                                    Lihat
-                                                                </summary>
-                                                                <ul className="mt-1 list-disc pl-4">
-                                                                    {row.errors.map(
-                                                                        (
-                                                                            message,
-                                                                        ) => (
-                                                                            <li
-                                                                                key={
-                                                                                    message
-                                                                                }
-                                                                            >
-                                                                                {
-                                                                                    message
-                                                                                }
-                                                                            </li>
-                                                                        ),
-                                                                    )}
-                                                                </ul>
-                                                            </details>
-                                                        )}
-                                                    </td>
+                                                    ))}
+                                                </dl>
+                                                {row.autoMapped > 0 && (
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {row.autoMapped} PIN
+                                                        dipetakan lewat NIP
+                                                    </p>
+                                                )}
+                                                {row.errors.length > 0 && (
+                                                    <details className="text-xs text-muted-foreground">
+                                                        <summary className="cursor-pointer">
+                                                            Lihat yang ditolak
+                                                        </summary>
+                                                        <ul className="mt-1 list-disc pl-4">
+                                                            {row.errors.map(
+                                                                (message) => (
+                                                                    <li
+                                                                        key={
+                                                                            message
+                                                                        }
+                                                                    >
+                                                                        {
+                                                                            message
+                                                                        }
+                                                                    </li>
+                                                                ),
+                                                            )}
+                                                        </ul>
+                                                    </details>
+                                                )}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                    <div className="hidden overflow-x-auto border-t md:block">
+                                        <table className="w-full text-sm">
+                                            <thead className="bg-muted/50 text-left">
+                                                <tr>
+                                                    <th className="p-3 font-medium">
+                                                        Diunggah
+                                                    </th>
+                                                    <th className="p-3 font-medium">
+                                                        Berkas
+                                                    </th>
+                                                    <th className="p-3 font-medium">
+                                                        Rentang scan
+                                                    </th>
+                                                    <th className="p-3 font-medium">
+                                                        Baru
+                                                    </th>
+                                                    <th className="p-3 font-medium">
+                                                        Duplikat
+                                                    </th>
+                                                    <th className="p-3 font-medium">
+                                                        Menunggu
+                                                    </th>
+                                                    <th className="p-3 font-medium">
+                                                        Ditolak
+                                                    </th>
                                                 </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                            </thead>
+                                            <tbody>
+                                                {imports.map((row) => (
+                                                    <tr
+                                                        key={row.id}
+                                                        className="border-t align-top"
+                                                    >
+                                                        <td className="p-3 whitespace-nowrap">
+                                                            {formatDateTime(
+                                                                row.at,
+                                                            )}
+                                                            <div className="text-xs text-muted-foreground">
+                                                                {row.by ?? '—'}
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-3">
+                                                            {row.file ?? '—'}
+                                                            <div className="text-xs text-muted-foreground">
+                                                                SN{' '}
+                                                                {row.deviceSn} ·{' '}
+                                                                {row.rowsTotal}{' '}
+                                                                baris
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-3 whitespace-nowrap">
+                                                            {formatDateTime(
+                                                                row.firstScanAt,
+                                                            )}{' '}
+                                                            –{' '}
+                                                            {formatDateTime(
+                                                                row.lastScanAt,
+                                                            )}
+                                                        </td>
+                                                        <td className="p-3">
+                                                            {row.accepted}
+                                                            {row.autoMapped >
+                                                                0 && (
+                                                                <div className="text-xs text-muted-foreground">
+                                                                    {
+                                                                        row.autoMapped
+                                                                    }{' '}
+                                                                    PIN
+                                                                    dipetakan
+                                                                    lewat NIP
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                        <td className="p-3">
+                                                            {row.duplicates}
+                                                        </td>
+                                                        <td className="p-3">
+                                                            {row.unmapped}
+                                                        </td>
+                                                        <td className="p-3">
+                                                            {row.rejected}
+                                                            {row.errors.length >
+                                                                0 && (
+                                                                <details className="mt-1 text-xs text-muted-foreground">
+                                                                    <summary className="cursor-pointer">
+                                                                        Lihat
+                                                                    </summary>
+                                                                    <ul className="mt-1 list-disc pl-4">
+                                                                        {row.errors.map(
+                                                                            (
+                                                                                message,
+                                                                            ) => (
+                                                                                <li
+                                                                                    key={
+                                                                                        message
+                                                                                    }
+                                                                                >
+                                                                                    {
+                                                                                        message
+                                                                                    }
+                                                                                </li>
+                                                                            ),
+                                                                        )}
+                                                                    </ul>
+                                                                </details>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </>
                             )}
                         </section>
                     </>

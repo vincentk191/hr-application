@@ -1,13 +1,20 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, MoreVertical } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { flushSync } from 'react-dom';
+import { ChipMultiSelect } from '@/components/chip-multi-select';
+import {
+    FilterButton,
+    FilterSection,
+    FilterSheet,
+} from '@/components/filter-sheet';
 import { MultiSelectFilter } from '@/components/multi-select-filter';
 import { Pagination, usePagination } from '@/components/pagination';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
     DropdownMenuContent,
+    DropdownMenuItem,
     DropdownMenuRadioGroup,
     DropdownMenuRadioItem,
     DropdownMenuTrigger,
@@ -95,11 +102,26 @@ type TableRow = {
     person?: Pick<Row, 'zona' | 'source' | 'rekapMissing'>;
 };
 
-const VIEWS: { value: View; label: string; column: string }[] = [
-    { value: 'employee', label: 'Per karyawan', column: 'Karyawan' },
-    { value: 'period', label: 'Per periode', column: 'Periode' },
-    { value: 'branch', label: 'Per cabang', column: 'Cabang' },
-    { value: 'department', label: 'Per departemen', column: 'Departemen' },
+const VIEWS: { value: View; label: string; short: string; column: string }[] = [
+    {
+        value: 'employee',
+        label: 'Per karyawan',
+        short: 'Karyawan',
+        column: 'Karyawan',
+    },
+    {
+        value: 'period',
+        label: 'Per periode',
+        short: 'Periode',
+        column: 'Periode',
+    },
+    { value: 'branch', label: 'Per cabang', short: 'Cabang', column: 'Cabang' },
+    {
+        value: 'department',
+        label: 'Per departemen',
+        short: 'Dept.',
+        column: 'Departemen',
+    },
 ];
 
 const selectClasses =
@@ -251,6 +273,158 @@ function RecapTable({
 }
 
 /**
+ * The recap on a phone: the same lines as cards instead of a twelve-column table that has to be dragged
+ * sideways. Each card leads with what matters (the deduction and Alpa, Izin, Sakit, Telat) and folds the
+ * rest away; the grand total is the first card.
+ */
+function RecapCards({
+    rows,
+    total,
+    totalLabel,
+    empty,
+}: {
+    rows: TableRow[];
+    total: Figures;
+    totalLabel: string;
+    empty: string;
+}) {
+    return (
+        <ul className="grid gap-3 p-3 md:hidden print:hidden">
+            <li className="rounded-2xl border bg-muted/40 p-4">
+                <RecapCard
+                    title={totalLabel}
+                    subtitle=""
+                    figures={total}
+                    emphasised
+                />
+            </li>
+            {rows.length === 0 && (
+                <li className="p-6 text-center text-sm text-muted-foreground">
+                    {empty}
+                </li>
+            )}
+            {rows.map((row) => (
+                <li key={row.key} className="rounded-2xl border bg-card p-4">
+                    <RecapCard
+                        title={row.title}
+                        subtitle={row.subtitle}
+                        href={row.href}
+                        figures={row.figures}
+                        person={row.person}
+                    />
+                </li>
+            ))}
+        </ul>
+    );
+}
+
+function RecapCard({
+    title,
+    subtitle,
+    href,
+    figures,
+    person,
+    emphasised = false,
+}: {
+    title: string;
+    subtitle: string;
+    href?: TableRow['href'];
+    figures: Figures;
+    person?: TableRow['person'];
+    emphasised?: boolean;
+}) {
+    const fromRekap = person?.source === 'rekap';
+    const missing = fromRekap && person?.rekapMissing;
+    const dash = <span className="text-muted-foreground">—</span>;
+    const stats: [string, number][] = [
+        ['Alpa', figures.alpa],
+        ['Izin', figures.izin],
+        ['Sakit', figures.sakit],
+        ['Telat', figures.telat],
+    ];
+
+    return (
+        <>
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                    {href ? (
+                        <Link
+                            href={href}
+                            className="block truncate font-semibold hover:underline"
+                        >
+                            {title}
+                        </Link>
+                    ) : (
+                        <span
+                            className={`block truncate ${emphasised ? 'font-extrabold' : 'font-semibold'}`}
+                        >
+                            {title}
+                        </span>
+                    )}
+                    <span className="block text-xs text-muted-foreground">
+                        {subtitle}
+                        {fromRekap &&
+                            (person?.rekapMissing
+                                ? ' · belum ada rekapitulasi'
+                                : ' · dari rekapitulasi')}
+                    </span>
+                </div>
+                {person && <span className="chip shrink-0">{person.zona}</span>}
+            </div>
+
+            <div className="mt-3 flex items-baseline justify-between border-t pt-3">
+                <span className="label-mono">Potongan</span>
+                <span className="text-lg font-extrabold">
+                    {missing ? dash : rupiah.format(figures.potongan)}
+                </span>
+            </div>
+
+            <dl className="mt-2 grid grid-cols-4 gap-2 text-center">
+                {stats.map(([label, value]) => (
+                    <div key={label} className="rounded-xl bg-muted/50 p-2">
+                        <dd className="text-base font-bold">
+                            {missing ? dash : value}
+                        </dd>
+                        <dt className="text-[11px] text-muted-foreground">
+                            {label}
+                        </dt>
+                    </div>
+                ))}
+            </dl>
+
+            {!fromRekap && (
+                <details className="mt-3 text-sm">
+                    <summary className="cursor-pointer text-xs font-semibold text-primary">
+                        Rincian lain
+                    </summary>
+                    <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
+                        {(
+                            [
+                                ['Hadir', figures.present],
+                                ['Pulang cepat', figures.earlyLeave],
+                                ['Cuti lain', figures.otherLeave],
+                                ['Belum ada data', figures.noData],
+                                ['Jam kerja', formatMinutes(figures.minutes)],
+                            ] as [string, number | string][]
+                        ).map(([label, value]) => (
+                            <div
+                                key={label}
+                                className="flex justify-between gap-2"
+                            >
+                                <dt className="text-muted-foreground">
+                                    {label}
+                                </dt>
+                                <dd className="font-medium">{value}</dd>
+                            </div>
+                        ))}
+                    </dl>
+                </details>
+            )}
+        </>
+    );
+}
+
+/**
  * The attendance recap (EMP-ATT-003): totals for a period, cut per employee, per period, per Cabang
  * or per department from the dropdown on the table's title, with a grand total and a CSV of the same.
  * Counts are days (one person on one day), derived from the same days as the calendar.
@@ -270,6 +444,7 @@ export default function AttendanceRecap({
 }: Props) {
     const [search, setSearch] = useState(filters.search);
     const [view, setView] = useState<View>('employee');
+    const [filtersOpen, setFiltersOpen] = useState(false);
     const pagination = usePagination(rows.length);
     // True while the browser is printing, so the report comes out whole: every cut of the data
     // and every employee listed, whatever view and page the screen is on.
@@ -409,7 +584,60 @@ export default function AttendanceRecap({
                     </p>
                 )}
 
-                <div className="flex flex-wrap items-end gap-3">
+                {/* Phone: one button for the range, search and filters, one menu for the downloads, and the four cuts
+                    as a segmented row. From tablet width up the filters are inline. */}
+                <div className="flex items-center gap-2 md:hidden print:hidden">
+                    <FilterButton
+                        count={
+                            filters.branches.length +
+                            filters.departments.length +
+                            (filters.team !== null ? 1 : 0) +
+                            (filters.search !== '' ? 1 : 0)
+                        }
+                        onClick={() => setFiltersOpen(true)}
+                    />
+                    <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+                        {filters.from} s/d {filters.to}
+                    </span>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                aria-label="Unduh atau cetak"
+                            >
+                                <MoreVertical className="size-5" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem asChild>
+                                <a href={exportUrl('xlsx')}>Unduh Excel</a>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                                <a href={exportUrl('csv')}>Unduh CSV</a>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => printReport()}>
+                                Cetak / PDF
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+
+                <div className="seg w-full md:hidden print:hidden">
+                    {VIEWS.map((item) => (
+                        <button
+                            key={item.value}
+                            type="button"
+                            data-on={view === item.value}
+                            onClick={() => setView(item.value)}
+                            className="flex-1 px-1 text-xs"
+                        >
+                            {item.short}
+                        </button>
+                    ))}
+                </div>
+
+                <div className="hidden flex-wrap items-end gap-3 md:flex print:hidden">
                     <div className="grid gap-1">
                         <label
                             htmlFor="from"
@@ -514,7 +742,11 @@ export default function AttendanceRecap({
 
                     return (
                         <section key={item.value} className="surface">
-                            <div className="flex items-center gap-2 p-3">
+                            <p className="px-3 pt-3 text-sm text-muted-foreground md:hidden print:hidden">
+                                {item.label} ({cut.hint})
+                            </p>
+
+                            <div className="hidden items-center gap-2 p-3 md:flex print:flex">
                                 <h2 className="font-medium">
                                     {printing ? (
                                         item.label
@@ -552,7 +784,7 @@ export default function AttendanceRecap({
                                 </span>
                             </div>
 
-                            <div className="overflow-x-auto">
+                            <div className="hidden overflow-x-auto md:block print:block">
                                 <RecapTable
                                     column={item.column}
                                     rows={cut.rows}
@@ -561,6 +793,13 @@ export default function AttendanceRecap({
                                     empty={cut.empty}
                                 />
                             </div>
+
+                            <RecapCards
+                                rows={cut.rows}
+                                total={total}
+                                totalLabel={cut.totalLabel}
+                                empty={cut.empty}
+                            />
 
                             {item.value === 'employee' && !printing && (
                                 <Pagination pagination={pagination} />
@@ -591,6 +830,115 @@ export default function AttendanceRecap({
                     Data sampai {dataThrough ?? '—'}.
                 </p>
             </div>
+
+            <FilterSheet
+                open={filtersOpen}
+                onOpenChange={setFiltersOpen}
+                onReset={() => {
+                    setSearch('');
+                    go({
+                        branches: [],
+                        departments: [],
+                        team: null,
+                        search: '',
+                    });
+                }}
+                showLabel={`Tampilkan ${total.employees} karyawan`}
+            >
+                <FilterSection title="Rentang tanggal">
+                    <div className="grid grid-cols-2 gap-2">
+                        <div className="grid gap-1">
+                            <label
+                                htmlFor="sheet-from"
+                                className="text-xs text-muted-foreground"
+                            >
+                                Dari
+                            </label>
+                            <Input
+                                id="sheet-from"
+                                type="date"
+                                value={filters.from}
+                                onChange={(event) =>
+                                    go({ from: event.target.value })
+                                }
+                            />
+                        </div>
+                        <div className="grid gap-1">
+                            <label
+                                htmlFor="sheet-to"
+                                className="text-xs text-muted-foreground"
+                            >
+                                Sampai
+                            </label>
+                            <Input
+                                id="sheet-to"
+                                type="date"
+                                value={filters.to}
+                                onChange={(event) =>
+                                    go({ to: event.target.value })
+                                }
+                            />
+                        </div>
+                    </div>
+                </FilterSection>
+
+                <form
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        go();
+                        setFiltersOpen(false);
+                    }}
+                >
+                    <Input
+                        value={search}
+                        onChange={(event) => setSearch(event.target.value)}
+                        placeholder="Cari nama atau ID…"
+                        aria-label="Cari karyawan"
+                    />
+                </form>
+
+                <FilterSection title="Cabang">
+                    <ChipMultiSelect
+                        options={options.branches}
+                        selected={filters.branches}
+                        onChange={(branches) => go({ branches })}
+                    />
+                </FilterSection>
+
+                <FilterSection title="Departemen">
+                    <ChipMultiSelect
+                        options={options.departments}
+                        selected={filters.departments}
+                        onChange={(departments) => go({ departments })}
+                    />
+                </FilterSection>
+
+                {options.teams.length > 0 && (
+                    <FilterSection title="Tim">
+                        <div className="flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                className="chip"
+                                data-on={filters.team === null}
+                                onClick={() => go({ team: null })}
+                            >
+                                Semua
+                            </button>
+                            {options.teams.map((lead) => (
+                                <button
+                                    key={lead.id}
+                                    type="button"
+                                    className="chip"
+                                    data-on={filters.team === lead.id}
+                                    onClick={() => go({ team: lead.id })}
+                                >
+                                    Tim {lead.full_name}
+                                </button>
+                            ))}
+                        </div>
+                    </FilterSection>
+                )}
+            </FilterSheet>
         </>
     );
 }

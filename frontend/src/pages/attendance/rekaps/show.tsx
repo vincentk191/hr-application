@@ -258,7 +258,108 @@ export default function AttendanceRekapShow({
                             aplikasi yang dipakai.
                         </p>
                     </div>
-                    <div className="overflow-x-auto border-t">
+                    {/* Phone: one card per line instead of a table to drag sideways. */}
+                    <ul className="divide-y border-t md:hidden">
+                        {rows.map((line) => (
+                            <li key={line.id} className="grid gap-2 p-4">
+                                <div className="flex items-start justify-between gap-2">
+                                    <div className="min-w-0">
+                                        <span className="block truncate font-semibold">
+                                            {line.name}
+                                        </span>
+                                        {line.position && (
+                                            <span className="block text-xs text-muted-foreground">
+                                                {line.position}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <span
+                                        className={`chip shrink-0 ${line.zonaMismatch ? 'text-destructive' : ''}`}
+                                    >
+                                        {line.zonaFile ?? '—'}
+                                    </span>
+                                </div>
+                                {line.zonaMismatch && (
+                                    <p className="text-xs font-medium text-destructive">
+                                        Zona di profil:{' '}
+                                        {line.zonaApp ?? 'tidak dikenal'}
+                                    </p>
+                                )}
+
+                                <dl className="grid grid-cols-4 gap-2 text-center">
+                                    {(
+                                        [
+                                            ['Alpa', line.alpa],
+                                            ['Izin', line.izin],
+                                            ['Sakit', line.sakit],
+                                            ['Telat', line.telat],
+                                        ] as [string, number][]
+                                    ).map(([label, value]) => (
+                                        <div
+                                            key={label}
+                                            className="rounded-xl bg-muted/50 p-2"
+                                        >
+                                            <dd className="text-base font-bold">
+                                                {value}
+                                            </dd>
+                                            <dt className="text-[11px] text-muted-foreground">
+                                                {label}
+                                            </dt>
+                                        </div>
+                                    ))}
+                                </dl>
+
+                                <div className="flex items-baseline justify-between gap-2">
+                                    <span className="label-mono">Potongan</span>
+                                    <span
+                                        className={`font-bold ${line.potonganMismatch ? 'text-destructive' : ''}`}
+                                    >
+                                        {rupiah.format(line.computedPotongan)}
+                                    </span>
+                                </div>
+                                {line.exempt && (
+                                    <p className="text-xs text-muted-foreground">
+                                        tanpa potongan
+                                    </p>
+                                )}
+                                {line.potonganMismatch && (
+                                    <p className="text-xs font-medium text-destructive">
+                                        Berkas menulis{' '}
+                                        {rupiah.format(line.filePotongan ?? 0)}
+                                    </p>
+                                )}
+
+                                <div className="border-t pt-2">
+                                    {line.status === 'matched' ? (
+                                        <p className="text-sm">
+                                            {line.employee}
+                                        </p>
+                                    ) : (
+                                        <Badge
+                                            variant={
+                                                line.status === 'skipped'
+                                                    ? 'secondary'
+                                                    : 'destructive'
+                                            }
+                                        >
+                                            {line.statusLabel}
+                                        </Badge>
+                                    )}
+                                    {draft && line.status !== 'matched' && (
+                                        <div className="mt-2">
+                                            <LinkForm
+                                                rekapId={rekap.id}
+                                                line={line}
+                                                employees={employees}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+
+                    <div className="hidden overflow-x-auto border-t md:block">
                         <table className="w-full text-sm">
                             <thead className="bg-muted/50 text-left">
                                 <tr>
