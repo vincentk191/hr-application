@@ -2,6 +2,7 @@
 
 namespace App\Support\Attendance;
 
+use App\Enums\AbsenceKind;
 use App\Enums\AttendanceDayStatus;
 use App\Models\AttendanceEnrolMap;
 use App\Models\AttendancePunch;
@@ -34,7 +35,7 @@ class DailyAttendance
     /**
      * @param  array<int, array{joined: string|null, exited: string|null, company: int|null, department: int|null, branch: int|null}>  $employees  keyed by employee id
      * @return array{
-     *     records: array<int, array<string, array{status: string, in: string|null, out: string|null, punches: int, minutes: int|null, duplicate: bool, event: string|null}>>,
+     *     records: array<int, array<string, array{status: string, in: string|null, out: string|null, punches: int, minutes: int|null, duplicate: bool, event: string|null, leaveKind: string|null}>>,
      *     dataThrough: string|null,
      *     dates: list<string>
      * }
@@ -93,6 +94,7 @@ class DailyAttendance
                     'minutes' => ($punches['count'] ?? 0) > 1 ? $this->minutesBetween($punches['first'], $punches['last']) : null,
                     'duplicate' => ($punches['minGap'] ?? null) !== null && $punches['minGap'] <= self::DUPLICATE_WITHIN_SECONDS,
                     'event' => $event,
+                    'leaveKind' => $status === AttendanceDayStatus::Leave ? ($leaveDays[$employeeId][$date] ?? AbsenceKind::None)->value : null,
                 ];
             }
         }
@@ -247,25 +249,34 @@ class DailyAttendance
     }
 
     /**
-     * Approved leave, expanded to the dates it covers within the range.
+     * Approved leave, expanded to the dates it covers within the range, with how its kind counts (sakit,
+     * izin or neither). Two approved leaves on one day count as the heavier: sakit over izin over neither.
      *
-     * @return array<int, array<string, true>>
+     * @return array<int, array<string, AbsenceKind>>
      */
     private function leaveDays(CarbonImmutable $start, CarbonImmutable $end): array
     {
         $days = [];
+        $weight = [AbsenceKind::None->value => 0, AbsenceKind::Izin->value => 1, AbsenceKind::Sakit->value => 2];
 
         LeaveRequest::query()
+            ->with('type:id,code,absence_kind')
             ->whereHas('workflow', fn ($query) => $query->where('current_stage', 'approved'))
             ->whereDate('start_on', '<=', $end->toDateString())
             ->whereDate('end_on', '>=', $start->toDateString())
-            ->get(['employee_id', 'start_on', 'end_on'])
-            ->each(function (LeaveRequest $leave) use (&$days, $start, $end): void {
+            ->get(['employee_id', 'leave_type', 'start_on', 'end_on'])
+            ->each(function (LeaveRequest $leave) use (&$days, $start, $end, $weight): void {
                 $from = CarbonImmutable::parse($leave->start_on->toDateString(), $start->getTimezone())->max($start);
                 $to = CarbonImmutable::parse($leave->end_on->toDateString(), $start->getTimezone())->min($end);
+                $kind = $leave->type?->absence_kind ?? AbsenceKind::None;
 
                 for ($day = $from; $day->lte($to); $day = $day->addDay()) {
-                    $days[$leave->employee_id][$day->toDateString()] = true;
+                    $date = $day->toDateString();
+                    $before = $days[$leave->employee_id][$date] ?? null;
+
+                    if ($before === null || $weight[$kind->value] > $weight[$before->value]) {
+                        $days[$leave->employee_id][$date] = $kind;
+                    }
                 }
             });
 

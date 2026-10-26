@@ -28,7 +28,7 @@ class EmployeeRoster
     {
         return Employee::query()
             ->when($viewer !== null, fn (Builder $query) => $query->visibleTo($viewer))
-            ->with(['branch:id,name', 'department:id,name', 'position:id,name', 'manager:id,full_name'])
+            ->with(['branch:id,name,attendance_source', 'department:id,name', 'position:id,name', 'manager:id,full_name'])
             ->where(fn (Builder $query) => $query->whereNull('joined_on')->orWhereDate('joined_on', '<=', $to->toDateString()))
             ->where(fn (Builder $query) => $query->whereNull('exited_on')->orWhereDate('exited_on', '>=', $from->toDateString()))
             ->when($branches !== [], fn (Builder $query) => $query->whereHas('branch', fn (Builder $branch) => $branch->whereIn('name', $branches)))
@@ -41,7 +41,7 @@ class EmployeeRoster
             ->when($teamLead !== null, fn (Builder $query) => $query->whereIn('id', $this->teamOf($teamLead)))
             ->when($leaveType !== null, fn (Builder $query) => $query->whereIn('id', $this->onLeaveOfType($leaveType, $from, $to)))
             ->orderBy('full_name')
-            ->get(['id', 'company_id', 'full_name', 'employee_number', 'branch_id', 'department_id', 'position_id', 'manager_id', 'joined_on', 'exited_on']);
+            ->get(['id', 'company_id', 'full_name', 'employee_number', 'branch_id', 'department_id', 'position_id', 'manager_id', 'zona', 'joined_on', 'exited_on']);
     }
 
     /**

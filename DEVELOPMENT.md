@@ -65,6 +65,27 @@ listed in the checklist below. Nothing here is committed yet: changes are left f
 
 ## Change log (latest first)
 
+- **2026-10-26 (one import page with two tabs, plan step 6).** `attendance/device.tsx` (Data absensi) now has a tab per
+  upload: **Laporan Absensi (pemindai)** (status, agents when enabled, upload, IDs waiting, ID mappings, history) and
+  **Rekapitulasi cabang** (Cabang that send one, upload, history, with the number of drafts on the tab). `?tab=rekap`
+  opens the second one; the preview page's breadcrumb and a discarded draft return there. Front end only, no new route.
+  This finishes the 6-step attendance plan of 2026-10-26.
+
+- **2026-10-26 (recap with Alpa, Izin, Sakit, Telat, Zona, Potongan, plan step 5).** No migration. The recap keeps its free
+  date range and its four cuts (employee, period, Cabang, department); every line gains `alpa`, `izin`, `sakit`, `telat`,
+  `otherLeave` and `potongan`, and an employee line `zona`, `source` and `rekapMissing`.
+  - Source follows the employee's Cabang `attendance_source`. **Scanner:** Alpa = an absent day, Telat = a late day, and an
+    approved leave day is Izin, Sakit or other by the request kind's `absence_kind` (`DailyAttendance` now carries
+    `leaveKind` per day; two leaves on a day count as the heavier, sakit over izin over none). Deduction =
+    `PotonganCalculator::forRow` with the profile's Zona and position. **Rekap:** the sum of matched lines of **confirmed**
+    files whose period lies **wholly inside** the range (the file's own `computed_potongan`); a file that only partly
+    overlaps is not counted and comes back in `rekapNotes` for a banner, since its counts cannot be cut by date. A rekap
+    Cabang with no file in range shows dashes (`rekapMissing`), and its day-derived columns are dashes too.
+  - The per-period cut and the Cabang/department/grand totals add the new figures; rekap people are left out of the
+    per-period cut (no days). CSV appends `Alpa, Izin, Sakit, Telat, Potongan (Rp), Zona, Sumber` after the old columns.
+  - Screen columns: Zona, Hadir, Alpa, Izin, Sakit, Telat, Potongan, Pulang cepat, Cuti lain, Belum ada data, Jam kerja
+    ("Terlambat" and "Tidak hadir" are now Telat and Alpa).
+
 - **2026-10-26 (branch rekapitulasi import, plan step 4).** Migration `create_attendance_rekaps_tables`:
   `attendance_rekaps` (Cabang, dates, `status` draft | confirmed | superseded) and `attendance_rekap_rows` (the
   counts, `file_potongan`, the app's `computed_potongan`, `match_status` from `RekapMatch`).
@@ -73,6 +94,8 @@ listed in the checklist below. Nothing here is committed yet: changes are left f
     upload with its row number. Fixture: `tests/Fixtures/rekap-cabang.xls`.
   - `ImportRekap` stores a **draft** and matches NAMA to employees **of the chosen Cabang only** (case and punctuation
     ignored; one active match = matched, none = unmatched, several = ambiguous; one employee is never tied to two lines).
+    Linking **by hand** offers everyone in the Cabang's company (the Cabang's own people first, others with the Cabang
+    they are filed under), because a name nobody in the Cabang has is usually a profile still filed under another one.
     `ConfirmRekap` refuses while a line is unmatched or ambiguous, then replaces a confirmed file for the same Cabang
     and dates. Overlapping other dates are warned about, not blocked.
   - `PotonganCalculator` + `attendance.potongan` in config: rate by Zona x (Alpa + Izin) + half the rate x Telat; Sakit

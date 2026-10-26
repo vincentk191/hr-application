@@ -70,22 +70,30 @@ class AttendanceRecapController extends Controller
                 'teams' => $roster->teamLeads($request->user()),
             ],
             'dataThrough' => $result['dataThrough'],
+            'rekapNotes' => $result['rekapNotes'],
             'capture' => $capture->resolve(),
         ]);
     }
 
     /**
-     * @param  array{rows: list<array<string, mixed>>, branches: list<array<string, mixed>>, departments: list<array<string, mixed>>, periods: list<array<string, mixed>>, total: array<string, int|float>, dataThrough: string|null}  $result
+     * @param  array{rows: list<array<string, mixed>>, branches: list<array<string, mixed>>, departments: list<array<string, mixed>>, periods: list<array<string, mixed>>, total: array<string, int|float>, dataThrough: string|null, rekapNotes: list<array{branch: string|null, from: string, to: string}>}  $result
      * @param  array<string, mixed>  $filters
      */
     private function export(array $result, array $filters): StreamedResponse
     {
         $hours = fn (int $minutes): string => number_format($minutes / 60, 2, '.', '');
 
-        $header = ['Karyawan', 'ID', 'Cabang', 'Departemen', 'Hadir', 'Terlambat', 'Pulang cepat', 'Tidak hadir', 'Cuti', 'Belum ada data', 'Jam kerja'];
+        $header = [
+            'Karyawan', 'ID', 'Cabang', 'Departemen', 'Hadir', 'Terlambat', 'Pulang cepat', 'Tidak hadir', 'Cuti', 'Belum ada data', 'Jam kerja',
+            'Alpa', 'Izin', 'Sakit', 'Telat', 'Potongan (Rp)', 'Zona', 'Sumber',
+        ];
 
+        // Alpa, Izin, Sakit, Telat and the deduction; from the scanner's days or a confirmed rekapitulasi.
+        // The Zona and source belong to a person, so a Cabang or department line leaves them empty.
         $figures = fn (array $row): array => [
             $row['present'], $row['late'], $row['earlyLeave'], $row['absent'], $row['leave'], $row['noData'], $hours((int) $row['minutes']),
+            $row['alpa'], $row['izin'], $row['sakit'], $row['telat'], $row['potongan'],
+            $row['zona'] ?? '', isset($row['source']) ? ($row['source'] === 'rekap' ? ($row['rekapMissing'] ? 'rekap (belum ada)' : 'rekap') : 'pemindai') : '',
         ];
 
         $lines = [

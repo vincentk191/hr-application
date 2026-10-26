@@ -1,4 +1,5 @@
 import { Form, Head, router } from '@inertiajs/react';
+import { useState } from 'react';
 import InputError from '@/components/input-error';
 import LimitedFileInput from '@/components/limited-file-input';
 import { Badge } from '@/components/ui/badge';
@@ -40,6 +41,9 @@ type Props = {
     maps: EnrolMapRow[];
     employees: EmployeeOption[];
 };
+
+/** The two things HR uploads: a scanner's Laporan Absensi, or a Cabang's rekapitulasi. */
+type ImportTab = 'scanner' | 'rekap';
 
 const selectClasses =
     'border-input bg-card h-10 rounded-xl border px-3 text-sm';
@@ -555,9 +559,10 @@ function AddMapCard({
 }
 
 /**
- * The attendance data page (ATT-DEV): how current the scanner log is, the upload that refreshes
- * it, scanner IDs waiting to be matched to employees, and the matches already made. Times are
- * shown in the scanner's own timezone, as that is what people compare them against.
+ * The attendance data page (ATT-DEV), one tab per kind of upload. The scanner tab: how current the
+ * scanner log is, the upload that refreshes it, scanner IDs waiting to be matched to employees, and the
+ * matches already made. The rekapitulasi tab: the Cabang that send one, the upload and its history.
+ * Times are shown in the scanner's own timezone, as that is what people compare them against.
  */
 export default function AttendanceDevice({
     status,
@@ -572,259 +577,317 @@ export default function AttendanceDevice({
     maps,
     employees,
 }: Props) {
+    // ?tab=rekap opens straight onto the rekapitulasi, so the preview page can send people back to it.
+    const [tab, setTab] = useState<ImportTab>(() =>
+        typeof window !== 'undefined' &&
+        new URLSearchParams(window.location.search).get('tab') === 'rekap'
+            ? 'rekap'
+            : 'scanner',
+    );
+    const drafts = rekaps.filter((rekap) => rekap.status === 'draft').length;
+
     return (
         <>
             <Head title="Data absensi" />
 
             <div className="flex flex-col gap-4 p-4">
-                <StatusCard status={status} />
+                <nav className="pill-tabs flex-nowrap gap-0.5 md:flex-wrap md:gap-1">
+                    <button
+                        type="button"
+                        onClick={() => setTab('scanner')}
+                        data-on={tab === 'scanner'}
+                        className="min-w-0 flex-1 truncate px-1 text-[11px] tracking-normal md:flex-none md:px-4 md:text-xs md:tracking-wide"
+                    >
+                        Laporan Absensi (pemindai)
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setTab('rekap')}
+                        data-on={tab === 'rekap'}
+                        className="min-w-0 flex-1 truncate px-1 text-[11px] tracking-normal md:flex-none md:px-4 md:text-xs md:tracking-wide"
+                    >
+                        Rekapitulasi cabang
+                        {drafts > 0 ? ` (${drafts} draf)` : ''}
+                    </button>
+                </nav>
 
-                {agents !== null && <AgentsCard agents={agents} />}
+                {tab === 'scanner' && (
+                    <>
+                        <StatusCard status={status} />
 
-                <UploadCard
-                    lastDeviceSn={lastDeviceSn}
-                    knownDevices={knownDevices}
-                />
+                        {agents !== null && <AgentsCard agents={agents} />}
 
-                <RekapCard branches={rekapBranches} rekaps={rekaps} />
+                        <UploadCard
+                            lastDeviceSn={lastDeviceSn}
+                            knownDevices={knownDevices}
+                        />
 
-                <section className="surface">
-                    <div className="p-4">
-                        <h2 className="font-medium">
-                            ID menunggu pemetaan ({waiting.length})
-                        </h2>
-                        <p className="text-sm text-muted-foreground">
-                            Scan dari ID yang belum dipetakan ke karyawan
-                            disimpan, tidak dibuang. Setelah dipetakan, scan
-                            tersebut otomatis tercatat sebagai absensi.
-                        </p>
-                    </div>
-                    {waiting.length === 0 ? (
-                        <p className="border-t p-4 text-sm text-muted-foreground">
-                            Tidak ada ID yang menunggu.
-                        </p>
-                    ) : (
-                        <div className="overflow-x-auto border-t">
-                            <table className="w-full text-sm">
-                                <thead className="bg-muted/50 text-left">
-                                    <tr>
-                                        <th className="p-3 font-medium">PIN</th>
-                                        <th className="p-3 font-medium">SN</th>
-                                        <th className="p-3 font-medium">
-                                            Scan
-                                        </th>
-                                        <th className="p-3 font-medium">
-                                            Rentang
-                                        </th>
-                                        <th className="p-3 font-medium">
-                                            Karyawan
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {waiting.map((row) => (
-                                        <WaitingRow
-                                            key={`${row.deviceSn}|${row.pin}`}
-                                            row={row}
-                                            employees={employees}
-                                        />
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </section>
+                        <section className="surface">
+                            <div className="p-4">
+                                <h2 className="font-medium">
+                                    ID menunggu pemetaan ({waiting.length})
+                                </h2>
+                                <p className="text-sm text-muted-foreground">
+                                    Scan dari ID yang belum dipetakan ke
+                                    karyawan disimpan, tidak dibuang. Setelah
+                                    dipetakan, scan tersebut otomatis tercatat
+                                    sebagai absensi.
+                                </p>
+                            </div>
+                            {waiting.length === 0 ? (
+                                <p className="border-t p-4 text-sm text-muted-foreground">
+                                    Tidak ada ID yang menunggu.
+                                </p>
+                            ) : (
+                                <div className="overflow-x-auto border-t">
+                                    <table className="w-full text-sm">
+                                        <thead className="bg-muted/50 text-left">
+                                            <tr>
+                                                <th className="p-3 font-medium">
+                                                    PIN
+                                                </th>
+                                                <th className="p-3 font-medium">
+                                                    SN
+                                                </th>
+                                                <th className="p-3 font-medium">
+                                                    Scan
+                                                </th>
+                                                <th className="p-3 font-medium">
+                                                    Rentang
+                                                </th>
+                                                <th className="p-3 font-medium">
+                                                    Karyawan
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {waiting.map((row) => (
+                                                <WaitingRow
+                                                    key={`${row.deviceSn}|${row.pin}`}
+                                                    row={row}
+                                                    employees={employees}
+                                                />
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </section>
 
-                <AddMapCard lastDeviceSn={lastDeviceSn} employees={employees} />
+                        <AddMapCard
+                            lastDeviceSn={lastDeviceSn}
+                            employees={employees}
+                        />
 
-                <section className="surface">
-                    <h2 className="p-4 font-medium">
-                        Pemetaan ID ({maps.length})
-                    </h2>
-                    {maps.length === 0 ? (
-                        <p className="border-t p-4 text-sm text-muted-foreground">
-                            Belum ada pemetaan.
-                        </p>
-                    ) : (
-                        <div className="overflow-x-auto border-t">
-                            <table className="w-full text-sm">
-                                <thead className="bg-muted/50 text-left">
-                                    <tr>
-                                        <th className="p-3 font-medium">PIN</th>
-                                        <th className="p-3 font-medium">SN</th>
-                                        <th className="p-3 font-medium">
-                                            Karyawan
-                                        </th>
-                                        <th className="p-3 font-medium">
-                                            Berlaku
-                                        </th>
-                                        <th className="p-3" />
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {maps.map((map) => (
-                                        <tr key={map.id} className="border-t">
-                                            <td className="p-3 font-mono">
-                                                {map.pin}
-                                            </td>
-                                            <td className="p-3">
-                                                {map.deviceSn}
-                                            </td>
-                                            <td className="p-3">
-                                                {map.employee} (
-                                                {map.employeeNumber})
-                                                {map.companyCode
-                                                    ? ` · ${map.companyCode}`
-                                                    : ''}
-                                            </td>
-                                            <td className="p-3 whitespace-nowrap">
-                                                {map.validFrom ?? '—'} →{' '}
-                                                {map.validTo ?? '—'}
-                                            </td>
-                                            <td className="p-3 text-right">
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    className="text-destructive"
-                                                    onClick={() => {
-                                                        if (
-                                                            window.confirm(
-                                                                `Hapus pemetaan PIN ${map.pin}? Scan yang sudah tercatat tetap ada.`,
-                                                            )
-                                                        ) {
-                                                            router.delete(
-                                                                destroy(map.id)
-                                                                    .url,
-                                                                {
-                                                                    preserveScroll: true,
-                                                                },
-                                                            );
-                                                        }
-                                                    }}
+                        <section className="surface">
+                            <h2 className="p-4 font-medium">
+                                Pemetaan ID ({maps.length})
+                            </h2>
+                            {maps.length === 0 ? (
+                                <p className="border-t p-4 text-sm text-muted-foreground">
+                                    Belum ada pemetaan.
+                                </p>
+                            ) : (
+                                <div className="overflow-x-auto border-t">
+                                    <table className="w-full text-sm">
+                                        <thead className="bg-muted/50 text-left">
+                                            <tr>
+                                                <th className="p-3 font-medium">
+                                                    PIN
+                                                </th>
+                                                <th className="p-3 font-medium">
+                                                    SN
+                                                </th>
+                                                <th className="p-3 font-medium">
+                                                    Karyawan
+                                                </th>
+                                                <th className="p-3 font-medium">
+                                                    Berlaku
+                                                </th>
+                                                <th className="p-3" />
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {maps.map((map) => (
+                                                <tr
+                                                    key={map.id}
+                                                    className="border-t"
                                                 >
-                                                    Hapus
-                                                </Button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </section>
-
-                <section className="surface">
-                    <h2 className="p-4 font-medium">
-                        Riwayat impor{' '}
-                        <span className="text-sm font-normal text-muted-foreground">
-                            (waktu {timezone})
-                        </span>
-                    </h2>
-                    {imports.length === 0 ? (
-                        <p className="border-t p-4 text-sm text-muted-foreground">
-                            Belum ada impor.
-                        </p>
-                    ) : (
-                        <div className="overflow-x-auto border-t">
-                            <table className="w-full text-sm">
-                                <thead className="bg-muted/50 text-left">
-                                    <tr>
-                                        <th className="p-3 font-medium">
-                                            Diunggah
-                                        </th>
-                                        <th className="p-3 font-medium">
-                                            Berkas
-                                        </th>
-                                        <th className="p-3 font-medium">
-                                            Rentang scan
-                                        </th>
-                                        <th className="p-3 font-medium">
-                                            Baru
-                                        </th>
-                                        <th className="p-3 font-medium">
-                                            Duplikat
-                                        </th>
-                                        <th className="p-3 font-medium">
-                                            Menunggu
-                                        </th>
-                                        <th className="p-3 font-medium">
-                                            Ditolak
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {imports.map((row) => (
-                                        <tr
-                                            key={row.id}
-                                            className="border-t align-top"
-                                        >
-                                            <td className="p-3 whitespace-nowrap">
-                                                {formatDateTime(row.at)}
-                                                <div className="text-xs text-muted-foreground">
-                                                    {row.by ?? '—'}
-                                                </div>
-                                            </td>
-                                            <td className="p-3">
-                                                {row.file ?? '—'}
-                                                <div className="text-xs text-muted-foreground">
-                                                    SN {row.deviceSn} ·{' '}
-                                                    {row.rowsTotal} baris
-                                                </div>
-                                            </td>
-                                            <td className="p-3 whitespace-nowrap">
-                                                {formatDateTime(
-                                                    row.firstScanAt,
-                                                )}{' '}
-                                                –{' '}
-                                                {formatDateTime(row.lastScanAt)}
-                                            </td>
-                                            <td className="p-3">
-                                                {row.accepted}
-                                                {row.autoMapped > 0 && (
-                                                    <div className="text-xs text-muted-foreground">
-                                                        {row.autoMapped} PIN
-                                                        dipetakan lewat NIP
-                                                    </div>
-                                                )}
-                                            </td>
-                                            <td className="p-3">
-                                                {row.duplicates}
-                                            </td>
-                                            <td className="p-3">
-                                                {row.unmapped}
-                                            </td>
-                                            <td className="p-3">
-                                                {row.rejected}
-                                                {row.errors.length > 0 && (
-                                                    <details className="mt-1 text-xs text-muted-foreground">
-                                                        <summary className="cursor-pointer">
-                                                            Lihat
-                                                        </summary>
-                                                        <ul className="mt-1 list-disc pl-4">
-                                                            {row.errors.map(
-                                                                (message) => (
-                                                                    <li
-                                                                        key={
-                                                                            message
-                                                                        }
-                                                                    >
+                                                    <td className="p-3 font-mono">
+                                                        {map.pin}
+                                                    </td>
+                                                    <td className="p-3">
+                                                        {map.deviceSn}
+                                                    </td>
+                                                    <td className="p-3">
+                                                        {map.employee} (
+                                                        {map.employeeNumber})
+                                                        {map.companyCode
+                                                            ? ` · ${map.companyCode}`
+                                                            : ''}
+                                                    </td>
+                                                    <td className="p-3 whitespace-nowrap">
+                                                        {map.validFrom ?? '—'} →{' '}
+                                                        {map.validTo ?? '—'}
+                                                    </td>
+                                                    <td className="p-3 text-right">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="text-destructive"
+                                                            onClick={() => {
+                                                                if (
+                                                                    window.confirm(
+                                                                        `Hapus pemetaan PIN ${map.pin}? Scan yang sudah tercatat tetap ada.`,
+                                                                    )
+                                                                ) {
+                                                                    router.delete(
+                                                                        destroy(
+                                                                            map.id,
+                                                                        ).url,
                                                                         {
-                                                                            message
-                                                                        }
-                                                                    </li>
-                                                                ),
-                                                            )}
-                                                        </ul>
-                                                    </details>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </section>
+                                                                            preserveScroll: true,
+                                                                        },
+                                                                    );
+                                                                }
+                                                            }}
+                                                        >
+                                                            Hapus
+                                                        </Button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </section>
+
+                        <section className="surface">
+                            <h2 className="p-4 font-medium">
+                                Riwayat impor{' '}
+                                <span className="text-sm font-normal text-muted-foreground">
+                                    (waktu {timezone})
+                                </span>
+                            </h2>
+                            {imports.length === 0 ? (
+                                <p className="border-t p-4 text-sm text-muted-foreground">
+                                    Belum ada impor.
+                                </p>
+                            ) : (
+                                <div className="overflow-x-auto border-t">
+                                    <table className="w-full text-sm">
+                                        <thead className="bg-muted/50 text-left">
+                                            <tr>
+                                                <th className="p-3 font-medium">
+                                                    Diunggah
+                                                </th>
+                                                <th className="p-3 font-medium">
+                                                    Berkas
+                                                </th>
+                                                <th className="p-3 font-medium">
+                                                    Rentang scan
+                                                </th>
+                                                <th className="p-3 font-medium">
+                                                    Baru
+                                                </th>
+                                                <th className="p-3 font-medium">
+                                                    Duplikat
+                                                </th>
+                                                <th className="p-3 font-medium">
+                                                    Menunggu
+                                                </th>
+                                                <th className="p-3 font-medium">
+                                                    Ditolak
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {imports.map((row) => (
+                                                <tr
+                                                    key={row.id}
+                                                    className="border-t align-top"
+                                                >
+                                                    <td className="p-3 whitespace-nowrap">
+                                                        {formatDateTime(row.at)}
+                                                        <div className="text-xs text-muted-foreground">
+                                                            {row.by ?? '—'}
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-3">
+                                                        {row.file ?? '—'}
+                                                        <div className="text-xs text-muted-foreground">
+                                                            SN {row.deviceSn} ·{' '}
+                                                            {row.rowsTotal}{' '}
+                                                            baris
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-3 whitespace-nowrap">
+                                                        {formatDateTime(
+                                                            row.firstScanAt,
+                                                        )}{' '}
+                                                        –{' '}
+                                                        {formatDateTime(
+                                                            row.lastScanAt,
+                                                        )}
+                                                    </td>
+                                                    <td className="p-3">
+                                                        {row.accepted}
+                                                        {row.autoMapped > 0 && (
+                                                            <div className="text-xs text-muted-foreground">
+                                                                {row.autoMapped}{' '}
+                                                                PIN dipetakan
+                                                                lewat NIP
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    <td className="p-3">
+                                                        {row.duplicates}
+                                                    </td>
+                                                    <td className="p-3">
+                                                        {row.unmapped}
+                                                    </td>
+                                                    <td className="p-3">
+                                                        {row.rejected}
+                                                        {row.errors.length >
+                                                            0 && (
+                                                            <details className="mt-1 text-xs text-muted-foreground">
+                                                                <summary className="cursor-pointer">
+                                                                    Lihat
+                                                                </summary>
+                                                                <ul className="mt-1 list-disc pl-4">
+                                                                    {row.errors.map(
+                                                                        (
+                                                                            message,
+                                                                        ) => (
+                                                                            <li
+                                                                                key={
+                                                                                    message
+                                                                                }
+                                                                            >
+                                                                                {
+                                                                                    message
+                                                                                }
+                                                                            </li>
+                                                                        ),
+                                                                    )}
+                                                                </ul>
+                                                            </details>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </section>
+                    </>
+                )}
+
+                {tab === 'rekap' && (
+                    <RekapCard branches={rekapBranches} rekaps={rekaps} />
+                )}
             </div>
         </>
     );

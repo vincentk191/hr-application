@@ -422,7 +422,7 @@ export default function AttendanceRekapShow({
 
 AttendanceRekapShow.layout = {
     breadcrumbs: [
-        { title: 'Data absensi', href: device() },
+        { title: 'Data absensi', href: device({ query: { tab: 'rekap' } }) },
         { title: 'Periksa rekapitulasi', href: '#' },
     ] satisfies BreadcrumbItem[],
 };

@@ -82,7 +82,7 @@ class AttendanceRekapController extends Controller
             'notInFile' => $draft ? $this->notInFile($rekap, $rows) : [],
             'replaces' => $draft && $this->identical($rekap)->exists(),
             'overlaps' => $draft ? $this->overlapping($rekap) : [],
-            'employees' => $draft ? $this->branchEmployees($rekap->branch_id) : [],
+            'employees' => $draft ? $this->companyEmployees($rekap) : [],
         ]);
     }
 
@@ -111,12 +111,12 @@ class AttendanceRekapController extends Controller
         }
 
         $employee = Employee::acrossCompanies()
-            ->where('branch_id', $rekap->branch_id)
+            ->where('company_id', $rekap->company_id)
             ->with('position:id,name')
             ->find($data['employee_id'] ?? null);
 
         if ($employee === null) {
-            throw ValidationException::withMessages(['employee_id' => 'Pilih karyawan dari cabang ini.']);
+            throw ValidationException::withMessages(['employee_id' => 'Pilih karyawan dari perusahaan ini.']);
         }
 
         if ($rekap->rows()->where('employee_id', $employee->id)->whereKeyNot($line->id)->exists()) {
@@ -156,7 +156,7 @@ class AttendanceRekapController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Draf rekapitulasi dibuang.']);
 
-        return to_route('attendance.device');
+        return to_route('attendance.device', ['tab' => 'rekap']);
     }
 
     private function find(int $id): AttendanceRekap
@@ -255,19 +255,27 @@ class AttendanceRekapController extends Controller
     }
 
     /**
+     * Who a line can be tied to by hand: anyone in the company, the Cabang's own people first. A name that
+     * found nobody in the Cabang is usually someone whose profile is still filed under another Cabang, so
+     * the list must reach them; the Cabang each one is filed under is shown.
+     *
      * @return list<array{id: int, label: string}>
      */
-    private function branchEmployees(int $branchId): array
+    private function companyEmployees(AttendanceRekap $rekap): array
     {
         return Employee::acrossCompanies()
-            ->where('branch_id', $branchId)
+            ->where('company_id', $rekap->company_id)
+            ->with('branch:id,name')
             ->orderBy('full_name')
-            ->get(['id', 'full_name', 'employee_number', 'employment_status'])
+            ->get(['id', 'branch_id', 'full_name', 'employee_number', 'employment_status'])
+            ->sortBy(fn (Employee $employee): int => $employee->branch_id === $rekap->branch_id ? 0 : 1)
             ->map(fn (Employee $employee): array => [
                 'id' => $employee->id,
                 'label' => "{$employee->full_name} ({$employee->employee_number})"
+                    .($employee->branch_id === $rekap->branch_id ? '' : " · {$employee->branch?->name}")
                     .($employee->employment_status === EmploymentStatus::Active ? '' : ' · nonaktif'),
             ])
+            ->values()
             ->all();
     }
 }

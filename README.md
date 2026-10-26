@@ -212,7 +212,8 @@ companies. Then:
    - **Cabang:** each has **Sumber absensi**, *Pemindai* (head office: HR uploads the Laporan Absensi from the machine,
      the default) or *Rekapitulasi* (a branch without a machine: its PIC sends a per-period rekap). HR can change this;
      only the System Admin adds, renames or removes a Cabang.
-   - **Rekapitulasi cabang:** on **Data absensi**, pick the Cabang and upload its "Rekapitulasi absen karyawan" Excel
+   - **Rekapitulasi cabang:** on **Data absensi**, open the **Rekapitulasi cabang** tab (the other tab is the scanner's
+     Laporan Absensi), pick the Cabang and upload its "Rekapitulasi absen karyawan" Excel
      file. It opens as a draft: names are matched to that Cabang's employees, unmatched ones are linked by hand or
      skipped, and differences in Zona or in the deduction against the profile are marked in red (the app's figure is
      used). Nothing counts until **Konfirmasi rekapitulasi**; confirming a corrected file for the same Cabang and dates

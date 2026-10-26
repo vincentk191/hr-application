@@ -29,6 +29,14 @@ type Figures = {
     noData: number;
     attended: number;
     minutes: number;
+    /** Days of Alpa, Izin, Sakit and Telat, and the deduction in rupiah. */
+    alpa: number;
+    izin: number;
+    sakit: number;
+    telat: number;
+    /** Approved leave that is neither Izin nor Sakit, such as annual leave. */
+    otherLeave: number;
+    potongan: number;
 };
 
 type Row = Figures & {
@@ -37,6 +45,11 @@ type Row = Figures & {
     number: string;
     branch: string | null;
     department: string | null;
+    zona: string;
+    /** Where the counts come from: the scanner's days, or a Cabang's rekapitulasi. */
+    source: 'scanner' | 'rekap';
+    /** A rekapitulasi Cabang with no confirmed file inside the range. */
+    rekapMissing: boolean;
 };
 
 type GroupTotal = Figures & { name: string | null; employees: number };
@@ -64,6 +77,8 @@ type Props = {
         teams: { id: number; full_name: string }[];
     };
     dataThrough: string | null;
+    /** Confirmed rekapitulasi that only partly overlap the range, and so are not counted. */
+    rekapNotes: { branch: string | null; from: string; to: string }[];
     capture: CaptureStatus;
 };
 
@@ -76,6 +91,8 @@ type TableRow = {
     subtitle: string;
     href?: ReturnType<typeof employeeShow>;
     figures: Figures;
+    /** Only on a line that is one person. */
+    person?: Pick<Row, 'zona' | 'source' | 'rekapMissing'>;
 };
 
 const VIEWS: { value: View; label: string; column: string }[] = [
@@ -88,19 +105,52 @@ const VIEWS: { value: View; label: string; column: string }[] = [
 const selectClasses =
     'border-input bg-card h-10 rounded-xl border px-3 text-sm';
 
-function FigureCells({ figures }: { figures: Figures }) {
+const rupiah = new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    maximumFractionDigits: 0,
+});
+
+/**
+ * The figures of one line. A person counted from a rekapitulasi has no days, so what only days can
+ * say (present, early leave, other leave, no data, hours) is a dash; one whose Cabang has no confirmed
+ * file in the range has nothing at all yet.
+ */
+function FigureCells({
+    figures,
+    person,
+}: {
+    figures: Figures;
+    person?: TableRow['person'];
+}) {
+    const fromRekap = person?.source === 'rekap';
+    const missing = fromRekap && person?.rekapMissing;
+    const dash = <span className="text-muted-foreground">—</span>;
+
     return (
         <>
-            <td className="p-2 text-right">{figures.present}</td>
-            <td className="p-2 text-right">{figures.late}</td>
-            <td className="p-2 text-right">{figures.earlyLeave}</td>
-            <td className="p-2 text-right">{figures.absent}</td>
-            <td className="p-2 text-right">{figures.leave}</td>
+            <td className="p-2">{person ? person.zona : dash}</td>
+            <td className="p-2 text-right">
+                {fromRekap ? dash : figures.present}
+            </td>
+            <td className="p-2 text-right">{missing ? dash : figures.alpa}</td>
+            <td className="p-2 text-right">{missing ? dash : figures.izin}</td>
+            <td className="p-2 text-right">{missing ? dash : figures.sakit}</td>
+            <td className="p-2 text-right">{missing ? dash : figures.telat}</td>
+            <td className="p-2 text-right font-medium whitespace-nowrap">
+                {missing ? dash : rupiah.format(figures.potongan)}
+            </td>
+            <td className="p-2 text-right">
+                {fromRekap ? dash : figures.earlyLeave}
+            </td>
+            <td className="p-2 text-right">
+                {fromRekap ? dash : figures.otherLeave}
+            </td>
             <td className="p-2 text-right text-muted-foreground">
-                {figures.noData}
+                {fromRekap ? dash : figures.noData}
             </td>
             <td className="p-2 text-right whitespace-nowrap">
-                {formatMinutes(figures.minutes)}
+                {fromRekap ? dash : formatMinutes(figures.minutes)}
             </td>
         </>
     );
@@ -108,11 +158,15 @@ function FigureCells({ figures }: { figures: Figures }) {
 
 const HEAD = (
     <>
+        <th className="p-2 font-medium">Zona</th>
         <th className="p-2 text-right font-medium">Hadir</th>
-        <th className="p-2 text-right font-medium">Terlambat</th>
+        <th className="p-2 text-right font-medium">Alpa</th>
+        <th className="p-2 text-right font-medium">Izin</th>
+        <th className="p-2 text-right font-medium">Sakit</th>
+        <th className="p-2 text-right font-medium">Telat</th>
+        <th className="p-2 text-right font-medium">Potongan</th>
         <th className="p-2 text-right font-medium">Pulang cepat</th>
-        <th className="p-2 text-right font-medium">Tidak hadir</th>
-        <th className="p-2 text-right font-medium">Cuti</th>
+        <th className="p-2 text-right font-medium">Cuti lain</th>
         <th className="p-2 text-right font-medium">Belum ada data</th>
         <th className="p-2 text-right font-medium">Jam kerja</th>
     </>
@@ -136,7 +190,7 @@ function RecapTable({
     empty: string;
 }) {
     return (
-        <table className="w-full min-w-[48rem] table-fixed text-sm">
+        <table className="w-full min-w-[64rem] table-fixed text-sm">
             <thead className="bg-muted/50 text-left">
                 <tr>
                     <th className="sticky left-0 z-10 w-48 bg-muted p-2 font-medium sm:w-1/4">
@@ -149,7 +203,7 @@ function RecapTable({
                 {rows.length === 0 && (
                     <tr>
                         <td
-                            colSpan={8}
+                            colSpan={12}
                             className="p-6 text-center text-muted-foreground"
                         >
                             {empty}
@@ -171,9 +225,16 @@ function RecapTable({
                             )}
                             <div className="text-xs text-muted-foreground">
                                 {row.subtitle}
+                                {row.person?.source === 'rekap' &&
+                                    (row.person.rekapMissing
+                                        ? ' · belum ada rekapitulasi'
+                                        : ' · dari rekapitulasi')}
                             </div>
                         </td>
-                        <FigureCells figures={row.figures} />
+                        <FigureCells
+                            figures={row.figures}
+                            person={row.person}
+                        />
                     </tr>
                 ))}
             </tbody>
@@ -204,6 +265,7 @@ export default function AttendanceRecap({
     filters,
     options,
     dataThrough,
+    rekapNotes,
     capture,
 }: Props) {
     const [search, setSearch] = useState(filters.search);
@@ -242,6 +304,7 @@ export default function AttendanceRecap({
                     row.number,
                 href: employeeShow(row.id),
                 figures: row,
+                person: row,
             })),
             totalLabel: `Total (${total.employees} karyawan)`,
             empty: 'Tidak ada karyawan yang cocok.',
@@ -327,6 +390,20 @@ export default function AttendanceRecap({
                             : `baru sampai ${dataThrough}`}
                         . Hari setelahnya dihitung "belum ada data", bukan tidak
                         hadir.
+                    </p>
+                )}
+
+                {rekapNotes.length > 0 && (
+                    <p className="surface border-amber-500/60 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+                        Rekapitulasi{' '}
+                        {rekapNotes
+                            .map(
+                                (note) =>
+                                    `${note.branch ?? 'cabang'} (${note.from} s/d ${note.to})`,
+                            )
+                            .join('; ')}{' '}
+                        hanya sebagian berada di rentang ini, jadi tidak
+                        dihitung. Pilih rentang yang memuat seluruh periodenya.
                     </p>
                 )}
 
@@ -497,9 +574,16 @@ export default function AttendanceRecap({
                 })}
 
                 <p className="text-xs text-muted-foreground">
-                    Angka dalam hari-orang. Jam kerja = scan pertama sampai
-                    terakhir pada hari yang punya lebih dari satu scan, tanpa
-                    memotong istirahat. Data sampai {dataThrough ?? '—'}.
+                    Angka dalam hari-orang. Alpa = hari tidak hadir; Izin dan
+                    Sakit = cuti yang disetujui menurut jenis pengajuannya;
+                    Telat = hari terlambat. Potongan = tarif Zona × (Alpa +
+                    Izin) + setengah tarif × Telat; Sakit tidak dipotong, dan
+                    Supervisor tidak dipotong. Cabang tanpa mesin dibaca dari
+                    rekapitulasi yang sudah dikonfirmasi dan seluruh periodenya
+                    ada di dalam rentang; rekapitulasi tidak ikut tampilan per
+                    periode. Jam kerja = scan pertama sampai terakhir pada hari
+                    yang punya lebih dari satu scan, tanpa memotong istirahat.
+                    Data sampai {dataThrough ?? '—'}.
                 </p>
             </div>
         </>

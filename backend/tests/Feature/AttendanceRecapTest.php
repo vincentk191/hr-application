@@ -1,13 +1,18 @@
 <?php
 
+use App\Enums\AttendanceSource;
 use App\Enums\Role;
 use App\Models\AttendanceEnrolMap;
 use App\Models\AttendancePunch;
+use App\Models\AttendanceRekap;
+use App\Models\AttendanceRekapRow;
 use App\Models\Branch;
 use App\Models\Company;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
+use App\Models\Position;
+use App\Models\RequestType;
 use App\Models\User;
 use App\Support\CsvDownload;
 use Carbon\CarbonImmutable;
@@ -319,4 +324,120 @@ it('makes the period totals add up to the grand total, and exports them', functi
     $csv = $this->actingAs($this->hr)->get('/attendance/recap?from=2026-10-01&to=2026-10-31&export=csv')->streamedContent();
 
     expect($csv)->toContain('Per periode')->toContain('5 Okt – 11 Okt');
+});
+
+// --- Alpa, Izin, Sakit, Telat, Zona and Potongan ---
+
+/**
+ * Approved leave of a kind for one working day, filed and approved by HR.
+ */
+function recapLeave(Employee $employee, string $type, string $day): void
+{
+    test()->actingAs(test()->hr)->post(route('leave-requests.store'), [
+        'employee_id' => $employee->id, 'leave_type' => $type, 'start_on' => $day, 'end_on' => $day, 'reason' => 'Perlu',
+        'attachments' => $type === 'sick' ? [UploadedFile::fake()->create('surat.pdf', 10, 'application/pdf')] : [],
+    ])->assertSessionHasNoErrors();
+
+    test()->actingAs(test()->hr)->put(route('leave-requests.decision', LeaveRequest::latest('id')->firstOrFail()), ['decision' => 'approve'])->assertRedirect();
+}
+
+it('counts Alpa and Telat from the days, and prices them by the employee\'s Zona', function () {
+    recapData();
+    $this->dewi->update(['zona' => 'merah']);
+
+    $rows = collect($this->actingAs($this->hr)->get('/attendance/recap?from=2026-10-05&to=2026-10-06')->viewData('page')['props']['rows'])->keyBy('name');
+
+    // Sari: late on the 5th (half a Hijau day), absent on the 6th (a whole one). Dewi: absent on the 6th, Merah.
+    expect($rows['Sari'])->toMatchArray(['alpa' => 1, 'telat' => 1, 'izin' => 0, 'sakit' => 0, 'zona' => 'Hijau', 'source' => 'scanner', 'potongan' => 75000])
+        ->and($rows['Dewi'])->toMatchArray(['alpa' => 1, 'zona' => 'Merah', 'potongan' => 100000])
+        ->and($rows['Budi'])->toMatchArray(['alpa' => 0, 'telat' => 0, 'potongan' => 0]);
+
+    $total = $this->actingAs($this->hr)->get('/attendance/recap?from=2026-10-05&to=2026-10-06')->viewData('page')['props']['total'];
+
+    expect($total['potongan'])->toBe(175000)->and($total['alpa'])->toBe(2);
+});
+
+it('splits approved leave into Izin, Sakit and other leave by the kind of request', function () {
+    recapData();
+    RequestType::create(['label' => 'Izin pribadi', 'absence_kind' => 'izin', 'is_active' => true]);
+    RequestType::where('code', 'sick')->update(['max_back_days' => 30]);
+
+    recapLeave($this->budi, 'izin-pribadi', '2026-10-07');
+    recapLeave($this->sari, 'sick', '2026-10-08');
+    recapLeave($this->dewi, 'annual', '2026-10-09');
+
+    $rows = collect($this->actingAs($this->hr)->get('/attendance/recap?from=2026-10-05&to=2026-10-09')->viewData('page')['props']['rows'])->keyBy('name');
+
+    // Izin costs a whole day, Sakit nothing, and annual leave is neither.
+    expect($rows['Budi'])->toMatchArray(['izin' => 1, 'sakit' => 0, 'otherLeave' => 0, 'leave' => 1, 'potongan' => 50000])
+        ->and($rows['Sari'])->toMatchArray(['izin' => 0, 'sakit' => 1, 'otherLeave' => 0, 'alpa' => 1, 'telat' => 1, 'potongan' => 75000])
+        ->and($rows['Dewi'])->toMatchArray(['izin' => 0, 'sakit' => 0, 'otherLeave' => 1, 'leave' => 1, 'alpa' => 1]);
+});
+
+it('exempts a Supervisor from the deduction', function () {
+    recapData();
+    $supervisor = Position::factory()->forDepartment($this->fin)->create(['name' => 'Supervisor']);
+    $this->dewi->update(['position_id' => $supervisor->id]);
+
+    $dewi = collect($this->actingAs($this->hr)->get('/attendance/recap?from=2026-10-05&to=2026-10-06')->viewData('page')['props']['rows'])->firstWhere('name', 'Dewi');
+
+    expect($dewi['alpa'])->toBe(1)->and($dewi['potongan'])->toBe(0);
+});
+
+it('reads a Cabang that sends a rekapitulasi from its confirmed files inside the range', function () {
+    recapData();
+    $branch = Branch::factory()->forCompany($this->company)->create(['name' => 'Tangerang', 'attendance_source' => AttendanceSource::Rekap]);
+    $rina = Employee::factory()->forCompany($this->company)->create(['full_name' => 'Rina', 'branch_id' => $branch->id, 'joined_on' => '2020-01-01', 'zona' => 'merah']);
+
+    $rekap = fn (string $status, string $from, string $to) => AttendanceRekap::create([
+        'company_id' => $this->company->id, 'branch_id' => $branch->id, 'status' => $status, 'period_start' => $from, 'period_end' => $to,
+    ]);
+    $line = fn (AttendanceRekap $file, array $counts) => AttendanceRekapRow::create([
+        'attendance_rekap_id' => $file->id, 'employee_id' => $rina->id, 'row_number' => 1, 'name' => 'RINA', 'match_status' => 'matched', ...$counts,
+    ]);
+
+    $line($rekap('confirmed', '2026-09-21', '2026-10-20'), ['alpa' => 1, 'izin' => 2, 'sakit' => 3, 'telat' => 4, 'computed_potongan' => 500000]);
+    // A draft counts for nothing.
+    $line($rekap('draft', '2026-09-21', '2026-10-20'), ['alpa' => 9, 'computed_potongan' => 900000]);
+
+    $props = $this->actingAs($this->hr)->get('/attendance/recap?from=2026-09-01&to=2026-10-31')->viewData('page')['props'];
+    $row = collect($props['rows'])->firstWhere('name', 'Rina');
+
+    expect($row)->toMatchArray([
+        'source' => 'rekap', 'rekapMissing' => false, 'zona' => 'Merah',
+        'alpa' => 1, 'izin' => 2, 'sakit' => 3, 'telat' => 4, 'potongan' => 500000,
+        // Nothing is counted from days for a Cabang without a scanner.
+        'present' => 0, 'noData' => 0,
+    ])
+        ->and($props['rekapNotes'])->toBe([])
+        ->and($props['total']['potongan'])->toBe(500000 + 125000 + 0)
+        ->and($props['branches'])->toHaveCount(2);
+
+    // A shorter range cuts the file's period in two: it is not counted, and the screen is told why.
+    $cut = $this->actingAs($this->hr)->get('/attendance/recap?from=2026-10-05&to=2026-10-06')->viewData('page')['props'];
+    $rina = collect($cut['rows'])->firstWhere('name', 'Rina');
+
+    expect($rina)->toMatchArray(['rekapMissing' => true, 'alpa' => 0, 'potongan' => 0])
+        ->and($cut['rekapNotes'])->toBe([['branch' => 'Tangerang', 'from' => '2026-09-21', 'to' => '2026-10-20']]);
+});
+
+it('leaves the Cabang that send a rekapitulasi out of the per-period totals', function () {
+    recapData();
+    $branch = Branch::factory()->forCompany($this->company)->create(['name' => 'Tangerang', 'attendance_source' => AttendanceSource::Rekap]);
+    Employee::factory()->forCompany($this->company)->create(['full_name' => 'Rina', 'branch_id' => $branch->id, 'joined_on' => '2020-01-01']);
+
+    $props = $this->actingAs($this->hr)->get('/attendance/recap?from=2026-10-01&to=2026-10-31')->viewData('page')['props'];
+
+    // Rina has no scanner days, so no "no data" days are charged to the weeks either.
+    expect(collect($props['periods'])->sum('noData'))->toBe($props['total']['noData'])
+        ->and(collect($props['periods'])->sum('potongan'))->toBe($props['total']['potongan']);
+});
+
+it('exports the new columns', function () {
+    recapData();
+
+    $csv = $this->actingAs($this->hr)->get('/attendance/recap?from=2026-10-05&to=2026-10-06&export=csv')->streamedContent();
+
+    expect($csv)->toContain('Alpa,Izin,Sakit,Telat,"Potongan (Rp)",Zona,Sumber')
+        ->and($csv)->toContain('75000,Hijau,pemindai');
 });

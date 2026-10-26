@@ -256,11 +256,11 @@ it('will not confirm while a name has found nobody, until HR links or skips it',
     $staffC = $rekap->rows()->where('name', 'STAFF C')->firstOrFail();
     $staffG = $rekap->rows()->where('name', 'STAFF G')->firstOrFail();
 
-    // Linking someone already tied to another line is refused; a person of another Cabang is too.
+    // Linking someone already tied to another line is refused; a person of another company is too.
     $this->actingAs($this->hr)->put(route('attendance.rekaps.rows.update', [$rekap->id, $staffC->id]), ['employee_id' => $this->people['A']->id])
         ->assertSessionHasErrors('employee_id');
-    $outsider = Employee::factory()->forCompany($this->company)->create(['branch_id' => Branch::factory()->forCompany($this->company)->create(['name' => 'Medan'])->id]);
-    $this->actingAs($this->hr)->put(route('attendance.rekaps.rows.update', [$rekap->id, $staffC->id]), ['employee_id' => $outsider->id])
+    $foreign = Employee::factory()->forCompany(Company::factory()->create())->create();
+    $this->actingAs($this->hr)->put(route('attendance.rekaps.rows.update', [$rekap->id, $staffC->id]), ['employee_id' => $foreign->id])
         ->assertSessionHasErrors('employee_id');
 
     $this->actingAs($this->hr)->put(route('attendance.rekaps.rows.update', [$rekap->id, $staffC->id]), ['employee_id' => $this->people['C']->id])->assertRedirect();
@@ -310,11 +310,34 @@ it('points out a confirmed file for the same Cabang that overlaps other dates', 
         ->assertInertia(fn (Assert $page) => $page->where('replaces', false)->has('overlaps', 1)->where('overlaps.0.periodEnd', '2026-09-25'));
 });
 
+it('lets HR link a name to someone whose profile is filed under another Cabang of the company', function () {
+    // The Cabang has nobody of that name, but the person exists in the company under "Pusat".
+    $pusat = Branch::factory()->forCompany($this->company)->create(['name' => 'Pusat Jakarta']);
+    $this->people['C']->update(['branch_id' => $pusat->id]);
+
+    rekapUpload()->assertRedirect();
+    $rekap = AttendanceRekap::acrossCompanies()->firstOrFail();
+    $staffC = $rekap->rows()->where('name', 'STAFF C')->firstOrFail();
+
+    expect($staffC->match_status->value)->toBe('unmatched');
+
+    $this->actingAs($this->hr)->get(route('attendance.rekaps.show', $rekap->id))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('employees', 13)
+            // The Cabang's own people come first; the others say where they are filed.
+            ->where('employees.12.label', fn (string $label) => str_contains($label, 'Staff C') && str_contains($label, 'Pusat Jakarta')));
+
+    $this->actingAs($this->hr)->put(route('attendance.rekaps.rows.update', [$rekap->id, $staffC->id]), ['employee_id' => $this->people['C']->id])
+        ->assertSessionHasNoErrors();
+
+    expect($staffC->refresh()->employee_id)->toBe($this->people['C']->id);
+});
+
 it('throws a draft away', function () {
     rekapUpload();
     $draft = AttendanceRekap::acrossCompanies()->firstOrFail();
 
-    $this->actingAs($this->hr)->delete(route('attendance.rekaps.destroy', $draft->id))->assertRedirect(route('attendance.device'));
+    $this->actingAs($this->hr)->delete(route('attendance.rekaps.destroy', $draft->id))->assertRedirect(route('attendance.device', ['tab' => 'rekap']));
 
     expect(AttendanceRekap::acrossCompanies()->count())->toBe(0)
         ->and(AttendanceRekapRow::count())->toBe(0);
