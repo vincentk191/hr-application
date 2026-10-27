@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Actions\Fortify\ResetUserPassword;
 use App\Http\Responses\LoginResponse;
+use App\Http\Responses\PasswordConfirmedResponse;
 use App\Http\Responses\TwoFactorLoginResponse;
 use App\Listeners\LogAuthenticationEvents;
 use App\Models\Employee;
@@ -21,6 +22,7 @@ use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
+use Laravel\Fortify\Contracts\PasswordConfirmedResponse as PasswordConfirmedResponseContract;
 use Laravel\Fortify\Contracts\TwoFactorLoginResponse as TwoFactorLoginResponseContract;
 use Laravel\Fortify\Fortify;
 
@@ -37,6 +39,8 @@ class FortifyServiceProvider extends ServiceProvider
         // Signing in never lands anyone in the admin panel on its own.
         $this->app->singleton(LoginResponseContract::class, LoginResponse::class);
         $this->app->singleton(TwoFactorLoginResponseContract::class, TwoFactorLoginResponse::class);
+        // Confirming a password may lead to an admin panel page, which an Inertia visit cannot open on its own.
+        $this->app->singleton(PasswordConfirmedResponseContract::class, PasswordConfirmedResponse::class);
     }
 
     /**

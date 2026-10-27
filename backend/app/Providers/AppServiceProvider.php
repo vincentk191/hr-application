@@ -56,6 +56,7 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
         AboutCommand::add('HR Dashboard', fn (): array => ['Version' => config('app.version')]);
         $this->defineAttendanceGate();
+        $this->defineBackupGate();
         $this->defineOffboardingChecklistPolicies();
         $this->bindOffboardingRoutes();
         $this->configureApiRateLimiting();
@@ -101,6 +102,24 @@ class AppServiceProvider extends ServiceProvider
             fn (User $user): bool => Features::attendance()
                 && $user->isParentWide()
                 && $user->checkPermissionTo(Permission::ManageAttendance->value),
+        );
+    }
+
+    /**
+     * Who may change how backups are made. A backup holds every company's data, so this needs a parent-wide account
+     * on top of the permission, like the scanner: a company-pinned account must not decide where the group's
+     * backups go or which key they are encrypted to.
+     *
+     * Not named after the permission: the permission package registers a gate for every permission by its own name,
+     * ahead of any defined here, so a gate called `manage-backups` would let a company-pinned account through on the
+     * permission alone. (`manage-attendance-device` is named the same way for the same reason.)
+     */
+    protected function defineBackupGate(): void
+    {
+        Gate::define(
+            'manage-backup-settings',
+            fn (User $user): bool => $user->isParentWide()
+                && $user->checkPermissionTo(Permission::ManageBackups->value),
         );
     }
 

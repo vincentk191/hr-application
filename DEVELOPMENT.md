@@ -65,6 +65,71 @@ listed in the checklist below. Nothing here is committed yet: changes are left f
 
 ## Change log (latest first)
 
+- **2026-10-27 (backup page opened in a frame, and the panel's theme).** Reported from the browser: after confirming the
+  password the new page opened as a pop-up whose menus did nothing, and in light mode while the app was dark.
+  - **The frame.** The password form is an Inertia visit; Fortify answers it with `redirect()->intended()`, and an Inertia
+    visit can only follow a redirect to another Inertia page. The admin panel's pages are plain HTML, so Inertia put the page
+    in a sandboxed `srcdoc` iframe (the console's "Unsafe attempt to initiate navigation ... sandboxed" lines). The same would
+    have happened to any admin page behind `password.confirm`. `App\Http\Responses\PasswordConfirmedResponse` now answers an
+    Inertia visit with `Inertia::location()`, so the browser loads the address itself; ordinary requests still get a redirect.
+  - **The theme.** The app keeps its choice in `localStorage.appearance` (and a cookie); Filament keeps its own in
+    `localStorage.theme` and otherwise follows the operating system, so the whole admin panel could be light while the app was
+    dark (older than the backup page). A small script at `PanelsRenderHook::STYLES_AFTER` copies the app's value to `theme`
+    just before Filament reads it; both use light, dark and system. Filament's own switcher therefore no longer sticks past a
+    reload: the app's setting (Pengaturan > Tampilan) decides.
+  - Checked: Pest for both (an Inertia confirmation gets 409 and `X-Inertia-Location`, an ordinary one a redirect, a wrong
+    password confirms nothing; the script is in the panel's HTML ahead of Filament's own); the script itself in Node against
+    a stubbed browser, 11 cases (dark, light, system, a stale panel value, the cookie fallback, a lookalike cookie, a junk
+    value, blocked storage). **Not checked in a real browser**: the in-app browser was not connected to this session.
+
+- **2026-10-27 (backup settings page).** Admin page **Cadangan data** (`ManageBackups`, permission `manage-backups` for the
+  System Admin role, granted to existing installs by a migration; gate `manage-backup-settings`, parent-wide accounts only;
+  password confirmation on opening and again on saving). It sets the age public key, the rclone destination, the days kept
+  and the monitoring addresses, pauses the backups, and shows the last run's report. Settings are in `app_settings`
+  (`backup.*`); `backup.sh` reads them from the database on the host.
+  - **A web form now feeds a root cron job, so the script trusts none of it.** Every value is checked again with the same
+    patterns as `BackupSettings` and an invalid one is ignored (with a warning in the report) in favour of `backup.env`. The
+    destination must be `name:folder` for a remote `rclone listremotes` knows: not an option (`--password-command` runs a
+    command), not an on-the-fly `:sftp,host=...:` connection, no `..`; a plain folder is accepted from the file only. Monitoring
+    addresses must be https. A value holding a control character is never read, so it cannot add a line or a field. Cloud
+    credentials are deliberately not on the page (a compromised application could otherwise delete the backups).
+    `BACKUP_IGNORE_PAGE=true` switches the page off at the server.
+  - **A blank means the server's value, not "off"**, so saving the page cannot silently drop the copy off the server or the
+    monitoring the file set up.
+  - **Found by the tests:** the gate was first called `manage-backups`, the same as the permission, and the permission package
+    registers a gate for every permission by its own name ahead of any defined here, so a company-pinned System Admin got
+    in. Renamed (the attendance gate is named the same way for the same reason).
+  - **Found while testing the script:** (1) the folder name had minute resolution, so a second run in the same minute failed at
+    `mkdir` and the error handler then deleted the *first* run's good backup. Names now include seconds, and a folder is only
+    ever removed if this run created it. (2) A failed copy off the server used to delete that night's good local backup; it is
+    now kept and the failure reported (report `remote_ok: false`, exit 1).
+  - After each run the script reports to the database (`backup.status`: when, ok, folder, size, the key and destination in
+    effect and where each came from, the rclone remotes it knows, the last success). A report older than 36 hours is shown as
+    a warning, because a backup that stops running cannot report that it stopped.
+  - Checked: Pest for the page (access, password step, saving, 16 hostile values refused, blank semantics, expired
+    confirmation, every status state, and the real reports the script writes kept as fixtures in `tests/Fixtures`); and the
+    script itself against a throwaway stack with real `age`, `rclone` and Postgres, 50 checks including a garbage key, an
+    rclone option, a connection string, a path climbing out, plain-http and `file://` addresses, out-of-range numbers, a value
+    smuggling a second setting through a line break (none adopted, nothing executed), pause, `BACKUP_IGNORE_PAGE`, a failed
+    copy, a failed run keeping the last success, and the folder collision. Those script tests are not in the repository (they
+    need Docker, a Postgres and a second container); the page tests are.
+
+- **2026-10-27 (backups).** `docker/server/backup.sh` (nightly, by cron on the host), `backup-verify.sh` and
+  `backup.env.example`; README, "Backups". One run is a folder of four files, each encrypted with `age` to a public key as
+  it is produced (no plaintext on disk; the private key never reaches the server): the database (`pg_dump`, custom
+  format), `storage/app`, the WireGuard volume, and `docker/server/.env`. The `.env` is in it because `APP_KEY` decrypts the
+  2FA secrets in the database. Then `rclone` copies the folder off the server and reads it back to compare
+  (`BACKUP_REMOTE`, optional but warned about on every run), 7 days kept on the server and 30 at the remote, with an
+  optional monitoring ping. A failed run removes its half-written folder and exits non-zero.
+  - Tested against a throwaway stack with the same service names, on a Debian box with real `age`, `rclone` and GNU tools:
+    a full round trip (restored row counts equal the seeded ones, sessions left out of the file archive); a wrong key and a
+    damaged file are refused; a stopped database leaves no folder and still exits non-zero even when the monitoring URL is
+    unreachable; remote and local retention remove only what they should (a stray file and a differently named folder
+    survive); and the README's restore commands, run through a stand-in `ssh`, put back the database, files, VPN data and
+    `.env` after they had been deleted. `tar` and `gzip` confirmed present in the real WireGuard and PHP images.
+  - **Not tested:** a real `rclone` remote (B2, S3 or SFTP; only the local backend), and the wg-easy volume restore against a
+    live tunnel. Run `backup-verify.sh` from a downloaded copy before scheduling it.
+
 - **2026-10-27 (security audit, first pass).** From the audit of the app and the deployment. Decision: fewer 2FA prompts come
   from a **long idle session, not a "trust this device" memory**; the public sign-in form may remember NIK and employee ID
   (opt-in, in the browser), never the password.

@@ -41,5 +41,6 @@
 /backend/opencode.json
 /backend/opencode.jsonc
 
-# Server stack secrets (docker/server/.env)
+# Server stack secrets (docker/server/.env) and the backup settings (docker/server/backup.env)
 docker/server/.env
+docker/server/backup.env

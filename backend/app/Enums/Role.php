@@ -51,6 +51,7 @@ enum Role: string
                 Permission::ViewEmployees,
                 Permission::ViewAllEmployees,
                 Permission::AccessAdminPanel,
+                Permission::ManageBackups,
             ],
             // Owns the cross-company HR processes and the dossier.
             self::HrAdmin => [

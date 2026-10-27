@@ -385,7 +385,7 @@ going away for good.
 | Reset test data    | testing server only (`APP_ENV=staging`): `... exec app php artisan migrate:fresh --force`, then the seeders in step 4. Refused when `APP_ENV=production` |
 | A profile was closed by mistake, or someone returns | on the employee's profile, **Aktifkan kembali** (HR). It reopens the profile, clears the exit date and switches the sign-in offboarding turned off back on. A scanner mapping is not restored |
 | Change the env     | edit `docker/server/.env`, run `up -d` again (the configuration is cached when a container starts)                    |
-| Back up the data   | `... exec -T db pg_dump -U hr_app hr_app \| gzip > hr-$(date +%F).sql.gz`, and the `hr-server_appstorage` volume (documents and photos) |
+| Back up the data   | automatic every night once set up, see [Backups](#backups); a copy right now (before a risky change): `bash docker/server/backup.sh` |
 | Logs               | `docker compose -f docker-compose.server.yml logs -f app web queue`                                                   |
 | Watch for guessing | `... logs app \| grep -E 'Sign-in (failed\|throttled)\|Two-factor (code refused\|attempts throttled)'`: a failed attempt keeps the end of the NIK, the address and the entrance, never the password. Successful sign-ins and 2FA changes are in the admin panel's audit log (type `auth`) |
 | Someone lost their phone | admin panel > **Pengguna**: **Reset 2FA** (turns it off and ends their sessions; an elevated account must set it up again at the next sign-in), **Reset sandi** if the password may be known, and delete their WireGuard client |
@@ -432,10 +432,114 @@ docker image prune -f       # images no container uses
   Ghostscript would open PDFs uploaded from the public entrance inside the container that holds the database password and
   `APP_KEY`, and it has had sandbox escapes. Turn it on only once compression runs somewhere with no network and no secrets.
 
+### Backups
+
+A backup is one folder, `YYYY-MM-DD_HHMMSS`, of four encrypted files plus a checksum list and a manifest:
+
+| File                   | What it holds                                                                                          |
+| ---------------------- | ------------------------------------------------------------------------------------------------------ |
+| `database.dump.age`    | the PostgreSQL database                                                                                |
+| `storage.tar.gz.age`   | uploaded documents, photos, logos and leave attachments (`storage/app`)                                |
+| `wireguard.tar.gz.age` | the VPN's server key and every client's key and address                                                |
+| `env.age`              | `docker/server/.env`. Its `APP_KEY` decrypts the 2FA secrets in the database: restore the database without it and every elevated account is locked out |
+
+Everything is encrypted with [age](https://github.com/FiloSottile/age) to a **public** key, as it is produced: no unencrypted
+copy is ever written to the server's disk, and the matching private key is **never on the server**. Someone who takes the
+server, or the copy kept elsewhere, cannot read a backup. The flip side: **lose the private key and every backup is
+unreadable.** Keep it in two safe places (a password manager, and a printed copy in a locked drawer).
+
+Each night at 02:30 the script keeps 7 days on the server, copies the folder to a second place with `rclone` and reads it
+back to check it arrived intact, and deletes copies there older than 30 days. A failed run leaves no half-written folder and
+exits with an error; with the optional monitoring URL below, a missing or failed run also tells you. If only the copy off
+the server fails (the provider is down, say), the backup made on this server is kept and the run reports the failure.
+
+**The admin page "Cadangan data"** (admin panel; permission `manage-backups`, given to the System Admin role, and only a
+parent-wide account may open it) holds the same settings as `backup.env`: the public key, the copy destination, how long to
+keep backups, the monitoring addresses, and a switch that pauses the backups. Above the form it shows what the last run
+reported: when it finished, how big it was, which key and destination it used and where each came from, and a warning when
+the last run failed, the copy off the server failed, nothing was reported for 36 hours, or the backups are only on this
+server. It asks for your password when you open it and again when you save. How it works:
+
+- **A blank means "use the server's value" (`backup.env`), not "off".** Saving the page can never switch off the copy off
+  the server or the monitoring that the server file set up. To stop copying off the server, edit `backup.env`.
+- **The server does not trust the page.** The script runs as root, so it checks every value again with the same patterns as
+  the form and ignores anything that does not match, with a warning in the report. The destination has to look like
+  `name:folder` for a remote that `rclone config` set up on the server (so it can be neither an rclone option such as
+  `--password-command=...`, which runs a command, nor an on-the-fly `:sftp,host=...:` connection to somewhere else), and the
+  monitoring addresses have to be https. A plain local folder (a mounted disk) can only be set in `backup.env`.
+- **The cloud credentials are not on the page, on purpose.** They stay in `rclone`'s own configuration on the server. If
+  they were in the application's database, anyone who got into the application could also delete the backups.
+- **There is no "back up now" button.** The application cannot start commands on the server, and should not. Run
+  `bash docker/server/backup.sh` there.
+- Changing the key or the destination is written to the audit log (monitoring addresses only as "set", since their path is
+  a secret). Setting `BACKUP_IGNORE_PAGE=true` in `backup.env` ignores the page entirely.
+
+**Set it up (once).** Steps 3 to 5 can be done on the admin page instead of in the file, once an account with the permission
+can sign in; the file is the fallback and the place for anything the page refuses.
+
+1. On the server: `apt install age rclone curl` (age is in Ubuntu 22.04+ and Debian 12+; otherwise take the binary from
+   the age releases page).
+2. **On your own computer, not the server**, make the key pair: `age-keygen -o hr-backup-key.txt`. It prints the public key
+   (`age1...`); the file holds the private one. Store the file as described above.
+3. On the server: `cp docker/server/backup.env.example docker/server/backup.env`, `chmod 600 docker/server/backup.env`, and
+   put the public key in `AGE_RECIPIENT`.
+4. Choose where the second copy goes (a different provider from this server, or the backups die with it: Backblaze B2, an S3
+   bucket, an SFTP box, a Google Drive). Run `rclone config` as root to add it, and put its path in `BACKUP_REMOTE`
+   (for example `b2:company-hr-backups/hr-app`). **Give the backups a path of their own**: the script deletes its own
+   files older than `BACKUP_REMOTE_KEEP_DAYS` there.
+5. Optional but worth it: a check at a service such as healthchecks.io that expects a ping every day and alerts you when one
+   is missing. Put its URLs in `BACKUP_OK_URL` and `BACKUP_FAIL_URL`. The pings carry nothing.
+6. Run it once by hand and read the output: `bash docker/server/backup.sh`. It ends with `backup: done`.
+7. **Prove it can be restored** before relying on it (see "Test a restore" below), then schedule it:
+   ```bash
+   echo '30 2 * * * root bash /opt/hr-application/docker/server/backup.sh >> /var/log/hr-backup.log 2>&1' | sudo tee /etc/cron.d/hr-app-backup
+   ```
+   (Change the path if the clone is elsewhere.) Check `/var/log/hr-backup.log` the next morning.
+
+**Test a restore** (every quarter, and after changing the key or the remote). On your own computer, with Docker and age:
+
+```bash
+rclone copy b2:company-hr-backups/hr-app/2026-10-27_023001 ./2026-10-27_023001      # or scp it from the server
+bash docker/server/backup-verify.sh ./2026-10-27_023001 hr-backup-key.txt
+```
+
+It checks the checksums, decrypts all four files, restores the database into a throwaway container (the live one is never
+touched) and counts the rows in the main tables. It ends with `OK`. Doing it from the downloaded copy tests the whole path,
+including that the key you keep is the one the backups were made for.
+
+**Restore** (the data is damaged or lost). From your own computer, which holds the key and the backup folder; nothing
+decrypted is ever stored on the server, it is streamed into the containers:
+
+```bash
+SERVER=user@server
+RUN=2026-10-27_023001            # the backup folder
+KEY=hr-backup-key.txt
+DC='cd /opt/hr-application && docker compose -f docker-compose.server.yml --env-file docker/server/.env'
+
+ssh $SERVER "$DC stop app queue scheduler"
+age -d -i $KEY $RUN/database.dump.age | ssh $SERVER "$DC exec -T db sh -c 'pg_restore -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" --clean --if-exists --no-owner --no-privileges --exit-on-error'"
+ssh $SERVER "$DC up -d app queue scheduler"
+age -d -i $KEY $RUN/storage.tar.gz.age | ssh $SERVER "$DC exec -T app tar -xzf - -C /var/www/backend/storage"
+age -d -i $KEY $RUN/wireguard.tar.gz.age | ssh $SERVER "$DC exec -T wg tar -xzf - -C /etc/wireguard"
+ssh $SERVER "$DC restart wg"
+```
+
+The database restore replaces what is there (`--clean`). Afterwards check that someone can sign in and open a document, and
+that `ls -ln` on the restored files (`$DC exec app ls -ln /var/www/backend/storage/app/private`) shows owner `33`, the web user.
+Only the parts that are damaged need restoring: a mistaken deletion is usually just the database line.
+
+**If the whole server is lost:** prepare a new one as in steps 1 to 3 above, but before the first `up -d --build` put the
+settings back with `age -d -i $KEY $RUN/env.age | ssh $SERVER "cat > /opt/hr-application/docker/server/.env && chmod 600 /opt/hr-application/docker/server/.env"`;
+then `up -d --build`, and the restore commands above. The restored `.env` carries the same `APP_KEY` and `WG_HOST`; change
+`WG_HOST` (and the DNS records) if the new server has a different address.
+
+**Not in a backup**, so keep these somewhere else: the private key, the `rclone` configuration (`rclone config file` shows
+where it is), the host Nginx site file from step 5, and the DNS records. Certificates are re-issued by Certbot.
+
 ### Not built yet (before this is a hardened production)
 
 A WAF in front (Cloudflare, once the domain's DNS moves there; Nginx already limits the public entrance's requests), the
-Management accounts (they wait on the client's details), Web Push (alerts are in-app only), scheduled and off-server backups,
+Management accounts (they wait on the client's details), Web Push (alerts are in-app only),
 a database login that is not a superuser, mounting only the one certificate and the public files into the `web` container,
 compressing PDFs in a sandbox, and a server of its own if the public entrance should not share a machine with other sites.
 Details and the open items per screen are in [DEVELOPMENT.md](DEVELOPMENT.md).
@@ -462,6 +566,7 @@ Server settings are in `docker/server/.env` (template: `docker/server/server.env
 | `FEATURE_ATTENDANCE_AGENTS`              | `true` brings back the automatic on-site sync agents: the ingest API, the agent and sync-log admin screens, "Sinkronkan sekarang" and the agent warnings. **Off by default**: attendance arrives by manual import. Needs `FEATURE_ATTENDANCE` on |
 | `INITIAL_ADMIN_NAME`, `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PASSWORD` | the first System Admin, created by `db:seed` on a real server; remove the password afterwards |
 | `ATTENDANCE_DEVICE_TIMEZONE`, `ATTENDANCE_WORK_START`, `ATTENDANCE_WORK_END`, `ATTENDANCE_WORK_END_FRIDAY`, `ATTENDANCE_LATE_GRACE_MINUTES` | attendance defaults (`Asia/Jakarta`, 08:00, 17:00, Friday 17:30, 10). Used until someone saves their own under **Jam kerja** in the admin panel, which also has a field for Friday's end; leave it empty there for a Friday that ends like the other days |
+| `AGE_RECIPIENT`, `BACKUP_DIR`, `BACKUP_KEEP_DAYS`, `BACKUP_REMOTE`, `BACKUP_REMOTE_KEEP_DAYS`, `BACKUP_OK_URL`, `BACKUP_FAIL_URL`, `BACKUP_IGNORE_PAGE` | not in `.env`: the backup settings live in `docker/server/backup.env` (template `backup.env.example`), and the admin page "Cadangan data" can override all but `BACKUP_DIR` and `BACKUP_IGNORE_PAGE`. See "Backups" |
 | `SESSION_LIFETIME`, `SESSION_ABSOLUTE_LIFETIME` | minutes a session may sit idle (480, so about one password and 2FA code per working day) and the most minutes one sign-in may last however active it is (1440; `0` = no cap). There is no "remember me": it would sign someone back in without the password or the 2FA code |
 | `REQUIRE_TWO_FACTOR`                     | on by default: elevated accounts (any role above Karyawan, anyone with reports, approvers, checklist owners) must set up two-factor sign-in before they can use the app, and cannot turn it off; an administrator resets it. `false` only for local development |
 | `UPLOADS_COMPRESS_PDF`, `UPLOADS_GHOSTSCRIPT`, `UPLOADS_PDF_PRESET` | shrink stored PDFs (`true`, `gs`, `/ebook`); `/screen` is smaller and softer, `/printer` larger and sharper. The code default is on; **`server.env.example` sets it off**, see "Uploaded files". See `backend/config/uploads.php` |

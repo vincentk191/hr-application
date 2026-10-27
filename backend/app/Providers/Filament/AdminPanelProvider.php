@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\ManageBackups;
 use App\Filament\Pages\ManageWorkingHours;
 use App\Filament\Resources\ActivityLogs\ActivityLogResource;
 use App\Filament\Resources\AttendanceAgents\AttendanceAgentResource;
@@ -29,6 +30,7 @@ use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use Filament\Support\Icons\Heroicon;
+use Filament\View\PanelsRenderHook;
 use Filament\Widgets\AccountWidget;
 use Filament\Widgets\FilamentInfoWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
@@ -48,7 +50,7 @@ class AdminPanelProvider extends PanelProvider
      */
     private function extraPages(): array
     {
-        return $this->servesPanel() ? [ManageWorkingHours::class] : [];
+        return $this->servesPanel() ? [ManageBackups::class, ManageWorkingHours::class] : [];
     }
 
     private function servesPanel(): bool
@@ -108,6 +110,28 @@ class AdminPanelProvider extends PanelProvider
             ->colors([
                 'primary' => Color::Amber,
             ])
+            // The panel keeps its own light/dark choice (localStorage "theme"), apart from the app's (localStorage
+            // "appearance", mirrored in a cookie), so the panel followed the operating system while the app was set to
+            // dark. This copies the app's choice across just before the panel reads its own. Both use the same three
+            // words: light, dark and system.
+            ->renderHook(PanelsRenderHook::STYLES_AFTER, fn (): string => <<<'HTML'
+                <script>
+                    (function () {
+                        try {
+                            var appearance = localStorage.getItem('appearance');
+
+                            if (!appearance) {
+                                var cookie = document.cookie.match(/(?:^|; )appearance=([^;]*)/);
+                                appearance = cookie && cookie[1];
+                            }
+
+                            if (appearance === 'light' || appearance === 'dark' || appearance === 'system') {
+                                localStorage.setItem('theme', appearance);
+                            }
+                        } catch (error) {}
+                    })();
+                </script>
+                HTML)
             // Listed rather than discovered. Discovery scans these folders on every request, which
             // is slow on the Windows bind mount (about 1.4s of every page load here). A new
             // resource is one line below, in the same spirit as the workflow registry.

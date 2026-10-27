@@ -23,6 +23,19 @@ it('lets parent-wide system and HR admins open the admin panel', function (Role 
     $this->actingAs(panelUser($role))->get('/admin')->assertOk();
 })->with([Role::SystemAdmin, Role::HrAdmin]);
 
+it('makes the panel follow the app\'s light or dark choice instead of the operating system\'s', function () {
+    $html = (string) $this->actingAs(panelUser(Role::SystemAdmin))->get('/admin')->assertOk()->getContent();
+
+    $copiesTheApp = strpos($html, "localStorage.getItem('appearance')");
+    $panelReadsItsOwn = strpos($html, "localStorage.getItem('theme')");
+
+    // The copy has to come first, or the panel has already decided by the time it runs.
+    expect($copiesTheApp)->not->toBeFalse()
+        ->and($panelReadsItsOwn)->not->toBeFalse()
+        ->and($copiesTheApp)->toBeLessThan($panelReadsItsOwn)
+        ->and($html)->toContain("localStorage.setItem('theme', appearance)");
+});
+
 it('keeps a company-pinned admin out of the panel', function () {
     $this->actingAs(panelUser(Role::HrAdmin, Company::factory()->create()))
         ->get('/admin')
