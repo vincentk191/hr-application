@@ -88,10 +88,15 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
      *
      * Sessions are deleted from the sessions table, so this needs the database session driver — the
      * one this application is configured for. With another driver it would silently do less.
+     *
+     * @param  string|null  $exceptSessionId  a session to keep, for someone changing their own password
      */
-    public function revokeAccess(): void
+    public function revokeAccess(?string $exceptSessionId = null): void
     {
-        DB::table('sessions')->where('user_id', $this->id)->delete();
+        DB::table('sessions')
+            ->where('user_id', $this->id)
+            ->when($exceptSessionId !== null, fn ($sessions) => $sessions->where('id', '!=', $exceptSessionId))
+            ->delete();
 
         $this->tokens()->delete();
         $this->forceFill(['remember_token' => Str::random(60)])->saveQuietly();

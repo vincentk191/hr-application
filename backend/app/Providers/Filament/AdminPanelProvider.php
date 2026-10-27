@@ -17,6 +17,8 @@ use App\Filament\Resources\Users\UserResource;
 use App\Http\Middleware\AuthenticateAdminPanel;
 use App\Http\Middleware\EnforceAccountState;
 use App\Http\Middleware\EnforceEntrance;
+use App\Http\Middleware\EnforceSessionAge;
+use App\Http\Middleware\EnforceTwoFactor;
 use App\Http\Middleware\SetActiveCompany;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -134,13 +136,15 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 AuthenticateAdminPanel::class,
+                EnforceSessionAge::class,
                 EnforceAccountState::class,
+                EnforceTwoFactor::class,
                 // After authentication, so the user is known and CompanyScope has a context.
                 SetActiveCompany::class,
             ])
             // Table search, sorting, pagination and form actions are Livewire requests, which
             // only re-run the middleware listed here. Without this they would query with no
             // company context and ignore the company the administrator selected.
-            ->persistentMiddleware([SetActiveCompany::class]);
+            ->persistentMiddleware([SetActiveCompany::class, EnforceTwoFactor::class]);
     }
 }

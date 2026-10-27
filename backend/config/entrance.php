@@ -32,6 +32,12 @@ return [
      */
     'trusted_proxies' => array_values(array_filter(array_map('trim', explode(',', (string) env('TRUSTED_PROXIES', '127.0.0.1,::1'))))),
 
+    /*
+     * Two-factor sign-in is mandatory for elevated accounts (CORE-ACC-005), on either entrance. Only local
+     * development and the tests turn it off.
+     */
+    'require_two_factor' => (bool) env('REQUIRE_TWO_FACTOR', true),
+
     // A separate session cookie per entrance, so a session from one is never valid on the other.
     'session_cookies' => [
         'public' => env('SESSION_COOKIE_PUBLIC', 'hr_public_session'),

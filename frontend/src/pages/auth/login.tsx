@@ -1,5 +1,5 @@
 import { Form, Head, usePage } from '@inertiajs/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
 import TextLink from '@/components/text-link';
@@ -16,10 +16,44 @@ type Props = {
     canRegister: boolean;
 };
 
+const IDENTITY_KEY = 'login-identity';
+
+type Identity = { nik: string; number: string };
+
+function readIdentity(): Identity | null {
+    try {
+        const raw = window.localStorage.getItem(IDENTITY_KEY);
+        const value = raw === null ? null : JSON.parse(raw);
+
+        return typeof value?.nik === 'string' &&
+            typeof value?.number === 'string'
+            ? { nik: value.nik, number: value.number }
+            : null;
+    } catch {
+        return null;
+    }
+}
+
+function writeIdentity(identity: Identity | null) {
+    try {
+        if (identity === null) {
+            window.localStorage.removeItem(IDENTITY_KEY);
+        } else {
+            window.localStorage.setItem(IDENTITY_KEY, JSON.stringify(identity));
+        }
+    } catch {
+        // Nothing to remember it with: the fields are simply empty next time.
+    }
+}
+
 /**
  * Signing in (CORE-ACC-007): NIK and employee ID together, which identify one person across the group. An
  * email works only on the private entrance, for the administrator accounts; the form sends either as the single
  * "login" the server reads ("NIK|ID" or an email).
+ *
+ * The browser can remember the NIK and employee ID (only when the box is ticked, and only on this device); the
+ * password is always typed. There is no "remember me": it would sign someone back in without the password and the
+ * two-factor code once their session ended.
  */
 export default function Login({ status, canRegister }: Props) {
     const { entrance } = usePage().props;
@@ -27,6 +61,17 @@ export default function Login({ status, canRegister }: Props) {
     const [nik, setNik] = useState('');
     const [number, setNumber] = useState('');
     const [email, setEmail] = useState('');
+    const [rememberIdentity, setRememberIdentity] = useState(false);
+
+    useEffect(() => {
+        const saved = readIdentity();
+
+        if (saved !== null) {
+            setNik(saved.nik);
+            setNumber(saved.number);
+            setRememberIdentity(true);
+        }
+    }, []);
 
     const mayUseEmail = !entrance?.public;
     const login =
@@ -39,6 +84,17 @@ export default function Login({ status, canRegister }: Props) {
             <Form
                 {...store.form()}
                 resetOnSuccess={['password']}
+                onBefore={() => {
+                    if (byEmail && mayUseEmail) {
+                        return;
+                    }
+
+                    writeIdentity(
+                        rememberIdentity
+                            ? { nik: nik.trim(), number: number.trim() }
+                            : null,
+                    );
+                }}
                 className="flex flex-col gap-6"
             >
                 {({ processing, errors }) => (
@@ -120,14 +176,24 @@ export default function Login({ status, canRegister }: Props) {
                                 </p>
                             </div>
 
-                            <div className="flex items-center space-x-3">
-                                <Checkbox
-                                    id="remember"
-                                    name="remember"
-                                    tabIndex={4}
-                                />
-                                <Label htmlFor="remember">Ingat saya</Label>
-                            </div>
+                            {!(byEmail && mayUseEmail) && (
+                                <div className="flex items-center space-x-3">
+                                    <Checkbox
+                                        id="remember-identity"
+                                        tabIndex={4}
+                                        checked={rememberIdentity}
+                                        onCheckedChange={(checked) =>
+                                            setRememberIdentity(
+                                                checked === true,
+                                            )
+                                        }
+                                    />
+                                    <Label htmlFor="remember-identity">
+                                        Ingat NIK dan ID karyawan di perangkat
+                                        ini
+                                    </Label>
+                                </div>
+                            )}
 
                             <Button
                                 type="submit"

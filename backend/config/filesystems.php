@@ -33,7 +33,8 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            // Off: files here are only ever sent by an authorised controller, never by Laravel's signed /storage route.
+            'serve' => false,
             'throw' => false,
             'report' => false,
         ],

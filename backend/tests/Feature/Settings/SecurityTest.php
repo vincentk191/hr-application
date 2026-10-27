@@ -1,7 +1,9 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 use Laravel\Fortify\Features;
 
@@ -94,4 +96,24 @@ test('correct password must be provided to update password', function () {
     $response
         ->assertSessionHasErrors('current_password')
         ->assertRedirect(route('security.edit'));
+});
+
+test('changing the password signs the account out of its other sessions but not this one', function () {
+    $user = User::factory()->create();
+    $other = User::factory()->create();
+
+    $currentId = Str::random(40);
+    $this->actingAs($user)->withCookie(session()->getName(), $currentId);
+
+    foreach ([[$currentId, $user->id], ['stolen-session', $user->id], ['someone-elses', $other->id]] as [$id, $owner]) {
+        DB::table('sessions')->insert(['id' => $id, 'user_id' => $owner, 'payload' => '', 'last_activity' => time()]);
+    }
+
+    $this->from(route('security.edit'))->put(route('user-password.update'), [
+        'current_password' => 'password',
+        'password' => 'new-password',
+        'password_confirmation' => 'new-password',
+    ])->assertSessionHasNoErrors();
+
+    expect(DB::table('sessions')->pluck('id')->all())->toEqualCanonicalizing([$currentId, 'someone-elses']);
 });

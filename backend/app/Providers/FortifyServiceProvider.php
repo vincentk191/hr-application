@@ -5,10 +5,13 @@ namespace App\Providers;
 use App\Actions\Fortify\ResetUserPassword;
 use App\Http\Responses\LoginResponse;
 use App\Http\Responses\TwoFactorLoginResponse;
+use App\Listeners\LogAuthenticationEvents;
 use App\Models\Employee;
 use App\Models\User;
 use App\Support\Access\Entrance;
+use Closure;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
@@ -23,6 +26,9 @@ use Laravel\Fortify\Fortify;
 
 class FortifyServiceProvider extends ServiceProvider
 {
+    /** A bcrypt hash (cost 12) of a random string nobody knows, checked when no account matches the login. */
+    private const UNKNOWN_ACCOUNT_HASH = '$2y$12$BIpWOuhBoz8QjNpysAwQoevmfM/S/pUnwDPODZ2OdFyW5kTPjuWTC';
+
     /**
      * Register any application services.
      */
@@ -66,7 +72,11 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::authenticateUsing(function (Request $request): ?User {
             $user = $this->resolveLogin(trim((string) $request->input(Fortify::username())));
 
-            if ($user === null || ! Hash::check((string) $request->input('password'), $user->password)) {
+            // Hashed either way, so a NIK that matches nobody is refused as slowly as a wrong password and the
+            // response time does not say which NIK and ID pairs exist.
+            $passwordMatches = Hash::check((string) $request->input('password'), $user->password ?? self::UNKNOWN_ACCOUNT_HASH);
+
+            if ($user === null || ! $passwordMatches) {
                 return null;
             }
 
@@ -134,7 +144,7 @@ class FortifyServiceProvider extends ServiceProvider
     private function configureRateLimiting(): void
     {
         RateLimiter::for('two-factor', function (Request $request) {
-            return Limit::perMinute(5)->by($request->session()->get('login.id'));
+            return Limit::perMinute(5)->by($request->session()->get('login.id'))->response($this->throttled('Two-factor attempts throttled'));
         });
 
         // Registration is an open door onto "which NIKs exist", so it is throttled per address.
@@ -146,12 +156,28 @@ class FortifyServiceProvider extends ServiceProvider
         RateLimiter::for('login', function (Request $request) {
             $account = Str::transliterate(Str::lower((string) $request->input(Fortify::username())));
 
+            $throttled = $this->throttled('Sign-in throttled');
+
             return [
-                Limit::perMinute(5)->by($account.'|'.$request->ip()),
-                Limit::perMinute(20)->by('ip|'.$request->ip()),
-                Limit::perMinute(10)->by('account|'.$account),
+                Limit::perMinute(5)->by($account.'|'.$request->ip())->response($throttled),
+                Limit::perMinute(20)->by('ip|'.$request->ip())->response($throttled),
+                Limit::perMinute(10)->by('account|'.$account)->response($throttled),
             ];
         });
+    }
 
+    /**
+     * What a limiter does when it turns a request away: write it to the log (so a password-spraying run shows up),
+     * then the same 429 Laravel would have sent.
+     *
+     * @return Closure(Request, array<string, mixed>): never
+     */
+    private function throttled(string $message): Closure
+    {
+        return function (Request $request, array $headers) use ($message): never {
+            app(LogAuthenticationEvents::class)->logThrottled($message, $request);
+
+            throw new ThrottleRequestsException('Too Many Attempts.', null, $headers);
+        };
     }
 }

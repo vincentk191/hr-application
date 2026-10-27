@@ -89,6 +89,27 @@ class UsersTable
                             ->persistent()
                             ->send();
                     }),
+                Action::make('resetTwoFactor')
+                    ->label('Reset 2FA')
+                    ->icon(Heroicon::OutlinedShieldExclamation)
+                    ->requiresConfirmation()
+                    ->modalDescription('Untuk pengguna yang kehilangan perangkatnya. Autentikasi dua langkah dimatikan dan semua sesinya dicabut; akun yang wajib memakainya harus mengaktifkannya lagi saat masuk berikutnya.')
+                    ->visible(fn (User $record): bool => self::mayManage($record) && $record->two_factor_secret !== null)
+                    ->action(function (User $record): void {
+                        $record->forceFill([
+                            'two_factor_secret' => null,
+                            'two_factor_recovery_codes' => null,
+                            'two_factor_confirmed_at' => null,
+                        ])->save();
+                        $record->revokeAccess();
+
+                        activity('auth')
+                            ->causedBy(auth()->user())
+                            ->performedOn($record)
+                            ->log('Two-factor authentication reset by an administrator');
+
+                        Notification::make()->title("2FA {$record->name} direset.")->success()->send();
+                    }),
                 Action::make('revokeSessions')
                     ->label('Cabut sesi')
                     ->icon(Heroicon::OutlinedArrowRightStartOnRectangle)

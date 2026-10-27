@@ -20,10 +20,9 @@ server {
     client_max_body_size 30m;
     server_tokens off;
 
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header Referrer-Policy "same-origin" always;
-
     # This Nginx terminates the TLS itself here, so this is never a forwarded claim.
     set $https_flag on;
+    set $hsts_value "max-age=15552000";
+    include /etc/nginx/snippets/hr-headers.conf;
     include /etc/nginx/snippets/hr-locations.conf;
 }

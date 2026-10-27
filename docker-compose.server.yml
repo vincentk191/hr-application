@@ -18,6 +18,13 @@
 
 name: hr-server
 
+# Docker's JSON logs grow without limit by default and would fill the shared VPS disk: keep 5 files of 10 MB per container.
+x-logging: &logging
+    driver: json-file
+    options:
+        max-size: 10m
+        max-file: '5'
+
 x-app: &app
     # app, queue and scheduler share one image. Each lists the same build, so a fresh clone builds it on `up --build`
     # (the layers are cached after the first) instead of trying to pull an image that does not exist anywhere.
@@ -30,6 +37,7 @@ x-app: &app
             COMPOSER_DEV: ${COMPOSER_DEV:-false}
     image: hr-server-app
     restart: unless-stopped
+    logging: *logging
     env_file: docker/server/.env
     environment:
         DB_HOST: db
@@ -44,6 +52,7 @@ services:
     db:
         image: postgres:16-alpine
         restart: unless-stopped
+        logging: *logging
         environment:
             POSTGRES_DB: ${DB_DATABASE:-hr_app}
             POSTGRES_USER: ${DB_USERNAME:-hr_app}
@@ -75,7 +84,8 @@ services:
     queue:
         <<: *app
         user: www-data
-        command: php artisan queue:work --tries=1 --timeout=0 --sleep=3 --max-time=3600
+        # --timeout=120: a job that hangs is killed instead of blocking the queue for ever (--timeout=0 meant no limit).
+        command: php artisan queue:work --tries=1 --timeout=120 --sleep=3 --max-time=3600
         mem_limit: 512m
         networks:
             - internal
@@ -94,16 +104,20 @@ services:
             target: web
         image: hr-server-web
         restart: unless-stopped
+        logging: *logging
         environment:
-            OFFICE_CIDR: ${OFFICE_CIDR:-192.168.0.0/16}
+            # Nothing but the server itself unless set: a wide default such as 192.168.0.0/16 also matches other Docker
+            # networks and hosting-provider ranges on a shared host, and all of it would be served the private pages.
+            OFFICE_CIDR: ${OFFICE_CIDR:-127.0.0.1/32}
             # The hostname served over the VPN on 443 (README, "HTTPS over the VPN"): its own name, separate from
             # the public one, resolved in ordinary DNS to this stack's private address. Optional: leave it empty, or
             # set it before its certificate exists, and Nginx simply starts without the VPN https (the start-up
             # script docker/server/15-vpn-tls.sh logs which). It turns on by itself at the next start once both exist.
             VPN_HOSTNAME: ${VPN_HOSTNAME:-}
         ports:
-            # The office / LAN reaches the app here. Set WEB_BIND to the server's LAN address to keep it off other interfaces.
-            - '${WEB_BIND:-0.0.0.0}:${WEB_PORT:-8090}:80'
+            # This server only by default, reached through the Nginx that does the https. Docker's own firewall rules bypass
+            # UFW, so a wider bind (the LAN address for an office test) is a deliberate choice made in docker/server/.env.
+            - '${WEB_BIND:-127.0.0.1}:${WEB_PORT:-8090}:80'
         volumes:
             - appstorage:/var/www/backend/storage:ro
             # Read-only, and the whole directory rather than just live/<host>: Certbot's live/ files are symlinks
@@ -122,6 +136,7 @@ services:
     wg:
         image: ghcr.io/wg-easy/wg-easy:15
         restart: unless-stopped
+        logging: *logging
         environment:
             # First-run setup; everything here can be changed later in the admin page.
             INIT_ENABLED: 'true'
@@ -156,6 +171,7 @@ services:
         image: cloudflare/cloudflared:latest
         profiles: ['tunnel']
         restart: unless-stopped
+        logging: *logging
         # http2 (TCP) rather than the default quic (UDP): some home networks let a QUIC connection register but then drop its traffic, which shows as a 502.
         command: tunnel --no-autoupdate --protocol http2 --url http://172.31.0.10:80
         depends_on:

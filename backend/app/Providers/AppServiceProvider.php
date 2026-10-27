@@ -3,7 +3,6 @@
 namespace App\Providers;
 
 use App\Enums\Permission;
-use App\Listeners\LogRoleChange;
 use App\Models\AttendanceAgent;
 use App\Models\OffboardingCase;
 use App\Models\OffboardingCaseDepartment;
@@ -31,8 +30,6 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
-use Spatie\Permission\Events\RoleAttachedEvent;
-use Spatie\Permission\Events\RoleDetachedEvent;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -65,7 +62,9 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Login::class, fn (Login $event) => $event->user instanceof User
             ? $event->user->forceFill(['last_login_at' => now()])->saveQuietly()
             : null);
-        $this->registerRoleAudit();
+        // The classes in app/Listeners (LogRoleChange, LogAuthenticationEvents) are found by Laravel's event discovery
+        // from their handle* methods. Do not also register them here: each would then run twice. LogRoleChange
+        // needs events_enabled in config/permission.php.
     }
 
     /**
@@ -118,15 +117,6 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(120)->by((string) ($token?->getKey() ?? $request->ip()));
         });
-    }
-
-    /**
-     * Audit role assignments (CORE-RBA-007). Needs `events_enabled` in config/permission.php.
-     */
-    protected function registerRoleAudit(): void
-    {
-        Event::listen(RoleAttachedEvent::class, [LogRoleChange::class, 'handleAttached']);
-        Event::listen(RoleDetachedEvent::class, [LogRoleChange::class, 'handleDetached']);
     }
 
     /**

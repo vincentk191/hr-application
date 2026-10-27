@@ -32,7 +32,20 @@ return [
     |
     */
 
-    'lifetime' => (int) env('SESSION_LIFETIME', 120),
+    'lifetime' => (int) env('SESSION_LIFETIME', 480),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Absolute Session Lifetime
+    |--------------------------------------------------------------------------
+    |
+    | The most minutes one sign-in may last however active it is (App\Http\Middleware\EnforceSessionAge). The idle
+    | lifetime above is long so people are asked for their password and two-factor code about once a working
+    | day; this caps a session that is never left idle. 0 turns the cap off.
+    |
+    */
+
+    'absolute_lifetime' => (int) env('SESSION_ABSOLUTE_LIFETIME', 1440),
 
     'expire_on_close' => env('SESSION_EXPIRE_ON_CLOSE', false),
 

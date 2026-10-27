@@ -117,11 +117,14 @@ ENTRYPOINT ["entrypoint"]
 CMD ["php-fpm"]
 
 # Nginx with the built public folder, so it serves the app's files itself and hands only PHP to the app container.
-FROM nginx:1.27-alpine AS web
+# The stable line rather than a pinned minor version: 1.27 was a mainline release and stopped getting fixes, and a security
+# release only arrives when the image is rebuilt with --pull (README, "Day to day").
+FROM nginx:stable-alpine AS web
 COPY --from=assets /var/www/backend/public /var/www/backend/public
 COPY docker/server/nginx.conf.template /etc/nginx/templates/default.conf.template
-# Not a template (no ${...} placeholders): copied straight in, not through envsubst.
+# Not templates (no ${...} placeholders): copied straight in, not through envsubst.
 COPY docker/server/nginx-locations.conf /etc/nginx/snippets/hr-locations.conf
+COPY docker/server/nginx-headers.conf /etc/nginx/snippets/hr-headers.conf
 # The VPN https block is kept out of the templates folder and added by a start-up script only when it can work (a
 # hostname is set and its certificate exists), so a missing certificate cannot stop Nginx from starting. The script's line
 # endings are forced to LF: a Windows checkout would otherwise break its shebang.

@@ -20,7 +20,13 @@ class ResolveEntrance
         $public = Entrance::publicFor($request);
 
         $this->entrance->markPublic($public);
-        config(['session.cookie' => config('entrance.session_cookies.'.($public ? 'public' : 'private'))]);
+        config([
+            'session.cookie' => config('entrance.session_cookies.'.($public ? 'public' : 'private')),
+            // The public entrance is only ever reached over https, so its cookie says so even if the proxy in front
+            // forgets to tell the app. The private one may be plain http (a VPN address with no certificate yet), so
+            // it keeps the framework's own choice: Secure whenever the request itself was https.
+            'session.secure' => $public ? true : config('session.secure'),
+        ]);
 
         return $next($request);
     }

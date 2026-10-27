@@ -65,6 +65,33 @@ listed in the checklist below. Nothing here is committed yet: changes are left f
 
 ## Change log (latest first)
 
+- **2026-10-27 (security audit, first pass).** From the audit of the app and the deployment. Decision: fewer 2FA prompts come
+  from a **long idle session, not a "trust this device" memory**; the public sign-in form may remember NIK and employee ID
+  (opt-in, in the browser), never the password.
+  - **Mandatory 2FA** for elevated accounts (`EnforceTwoFactor`, `AccessTier::isElevated`), on both entrances and in the
+    admin panel: until it is set up only the setup pages open, and an elevated account cannot turn it off
+    (`two-factor.disable` is 403). Admin panel > Pengguna has **Reset 2FA** for a lost device (ends sessions, audited).
+    `REQUIRE_TWO_FACTOR` (default on; off in `phpunit.xml` and `.env.example`).
+  - **Sessions.** Idle 120 → 480 minutes; new `SESSION_ABSOLUTE_LIFETIME` (1440) cap via `EnforceSessionAge`. "Ingat saya"
+    removed and ignored server-side (`DiscardRememberMe`): a remember cookie signs someone back in with no password and no
+    2FA code. Changing your own password now ends your other sessions. The public entrance's cookie is always Secure.
+  - **Sign-in audit.** Sign-ins and 2FA changes on the audit trail (`auth`); failed attempts, throttled requests and wrong
+    codes in the application log (`LogAuthenticationEvents`). Fortify's `Lockout` never fires with a named limiter, so
+    the limiters log it themselves. An unknown NIK + ID now costs a hash check, like a wrong password.
+  - **Found on the way:** `LogRoleChange` was registered twice (event discovery found its `handle*` methods *and*
+    `AppServiceProvider` listed it), so every role grant and revoke was audited twice. The manual registration is gone.
+  - **Server stack.** `OFFICE_CIDR` default `127.0.0.1/32`, `WEB_BIND` default `127.0.0.1`; Nginx limits the public entrance
+    (sign-in POSTs 60/min per address, burst 20; everything else 30/s) and never the private one; security headers on every
+    location (`nginx-headers.conf`; before, `/sw.js`, the manifest and `/build/` lost `nosniff` because a location with its
+    own `add_header` drops the inherited ones), HSTS only where https is certain, `/storage/` sandboxed (SVG logos),
+    `expose_php` off; `nginx:stable-alpine` (1.27 was a mainline release with no fixes); container logs capped; queue
+    `--timeout=120`; the private disk's signed-URL route off; `UPLOADS_COMPRESS_PDF=false` in the server template.
+    README step 7 now has the wg-easy rules that stop a VPN peer reaching anything but the app (not yet run on the server).
+  - **Not done:** non-superuser database login; mounting only one certificate and the public files into `web` (needs the
+    server's Docker/Compose versions); Ghostscript in a sandbox; scheduled off-server backups; CSP for scripts and styles.
+  - Checked: Pest for the new and touched areas; PHPStan clean in the touched files; the Nginx config run on the stock image
+    (headers per location, limits public vs private).
+
 - **2026-10-26 (VPN https is optional).** A server with `VPN_HOSTNAME` set but no certificate yet got a 502: Nginx could
   not load the certificate and never started, and the compose file also refused an empty `VPN_HOSTNAME`. The TLS block
   moved out of `nginx.conf.template` into `vpn-tls.conf.template`, which `docker/server/15-vpn-tls.sh` (an nginx image

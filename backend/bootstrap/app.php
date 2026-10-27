@@ -2,6 +2,8 @@
 
 use App\Http\Middleware\EnforceAccountState;
 use App\Http\Middleware\EnforceEntrance;
+use App\Http\Middleware\EnforceSessionAge;
+use App\Http\Middleware\EnforceTwoFactor;
 use App\Http\Middleware\EnsureFeatureEnabled;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -50,7 +52,9 @@ return Application::configure(basePath: dirname(__DIR__))
             EnforceEntrance::class,
             HandleAppearance::class,
             SetActiveCompany::class,
+            EnforceSessionAge::class,
             EnforceAccountState::class,
+            EnforceTwoFactor::class,
             SubstituteBindings::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,

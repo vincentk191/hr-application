@@ -277,6 +277,33 @@ approves, checklist owners, Management, HR, admins), and have them scan the QR c
 browse to `https://<vpn-host>` once step 7.5 is done (plain `http://172.30.0.10` until then). Delete a person's client when
 they leave.
 
+**Limit what a VPN peer can reach (do this before adding the first client).** wg-easy lets a connected device send traffic
+anywhere the `wg` container can route, and `INIT_ALLOWED_IPS` only shapes what the *client* sends, which its owner can edit.
+Left alone, a peer could open the wg-easy admin page (it listens on every interface inside the container), reach every
+other peer including the scanner PC, and reach the host itself (SSH, other sites). In the wg-easy page open **Admin >
+Hooks** and replace the four fields with the rules below, which let a peer reach the app's Nginx on 80 and 443 and nothing
+else (the `{{...}}` words are wg-easy's own placeholders; leave them as they are):
+
+- **PostUp**
+  ```
+  iptables -t nat -A POSTROUTING -s {{ipv4Cidr}} -o {{device}} -j MASQUERADE; iptables -A INPUT -p udp -m udp --dport {{port}} -j ACCEPT; iptables -A INPUT -i wg0 -j DROP; iptables -A FORWARD -i wg0 -d 172.30.0.10 -p tcp -m multiport --dports 80,443 -j ACCEPT; iptables -A FORWARD -o wg0 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT; iptables -A FORWARD -i wg0 -j DROP;
+  ```
+- **PostDown**
+  ```
+  iptables -t nat -D POSTROUTING -s {{ipv4Cidr}} -o {{device}} -j MASQUERADE; iptables -D INPUT -p udp -m udp --dport {{port}} -j ACCEPT; iptables -D INPUT -i wg0 -j DROP; iptables -D FORWARD -i wg0 -d 172.30.0.10 -p tcp -m multiport --dports 80,443 -j ACCEPT; iptables -D FORWARD -o wg0 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT; iptables -D FORWARD -i wg0 -j DROP;
+  ```
+- **PreUp** and **PreDown**: empty.
+
+Then restart the tunnel (`... restart wg`) and check from a phone on the VPN, after adding `10.8.0.0/24, 172.30.0.0/24` to
+that client's Allowed IPs for the test: the app at `http://172.30.0.10/up` answers; `http://10.8.0.1:51821`,
+`http://172.30.0.2:51821` and `172.30.0.1:22` do not; another client's address does not answer a ping. Remove the extra Allowed
+IPs afterwards. This was written from wg-easy's documented defaults and has not been run against your server: if a check
+above fails, `... exec wg iptables -S` shows what is actually in force.
+
+One consequence stays: every peer reaches the app through the `wg` container's address, so the app sees all VPN users as
+`172.30.0.2` and the 20-a-minute sign-in limit per address is shared by them. The audit trail records the user, not just the
+address, so nothing is lost there.
+
 ### 7.5 HTTPS over the VPN
 
 **Planned, not started** (decided 2026-10-22, see `DEVELOPMENT.md` Phase 7): the domain's DNS is moving to Cloudflare
@@ -360,6 +387,8 @@ going away for good.
 | Change the env     | edit `docker/server/.env`, run `up -d` again (the configuration is cached when a container starts)                    |
 | Back up the data   | `... exec -T db pg_dump -U hr_app hr_app \| gzip > hr-$(date +%F).sql.gz`, and the `hr-server_appstorage` volume (documents and photos) |
 | Logs               | `docker compose -f docker-compose.server.yml logs -f app web queue`                                                   |
+| Watch for guessing | `... logs app \| grep -E 'Sign-in (failed\|throttled)\|Two-factor (code refused\|attempts throttled)'`: a failed attempt keeps the end of the NIK, the address and the entrance, never the password. Successful sign-ins and 2FA changes are in the admin panel's audit log (type `auth`) |
+| Someone lost their phone | admin panel > **Pengguna**: **Reset 2FA** (turns it off and ends their sessions; an elevated account must set it up again at the next sign-in), **Reset sandi** if the password may be known, and delete their WireGuard client |
 | Roll back          | remove the Nginx site file and run `nginx -t && nginx -s reload`; `docker compose -f docker-compose.server.yml down` (volumes are kept); remove the DNS record |
 
 In the table, `...` stands for `docker compose -f docker-compose.server.yml --env-file docker/server/.env`.
@@ -387,8 +416,8 @@ docker image prune -f       # images no container uses
   `docker-compose.server.yml`: `app` 1.5 GB, `db` 1 GB, `queue` 512 MB, `scheduler` 256 MB), and PHP-FPM runs 3 to 12 workers
   (`docker/php/php-fpm-pool.conf`). That is sized for about 150 employees; a container that goes over its cap is killed and
   restarted.
-- **Logs.** Containers log to Docker's JSON files, which are not size-limited yet. Check them with `docker system df -v` if
-  space shrinks without explanation.
+- **Logs.** Containers log to Docker's JSON files, capped at 5 files of 10 MB each per container (`x-logging` in
+  `docker-compose.server.yml`). Check `docker system df -v` if space shrinks without explanation anyway.
 
 ### Uploaded files
 
@@ -399,13 +428,16 @@ docker image prune -f       # images no container uses
 - **PDF compression.** Leave attachments and offboarding files are shrunk with Ghostscript when they are stored; a PDF
   under 200 KB, one Ghostscript cannot read, or one that does not come out smaller is stored as uploaded. **Employee
   documents are never compressed**, because rewriting a signed PDF breaks its signature. Photos are shrunk in the browser.
-  Turn PDF compression off with `UPLOADS_COMPRESS_PDF=false`. The image installs `ghostscript` (see the `Dockerfile`).
+  The image installs `ghostscript` (see the `Dockerfile`). **The server template turns it off** (`UPLOADS_COMPRESS_PDF=false`):
+  Ghostscript would open PDFs uploaded from the public entrance inside the container that holds the database password and
+  `APP_KEY`, and it has had sandbox escapes. Turn it on only once compression runs somewhere with no network and no secrets.
 
 ### Not built yet (before this is a hardened production)
 
-Mandatory 2FA for elevated accounts, a WAF or proxy-level throttling, the Management accounts (they wait on the client's
-details), Web Push (alerts are in-app only), scheduled backups, and a server of its own if the public entrance should not
-share a machine with other sites.
+A WAF in front (Cloudflare, once the domain's DNS moves there; Nginx already limits the public entrance's requests), the
+Management accounts (they wait on the client's details), Web Push (alerts are in-app only), scheduled and off-server backups,
+a database login that is not a superuser, mounting only the one certificate and the public files into the `web` container,
+compressing PDFs in a sandbox, and a server of its own if the public entrance should not share a machine with other sites.
 Details and the open items per screen are in [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ---
@@ -420,8 +452,8 @@ Server settings are in `docker/server/.env` (template: `docker/server/server.env
 | `APP_ENV`, `APP_DEBUG`, `APP_KEY`, `APP_URL` | `production` and `false` on a real server; `staging` on a test server; the key is required      |
 | `COMPOSER_DEV`                           | `true` only on a test server, so the example seeders can run                                          |
 | `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` | the stack's PostgreSQL (defaults `hr_app` / `hr_app`; the password is required)                    |
-| `WEB_BIND`, `WEB_PORT`                   | where Nginx is published: `0.0.0.0:8090` by default, `127.0.0.1` behind another Nginx                 |
-| `OFFICE_CIDR`                            | the office or LAN range that counts as the private entrance                                           |
+| `WEB_BIND`, `WEB_PORT`                   | where Nginx is published: `127.0.0.1:8090` by default, behind the Nginx that does the https. Widen `WEB_BIND` only for an office-LAN test |
+| `OFFICE_CIDR`                            | the office or LAN range that counts as the private entrance. `127.0.0.1/32` (the server itself) by default; set a real range only for a server inside the office LAN, never a wide one such as `192.168.0.0/16` on a VPS |
 | `ENTRANCE_DEFAULT`                       | leave unset on a server: a request Nginx cannot place then counts as public                           |
 | `TRUSTED_PROXIES`                        | proxies whose forwarded address and scheme the app believes (default `127.0.0.1,::1`)                 |
 | `WG_HOST`, `WG_ADMIN_USER`, `WG_ADMIN_PASSWORD` | WireGuard: the public address peers connect to, and the admin page login                       |
@@ -430,8 +462,9 @@ Server settings are in `docker/server/.env` (template: `docker/server/server.env
 | `FEATURE_ATTENDANCE_AGENTS`              | `true` brings back the automatic on-site sync agents: the ingest API, the agent and sync-log admin screens, "Sinkronkan sekarang" and the agent warnings. **Off by default**: attendance arrives by manual import. Needs `FEATURE_ATTENDANCE` on |
 | `INITIAL_ADMIN_NAME`, `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PASSWORD` | the first System Admin, created by `db:seed` on a real server; remove the password afterwards |
 | `ATTENDANCE_DEVICE_TIMEZONE`, `ATTENDANCE_WORK_START`, `ATTENDANCE_WORK_END`, `ATTENDANCE_WORK_END_FRIDAY`, `ATTENDANCE_LATE_GRACE_MINUTES` | attendance defaults (`Asia/Jakarta`, 08:00, 17:00, Friday 17:30, 10). Used until someone saves their own under **Jam kerja** in the admin panel, which also has a field for Friday's end; leave it empty there for a Friday that ends like the other days |
-| `SESSION_LIFETIME`                       | idle expiry in minutes (120)                                                                          |
-| `UPLOADS_COMPRESS_PDF`, `UPLOADS_GHOSTSCRIPT`, `UPLOADS_PDF_PRESET` | shrink stored PDFs (`true`, `gs`, `/ebook`); `/screen` is smaller and softer, `/printer` larger and sharper. See `backend/config/uploads.php` |
+| `SESSION_LIFETIME`, `SESSION_ABSOLUTE_LIFETIME` | minutes a session may sit idle (480, so about one password and 2FA code per working day) and the most minutes one sign-in may last however active it is (1440; `0` = no cap). There is no "remember me": it would sign someone back in without the password or the 2FA code |
+| `REQUIRE_TWO_FACTOR`                     | on by default: elevated accounts (any role above Karyawan, anyone with reports, approvers, checklist owners) must set up two-factor sign-in before they can use the app, and cannot turn it off; an administrator resets it. `false` only for local development |
+| `UPLOADS_COMPRESS_PDF`, `UPLOADS_GHOSTSCRIPT`, `UPLOADS_PDF_PRESET` | shrink stored PDFs (`true`, `gs`, `/ebook`); `/screen` is smaller and softer, `/printer` larger and sharper. The code default is on; **`server.env.example` sets it off**, see "Uploaded files". See `backend/config/uploads.php` |
 
 ---
 

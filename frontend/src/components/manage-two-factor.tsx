@@ -12,11 +12,13 @@ export type Props = {
     canManageTwoFactor?: boolean;
     requiresConfirmation?: boolean;
     twoFactorEnabled?: boolean;
+    twoFactorRequired?: boolean;
 };
 
 export default function ManageTwoFactor(props: Props) {
     const requiresConfirmation = props.requiresConfirmation ?? false;
     const twoFactorEnabled = props.twoFactorEnabled ?? false;
+    const twoFactorRequired = props.twoFactorRequired ?? false;
 
     const {
         qrCodeSvg,
@@ -59,19 +61,27 @@ export default function ManageTwoFactor(props: Props) {
                         application on your phone.
                     </p>
 
-                    <div className="relative inline">
-                        <Form {...disable.form()}>
-                            {({ processing }) => (
-                                <Button
-                                    variant="destructive"
-                                    type="submit"
-                                    disabled={processing}
-                                >
-                                    Disable 2FA
-                                </Button>
-                            )}
-                        </Form>
-                    </div>
+                    {twoFactorRequired ? (
+                        <p className="text-sm font-medium">
+                            Autentikasi dua langkah wajib untuk akun Anda dan
+                            tidak bisa dimatikan sendiri. Jika perangkat Anda
+                            hilang, minta administrator mengatur ulangnya.
+                        </p>
+                    ) : (
+                        <div className="relative inline">
+                            <Form {...disable.form()}>
+                                {({ processing }) => (
+                                    <Button
+                                        variant="destructive"
+                                        type="submit"
+                                        disabled={processing}
+                                    >
+                                        Disable 2FA
+                                    </Button>
+                                )}
+                            </Form>
+                        </div>
+                    )}
 
                     <TwoFactorRecoveryCodes
                         recoveryCodesList={recoveryCodesList}
@@ -81,6 +91,12 @@ export default function ManageTwoFactor(props: Props) {
                 </div>
             ) : (
                 <div className="flex flex-col items-start justify-start space-y-4">
+                    {twoFactorRequired && (
+                        <p className="text-sm font-medium">
+                            Akun Anda wajib memakai autentikasi dua langkah.
+                            Aktifkan sekarang untuk bisa memakai aplikasi.
+                        </p>
+                    )}
                     <p className="text-sm text-muted-foreground">
                         When you enable two-factor authentication, you will be
                         prompted for a secure pin during login. This pin can be

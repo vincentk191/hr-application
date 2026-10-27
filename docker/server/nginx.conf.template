@@ -20,6 +20,13 @@ map $http_x_forwarded_proto $forwarded_https {
     https   on;
 }
 
+# Strict-Transport-Security, only where the host's proxy says the visitor came by https (see nginx-headers.conf). Six
+# months, no includeSubDomains: this hostname's other sites are not this stack's to decide for.
+map $forwarded_https $forwarded_hsts {
+    default "";
+    on      "max-age=15552000";
+}
+
 geo $remote_addr $entrance {
     default          public;
     172.29.0.0/24    private;   # the stack's own network: the server itself (localhost) lands here
@@ -27,6 +34,23 @@ geo $remote_addr $entrance {
     172.31.0.1       private;   # the host itself: Docker may route its own connections through any of the three networks
     ${OFFICE_CIDR}   private;   # the office / LAN
 }
+
+# Request limits for the PUBLIC entrance only, as a cheap filter before PHP is asked anything (the app's own limiter
+# still decides who is locked out). A request with an empty key is not counted, so the private entrance is never
+# limited: every WireGuard peer reaches this Nginx from the one VPN address, and would otherwise share a single budget.
+#   hr_auth     the sign-in, registration and two-factor submissions: 60 a minute per visitor address, bursts of 20.
+#   hr_public   everything else: 30 a second, bursts of 60 (a page load is a dozen files).
+map $entrance $public_key {
+    default "";
+    public  $binary_remote_addr;
+}
+map "$entrance:$request_method:$uri" $auth_key {
+    default "";
+    "~^public:POST:/(login|register|two-factor-challenge|user/confirm-password)$" $binary_remote_addr;
+}
+limit_req_zone $auth_key zone=hr_auth:10m rate=60r/m;
+limit_req_zone $public_key zone=hr_public:10m rate=30r/s;
+limit_req_status 429;
 
 server {
     listen 80;
@@ -39,12 +63,14 @@ server {
     client_max_body_size 30m;
     server_tokens off;
 
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header Referrer-Policy "same-origin" always;
+    limit_req zone=hr_auth burst=20 nodelay;
+    limit_req zone=hr_public burst=60 nodelay;
 
     # Plain HTTP here is either the host's proxy (which has already done the https, and says so with its header)
     # or an internal hop that never claims to be encrypted; either way the real answer is what it says.
     set $https_flag $forwarded_https;
+    set $hsts_value $forwarded_hsts;
+    include /etc/nginx/snippets/hr-headers.conf;
     include /etc/nginx/snippets/hr-locations.conf;
 }
 
