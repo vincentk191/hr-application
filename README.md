@@ -317,8 +317,11 @@ depends on it.
    docker compose -f docker-compose.server.yml --env-file docker/server/.env up -d --build
    docker compose -f docker-compose.server.yml --env-file docker/server/.env exec web nginx -t
    ```
-   `nginx -t` must say "syntax is ok" / "test is successful". If it instead complains it cannot load a certificate,
-   `VPN_HOSTNAME` does not match the name on the certificate (`certbot certificates` on the host lists what exists).
+   `nginx -t` must say "syntax is ok" / "test is successful". The HTTPS block is only added when `VPN_HOSTNAME` is set
+   **and** `/etc/letsencrypt/live/<vpn-host>/fullchain.pem` exists on the host, so check which happened with
+   `docker compose -f docker-compose.server.yml --env-file docker/server/.env logs web | grep 15-vpn-tls`: "is on" is
+   what you want; "no certificate at …" means the name does not match the certificate (`certbot certificates` on the host
+   lists what exists) or step 2 has not been done yet. Nothing else is affected while it is off.
 4. **Install the reload hook once**, so a renewal actually reaches the `web` container (it mounts the host's
    certificates read-only and does not otherwise notice a new one):
    ```bash
@@ -341,8 +344,9 @@ depends on it.
    - Install the PWA from `https://<vpn-host>` while connected. It is a separate install from the public one at
      `https://<hr-host>` — two icons, each only useful on its own network.
 
-Rolling back: remove the TLS `server` block from `docker/server/nginx.conf.template`, unset `VPN_HOSTNAME` (or leave
-it — the public entrance does not need it), rebuild, and remove the DNS record and the renewal hook.
+Rolling back, or switching it off for now: empty `VPN_HOSTNAME` in `docker/server/.env` and run the `up -d` command again;
+the HTTPS block is then not added and Nginx starts without it. Then remove the DNS record and the renewal hook if it is
+going away for good.
 
 ### Day to day
 
@@ -421,7 +425,7 @@ Server settings are in `docker/server/.env` (template: `docker/server/server.env
 | `ENTRANCE_DEFAULT`                       | leave unset on a server: a request Nginx cannot place then counts as public                           |
 | `TRUSTED_PROXIES`                        | proxies whose forwarded address and scheme the app believes (default `127.0.0.1,::1`)                 |
 | `WG_HOST`, `WG_ADMIN_USER`, `WG_ADMIN_PASSWORD` | WireGuard: the public address peers connect to, and the admin page login                       |
-| `VPN_HOSTNAME`                           | a hostname of its own for the VPN entrance, DNS-pointed at `172.30.0.10`. Required once HTTPS over the VPN is set up (step 7.5), which names the certificate Nginx serves there |
+| `VPN_HOSTNAME`                           | a hostname of its own for the VPN entrance, DNS-pointed at `172.30.0.10`. **Optional**: empty (or no certificate for it yet) means Nginx starts without the VPN https. Set it once HTTPS over the VPN is set up (step 7.5); it names the certificate Nginx serves there |
 | `FEATURE_ATTENDANCE`                     | `false` removes attendance: its pages, scanner ingest API, profile tab, dashboard card, admin screens and the 09:00 notice (404). The calendar and its holidays stay, because leave day counts need them. On by default; nothing is deleted |
 | `FEATURE_ATTENDANCE_AGENTS`              | `true` brings back the automatic on-site sync agents: the ingest API, the agent and sync-log admin screens, "Sinkronkan sekarang" and the agent warnings. **Off by default**: attendance arrives by manual import. Needs `FEATURE_ATTENDANCE` on |
 | `INITIAL_ADMIN_NAME`, `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PASSWORD` | the first System Admin, created by `db:seed` on a real server; remove the password afterwards |

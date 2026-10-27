@@ -122,3 +122,10 @@ COPY --from=assets /var/www/backend/public /var/www/backend/public
 COPY docker/server/nginx.conf.template /etc/nginx/templates/default.conf.template
 # Not a template (no ${...} placeholders): copied straight in, not through envsubst.
 COPY docker/server/nginx-locations.conf /etc/nginx/snippets/hr-locations.conf
+# The VPN https block is kept out of the templates folder and added by a start-up script only when it can work (a
+# hostname is set and its certificate exists), so a missing certificate cannot stop Nginx from starting. The script's line
+# endings are forced to LF: a Windows checkout would otherwise break its shebang.
+COPY docker/server/vpn-tls.conf.template /opt/hr/vpn-tls.conf.template
+COPY docker/server/15-vpn-tls.sh /docker-entrypoint.d/15-vpn-tls.sh
+RUN sed -i 's/\r$//' /docker-entrypoint.d/15-vpn-tls.sh /opt/hr/vpn-tls.conf.template \
+    && chmod +x /docker-entrypoint.d/15-vpn-tls.sh

@@ -65,6 +65,14 @@ listed in the checklist below. Nothing here is committed yet: changes are left f
 
 ## Change log (latest first)
 
+- **2026-10-26 (VPN https is optional).** A server with `VPN_HOSTNAME` set but no certificate yet got a 502: Nginx could
+  not load the certificate and never started, and the compose file also refused an empty `VPN_HOSTNAME`. The TLS block
+  moved out of `nginx.conf.template` into `vpn-tls.conf.template`, which `docker/server/15-vpn-tls.sh` (an nginx image
+  start-up script, before the template step) copies into the templates only when `VPN_HOSTNAME` is set **and**
+  `/etc/letsencrypt/live/<host>/fullchain.pem` exists; otherwise it logs why and Nginx starts without it.
+  `VPN_HOSTNAME: ${VPN_HOSTNAME:-}` is now optional. Checked with the stock nginx image: empty, hostname without a
+  certificate (starts), and with a throwaway certificate (block rendered).
+
 - **2026-10-26 (attendance tables on a phone).** The mobile pattern already used for Pengajuan, the directory and profile
   changes, applied to the attendance screens: below `md` the wide table gives way to cards, and the filter row to one
   **Cari & filter** button opening a bottom sheet (`FilterSheet`; new `ChipMultiSelect` for the multi-select ones).

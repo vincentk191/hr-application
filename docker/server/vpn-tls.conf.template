@@ -1,0 +1,29 @@
+# HTTPS reachable only from WireGuard peers (README, "HTTPS over the VPN"): its own hostname and certificate,
+# separate from the public entrance's — VPN_HOSTNAME resolves (in ordinary public DNS) to this address, 172.30.0.10,
+# which is private and unreachable from the internet, so the name is harmless to publish and needs no split-horizon
+# DNS. VPN_HOSTNAME must be the exact name that certificate was issued for (DNS-01; see the README), and the renewal
+# hook (docker/server/reload-after-renew.sh) must reload this container too, or a renewed certificate never reaches
+# it — which, with no DNS provider API, is a manual step each time (the README says how often and how).
+#
+# Not part of nginx.conf.template: docker/server/15-vpn-tls.sh adds this block only when VPN_HOSTNAME is set AND its
+# certificate exists, so a server that has not set the VPN https up (or has no certificate yet) still starts.
+server {
+    listen 172.30.0.10:443 ssl;
+    server_name ${VPN_HOSTNAME};
+
+    ssl_certificate     /etc/letsencrypt/live/${VPN_HOSTNAME}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${VPN_HOSTNAME}/privkey.pem;
+
+    root /var/www/backend/public;
+    index index.php;
+
+    client_max_body_size 30m;
+    server_tokens off;
+
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "same-origin" always;
+
+    # This Nginx terminates the TLS itself here, so this is never a forwarded claim.
+    set $https_flag on;
+    include /etc/nginx/snippets/hr-locations.conf;
+}
