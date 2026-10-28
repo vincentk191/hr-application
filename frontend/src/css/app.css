@@ -76,8 +76,9 @@
     --card-foreground: oklch(0.18 0.005 60);
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.18 0.005 60);
-    --primary: oklch(0.62 0.235 31);
-    --primary-foreground: oklch(0.99 0 0);
+    /* The accent: red unless a company colour is set (lib/branding.ts sets the --brand* variables). */
+    --primary: var(--brand, oklch(0.62 0.235 31));
+    --primary-foreground: var(--brand-fg, oklch(0.99 0 0));
     --secondary: oklch(0.94 0.003 90);
     --secondary-foreground: oklch(0.2 0.005 60);
     --muted: oklch(0.945 0.003 90);
@@ -88,7 +89,7 @@
     --destructive-foreground: oklch(0.99 0 0);
     --border: oklch(0.915 0.003 90);
     --input: oklch(0.89 0.003 90);
-    --ring: oklch(0.62 0.235 31 / 0.45);
+    --ring: var(--brand-ring, oklch(0.62 0.235 31 / 0.45));
     --chart-1: oklch(0.62 0.235 31);
     --chart-2: oklch(0.2 0 0);
     --chart-3: oklch(0.6 0.118 184.704);
@@ -97,12 +98,12 @@
     --radius: 0.875rem;
     --sidebar: oklch(1 0 0);
     --sidebar-foreground: oklch(0.18 0.005 60);
-    --sidebar-primary: oklch(0.62 0.235 31);
-    --sidebar-primary-foreground: oklch(0.99 0 0);
+    --sidebar-primary: var(--brand, oklch(0.62 0.235 31));
+    --sidebar-primary-foreground: var(--brand-fg, oklch(0.99 0 0));
     --sidebar-accent: oklch(0.945 0.003 90);
     --sidebar-accent-foreground: oklch(0.18 0.005 60);
     --sidebar-border: oklch(0.915 0.003 90);
-    --sidebar-ring: oklch(0.62 0.235 31 / 0.45);
+    --sidebar-ring: var(--brand-ring, oklch(0.62 0.235 31 / 0.45));
     --topbar-h: 4.5rem;
 }
 
@@ -113,8 +114,9 @@
     --card-foreground: oklch(0.97 0.003 90);
     --popover: oklch(0.22 0.004 60);
     --popover-foreground: oklch(0.97 0.003 90);
-    --primary: oklch(0.66 0.23 31);
-    --primary-foreground: oklch(0.99 0 0);
+    /* A company colour is lightened for the dark theme where it would not read (lib/branding.ts: --brand-dark). */
+    --primary: var(--brand-dark, oklch(0.66 0.23 31));
+    --primary-foreground: var(--brand-fg-dark, oklch(0.99 0 0));
     --secondary: oklch(0.27 0.004 60);
     --secondary-foreground: oklch(0.97 0.003 90);
     --muted: oklch(0.26 0.004 60);
@@ -125,7 +127,7 @@
     --destructive-foreground: oklch(0.99 0 0);
     --border: oklch(0.29 0.004 60);
     --input: oklch(0.33 0.004 60);
-    --ring: oklch(0.66 0.23 31 / 0.5);
+    --ring: var(--brand-ring-dark, oklch(0.66 0.23 31 / 0.5));
     --chart-1: oklch(0.66 0.23 31);
     --chart-2: oklch(0.97 0 0);
     --chart-3: oklch(0.696 0.17 162.48);
@@ -133,12 +135,12 @@
     --chart-5: oklch(0.645 0.246 16.439);
     --sidebar: oklch(0.2 0.004 60);
     --sidebar-foreground: oklch(0.97 0.003 90);
-    --sidebar-primary: oklch(0.66 0.23 31);
-    --sidebar-primary-foreground: oklch(0.99 0 0);
+    --sidebar-primary: var(--brand-dark, oklch(0.66 0.23 31));
+    --sidebar-primary-foreground: var(--brand-fg-dark, oklch(0.99 0 0));
     --sidebar-accent: oklch(0.27 0.004 60);
     --sidebar-accent-foreground: oklch(0.97 0.003 90);
     --sidebar-border: oklch(0.29 0.004 60);
-    --sidebar-ring: oklch(0.66 0.23 31 / 0.5);
+    --sidebar-ring: var(--brand-ring-dark, oklch(0.66 0.23 31 / 0.5));
 }
 
 @layer base {

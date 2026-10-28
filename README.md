@@ -134,6 +134,38 @@ Open **http://localhost:8001**. The first start is slow (it installs dependencie
 Seeded logins, all with the password `password`: `group@hr.test` (HR Admin, parent-wide), `hr.a@hr.test` (HR Admin,
 Company A), `admin@hr.test` (System Admin, parent-wide), `supervisor.a@hr.test`, `employee.a@hr.test`.
 
+### Backups on your own computer
+
+The nightly backup is a script for the Linux server (it needs `flock`, the server's `docker-compose.server.yml` services and
+a cron job), so **it does not run on this local setup**. What you can try locally is the settings page and the key pair, so
+that the values are known and tested before the server exists. Nothing here makes a backup.
+
+1. **Make a practice key pair.** Use a throwaway one for local testing and make the real one when the server is ready (see
+   "Backups" below for what the pair is). With Docker only, from a folder **outside this repository** (the key file must
+   never be committed):
+   ```bash
+   docker run --rm -v "$PWD:/out" alpine sh -c "apk add -q age && age-keygen -o /out/practice-key.txt"
+   ```
+   It prints `Public key: age1...`; the file holds the line `AGE-SECRET-KEY-...`, which is the private key. (Or install age
+   on Windows with `winget install FiloSottile.age` and run `age-keygen -o practice-key.txt`.)
+2. Sign in as `admin@hr.test` / `password`, open **http://localhost:8001/admin**, then **Cadangan data**. It asks for the
+   password once on the way in (and again on save).
+3. Fill in the form:
+
+   | Field on the page                      | For local testing                                                                    |
+   | -------------------------------------- | ------------------------------------------------------------------------------------ |
+   | Cadangan otomatis aktif                | leave on                                                                             |
+   | Kunci publik enkripsi (age)            | the `age1...` public key from step 1                                                 |
+   | Tujuan salinan di luar server (rclone) | leave blank. There is no rclone here, and a blank is allowed                         |
+   | Simpan di server / di luar server      | leave blank (the server's defaults are 7 and 30 days)                                |
+   | Alamat pemantauan                      | leave blank                                                                          |
+
+4. Save. The page accepts it only if the key and the other values have the right shape, which is what you are testing. The
+   box "Laporan terakhir dari server" will keep saying that nothing has been reported: only the server's script writes
+   that report, so locally it never changes.
+
+Saved values live in the local database only; nothing on the server reads them until you deploy.
+
 ---
 
 ## Deploying to a server
@@ -177,7 +209,8 @@ Fill in `docker/server/.env` (every setting is in the [reference](#configuration
 
 - `APP_KEY`: generate with `docker run --rm php:8.4-cli php -r 'echo "base64:".base64_encode(random_bytes(32)).PHP_EOL;'`
 - `APP_ENV=production`, `COMPOSER_DEV=false`, `APP_URL=https://<hr-host>`
-- `DB_PASSWORD`, `WG_ADMIN_PASSWORD`, `WG_HOST` (the server's public address, for WireGuard)
+- `DB_PASSWORD` (the application's database password; the database superuser gets none, see
+  [The database logins](#the-database-logins)), `WG_ADMIN_PASSWORD`, `WG_HOST` (the server's public address, for WireGuard)
 - `WEB_BIND=127.0.0.1` and `WEB_PORT=8090` when another Nginx on the same server does the https (step 5)
 - `FEATURE_ATTENDANCE=false` to ship without attendance
 - `INITIAL_ADMIN_EMAIL` and `INITIAL_ADMIN_PASSWORD` (12 or more characters) for the first account
@@ -432,6 +465,39 @@ docker image prune -f       # images no container uses
   Ghostscript would open PDFs uploaded from the public entrance inside the container that holds the database password and
   `APP_KEY`, and it has had sandbox escapes. Turn it on only once compression runs somewhere with no network and no secrets.
 
+### The database logins
+
+PostgreSQL has two logins, and the application only ever gets the weaker one:
+
+| Login                                      | Is                                      | Used by                                                                            |
+| ------------------------------------------ | --------------------------------------- | ---------------------------------------------------------------------------------- |
+| `DB_USERNAME` (default `hr_app`)           | an ordinary role that **owns** the database | `app`, `queue` and `scheduler`, with `DB_PASSWORD`                                |
+| `DB_ADMIN_USERNAME` (default `hr_admin`)   | the superuser the PostgreSQL image creates | you, and the backup script, **inside** the database container only                 |
+
+Why: a flaw in the application that lets someone run their own SQL runs as whatever the application signs in as. As a
+superuser that would also be able to run programs on the database container (`COPY ... TO PROGRAM`), read its files, and
+create more superusers. `hr_app` can do none of that; it can still read, change and delete the application's own data,
+which is what the [backups](#backups) are for.
+
+- **Nothing to do on a new server.** `docker/server/db-app-role.sh` creates the application login the first time the
+  database is created (the PostgreSQL image runs it from `/docker-entrypoint-initdb.d`), makes it the owner of the database,
+  and **removes the superuser's password**: that login can no longer sign in over the network at all, only from inside the
+  container, where `docker compose ... exec db` reaches it over the local socket. The names must differ, or the container
+  refuses to start. Both are the defaults and need no setting.
+- **A SQL prompt as the superuser** (for looking, not for the application): ``... exec db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'``.
+- **Changing `DB_PASSWORD`** later: edit `docker/server/.env`; run `... up -d db` (this recreates only the database
+  container, the data stays); run `... exec db sh /docker-entrypoint-initdb.d/10-app-role.sh` (this sets the new password
+  on the role); then `... up -d` for the rest.
+- **A server made before this change** has the application signing in as the superuser, and the new roles cannot be added
+  to an existing database folder (the PostgreSQL image only sets them up on an empty one). Move it by backup and restore;
+  the documents and the VPN volumes are not touched:
+  1. `bash docker/server/backup.sh`, and copy the newest folder to your own computer as well.
+  2. `git pull`. Leave `DB_USERNAME` and `DB_PASSWORD` as they are.
+  3. `... down`, then `docker volume rm hr-server_pgdata` (the database only).
+  4. `... up -d --build`: a new, empty database with the two logins, and `app` creates the tables.
+  5. Restore the database with the first restore command in "Restore" below (stop `app queue scheduler`, `pg_restore`, start them).
+- **The local stack** (`docker-compose.yml`) still signs in as a superuser for convenience; its data is throwaway.
+
 ### Backups
 
 A backup is one folder, `YYYY-MM-DD_HHMMSS`, of four encrypted files plus a checksum list and a manifest:
@@ -447,6 +513,27 @@ Everything is encrypted with [age](https://github.com/FiloSottile/age) to a **pu
 copy is ever written to the server's disk, and the matching private key is **never on the server**. Someone who takes the
 server, or the copy kept elsewhere, cannot read a backup. The flip side: **lose the private key and every backup is
 unreadable.** Keep it in two safe places (a password manager, and a printed copy in a locked drawer).
+
+**What the "age key pair" is.** `age-keygen` makes two linked keys. The **public key** (`age1...`, about 62 characters) can
+only lock: it is safe to put on the server, on the admin page, and in `backup.env`. The **private key**
+(`AGE-SECRET-KEY-...`, in the file `age-keygen` writes) is the only thing that can unlock, and it stays on your own
+computer and in your two safe places. That is why a stolen server or a stolen cloud copy gives no one any data, and why
+losing the private key is final: nobody, including the people who wrote age, can open a backup without it. The public key
+is also written in the key file as a comment (`# public key: age1...`), so it can be read back at any time.
+
+**The values, and where each goes on a server.** Each can be set in `docker/server/backup.env` or on the admin page
+"Cadangan data" (a value on the page wins; blank there means the file's value, see below):
+
+| `backup.env` name                | Page field                             | Needed?  | What to put                                                                                      |
+| -------------------------------- | -------------------------------------- | -------- | ------------------------------------------------------------------------------------------------ |
+| `AGE_RECIPIENT`                  | Kunci publik enkripsi (age)            | yes      | the public key `age1...` from `age-keygen`, never the private one                               |
+| `BACKUP_REMOTE`                  | Tujuan salinan di luar server (rclone) | advised  | `name:folder` of an rclone remote, e.g. `b2:company-hr-backups/hr-app`; blank = backups stay on the server only (the script warns) |
+| `BACKUP_KEEP_DAYS`               | Simpan di server (hari)                | no       | days of backups kept on the server; default 7                                                    |
+| `BACKUP_REMOTE_KEEP_DAYS`        | Simpan di luar server (hari)           | no       | days kept at the destination; default 30                                                         |
+| `BACKUP_OK_URL`, `BACKUP_FAIL_URL` | Alamat pemantauan: berhasil / gagal  | no       | the two https addresses of a monitoring check (healthchecks.io); blank = no monitoring           |
+| `BACKUP_DIR`                     | not on the page                        | no       | where the backups sit on the server; default `/var/backups/hr-app`                               |
+| `BACKUP_IGNORE_PAGE`             | not on the page                        | no       | `true` = ignore the admin page and use only this file                                            |
+| (the cloud's login)              | not on the page, on purpose            | with a remote | stored by `rclone config` on the server                                                     |
 
 Each night at 02:30 the script keeps 7 days on the server, copies the folder to a second place with `rclone` and reads it
 back to check it arrived intact, and deletes copies there older than 30 days. A failed run leaves no half-written folder and
@@ -517,7 +604,7 @@ KEY=hr-backup-key.txt
 DC='cd /opt/hr-application && docker compose -f docker-compose.server.yml --env-file docker/server/.env'
 
 ssh $SERVER "$DC stop app queue scheduler"
-age -d -i $KEY $RUN/database.dump.age | ssh $SERVER "$DC exec -T db sh -c 'pg_restore -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" --clean --if-exists --no-owner --no-privileges --exit-on-error'"
+age -d -i $KEY $RUN/database.dump.age | ssh $SERVER "$DC exec -T db sh -c 'pg_restore -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" --role=\"\$APP_DB_USER\" --clean --if-exists --no-owner --no-privileges --exit-on-error'"
 ssh $SERVER "$DC up -d app queue scheduler"
 age -d -i $KEY $RUN/storage.tar.gz.age | ssh $SERVER "$DC exec -T app tar -xzf - -C /var/www/backend/storage"
 age -d -i $KEY $RUN/wireguard.tar.gz.age | ssh $SERVER "$DC exec -T wg tar -xzf - -C /etc/wireguard"
@@ -540,7 +627,7 @@ where it is), the host Nginx site file from step 5, and the DNS records. Certifi
 
 A WAF in front (Cloudflare, once the domain's DNS moves there; Nginx already limits the public entrance's requests), the
 Management accounts (they wait on the client's details), Web Push (alerts are in-app only),
-a database login that is not a superuser, mounting only the one certificate and the public files into the `web` container,
+mounting only the one certificate and the public files into the `web` container,
 compressing PDFs in a sandbox, and a server of its own if the public entrance should not share a machine with other sites.
 Details and the open items per screen are in [DEVELOPMENT.md](DEVELOPMENT.md).
 
@@ -555,7 +642,8 @@ Server settings are in `docker/server/.env` (template: `docker/server/server.env
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | `APP_ENV`, `APP_DEBUG`, `APP_KEY`, `APP_URL` | `production` and `false` on a real server; `staging` on a test server; the key is required      |
 | `COMPOSER_DEV`                           | `true` only on a test server, so the example seeders can run                                          |
-| `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` | the stack's PostgreSQL (defaults `hr_app` / `hr_app`; the password is required)                    |
+| `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` | the stack's PostgreSQL and the application's own, non-superuser login (defaults `hr_app` / `hr_app`; the password is required). See "The database logins" |
+| `DB_ADMIN_USERNAME`                         | the PostgreSQL superuser, used only inside the database container and given no password (default `hr_admin`; must differ from `DB_USERNAME`)   |
 | `WEB_BIND`, `WEB_PORT`                   | where Nginx is published: `127.0.0.1:8090` by default, behind the Nginx that does the https. Widen `WEB_BIND` only for an office-LAN test |
 | `OFFICE_CIDR`                            | the office or LAN range that counts as the private entrance. `127.0.0.1/32` (the server itself) by default; set a real range only for a server inside the office LAN, never a wide one such as `192.168.0.0/16` on a VPS |
 | `ENTRANCE_DEFAULT`                       | leave unset on a server: a request Nginx cannot place then counts as public                           |

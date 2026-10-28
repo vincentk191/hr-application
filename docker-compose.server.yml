@@ -55,10 +55,17 @@ services:
         logging: *logging
         environment:
             POSTGRES_DB: ${DB_DATABASE:-hr_app}
-            POSTGRES_USER: ${DB_USERNAME:-hr_app}
+            # The superuser the image creates. It stays inside this container (backup, restore, `exec db psql`) and the
+            # application never uses it: docker/server/db-app-role.sh, run once when the database is first created, makes
+            # DB_USERNAME the application's own non-superuser login and then removes this one's password. POSTGRES_PASSWORD
+            # is only the placeholder the image insists on.
+            POSTGRES_USER: ${DB_ADMIN_USERNAME:-hr_admin}
             POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in docker/server/.env}
+            APP_DB_USER: ${DB_USERNAME:-hr_app}
+            APP_DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in docker/server/.env}
         volumes:
             - pgdata:/var/lib/postgresql/data
+            - ./docker/server/db-app-role.sh:/docker-entrypoint-initdb.d/10-app-role.sh:ro
         healthcheck:
             test: ['CMD-SHELL', 'pg_isready -U ${DB_USERNAME:-hr_app} -d ${DB_DATABASE:-hr_app}']
             interval: 5s

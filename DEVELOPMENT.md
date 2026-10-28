@@ -65,6 +65,42 @@ listed in the checklist below. Nothing here is committed yet: changes are left f
 
 ## Change log (latest first)
 
+- **2026-10-28 (non-superuser database login).** The server stack used to sign the application in to PostgreSQL as the
+  image's superuser (`POSTGRES_USER` was `DB_USERNAME`), so any SQL an attacker could run through a flaw in the app ran as a
+  superuser (`COPY ... TO PROGRAM` is code execution in the database container). Now `POSTGRES_USER` is `DB_ADMIN_USERNAME`
+  (default `hr_admin`), and `docker/server/db-app-role.sh`, mounted into `/docker-entrypoint-initdb.d`, creates `DB_USERNAME`
+  as `NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`, makes it owner of the database, and sets the
+  superuser's password to NULL: the pg_hba the image writes uses `trust` on the local socket and `scram-sha-256` over the
+  network, so the superuser is reachable only through `docker compose exec db` and the backup script. No new secret: the
+  superuser gets `DB_PASSWORD` only as the placeholder the image insists on, and loses it in the same start. (A separate
+  `DB_ADMIN_PASSWORD` in the shared env file would have put the superuser's password inside the app containers.)
+  - **Restore changed:** `pg_restore` now has `--role="$APP_DB_USER"`. Without it `--no-owner` makes the restoring superuser
+    own every table and the application is locked out (`permission denied for table`); shown in the test below.
+  - **An existing server** cannot be changed in place (the image only runs init scripts on an empty data directory): README,
+    "The database logins", moves it by backup, removing only `hr-server_pgdata`, and restore.
+  - Checked on `postgres:16-alpine` with the real compose `db` service: roles and flags; ownership; the superuser refused over
+    the network with the app's password and with none; the app login refused `COPY ... PROGRAM`, `CREATE ROLE`, `CREATE
+    DATABASE`, `pg_read_file`, `ALTER SYSTEM`, `CREATE EXTENSION`, `COPY ... TO file` and `ALTER ROLE ... SUPERUSER`; a
+    password with quotes, `;` and `$` survives; the same name for both roles is refused with a message; all 64 migrations,
+    `DevAccountSeeder` and `migrate:fresh` run as the app login (50 tables, all owned by it); the documented password change;
+    `backup.sh`, `backup-verify.sh` and the README restore command on a stand-in stack with the real init script, including a
+    dump taken from an old-style database (superuser app login) restored into the new one.
+  - **Not covered:** a real server's first start (this was the stack's `db` service alone, not `up -d --build` end to end); the
+    local `docker-compose.yml` still uses a superuser on purpose. The app login still owns the schema, so a flaw can still
+    read, change or drop the app's own data. Splitting a migrations-only owner from a runtime role would limit that, and was
+    not done: migrations run in the `app` container at start with the same credentials.
+
+- **2026-10-27 (company colour in dark mode).** A black company colour made the active menu label (and anything else drawn in
+  the accent) unreadable on dark surfaces. `applyBrandColor` used to write one colour as inline `--primary` and friends, which
+  overrode the light and the dark theme alike. It now sets `--brand*` variables only (a light one and a dark one), and
+  `css/app.css` reads `--brand` in the light theme and `--brand-dark` in the dark one, so switching theme needs no script.
+  The dark value is the chosen colour with the same hue and saturation made lighter until it has 5:1 contrast against the
+  lightest dark surface text sits on (the hover background); a colour that already reads is left exactly as chosen. Text on
+  it is whichever of black and white contrasts more (the light theme keeps its old rule, so existing colours look the same
+  there). Checked in Node (named colours, and 20,000 random ones: always readable, never darker, never changed when already
+  fine, hue kept), the types and the formatter, and that the dev server compiles the stylesheet with both values. **Not
+  looked at in a browser.**
+
 - **2026-10-27 (backup page opened in a frame, and the panel's theme).** Reported from the browser: after confirming the
   password the new page opened as a pop-up whose menus did nothing, and in light mode while the app was dark.
   - **The frame.** The password form is an Inertia visit; Fortify answers it with `redirect()->intended()`, and an Inertia
@@ -152,7 +188,7 @@ listed in the checklist below. Nothing here is committed yet: changes are left f
     `expose_php` off; `nginx:stable-alpine` (1.27 was a mainline release with no fixes); container logs capped; queue
     `--timeout=120`; the private disk's signed-URL route off; `UPLOADS_COMPRESS_PDF=false` in the server template.
     README step 7 now has the wg-easy rules that stop a VPN peer reaching anything but the app (not yet run on the server).
-  - **Not done:** non-superuser database login; mounting only one certificate and the public files into `web` (needs the
+  - **Not done:** (non-superuser database login: done 2026-10-28, above); mounting only one certificate and the public files into `web` (needs the
     server's Docker/Compose versions); Ghostscript in a sandbox; scheduled off-server backups; CSP for scripts and styles.
   - Checked: Pest for the new and touched areas; PHPStan clean in the touched files; the Nginx config run on the stock image
     (headers per location, limits public vs private).
@@ -1524,7 +1560,9 @@ Progress Tracking analytics (Appendix C).
   current menu item, focus rings; the text on it switches to black or white for contrast) and its logo
   sits beside "HR DASHBOARD" in the top bar; looking at all of them, the group colour and no logo. Anything
   unset keeps the default look, and a company-bound account always sees its own company's. A stored colour
-  that is not a valid hex is ignored, never written into the page's styles.
+  that is not a valid hex is ignored, never written into the page's styles. In the dark theme the colour is made lighter
+  automatically, but only as far as it needs to be to read on a dark surface (5:1), so a black company colour shows as
+  a mid grey there while a colour that is already light is left as chosen (`lib/branding.ts`, `darkVariant`).
 - **The look is one set of tokens, not per-page styling** (`frontend/src/css/app.css`). Archivo for text
   and JetBrains Mono for small captions; a warm light-grey page with white rounded surfaces, black for
   emphasis (the chosen view, status pills, the avatar) and one red for the thing to do and the place you
