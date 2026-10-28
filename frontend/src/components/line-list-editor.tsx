@@ -61,7 +61,7 @@ export function LineListEditor({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="border-2 border-dashed border-primary text-primary"
+                className="border-dashed border-primary/60 text-primary"
                 disabled={lines.length >= maxLines}
                 data-test={`add-line-${label}`}
                 onClick={() => onChange([...lines, ''])}

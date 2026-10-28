@@ -99,7 +99,7 @@ function ItemRow({ item }: { item: OffboardingChecklistItem }) {
         >
             <div className="flex min-w-0 items-start gap-3">
                 <Checkbox
-                    className="mt-0.5 size-5 rounded-none border-2"
+                    className="mt-0.5 size-5"
                     checked={item.done}
                     disabled={!item.canTick}
                     aria-label={`${item.done ? 'Batalkan' : 'Tandai selesai'} ${item.name}`}

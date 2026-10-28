@@ -44,7 +44,7 @@ export function LastDayDialog({
                     {label}
                 </Button>
             </DialogTrigger>
-            <DialogContent className="gap-0 overflow-hidden rounded-none border-2 border-foreground p-0 sm:max-w-xl">
+            <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-xl">
                 <Form
                     {...lastDay.form(item.id)}
                     options={{ preserveScroll: true }}
@@ -52,7 +52,7 @@ export function LastDayDialog({
                 >
                     {({ processing, errors }) => (
                         <>
-                            <DialogHeader className="border-b-2 border-foreground p-5 text-left">
+                            <DialogHeader className="border-b bg-muted/40 p-5 text-left">
                                 <DialogTitle className="text-2xl font-extrabold tracking-tight">
                                     Ubah hari terakhir — {item.employee.name}
                                 </DialogTitle>
@@ -90,11 +90,11 @@ export function LastDayDialog({
                                         id="last-day-note"
                                         name="note"
                                         rows={3}
-                                        className="w-full border-2 border-primary bg-background px-3 py-2 text-sm focus-visible:outline-none"
+                                        className="w-full rounded-xl border border-input bg-card px-3 py-2 text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
                                     />
                                 </div>
                             </div>
-                            <DialogFooter className="items-center border-t-2 border-foreground p-5 sm:justify-between">
+                            <DialogFooter className="items-center border-t bg-muted/40 p-5 sm:justify-between">
                                 <DialogClose asChild>
                                     <Button type="button" variant="outline">
                                         Batal

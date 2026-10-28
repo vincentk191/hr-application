@@ -12,6 +12,7 @@ import { DecisionDialog } from '@/components/decision-dialog';
 import InputError from '@/components/input-error';
 import { PhaseActions } from '@/components/phase-actions';
 import type { PhaseAction } from '@/components/phase-actions';
+import { RequisitionMobileStatus } from '@/components/requisition-mobile-status';
 import { RequisitionSummary } from '@/components/requisition-summary';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -50,7 +51,7 @@ function Tracker({
 }) {
     return (
         <ol
-            className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6"
+            className="hidden grid-cols-3 gap-2 md:grid lg:grid-cols-6"
             role="tablist"
             data-test="stage-tracker"
         >
@@ -356,14 +357,15 @@ export default function RequisitionShow({
                         <h1 className="text-2xl font-extrabold tracking-tight">
                             {item.positionName}
                         </h1>
-                        <p className="label-mono">
+                        <p className="label-mono md:hidden">{item.reference}</p>
+                        <p className="label-mono max-md:hidden">
                             {item.reference} · {item.department ?? '—'} · kuota{' '}
                             {item.quota === null
                                 ? '—'
                                 : `${item.filled}/${item.quota}`}{' '}
                             · PIC {item.createdBy ?? '—'}
                         </p>
-                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <div className="mt-2 flex flex-wrap items-center gap-2 max-md:hidden">
                             <Badge>{item.stageLabel}</Badge>
                             <span
                                 className="text-sm text-muted-foreground"
@@ -373,7 +375,7 @@ export default function RequisitionShow({
                             </span>
                         </div>
                         {item.submittedAt && (
-                            <p className="mt-1 text-xs text-muted-foreground">
+                            <p className="mt-1 text-xs text-muted-foreground max-md:hidden">
                                 Diajukan {item.submittedAt} oleh{' '}
                                 {item.createdBy ?? '—'}
                             </p>
@@ -396,6 +398,12 @@ export default function RequisitionShow({
                     />
                 </header>
 
+                <RequisitionMobileStatus
+                    item={item}
+                    active={tab}
+                    onPick={setTab}
+                />
+
                 <Tracker
                     tabs={item.tabs}
                     active={tab}
@@ -414,6 +422,7 @@ export default function RequisitionShow({
                         <ApprovalChain
                             requester={item.createdBy}
                             requesterLabel="Pemohon"
+                            requesterDate={item.submittedAt}
                             steps={item.chain}
                         />
                         <SubmittedTab item={item} />

@@ -57,7 +57,7 @@ export function DecisionDialog({
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>{trigger}</DialogTrigger>
             <DialogContent
-                className="gap-0 overflow-hidden rounded-none border-2 border-foreground p-0 sm:max-w-2xl"
+                className="gap-0 overflow-hidden p-0 sm:max-w-2xl"
                 data-test="decision-dialog"
             >
                 <Form
@@ -67,7 +67,7 @@ export function DecisionDialog({
                 >
                     {({ processing, errors }) => (
                         <>
-                            <DialogHeader className="border-b-2 border-foreground p-5 text-left">
+                            <DialogHeader className="border-b bg-muted/40 p-5 text-left">
                                 <DialogTitle className="text-2xl font-extrabold tracking-tight">
                                     {title}
                                 </DialogTitle>
@@ -95,14 +95,14 @@ export function DecisionDialog({
                                     rows={5}
                                     required={required}
                                     autoFocus
-                                    className="w-full border-2 border-primary bg-background px-3 py-2 text-sm focus-visible:outline-none"
+                                    className="w-full rounded-xl border border-input bg-card px-3 py-2 text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
                                     data-test="decision-note"
                                 />
                                 {hint && <p className="label-mono">{hint}</p>}
                                 <InputError message={errors.note} />
                             </div>
 
-                            <DialogFooter className="items-center border-t-2 border-foreground p-5 sm:justify-between">
+                            <DialogFooter className="items-center border-t bg-muted/40 p-5 sm:justify-between">
                                 <div className="flex items-center gap-3">
                                     <DialogClose asChild>
                                         <Button

@@ -161,7 +161,7 @@ export function WorkflowDiscussion({
                                     className={`flex gap-3 p-5 ${item.isNew ? 'bg-primary/5' : ''}`}
                                     data-test="discussion-comment"
                                 >
-                                    <span className="flex size-10 shrink-0 items-center justify-center border-2 border-foreground bg-card text-xs font-bold">
+                                    <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold">
                                         {initials(item.author)}
                                     </span>
                                     <div className="min-w-0 flex-1">
