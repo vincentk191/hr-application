@@ -31,6 +31,7 @@ export function DecisionDialog({
     confirmLabel,
     footnote,
     destructive = false,
+    extra,
 }: {
     /** The button in the page's action bar that opens the dialog. */
     trigger: React.ReactNode;
@@ -47,6 +48,8 @@ export function DecisionDialog({
     /** A line beside Batal saying what happens next. */
     footnote?: string;
     destructive?: boolean;
+    /** More fields sent with the decision, above the note (a requisition's salary expectation). */
+    extra?: (errors: Record<string, string>) => React.ReactNode;
 }) {
     const [open, setOpen] = useState(false);
 
@@ -79,6 +82,7 @@ export function DecisionDialog({
                                     name="decision"
                                     value={decision}
                                 />
+                                {extra?.(errors)}
                                 <label
                                     htmlFor="decision-note"
                                     className="text-sm font-semibold text-muted-foreground"

@@ -8,6 +8,7 @@ use App\Models\EmployeeDocument;
 use App\Models\LeaveRequest;
 use App\Models\OffboardingCase;
 use App\Models\ProfileChangeRequest;
+use App\Models\Requisition;
 use App\Models\User;
 use App\Models\WorkflowComment;
 use App\Models\WorkflowStep;
@@ -272,6 +273,81 @@ class Notifier
                 "{$case->reference()}: komentar baru dari {$author->name}",
                 mb_strimwidth($comment->body, 0, 140, '…'),
                 route('offboarding.show', $case, absolute: false),
+            ));
+        }
+    }
+
+    /**
+     * A requisition now waits on someone: Management after it is sent, HR after Management approves (REC-APR-001).
+     * Tell whoever decides the open step. The requester is never told of their own requisition this way.
+     */
+    public function requisitionAwaiting(Requisition $requisition, User $actor, bool $resubmitted = false): void
+    {
+        $requisition->loadMissing('department', 'workflow.steps');
+        $step = $requisition->workflow?->steps->firstWhere('status', 'pending');
+
+        if (! $step instanceof WorkflowStep) {
+            return;
+        }
+
+        $notice = new InAppNotice(
+            'recruitment',
+            $resubmitted
+                ? "{$requisition->reference()} diajukan ulang: {$requisition->position_name}"
+                : "{$requisition->reference()}: lowongan {$requisition->position_name} menunggu persetujuan {$step->label}",
+            "{$requisition->department?->name} · kuota {$requisition->quota}",
+            route('recruitment.show', $requisition, absolute: false),
+        );
+
+        foreach ($this->approversOf($step, $requisition->company_id) as $user) {
+            if ($user->isNot($actor) && $user->id !== $requisition->created_by_user_id) {
+                $user->notify($notice);
+            }
+        }
+    }
+
+    /**
+     * A requisition was decided at stage 01: tell its requester. A rejection carries the reason; an approval that
+     * completes the chain says it is ready to be posted (REC-APR-006).
+     */
+    public function requisitionDecided(Requisition $requisition, bool $approved, ?string $note, User $actor): void
+    {
+        $requisition->loadMissing('creator');
+        $requester = $requisition->creator;
+
+        if ($requester === null || ! $requester->is_active || $requester->is($actor)) {
+            return;
+        }
+
+        $requester->notify(new InAppNotice(
+            'recruitment',
+            $approved ? "{$requisition->reference()} disetujui: {$requisition->position_name}" : "{$requisition->reference()} ditolak: {$requisition->position_name}",
+            $approved ? 'Semua persetujuan lengkap; HR akan memposting lowongan ini.' : "Alasan: {$note}",
+            route('recruitment.show', $requisition, absolute: false),
+        ));
+    }
+
+    /**
+     * A comment on a requisition: tell its requester, whoever decides next, and anyone who has already spoken.
+     */
+    public function requisitionCommented(Requisition $requisition, WorkflowComment $comment, User $author): void
+    {
+        $requisition->loadMissing('creator', 'workflow.steps', 'workflow.comments.author');
+        $step = $requisition->workflow?->steps->firstWhere('status', 'pending');
+
+        $recipients = collect([$requisition->creator])
+            ->merge($step instanceof WorkflowStep ? $this->approversOf($step, $requisition->company_id) : [])
+            ->merge($requisition->workflow?->comments->pluck('author') ?? [])
+            ->filter()
+            ->unique('id')
+            ->reject(fn (User $user): bool => $user->is($author) || ! $user->is_active);
+
+        foreach ($recipients as $user) {
+            $user->notify(new InAppNotice(
+                'recruitment',
+                "{$requisition->reference()}: komentar baru dari {$author->name}",
+                mb_strimwidth($comment->body, 0, 140, '…'),
+                route('recruitment.show', $requisition, absolute: false),
             ));
         }
     }

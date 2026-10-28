@@ -14,6 +14,7 @@ use App\Support\Attendance\WorkSchedule;
 use App\Support\Features;
 use App\Workflows\Definitions\LeaveRequestWorkflow;
 use App\Workflows\Definitions\OffboardingCaseWorkflow;
+use App\Workflows\Definitions\RequisitionWorkflow;
 use App\Workflows\WorkflowRegistry;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Events\Login;
@@ -57,6 +58,7 @@ class AppServiceProvider extends ServiceProvider
         AboutCommand::add('HR Dashboard', fn (): array => ['Version' => config('app.version')]);
         $this->defineAttendanceGate();
         $this->defineBackupGate();
+        $this->defineRecruitmentTemplateGate();
         $this->defineOffboardingChecklistPolicies();
         $this->bindOffboardingRoutes();
         $this->configureApiRateLimiting();
@@ -124,6 +126,19 @@ class AppServiceProvider extends ServiceProvider
     }
 
     /**
+     * The recruitment template is the group's, shared by every company: it needs a parent-wide account on top of the
+     * permission, and is named differently from it for the same reason as the backup gate.
+     */
+    protected function defineRecruitmentTemplateGate(): void
+    {
+        Gate::define(
+            'manage-recruitment-template',
+            fn (User $user): bool => $user->isParentWide()
+                && $user->checkPermissionTo(Permission::ManageRecruitment->value),
+        );
+    }
+
+    /**
      * Throttle the ingest endpoint per token, so one runaway or abused agent cannot starve the rest
      * and a leaked token cannot be used to hammer the database (CORE-AUT-007). Falls back to the
      * caller's address when there is no token to key on.
@@ -150,6 +165,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(WorkflowRegistry::class, fn (): WorkflowRegistry => new WorkflowRegistry([
             new LeaveRequestWorkflow,
             new OffboardingCaseWorkflow,
+            new RequisitionWorkflow,
         ]));
     }
 

@@ -5,6 +5,7 @@ namespace App\Support\Offboarding;
 use App\Enums\Role;
 use App\Models\Employee;
 use App\Models\User;
+use App\Support\ReportingLine;
 use App\Workflows\StepBlueprint;
 
 /**
@@ -33,21 +34,6 @@ class OffboardingApprovers
 
     private function nearestManagement(Employee $leaver): ?User
     {
-        $seen = [$leaver->id];
-        $current = $leaver->manager_id === null ? null : Employee::acrossCompanies()->with('user')->find($leaver->manager_id);
-
-        while ($current !== null && ! in_array($current->id, $seen, strict: true)) {
-            $seen[] = $current->id;
-            $user = $current->user;
-
-            if ($user !== null && $user->is_active && $user->isA(Role::Management) && $user->canAccessCompany($leaver->company_id)
-                && $user->isNot($leaver->user)) {
-                return $user;
-            }
-
-            $current = $current->manager_id === null ? null : Employee::acrossCompanies()->with('user')->find($current->manager_id);
-        }
-
-        return null;
+        return app(ReportingLine::class)->nearestAbove($leaver, Role::Management, $leaver->company_id, $leaver->user);
     }
 }

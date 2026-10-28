@@ -3,6 +3,7 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Pages\ManageBackups;
+use App\Filament\Pages\ManageRecruitmentTemplate;
 use App\Filament\Pages\ManageWorkingHours;
 use App\Filament\Resources\ActivityLogs\ActivityLogResource;
 use App\Filament\Resources\AttendanceAgents\AttendanceAgentResource;
@@ -50,7 +51,7 @@ class AdminPanelProvider extends PanelProvider
      */
     private function extraPages(): array
     {
-        return $this->servesPanel() ? [ManageBackups::class, ManageWorkingHours::class] : [];
+        return $this->servesPanel() ? [ManageBackups::class, ManageRecruitmentTemplate::class, ManageWorkingHours::class] : [];
     }
 
     private function servesPanel(): bool

@@ -10,7 +10,8 @@ checklist, decisions and known gaps are in [DEVELOPMENT.md](DEVELOPMENT.md). The
 on feature detail).
 
 **Current release:** employee directory, Pengajuan (requests), offboarding, profile change requests, documents, the admin
-panel, and attendance (which can be switched off, see below). Recruitment and the employee mobile app are not part of it.
+panel, and attendance (which can be switched off, see below). Recruitment is in progress (its first slice, raising and approving a requisition by a fixed template, is on the
+`feature/recruitement` branch); the employee mobile app is not part of it.
 Attendance arrives by **upload**: head office's Fingerspot export, and a per-period rekap from each Cabang without a
 scanner (see [Attendance data](#attendance-data)). The automatic on-site agent lives in the separate `fingerspot-toolkit`
 folder and is switched off (`FEATURE_ATTENDANCE_AGENTS`).

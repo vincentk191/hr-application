@@ -18,6 +18,8 @@ export type Auth = {
     canViewEmployees: boolean;
     /** HR, Management and anyone with a team: may open the offboarding list. */
     canViewOffboarding: boolean;
+    /** HR, Management and anyone who may raise a requisition: may open the recruitment list. */
+    canViewRecruitment: boolean;
     /** HR: may open the review list of profile change requests. */
     canReviewProfileChanges: boolean;
     /** May load scanner logs and map scanner IDs (parent-wide accounts with the permission). */

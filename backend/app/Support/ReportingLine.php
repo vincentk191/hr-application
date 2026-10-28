@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Enums\Permission;
+use App\Enums\Role;
 use App\Models\Employee;
 use App\Models\User;
 use App\Support\Access\Entrance;
@@ -104,5 +105,32 @@ class ReportingLine
     public function manages(Employee $manager, Employee $candidate): bool
     {
         return in_array($candidate->id, $this->downlineIds($manager), strict: true);
+    }
+
+    /**
+     * The nearest active account above this employee, walking up the managers, that holds the role and can reach
+     * the company: who decides for them when a flow is bound to the line (an offboarding case's or a
+     * requisition's Management). Null when nobody up the line qualifies; the flow then falls back to anyone with
+     * the role. Never `$excluding` (the person the flow is about, or the requester), and a loop in the managers
+     * ends the walk instead of running for ever.
+     */
+    public function nearestAbove(Employee $from, Role $role, int $companyId, ?User $excluding = null): ?User
+    {
+        $seen = [$from->id];
+        $current = $from->manager_id === null ? null : Employee::acrossCompanies()->with('user')->find($from->manager_id);
+
+        while ($current !== null && ! in_array($current->id, $seen, strict: true)) {
+            $seen[] = $current->id;
+            $user = $current->user;
+
+            if ($user !== null && $user->is_active && $user->isA($role) && $user->canAccessCompany($companyId)
+                && ($excluding === null || $user->isNot($excluding))) {
+                return $user;
+            }
+
+            $current = $current->manager_id === null ? null : Employee::acrossCompanies()->with('user')->find($current->manager_id);
+        }
+
+        return null;
     }
 }

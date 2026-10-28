@@ -38,7 +38,7 @@ class PublicRoutes
 
     /** Name prefixes that are private: never served on the public entrance. */
     public const PRIVATE_PREFIXES = [
-        'filament.', 'livewire.', 'default-livewire.', 'api.', 'attendance.', 'calendar-events.', 'punches.', 'offboarding.',
+        'filament.', 'livewire.', 'default-livewire.', 'api.', 'attendance.', 'calendar-events.', 'punches.', 'offboarding.', 'recruitment.',
         'storage.', 'sanctum.', 'boost.', 'verification.', 'password.request', 'password.email', 'password.reset', 'password.update',
         'employees.index', 'employees.create', 'employees.store', 'employees.activation', 'employees.reactivate', 'employees.photo', 'employees.import', 'employees.export',
         'documents.store', 'documents.update', 'documents.destroy', 'documents.versions',

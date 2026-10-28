@@ -9,6 +9,7 @@ use App\Models\Company;
 use App\Models\Employee;
 use App\Models\OffboardingCase;
 use App\Models\ProfileChangeRequest;
+use App\Models\Requisition;
 use App\Models\WorkflowStep;
 use App\Support\Access\AccessTier;
 use App\Support\Access\Entrance;
@@ -63,6 +64,7 @@ class HandleInertiaRequests extends Middleware
                 'canViewAttendance' => $request->user()?->can(Permission::ViewAttendance->value) ?? false,
                 'canManageAttendance' => $request->user()?->can('manage-attendance-device') ?? false,
                 'canViewOffboarding' => $request->user()?->can('viewAny', OffboardingCase::class) ?? false,
+                'canViewRecruitment' => $request->user()?->can('viewAny', Requisition::class) ?? false,
                 'canReviewProfileChanges' => $request->user()?->can('viewAny', ProfileChangeRequest::class) ?? false,
                 'canViewEmployees' => $request->user()?->can('viewAny', Employee::class) ?? false,
                 'employeeId' => $request->user() === null

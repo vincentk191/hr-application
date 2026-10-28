@@ -26,6 +26,7 @@ use App\Http\Controllers\OffboardingCaseController;
 use App\Http\Controllers\OffboardingChecklistController;
 use App\Http\Controllers\OffboardingSignOffController;
 use App\Http\Controllers\ProfileChangeRequestController;
+use App\Http\Controllers\RequisitionController;
 use App\Http\Controllers\SearchController;
 use Illuminate\Support\Facades\Route;
 
@@ -79,6 +80,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('offboarding/{offboardingCase}/comments', [OffboardingCaseController::class, 'comment'])->name('offboarding.comments.store');
     Route::post('offboarding/{offboardingCase}/comments/read', [OffboardingCaseController::class, 'markCommentsRead'])->name('offboarding.comments.read');
     Route::post('offboarding/{offboardingCase}/files', [OffboardingCaseController::class, 'addFiles'])->name('offboarding.files.store');
+
+    // Recruitment: a supervisor or HR raises a requisition, Management and then HR approve it (REC-*).
+    Route::get('recruitment', [RequisitionController::class, 'index'])->name('recruitment.index');
+    Route::get('recruitment/create', [RequisitionController::class, 'create'])->name('recruitment.create');
+    Route::post('recruitment', [RequisitionController::class, 'store'])->name('recruitment.store');
+    Route::get('recruitment/{requisition}', [RequisitionController::class, 'show'])->name('recruitment.show');
+    Route::get('recruitment/{requisition}/edit', [RequisitionController::class, 'edit'])->name('recruitment.edit');
+    Route::put('recruitment/{requisition}', [RequisitionController::class, 'update'])->name('recruitment.update');
+    Route::delete('recruitment/{requisition}', [RequisitionController::class, 'destroy'])->name('recruitment.destroy');
+    Route::put('recruitment/{requisition}/decision', [RequisitionController::class, 'decide'])->name('recruitment.decide');
+    Route::put('recruitment/{requisition}/salary', [RequisitionController::class, 'salary'])->name('recruitment.salary');
+    Route::post('recruitment/{requisition}/advance', [RequisitionController::class, 'advance'])->name('recruitment.advance');
+    Route::post('recruitment/{requisition}/comments', [RequisitionController::class, 'comment'])->name('recruitment.comments.store');
+    Route::post('recruitment/{requisition}/comments/read', [RequisitionController::class, 'markCommentsRead'])->name('recruitment.comments.read');
 
     // Changes an employee asks to make to their own profile, and HR's review of them (EMP-CHG).
     Route::get('employees/{employee}/changes', [ProfileChangeRequestController::class, 'create'])->name('employees.changes.create');

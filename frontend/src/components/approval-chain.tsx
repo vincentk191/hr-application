@@ -12,10 +12,10 @@ export type ApprovalChainStep = {
 };
 
 const STATE: Record<ApprovalChainStep['status'], string> = {
-    pending: 'border-foreground bg-primary/10',
-    approved: 'border-foreground bg-card',
-    rejected: 'border-destructive bg-destructive/5',
-    locked: 'border-border bg-card text-muted-foreground',
+    pending: 'border-primary/40 bg-primary/10',
+    approved: 'border-border/70 bg-card',
+    rejected: 'border-destructive/40 bg-destructive/5',
+    locked: 'border-border/70 bg-muted/40 text-muted-foreground',
 };
 
 /**
@@ -42,8 +42,8 @@ export function ApprovalChain({
             data-test="approval-chain"
         >
             {withRequester && (
-                <li className="flex flex-1 items-center gap-3 border-2 border-foreground bg-card p-3">
-                    <span className="flex size-9 shrink-0 items-center justify-center bg-foreground text-background">
+                <li className="flex flex-1 items-center gap-3 rounded-2xl border border-border/70 bg-card p-3 shadow-xs">
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
                         <Check className="size-4" />
                     </span>
                     <div className="min-w-0">
@@ -69,16 +69,16 @@ export function ApprovalChain({
                         </span>
                     )}
                     <div
-                        className={`flex flex-1 items-center gap-3 border-2 p-3 ${STATE[step.status]}`}
+                        className={`flex flex-1 items-center gap-3 rounded-2xl border p-3 shadow-xs ${STATE[step.status]}`}
                         data-state={step.status}
                     >
                         <span
-                            className={`flex size-9 shrink-0 items-center justify-center text-xs font-bold ${
+                            className={`flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                                 step.status === 'pending'
                                     ? 'bg-foreground text-background'
                                     : step.status === 'approved'
                                       ? 'bg-foreground text-background'
-                                      : 'border-2 border-current'
+                                      : 'border border-current'
                             }`}
                         >
                             {step.status === 'approved' ? (

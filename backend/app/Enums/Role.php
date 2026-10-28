@@ -70,6 +70,7 @@ enum Role: string
                 Permission::ManageCalendarEvents,
                 Permission::ManageLeaveSettings,
                 Permission::ManageOffboarding,
+                Permission::ManageRecruitment,
             ],
             // Sees its scope and decides; does not administer records.
             self::Management => [

@@ -9,6 +9,7 @@ import {
     ShieldCheck,
     UserMinus,
     UserPen,
+    UserPlus,
     Users,
 } from 'lucide-react';
 import { dashboard } from '@/routes';
@@ -22,6 +23,7 @@ import { index as employeesIndex } from '@/routes/employees';
 import { index as leaveRequestsIndex } from '@/routes/leave-requests';
 import { index as offboardingIndex } from '@/routes/offboarding';
 import { index as profileChanges } from '@/routes/profile-changes';
+import { index as recruitmentIndex } from '@/routes/recruitment';
 import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
@@ -74,6 +76,16 @@ export function useNavItems(): NavItem[] {
     const directory: NavItem[] = [
         ...(auth.canViewEmployees
             ? [{ title: 'Direktori', href: employeesIndex(), icon: Users }]
+            : []),
+        // "Karyawan › Rekrutmen" in the design (REC-DSH).
+        ...(auth.canViewRecruitment
+            ? [
+                  {
+                      title: 'Rekrutmen',
+                      href: recruitmentIndex(),
+                      icon: UserPlus,
+                  },
+              ]
             : []),
         ...(auth.canViewOffboarding
             ? [

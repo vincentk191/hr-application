@@ -27,6 +27,7 @@ enum Permission: string
     case ManageCalendarEvents = 'manage-calendar-events';
     case ManageLeaveSettings = 'manage-leave-settings';
     case ManageOffboarding = 'manage-offboarding';
+    case ManageRecruitment = 'manage-recruitment';
     case ManageBackups = 'manage-backups';
 
     /**
@@ -52,6 +53,7 @@ enum Permission: string
             self::ManageCalendarEvents => 'Kelola hari libur dan acara',
             self::ManageLeaveSettings => 'Atur batas hari per jenis cuti',
             self::ManageOffboarding => 'Kelola offboarding (membuat dan mengajukan kasus)',
+            self::ManageRecruitment => 'Kelola rekrutmen (mengajukan lowongan untuk departemen mana pun, menyetujui sebagai HR)',
             self::ManageBackups => 'Atur pencadangan data (kunci enkripsi, tujuan salinan, masa simpan)',
         };
     }

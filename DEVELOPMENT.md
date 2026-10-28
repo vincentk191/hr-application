@@ -42,9 +42,10 @@ left uncommitted for review.
 | Phase 1         | Directory (Cabang, CSV import/export, list/grid/org chart, phone layout), profile, add/edit, reactivation, documents, admin panel |
 | Phase 2         | Manual import of the Fingerspot export, branch rekap import, Zona and potongan, calendar, holidays/events, recap with Excel export, issues, timesheet corrections. The ingest API and on-site agents are built but switched off (`FEATURE_ATTENDANCE_AGENTS`) |
 | Phase 3         | Pengajuan end to end (types, timeframe, attachments, queue with filters/export/badge), leave on the calendar's side panel, in-app notices |
+| Phase 4         | First slice (2026-10-28, branch `feature/recruitement`): requisition dashboard, 3-step wizard, pipeline tracker, stage 01 approval (Management with the salary expectation, then HR), "Lanjut ke Posting". Stages 02-06 not built |
 | Phase 5         | Offboarding end to end: wizard, Management approval, checklist, sign-off, exit, berita acara, Cabang filter, phone action bar |
 | Phase 7         | Server stack, VPN, backups with an admin page, non-superuser database login, security headers and limits      |
-| Not built       | Recruitment; Home KPIs; employee app (Web Push, API); CSP, Ghostscript sandbox, narrowing `web`'s `storage` mount |
+| Not built       | Recruitment stages 02-06 and the Career page link; Home KPIs; employee app (Web Push, API); CSP, Ghostscript sandbox, narrowing `web`'s `storage` mount |
 
 ---
 
@@ -67,6 +68,34 @@ left uncommitted for review.
 ---
 
 ## Change log (latest first)
+
+- **2026-10-28 (recruitment, first slice: requisition + approval; branch `feature/recruitement`).** Migrations
+  `create_requisitions_table` (`requisitions`: company, department, optional Cabang, requester, position name, quota,
+  reason, target start, description, `requirements` JSON, `draft_step`, `salary_min`/`salary_max` and who set them,
+  `submitted_at`) and `grant_manage_recruitment_to_hr_admin`. `RequisitionStage` (draft, 6 pipeline stages,
+  cancelled) and `RequisitionWorkflow` (forward only; Posting guarded by `ChainFullyApproved`) on the shared engine.
+  Actions `SaveRequisitionDraft`, `SubmitRequisition`, `DecideRequisition`, `SaveSalaryExpectation`,
+  `AdvanceToPosting`; `RequisitionPolicy`; `RequisitionApprovers`, `RequisitionDepartments`, `RequisitionPresenter`;
+  `RequisitionController` under `recruitment.*` (private entrance only, `PublicRoutes`). Pages `recruitment/index`,
+  `form` (3-step wizard) and `show` (pipeline); "Rekrutmen" in the menu under Karyawan. The rules are under Phase 4.
+  - **Shared code touched:** the "nearest Management above" walk moved from `OffboardingApprovers` to
+    `ReportingLine::nearestAbove` (behaviour unchanged; the offboarding suites pass), and `DecisionDialog` takes an
+    optional `extra` slot for fields sent with a decision (the salary range).
+  - Checked: `RequisitionTest` (17 cases: who may raise and for which department, draft privacy and resume step,
+    blank requirement lines, incomplete send, the chain and its fallback, the salary gate, the order of approvers, the
+    requester never deciding, reject and resubmit with the reason kept, edit until decided, salary visibility, the
+    posting gate, the dashboard per person); two rules broken on purpose were caught. Offboarding, entrance, workflow
+    and role suites pass (158). PHPStan clean on the new files; TypeScript and the formatter clean.
+  - **Not done:** viewing the pages in a browser; the full suite was not run for this entry.
+  - **Same day, reworked to the design's template** (the Phase 4 notes list the rules): the wizard's step 1 gained Tipe
+    kontrak and Atasan langsung, step 2 became the fixed job posting and candidate checklist, and step 3 the review page
+    (`components/requisition-summary.tsx`, shared with the pipeline's stage 01 tab; `components/line-list-editor.tsx`).
+    **A start date in the past is refused**, in the company timezone, when saving and again when sending. The admin page
+    **Template rekrutmen** sets the base lines. Checked: `RequisitionTemplateTest` (15: the date rules including the
+    timezone edge, a draft gone stale, a sent one left alone; contract and superior; the sections required to send; the
+    limits; the base template kept apart from a running request) and `RecruitmentTemplatePageTest` (11: who may open it,
+    saving, audit, validation); two rules broken on purpose were caught; PHPStan, TypeScript and the formatter clean.
+    The Vite dev server compiles every new page. Not seen in a browser.
 
 - **2026-10-28 (the `web` container no longer sees `/etc/letsencrypt`).** It mounted the whole directory read-only, which
   holds the private key of every site on the host (the VPS is shared), in the container that faces the public entrance.
@@ -1067,13 +1096,64 @@ balance._
 The largest and most integration-heavy area. The internal slice can land before the Career page
 and the scheduling automation.
 
+**Decided 2026-10-28, first slice built (requisition + approval):**
+
+- **Who raises a requisition:** a supervisor, for the departments they head and their own department when people report
+  to them; HR (`manage-recruitment`, new, given to HR Admin by a migration) for any department of the company in view.
+  Anyone else sees no "+ Ajukan Lowongan" (`RequisitionDepartments`).
+- **Who approves at stage 01:** **Management, then HR.** Management means the Management role: directors and the level
+  below them. The step is bound to the nearest Management account above the requester on the reporting line, or any
+  Management account of the company when there is none (`ReportingLine::nearestAbove`, now shared with offboarding).
+  Management must set the **Ekspektasi Gaji** (a min-max range in rupiah) to approve, in the approval dialog or with
+  "Simpan" beforehand (REC-APR-007/008, audited). HR approves only after Management: the chain opens one step at a time.
+  The workbook's "Requester ✓, Dept. Head, HR Manager" chain (REC-WZ3-002) was not used.
+- **The requester never decides a step of their own requisition**, including HR raising one: another HR approves it.
+- **Who sees what:** a draft is its requester's alone. Once sent: HR and Management see every one in the company, a
+  department's head those for their department, and the requester their own. The salary range is shown to Management
+  and HR only, not to the requester.
+- **Editing:** a draft any time; once sent, until someone has decided (REC-WIZ-005). A rejection returns it as a draft
+  with the reason in the thread (`WorkflowEngine::reopen` keeps it on resubmission).
+- **The template every requisition follows (added the same day, from the design screenshots).** Step 1 "The ask" has
+  Posisi, Departemen, Cabang (optional), Jumlah kuota, **Tipe kontrak**, **Atasan langsung**, Target mulai kerja and
+  Alasan permintaan (no Prioritas, decided). Step 2 is fixed: the **job posting** (Tentang Posisi, one paragraph;
+  Tanggung Jawab Utama, with subtitles the requester names, adds and removes, each holding lines; Benefit & Fasilitas)
+  and the **candidate checklist** (Kualifikasi: Pendidikan, Pengalaman; Skills: Hard Skills, Soft Skills; Nilai Plus),
+  with no weights or levels: a candidate answers yes or no per line. Step 3 is one review page (Permintaan, Isi
+  lowongan, Candidate checklist) with a link back to each step.
+  - **Required to send:** every field of step 1; Tentang Posisi; at least one subtitle under Tanggung Jawab Utama, each
+    with a title and a line; at least one line in Kualifikasi and one in Skills (across their two subtitles). Benefit &
+    Fasilitas and Nilai Plus may be empty. A draft needs only a position name and a department.
+  - **Tipe kontrak:** the app's employment types; Kontrak and Magang also take a length in months (1-60) and read
+    "Kontrak 1 tahun" / "Magang 6 bulan" (`Requisition::contractLabel`); the length is dropped for the other types.
+  - **Atasan langsung:** an active employee of the department's company, defaulting to the requester's own record;
+    required to send, and checked again then (someone who has left since is refused).
+  - **The start date is never in the past** (`SaveRequisitionRequest::checkStartDate`): today or later, judged in the
+    company timezone (`attendance.device_timezone`, so 01:00 Jakarta is not "yesterday" on a UTC server), and no
+    more than 2 years ahead. A draft is judged every time it is saved, and `SubmitRequisition` checks it again, so a
+    date that passed while the draft sat is caught before it is sent. A requisition already sent keeps an old date as
+    long as it is left alone; only a date being set or changed is judged.
+  - **Base template (REC-TPL-001):** admin page **Template rekrutmen** (`ManageRecruitmentTemplate`, parent-wide HR Admin
+    through the gate `manage-recruitment-template`) holds the starting lines for Benefit & Fasilitas (seven built-in
+    ones until HR changes them) and for each fixed checklist subtitle. Stored in `app_settings` (`recruitment.template`,
+    a saved empty list stays empty) and audited. A new requisition **copies** them and keeps its own after that:
+    changing the template never rewrites a request under way.
+  - **Storage:** migration `restructure_requisitions_for_the_template` adds `employment_type`, `contract_months`,
+    `manager_employee_id`, `about`, `responsibilities`, `benefits`, `checklist` (the last three JSON) and drops the
+    first cut's `description` and `requirements`. The wizard sends the lists from state in one `transform`, not as form
+    field names. Limits: 12 subtitles, 20 lines per list, 300 characters per line, 3,000 for Tentang Posisi.
+- Not built in this slice: fast-track (WIZ-006), CSV export and nav badge (DSH-007/008), cancelling (PST-004), and stages
+  02-06 (posting, the cmp-api push and pull, screening, interviews and Meet, offers, convert to employee). The checklist
+  is what the candidate form on cmp.id will pre-fill and score against (REC-CAR-002, REC-SCR-006), so its shape is the
+  contract to hold steady.
+
 | Screen                            | Name                        | f   | P1  | Status | Notes                                                       |
 | --------------------------------- | --------------------------- | --- | --- | ------ | ----------------------------------------------------------- |
-| `REC-DSH`                         | Recruitment dashboard       | 9   | 6   | ⬜     |                                                             |
-| `REC-WIZ`                         | Requisition wizard shell    | 6   | 4   | ⬜     | Shell holds stepper/nav/draft                               |
-| `REC-WZ1` · `REC-WZ2` · `REC-WZ3` | Wizard steps 01–03          | 8   | 7   | ⬜     | Kebutuhan · Detail & Persyaratan · Review                   |
-| `REC-PIP`                         | Requisition pipeline        | 6   | 4   | ⬜     | 6-stage tracker — a `WorkflowDefinition`                    |
-| `REC-APR`                         | Stage 01 Approval           | 9   | 5   | ⬜     | Engine's approval chain                                     |
+| `REC-DSH`                         | Recruitment dashboard       | 9   | 6   | 🟡     | Built 10-28: tiles (open, waiting approval, quota open, my drafts: candidates and interviews wait on stages 03/04), table (Jabatan + ID, Departemen, Kuota filled/quota, Kand., Update Terakhir or "Belum diajukan", Status, PIC), status and department filters, row routing (a draft opens the wizard), "+ Ajukan Lowongan", company switcher. Not yet: CSV export (007), nav badge (008, rule TBD) |
+| `REC-WIZ`                         | Requisition wizard shell    | 6   | 4   | 🟡     | Built 10-28: stepper, Sebelumnya/Selanjutnya keeping the values, Simpan Draft at any step (back to the dashboard), resume at the saved step, edit while sent and undecided (005). Not yet: fast-track flag (006) |
+| `REC-WZ1` · `REC-WZ2` · `REC-WZ3` | Wizard steps 01–03          | 8   | 7   | ✅     | Built 10-28, reworked the same day to the design's fixed template (see the Phase 4 notes). Step 1 "The ask": Posisi, Departemen, Cabang (optional, added), Jumlah kuota (whole, ≥ 1), Tipe kontrak (+ months for Kontrak/Magang), Atasan langsung, Target mulai kerja (never in the past), Alasan permintaan. Step 2: the job posting (Tentang Posisi, Tanggung Jawab Utama with the requester's own subtitles, Benefit & Fasilitas) and the candidate checklist (Kualifikasi, Skills, Nilai Plus). Step 3: one review page, then "Ajukan untuk Persetujuan" builds the chain. `REC-WZ2-002`'s requirement list is now the checklist; its base is the admin template (`REC-TPL-001`) |
+| `REC-TPL`                         | Templates (admin)           | 1   | 0   | 🟡     | Built 10-28: admin page **Template rekrutmen** (parent-wide HR Admin) holds the base lines for Benefit & Fasilitas and for each fixed checklist subtitle (Pendidikan, Pengalaman, Hard Skills, Soft Skills, Nilai Plus); a new requisition copies them. The sections and subtitles themselves are fixed in code |
+| `REC-PIP`                         | Requisition pipeline        | 6   | 4   | 🟡     | Built 10-28: header and breadcrumb, 6-stage tracker with the date each was reached, locked future stages, forward-only (`RequisitionWorkflow`), opens on the current stage, status line (006). Stages 02-06 show a placeholder |
+| `REC-APR`                         | Stage 01 Approval           | 9   | 5   | ✅     | Built 10-28: chain Manajemen → HR (decided 2026-10-28, see Phase 4 notes), "Setujui sebagai …", reject with a reason back to a draft, "Lanjut ke Posting" gated on every approval, Edit, "Diajukan <date> oleh <requester>", Ekspektasi Gaji required for Management's approval with "Simpan" before it (007/008), comment thread (009) |
 | `REC-PST`                         | Stage 02 Posting            | 7   | 4   | ⬜     | Push listings to cmp-api                                    |
 | `REC-SCR`                         | Stage 03 Screening          | 8   | 4   | ⬜     | Includes applicant ranking (XL)                             |
 | `REC-INT`                         | Stage 04 Interview          | 8   | 3   | ⬜     | Google Meet + email, candidate reschedule (XL)              |
@@ -1081,7 +1161,6 @@ and the scheduling automation.
 | `REC-FIL`                         | Stage 06 Filled             | 7   | 6   | ⬜     | Convert-to-employee (L). Creates the profile the hire then registers against (`CORE-REG`); until this exists HR creates profiles by hand or CSV |
 | `REC-CAN` · `REC-CDT` · `REC-CRV` | Candidate detail + tabs     | 11  | 8   | ⬜     |                                                             |
 | `REC-OFR`                         | Send offer form             | 6   | 4   | ⬜     |                                                             |
-| `REC-TPL`                         | Templates (admin)           | 1   | 0   | ⬜     |                                                             |
 | `REC-EDI`                         | Post-interview form builder | 1   | 0   | ⬜     | P5 — backlog                                                |
 | `REC-CAR`                         | Career page (public)        | 3   | 0   | ⬜     | **Built by the CMP team** on cmp.id; we supply the contract |
 
