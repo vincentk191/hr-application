@@ -30,18 +30,21 @@ tracks structure and progress; the workbook tracks requirements and tests.
 
 ## Status
 
-Phases 0 and 1 are largely done and Phase 2 (attendance) is mostly built; what remains in them is
-listed in the checklist below. Nothing here is committed yet: changes are left for review.
+Phases 0, 1, 3 and 5 are built, Phase 2 (attendance) is built for manual capture, and the server stack has had a
+security pass (Phase 7). What remains is listed in the checklist below. Work is committed on `main`; new changes are
+left uncommitted for review.
 
 |                 |                                                                                                              |
 | --------------- | ------------------------------------------------------------------------------------------------------------ |
-| Tests           | 705 passing                                                                                                  |
-| Static analysis | PHPStan level 7, 0 errors                                                                                    |
-| Phase 0         | **Complete** — company scoping, RBAC, workflow engine, account state and login rules                         |
-| Phase 1         | Directory (with CSV import/export), profile, add/edit, documents, admin panel done                           |
-| Phase 2         | Scan-log import, ingest API + agents, calendar, holidays/events, recap/export, issues, timesheet corrections |
+| Tests           | 902 (counted 2026-10-28, not run for this entry)                                                            |
+| Static analysis | PHPStan level 7; 14 known errors in the attendance-rekap files (2026-10-26), the rest clean                  |
+| Phase 0         | **Complete**: company scoping, RBAC, workflow engine, account state and login rules, mandatory 2FA for elevated accounts |
+| Phase 1         | Directory (Cabang, CSV import/export, list/grid/org chart, phone layout), profile, add/edit, reactivation, documents, admin panel |
+| Phase 2         | Manual import of the Fingerspot export, branch rekap import, Zona and potongan, calendar, holidays/events, recap with Excel export, issues, timesheet corrections. The ingest API and on-site agents are built but switched off (`FEATURE_ATTENDANCE_AGENTS`) |
 | Phase 3         | Pengajuan end to end (types, timeframe, attachments, queue with filters/export/badge), leave on the calendar's side panel, in-app notices |
-| Not built       | Recruitment and offboarding screens; employee app, on-site sync agent                                |
+| Phase 5         | Offboarding end to end: wizard, Management approval, checklist, sign-off, exit, berita acara, Cabang filter, phone action bar |
+| Phase 7         | Server stack, VPN, backups with an admin page, non-superuser database login, security headers and limits      |
+| Not built       | Recruitment; Home KPIs; employee app (Web Push, API); CSP, Ghostscript sandbox, narrowing `web`'s `storage` mount |
 
 ---
 
@@ -220,7 +223,14 @@ listed in the checklist below. Nothing here is committed yet: changes are left f
   start-up script, before the template step) copies into the templates only when `VPN_HOSTNAME` is set **and**
   `/etc/letsencrypt/live/<host>/fullchain.pem` exists; otherwise it logs why and Nginx starts without it.
   `VPN_HOSTNAME: ${VPN_HOSTNAME:-}` is now optional. Checked with the stock nginx image: empty, hostname without a
-  certificate (starts), and with a throwaway certificate (block rendered).
+  certificate (starts), and with a throwaway certificate (block rendered). (Since 2026-10-28 the certificate comes from
+  `docker/server/certs/`, not `/etc/letsencrypt`; see that entry.)
+
+- **2026-10-26 (the scanner import also reads the daily report).** `ScanLogParser` understands a second Fingerspot
+  layout besides the raw scan log: the *Laporan harian*, one row per employee per day, whose "Scan masuk", "Scan pulang"
+  and "Scan istirahat 1/2" cells each become a punch (a row with none is skipped). Its own schedule, lateness, "Dihitung"
+  and leave columns are deliberately not read: the dashboard derives those, and its own Pengajuan are the source of truth
+  for leave.
 
 - **2026-10-26 (attendance tables on a phone).** The mobile pattern already used for Pengajuan, the directory and profile
   changes, applied to the attendance screens: below `md` the wide table gives way to cards, and the filter row to one
@@ -297,6 +307,44 @@ listed in the checklist below. Nothing here is committed yet: changes are left f
   - `FEATURE_ATTENDANCE_AGENTS` (default **off**) hides the sync agents without deleting them: ingest API and "sync now"
     404, admin screens closed, agent card and warning gone (`AttendanceFeatureSwitchTest`).
 
+- **2026-10-23 (Cabang: every employee belongs to an office).** Written up 2026-10-28 from the commits (`35bd847`,
+  `12f5268`). Migrations `create_branches_table` (`branches`: company, name, unique per company) and
+  `add_branch_id_to_employees_table`, which created one Cabang named **Pusat** per company, put every existing employee
+  in it, and then made `employees.branch_id` required. `add_branch_id_to_calendar_events_table`: an event can now cover
+  one Cabang, besides the group, a company or a department (`WorkingDays` and the attendance derivation honour it).
+  - **Admin panel:** a new company is created with at least one Cabang (a repeater on the create form); later ones are
+    added under **Cabang**, and a Cabang still holding employees cannot be deleted (`BranchPolicy`; since 10-26 the
+    attendance manager may also open one to set its Sumber absensi).
+  - **Directory and profile:** Cabang is a required field on the employee form (offered per chosen company), a
+    multi-select filter on the directory (list, grid and org chart), a column on the list and on each card, and shown on
+    the profile and drawer. The CSV import has a **Cabang** column (also `branch`, `kantor`, `office`); a blank one is read
+    as the company's only Cabang, so a file made before Cabang existed still loads, and is an error once there are
+    several.
+  - **Filters elsewhere:** Pengajuan, the offboarding list, the attendance calendar, recap and issues can be cut by Cabang.
+  - On the way: the notice that finds who handles a document now picks the accounts in the database
+    (`permission()` + `accessingCompany()`) instead of loading every user.
+
+- **2026-10-23 (offboarding: the stage's actions within reach on a phone).** `PhaseActions` (`components/phase-actions.tsx`)
+  holds a case's actions for its stage (save, send, approve, reject, change the last day, cancel, …). From `md` up they
+  stay in the page header. On a phone they sit in a bar pinned just above the bottom navigation, so they stay in reach on a
+  long form: the two that matter most side by side, the main one on the right in a shorter wording ("Kirim",
+  "Hari terakhir"), the discussion button beside them, the rest under "⋯". Only one of the two layouts is mounted, so a
+  dialog among the actions is never there twice. Used by the case wizard and the case page; front end only.
+
+- **2026-10-22 (directory and profile on a phone, profile reactivation).** Written up 2026-10-28 from the commits
+  (`b0228b9`, `ad213d1`, `bba9ce7`, `a40d41c`, `f876a3c`). The details are under Phase 7, "Server stack: notes"
+  (phone layout, reopening a profile, adding an employee while viewing all companies); in short:
+  - **Phone layout:** the directory, Pengajuan and Perubahan data become cards below `md`, with search and filters in a
+    bottom sheet (`FilterSheet`) and a bottom tab bar (`MobileTabBar`, "Lainnya" for the rest) in place of the side menu.
+    The **org chart** is a collapsible folder tree on a phone (one row per person, reports indented, the top level open),
+    and stays the boxes-and-lines tree from tablet width. The profile and its Absensi tab were reworked for the width too.
+  - **Profile changes** are reviewed in a dialog (`ProfileChangeDialog`) from the Perubahan data list.
+  - **Aktifkan kembali:** HR can reopen a profile an offboarding closed (`ReactivateEmployee`, `EmployeePolicy::reactivate`):
+    active again, the exit date cleared, the sign-in switched back on; roles untouched, the scanner mapping not restored.
+  - **Adding an employee with all companies in view** asks for the company first.
+  - The starter kit's own profile and delete-account settings pages were removed; people change their details through a
+    profile change request.
+
 - **2026-10-21 (deployment readiness).**
   - `SystemAdminSeeder`: a real server's `db:seed` creates the roles and one company-less System Admin from
     `INITIAL_ADMIN_*` (`config/initial_admin.php`), and no placeholder companies (`SystemAdminSeederTest`).
@@ -312,7 +360,8 @@ listed in the checklist below. Nothing here is committed yet: changes are left f
     splitting the batch, keeps its position, heartbeats. Tested only against a stand-in for the ingest; **not yet against the
     real dashboard or the tunnel**, and it needs `FEATURE_ATTENDANCE=true` (the agent screen is hidden and the ingest is 404 while off).
     Also open: peers of the dashboard's WireGuard server are not isolated from each other (a firewall rule on the VPS is
-    needed so a staff peer cannot reach the SERVER-CAMAT peer; the compose file does not set one).
+    needed so a staff peer cannot reach the SERVER-CAMAT peer; the compose file does not set one). Since 2026-10-27 README
+    step 7 has those wg-easy rules; not yet run on the server.
     Still open: the scanner's acknowledgement (toolkit F2), the PIN to employee mapping (a CSV import for mappings is parked),
     and what verify modes 20 and 30 are called in the scanner's JSON.
   - Not run when these were written (no PHP or Docker on that machine): the new tests, `pint`, the frontend type-check and build.
@@ -752,17 +801,17 @@ reopen are marked 🟡 with "→ 10-14".
 | `CORE-NAV` | Company switcher              | 4   | 3   | ✅     | Scoping + switcher + server-side lock                                                                                                                                                                                                                         |
 | `CORE-RBA` | Role & permission enforcement | 8   | 7   | ✅     | Roles, permissions, policies, reporting-line downline resolver (004), role-change audit (007). Since 10-14: visibility is scoped to the downline everywhere (004) and `view-all-employees` lifts it (008)                                                     |
 | `CORE-WFL` | Approval workflow engine      | 9   | 7   | ✅     | All nine, including acting on an approval over HTTP (009). The "or app" half waits on the PWA                                                                                                                                                                 |
-| `CORE-AUT` | Login & session               | 8   | 8   | 🟡     | Session login + 2FA (001), employee-ID login (002), temporary passwords forced to change (003), admin reset (004), idle expiry = `SESSION_LIFETIME`, 120 min (005), session/token revocation (006), failed-login throttling (007). Missing: scoped employee-app tokens (008) — waits on the employee app. Since 10-14: the temporary-password account (003) is the fallback; staff register themselves (`CORE-REG`) |
+| `CORE-AUT` | Login & session               | 8   | 8   | 🟡     | Session login + 2FA (001), employee-ID login (002), temporary passwords forced to change (003), admin reset (004), idle expiry = `SESSION_LIFETIME`, 480 min since 10-27 with a 24-hour cap per sign-in (`SESSION_ABSOLUTE_LIFETIME`) and no "Ingat saya" (005); 2FA mandatory for elevated accounts since 10-27, session/token revocation (006), failed-login throttling (007). Missing: scoped employee-app tokens (008) — waits on the employee app. Since 10-14: the temporary-password account (003) is the fallback; staff register themselves (`CORE-REG`) |
 | `CORE-REG` | Account registration (Daftar) | 5   | 3   | ✅     | Built 10-14. NIK + employee ID + password (+ optional email) activates the account for a profile HR created; the same refusal message for every failure; 5 attempts a minute per address; the registration is on the audit trail with the address. The rest of this row's detail is under "Decided 2026-10-14" |
 
 ### Phase 1 — Employee dossier & admin screens
 
 | Screen     | Name                                   | f   | P1  | Status | Notes                                                                                                                                                 |
 | ---------- | -------------------------------------- | --- | --- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `EMP-DIR`  | Employee directory (list)              | 12  | 12  | ✅     | Search, department/position multi-select, status chips, sort, active-filter strip, row summary, CSV import (010) and CSV export of the filtered list (011). Since 10-14: list, grid, chart and export are limited to the downline; NIK is a required import column; records without an account read "Belum terdaftar" (008) |
+| `EMP-DIR`  | Employee directory (list)              | 12  | 12  | ✅     | Search, Cabang/department/position multi-select (Cabang since 10-23), status chips, sort, active-filter strip, row summary, CSV import (010) and CSV export of the filtered list (011). Cards and a filter sheet on a phone (10-22). Since 10-14: list, grid, chart and export are limited to the downline; NIK is a required import column; records without an account read "Belum terdaftar" (008) |
 | `EMP-GRD`  | Directory — grid view                  | 1   | 1   | ✅     | A view over the same filtered query; each card shows the profile picture, or initials |
-| `EMP-CHT`  | Directory — org chart                  | 1   | 1   | ✅     | A top-down tree drawn from `manager_id` with connector lines; anyone whose manager is filtered out renders as a root |
-| `EMP-ADD`  | Add / edit employee                    | 6   | 6   | ✅     | One form for both. Self-referencing manager refused; company filled from the active company. Since 10-14: NIK is required (16 digits) and unique across the group (002); HR does not create logins (005) |
+| `EMP-CHT`  | Directory — org chart                  | 1   | 1   | ✅     | A top-down tree drawn from `manager_id` with connector lines; anyone whose manager is filtered out renders as a root. On a phone (10-22) a collapsible folder tree instead |
+| `EMP-ADD`  | Add / edit employee                    | 6   | 6   | ✅     | One form for both. Self-referencing manager refused; company filled from the active company (asked for when all companies are in view, 10-22); Cabang required (10-23), Zona optional (10-26). Since 10-14: NIK is required (16 digits) and unique across the group (002); HR does not create logins (005) |
 | `EMP-PRF`  | Profile shell                          | 3   | 2   | 🟡     | Header stats + tabs (Overview, Absensi, Pengajuan, Dokumen, Tim). Opens as a side drawer from the directory. Change audit is on (003); "SOPs to acknowledge" stays dropped with the Knowledge Hub. **→ 10-14:** the Tim tab shows only people inside the viewer's scope (002) |
 | `EMP-CHG`  | Profile change requests                | 6   | 5   | ✅     | Built 10-14. The employee proposes changes to the self-service fields (`ProfileChangeRequest::FIELDS`); HR reviews the changed fields as now → asked, approves or rejects with a reason; one open request at a time; a field HR changed meanwhile is not overwritten; HR's own edits apply directly, but nobody edits their own record, so an HR Admin's own changes need another HR Admin |
 | `EMP-DET`  | Profile — overview tab                 | 6   | 5   | ✅     | All five card groups render; bank, payroll and health are withheld from roles without `view-sensitive-data` (006) |
@@ -775,11 +824,30 @@ reopen are marked 🟡 with "→ 10-14".
 
 ### Phase 2 — Attendance
 
-Sync first: it is the prerequisite for any real attendance data, and the on-site probe has
-**not been run yet** (`../ATTENDANCE-SYNC.md`). Until it is, the log is captured by hand: someone
-runs Personnel's **Download ScanLog** at the end of each working day and loads the file at
-`/attendance/device` ("Data absensi" in the sidebar). The scanner IDs are matched to employees
-there too.
+**How attendance gets in (since 2026-10-26: manual capture).** Each Cabang has a **Sumber absensi**:
+
+```
+Pemindai (head office)
+  Fingerspot scanner --> Fingerspot Personnel on the employee PC ("Download ScanLog", end of day)
+    --> its Excel export ("export laporan": raw scan log or Laporan harian)
+    --> Data absensi > tab "Laporan Absensi (pemindai)": upload, map waiting PINs
+    --> punches --> calendar, issues, recap (Alpa / Izin / Sakit / Telat, potongan by Zona)
+
+Rekapitulasi (a Cabang without a machine)
+  the Cabang's PIC fills "Rekapitulasi absen karyawan" (.xls) per period
+    --> Data absensi > tab "Rekapitulasi cabang": upload as a draft, link names, Konfirmasi
+    --> the confirmed counts go straight into the recap (no daily punches)
+
+Automatic (built, switched off: FEATURE_ATTENDANCE_AGENTS=false)
+  scanner --LAN push--> RtListener on SERVER-CAMAT --CSV--> sync-agent.ps1
+    --WireGuard--> POST /api/ingest/attendance (same IngestPunches as the upload)
+```
+
+The automatic path lives in the separate `fingerspot-toolkit` folder (not a git repository; its `README.txt` is the
+site runbook, steps 0 to 10 and follow-ups F1 to F11). It was proven on SERVER-CAMAT on 2026-10-13 up to "the scanner
+pushes a punch to our listener", and the agent was tested against a stand-in only. It stays off until the open items
+below are closed, so production attendance is the manual upload. The design and probe notes are in
+`../ATTENDANCE-SYNC.md`.
 
 How the import behaves, so it is not surprised by:
 
@@ -802,13 +870,19 @@ How the import behaves, so it is not surprised by:
   when something needs doing.
 - **Open to parent-wide accounts holding `manage-attendance` only** (HR Admin by default). The
   scanner serves the whole group, so a company-pinned HR admin cannot load or map.
-- **The file format is not verified.** Personnel's real export has not been inspected, so the
-  parser reads a CSV header and recognises common column names (English and Indonesian) rather
-  than one fixed layout. Needed: a PIN column and a date-time column (or separate date and time
-  columns); optional: device serial, verify mode, in/out mode. Dates are read day-first. If a
-  real export differs, adapt the alias lists in `App\Support\Attendance\ScanLogParser`.
-  `backend/tests/Fixtures/scanlog-sample.csv` is a sample to try the page with (PINs 1001–1005
-  and an unknown 9999).
+- **The file is Personnel's own export, read as it is** (a real "export laporan" from SERVER-CAMAT, brought back on
+  2026-10-13, is in `fingerspot-toolkit/results/`). `.xls` / `.xlsx` (Laravel Excel; the image needs `gd`),
+  HTML saved as `.xls`, or CSV with any common separator, up to 20 MB (`attendance.max_upload_kb`). The header row is
+  found by its column names (English and Indonesian), so title rows above it do not matter. Two layouts:
+  - **the raw scan log**: one row per scan, a PIN and "Tanggal scan" (or a date and a time column);
+  - **the Laporan harian**: one row per employee per day; "Scan masuk", "Scan pulang" and "Scan istirahat 1/2" each
+    become a punch, and the report's own schedule, lateness and leave columns are ignored.
+  Optional in both: device serial (the SN field on the form is then not needed), verify mode, in/out, and the NIP.
+  Dates are read day-first. A differing export means adapting the alias lists in `App\Support\Attendance\ScanLogParser`.
+  Fixtures: `tests/Fixtures/fingerspot-export.xlsx`, `scanlog-sample.csv` (PINs 1001–1005 and an unknown 9999).
+- **A PIN never seen before is mapped by its NIP** when the export carries one and exactly one employee across the
+  companies has that employee number (`attendance_imports.auto_mapped` counts them). A PIN that already has a mapping,
+  even an expired one, is left alone; anything else waits for HR to map by hand.
 - **The calendar (`/attendance/calendar`, "Kalender")** derives each person's day from the
   raw punches every time; nothing is stored, so a late upload or a corrected mapping changes it
   immediately. It needs the `view-attendance` permission (HR Admin by default) and follows the
@@ -896,7 +970,9 @@ How the import behaves, so it is not surprised by:
   a range of up to 366 days, with the same department/team/leave-type filters, `?export=csv`, and
   a print layout (browser "save as PDF"; no PDF library). The calendar toolbar has "Unduh CSV" and
   "Cetak". CSV cells that start with `= + - @` are prefixed so a spreadsheet will not run them.
-- **Ingest endpoint and agents.** `POST /api/ingest/attendance` accepts batches from the on-site
+- **Ingest endpoint and agents (switched off by default since 2026-10-26: `FEATURE_ATTENDANCE_AGENTS=true` to bring them
+  back; while off the ingest and "Sinkronkan sekarang" are 404 and the agent screens and warnings are hidden).**
+  `POST /api/ingest/attendance` accepts batches from the on-site
   agent, through the same `IngestPunches` as the file import, so both are idempotent and behave
   identically. Auth is a **Sanctum token only** (no cookies) with the `attendance:ingest` ability,
   one token per `AttendanceAgent`, limited to 120 requests a minute per token. Agents are created
@@ -918,15 +994,20 @@ How the import behaves, so it is not surprised by:
 - **Each section of the recap folds away, and "Per karyawan" is paged** (10, 25, 50 or 100 a page, the
   total row stays under every page). Folding and paging are only for the screen: printing opens every
   section and lists every employee, so the printed report is whole. The CSV is always whole.
-- **Not built yet:** the on-site agent and listener, and xlsx import.
-- **Open before `ATT-DEV` can be closed** (found in the first scanner test on SERVER-CAMAT,
-  2026-10-13; the field work and checklist are in `../fingerspot-toolkit/README.txt`, follow-ups F1-F6):
+- **Built since this list was written:** the listener and the sync agent (in `fingerspot-toolkit`, 2026-10-21), the
+  Excel import (2026-10-26), and the branch rekap import with Zona and potongan (2026-10-26, change log).
+- **Open before the automatic path can be switched on and `ATT-DEV` closed** (found in the first scanner test on
+  SERVER-CAMAT, 2026-10-13; the field work and checklist are in `../fingerspot-toolkit/README.txt`, follow-ups F1-F11).
+  None of these blocks the manual upload. To switch it on later: `FEATURE_ATTENDANCE_AGENTS=true` in `docker/server/.env`,
+  `up -d`, then the toolkit's F10 (SERVER-CAMAT as a WireGuard peer) and F11 (token from **Agen sinkronisasi**):
   - **How the on-site server reaches this endpoint is decided (WireGuard peer, 2026-10-19), not set up, and it is not "public HTTPS".**
     The ingest route is private-network-only by design (`routes/api.php`; Phase 7 binds nginx to
     private addresses and checks the public IP never serves the app). So SERVER-CAMAT (192.168.2.x)
     has to be a WireGuard peer (Tailscale is not used) and the agent calls the app's private name.
     Restrict that peer with a firewall rule to the app's private HTTPS port, and only the ingest
-    route, and test the agent through it. The agent only ever makes outbound requests; nothing is opened at the site except the
+    route, and test the agent through it. (README step 7 now has the wg-easy rules that stop a peer reaching anything but
+    the app, and other peers reaching it; written 2026-10-27, not yet run on the server. The toolkit's F10 step D, which
+    says the server does no such thing, predates them.) The agent only ever makes outbound requests; nothing is opened at the site except the
     scanner-to-listener firewall rule for TCP 7005. If the VPN is down the agent keeps the CSV and
     resends later (the ingest is idempotent), so test that too.
   - **The scanner's acknowledgement is unknown**, so it resends each punch about every 2 seconds
@@ -938,7 +1019,9 @@ How the import behaves, so it is not surprised by:
     has to map it (Personnel's own codes: 1, 20, 30; what 20 and 30 are is not known) or omit it.
     `io_mode` is 1 for every punch, so in/out comes from the day's first and last scan, not from the
     scanner. Times are `yyyyMMddHHmmss` wall-clock with no zone (`attendance.device_timezone`).
-  - **PIN to employee mapping is not settled.** Scanner PIN is never the NIP. The full mapping lives
+  - **PIN to employee mapping is not settled** for the automatic path (the agent's punches carry a PIN only). For the
+    upload it is mostly solved: when the export carries a NIP column beside the PIN, a new PIN is mapped by it
+    (2026-10-26). Scanner PIN is never the NIP. The full mapping lives
     in the Personnel on the employee PC that downloads each evening, not on the server (the
     server's Personnel knew 74 employees; 81 PINs have punched; 10 PINs match nobody). Needs: that
     PC's employee export, a decision whether this app's `employee_number` is the NIP or the PIN, and
@@ -954,7 +1037,7 @@ How the import behaves, so it is not surprised by:
 
 | Screen    | Name                      | f   | P1  | Status | Notes                                                            |
 | --------- | ------------------------- | --- | --- | ------ | ---------------------------------------------------------------- |
-| `ATT-DEV` | Device integration health | 6   | 5   | 🟡     | Manual CSV import, enrol-ID mapping, capture status, the token-only ingest endpoint, agent registry/health and "sync now" done. The on-site agent and listener themselves (002, 006) are not built here. **Open items before closing: see the list under this table's section** (VPN route, scanner ack, PIN mapping) |
+| `ATT-DEV` | Device integration health | 6   | 5   | 🟡     | Manual import of Personnel's Excel export (scan log or Laporan harian), the branch rekap import, enrol-ID mapping (auto by NIP), capture status, the token-only ingest endpoint, agent registry/health and "sync now" done. The listener and agent (002, 006) are built in `fingerspot-toolkit` but switched off (`FEATURE_ATTENDANCE_AGENTS`). **Open items before switching them on: see the list under this table's section** (VPN peer, scanner ack, PIN mapping) |
 | `ATT-CAL` | Calendar ("Kalender")     | 5   | 5   | 🟡     | Day / week / month / year (the Day view is split into Hadir, which keeps Terlambat and Pulang cepat, and Tidak hadir for Cuti and absent, plus a Libur / belum ada data tab when someone is in it), department/team/leave-type filters, status rules, holidays and approved leave shown ahead of the data, CSV export, printable recap. A separate live board is covered by the Day view |
 | `ATT-SID` | Calendar side panel       | 6   | 3   | ✅     | Headcount summary, holidays and events, and the single on-leave panel (day / week / month / year, at-least-one-day rule), all from the same rows and filters as the grid |
 | `ATT-WIZ` | Calendar event wizard     | 1   | 1   | ✅     | Holidays and company/department events, with audit; the end date follows the start, and an event can repeat weekly, monthly or yearly until a date (one row per occurrence, deletable alone or as a series). `WorkingDays` feeds the leave day counts, so a holiday is not a leave day |
@@ -1009,9 +1092,9 @@ table, the checklist and the screens.
 
 | Screen                            | Name                     | f   | P1  | Status | Notes                                                  |
 | --------------------------------- | ------------------------ | --- | --- | ------ | ------------------------------------------------------ |
-| `OFF-DSH`                         | Offboarding dashboard    | 10  | 5   | 🟡     | Built 10-15: summary, stage tiles, case list, status chips, filters (status, department, last day), "Mulai kasus", row routing, badge. CSV export (009) not yet |
-| `OFF-WIZ` · `OFF-WZ1` · `OFF-WZ2` | Case wizard + steps      | 11  | 8   | ✅     | Built 10-15. Two steps in one form, save draft, notice-period check against the employee's contract days, compensation with a required reason, case files, send for approval |
-| `OFF-PIP`                         | Case pipeline            | 7   | 6   | 🟡     | Tracker, header, files, the stage-dependent action bar (004) and all three tabs built. The closing timeline (007) is the only part left |
+| `OFF-DSH`                         | Offboarding dashboard    | 10  | 5   | 🟡     | Built 10-15: summary, stage tiles, case list, status chips, filters (status, Cabang since 10-23, department, last day), "Mulai kasus", row routing, badge. CSV export (009) not yet |
+| `OFF-WIZ` · `OFF-WZ1` · `OFF-WZ2` | Case wizard + steps      | 11  | 8   | ✅     | Built 10-15. Two steps in one form, save draft, notice-period check against the employee's contract days, compensation with a required reason, case files, send for approval. On a phone (10-23) Simpan / Kirim sit in a bar above the tab bar |
+| `OFF-PIP`                         | Case pipeline            | 7   | 6   | 🟡     | Tracker, header, files, the stage-dependent action bar (004) and all three tabs built; on a phone (10-23) the actions move to a pinned bar (`PhaseActions`, change log). The closing timeline (007) is the only part left |
 | `OFF-APR`                         | Stage 1 Diajukan         | 7   | 5   | ✅     | Built 10-15, **with Management as the approver** (not the supervisor), the comment thread, and rejection back to draft. The HR approval step (004) is dropped |
 | `OFF-CHK`                         | Stage 2 Checklist        | 11  | 10  | ✅     | Built 10-15: groups per department owned by its supervisor (HR Admin when none), owner-only ticking with a checkbox, the blocked-completion guard and banner, ad-hoc items, HR notified. Access revocation (010) built 10-16, see the sign-off rules below |
 | `OFF-SIG`                         | Stage 3 Sign-off         | 9   | 5   | ✅     | Built 10-16: the exit details, then HR closes (no signatures since 10-19), the exit interview, exit documents, the print-ready berita acara, send back to the checklist, close, cancel, and the dossier lock. Waiting on one decision: re-routing approvals that were waiting on the leaver |
@@ -1033,7 +1116,7 @@ only the network. It reverses the earlier "private-only" decision (`docs/context
 
 | Screen     | Name                          | f | P1 | Status | Notes |
 | ---------- | ----------------------------- | - | -- | ------ | ----- |
-| `CORE-ACC` | Access tiers, public entrance | 9 | 6  | 🟡     | `-001` to `-008` built in the app; the Nginx side, 2FA enforcement and the two audits deferred to Phase 7 are not |
+| `CORE-ACC` | Access tiers, public entrance | 9 | 6  | 🟡     | `-001` to `-008` built in the app. Since 10-21/10-27 the Nginx side too (the entrance header set from the source address, public rate limits, security headers) and **mandatory 2FA for elevated accounts**. Open: a WAF, the outside check of the public IP on the real server, and the two audits deferred to Phase 7 |
 
 - `CORE-ACC-001` **Two entrances.** Separate Nginx server blocks and hostnames; the app learns the entrance from
   a header only Nginx sets (trusted-proxy setup is new work, never the `Host` header); separate session cookies.
@@ -1082,8 +1165,9 @@ change requests, withdrawing one); filing for someone else, and backdating, stay
   only; the public entrance shows initials. A migration moved the existing pictures. Company logos stay public.
 - `CORE-ACC-009` The default offboarding item "Akses VPN dicabut" already covers the WireGuard peer; nothing to change.
 
-**Not built yet (Phase 7 / go-live):** the Nginx server blocks that set the header (it must be *overwritten*, never
-passed on from the client), making 2FA mandatory, the proxy or WAF in front, and the outside check of the public IP.
+**Built since (Phase 7):** the Nginx server blocks that set the header (overwritten, never passed on from the client),
+and 2FA made mandatory for elevated accounts (2026-10-27, change log). **Not built yet (go-live):** the proxy or WAF in
+front, and the outside check of the public IP on the real server (README step 6 has the commands).
 
 **Deferred to the last phase, before go-live** (decided 2026-10-20; the mobile PWA view waits until the web app is ready):
 what the Inertia shared props carry on every page, and the leaver's own read-only offboarding view on the public
@@ -1218,7 +1302,8 @@ only the allowlist. With a public entrance, a small VPS of its own is recommende
 
 Nothing in the app blocks this — a working login and `/up` is all the VPN test needs.
 
-**Also needed here, from Phase 2 (`ATT-DEV`):** the on-site scanner server (SERVER-CAMAT) must be
+**Also needed here, from Phase 2 (`ATT-DEV`), only when the automatic path is switched on
+(`FEATURE_ATTENDANCE_AGENTS=true`; the manual upload needs none of it):** the on-site scanner server (SERVER-CAMAT) must be
 able to reach `/api/ingest/attendance` over the same private network, because the route is not
 public. That machine is a WireGuard peer, limited to the app's private HTTPS port and the ingest route. See "Open before `ATT-DEV` can be closed" in Phase 2.
 
@@ -1241,8 +1326,8 @@ public. That machine is a WireGuard peer, limited to the app's private HTTPS por
   a new `server { listen 172.30.0.10:443 ssl; }` block in `nginx.conf.template` uses `VPN_HOSTNAME`, a name separate
   from the public one, DNS-pointed straight at `172.30.0.10` — a private address, unreachable from the internet, so
   publishing it is harmless and needs no split-horizon resolver: off the VPN the name resolves but nothing answers,
-  on the VPN the peer's existing Allowed IPs already route it through the tunnel. The certificate (shared into the
-  `web` container read-only from `/etc/letsencrypt` on the host) is obtained by DNS-01, since that address cannot be
+  on the VPN the peer's existing Allowed IPs already route it through the tunnel. The certificate (since 2026-10-28 only its own pair is
+  copied into the `web` container, through `docker/server/certs/`, by the Certbot hook) is obtained by DNS-01, since that address cannot be
   reached from the internet the way `certbot --nginx` needs for the public one. `docker/server/reload-after-renew.sh`,
   installed as a Certbot deploy hook, reloads both Nginxes whenever either certificate does renew. `$entrance` was
   already keyed on source address, not hostname, so nothing in the app itself changed. Elevated people end up with a
@@ -1272,15 +1357,20 @@ public. That machine is a WireGuard peer, limited to the app's private HTTPS por
   happens. Needs: recreating the existing DNS records on Cloudflare before cutting over (mail records especially —
   check what idwebhost actually holds first), then switching the domain's nameservers at idwebhost (a registrar
   setting, not the limited DNS editor pictured above).
-- **Not built yet:** mandatory 2FA, a WAF or proxy-level throttling, the Management accounts (waiting on the client's
-  details, `CORE-USR-007`), and Web Push.
+- **Security pass, 2026-10-27 and 10-28** (each in the change log): mandatory 2FA for elevated accounts, longer idle
+  sessions with a daily cap and no remember-me, the sign-in audit, Nginx limits on the public entrance and security
+  headers everywhere, capped container logs, encrypted nightly backups with an admin page, a non-superuser database
+  login, and only the VPN certificate inside `web`.
+- **Not built yet:** a WAF, the Management accounts (waiting on the client's details, `CORE-USR-007`), Web Push, a
+  script/style CSP, Ghostscript in a sandbox (compression is off on the server meanwhile), and mounting only the public
+  files of `storage` into `web` (needs Docker Engine 26+ / Compose 2.27+ on the server).
 - **PHP security releases need a fresh base image.** `docker-compose.server.yml` builds on the floating `php:8.4-fpm` tag, so
   a patch release (for example 8.4.27, 2026-10-21, the "php2shell" fix) only arrives when the image is rebuilt with
   `--pull --no-cache`. Workers must be restarted (`up -d` recreates them) before the fix is live.
 - **Resource sizing (2026-10-22).** One VPS shared with other stacks. `mem_limit` on `app`, `db`, `queue` and `scheduler`, and
   `docker/php/php-fpm-pool.conf` (dynamic, 3 to 12 workers, recycled after 500 requests), are sized for 100 to 150 employees. Notifications are
   database rows read on page load and the only polling is the 30 second discussion refresh, so load is a few requests per
-  second at most. Container logs are not size-limited yet.
+  second at most. Container logs are capped at 5 files of 10 MB each (since 2026-10-27).
 - **Uploads (2026-10-22).** `App\Support\Files\UploadFiler` stores every leave attachment, offboarding file and employee
   document. It shrinks PDFs with Ghostscript (`config/uploads.php`) and falls back to the original on any failure, so
   compression cannot block a filing. Employee documents pass `compress: false` because a rewrite breaks signatures.
@@ -1492,8 +1582,11 @@ This differs from `../docs/context.md` §9.4, which still describes the earlier 
     can be offboarded again.
   - **Berita acara** is a page built for printing ("Cetak / PDF"), always from the case as it is now; nothing is
     stored as a file.
-  - **Not done:** an inactive profile cannot be re-activated (rehire, deferred), and a request or checklist group
-    waiting on an *other* account that leaves is not re-routed yet (awaiting a decision).
+  - **Reopening (built 10-22).** HR can bring a closed profile back with **Aktifkan kembali** on the profile (a return,
+    or a case closed by mistake): active again, `exited_on` cleared, the sign-in switched back on, roles untouched. The
+    scanner mapping the exit ended is **not** restored (map the PIN again), and the archived case stays as it was.
+  - **Not done:** a request or checklist group waiting on an *other* account that leaves is not re-routed yet (awaiting a
+    decision).
 - **A rejection** returns the case to draft with the reason in the thread; sending it again builds a fresh
   approval and keeps what was said.
 - **One discussion for the whole case.** "Komentar & feedback" is a drawer that slides in from the right,
@@ -1645,11 +1738,12 @@ Progress Tracking analytics (Appendix C).
 - **Directory import and export are CSV only** (`/employees/import`, "Unduh CSV" on the list). The
   importer finds columns by header name (the template lists them), only ever creates, and skips an
   employee number the company already has rather than updating it. A bad row is rejected with its
-  line number while good rows still load; "Hanya periksa" checks without saving. Departments and
-  positions must already exist by name; the manager is an employee number, in the company or in the
+  line number while good rows still load; "Hanya periksa" checks without saving. A Cabang,
+  department and position must already exist by name (a blank Cabang means the company's only one,
+  an error once it has several); the manager is an employee number, in the company or in the
   same file. Bank, payroll and health fields are neither imported nor exported. It loads into the
-  active company, so a group-wide user must pick one first. Max 2,000 rows. `.xlsx` would need
-  Laravel Excel, which is parked.
+  active company, so a group-wide user must pick one first. Max 2,000 rows, 2 MB. `.xlsx` is not
+  accepted here yet, although Laravel Excel is now installed (the attendance imports use it).
 - **Sanctum is installed for the attendance agent only** (token-only, `config/sanctum.php` has no
   stateful guard). There is no employee-app API yet.
 - **The Indonesian workbook copy** (`…_ID.xlsx`) is regenerated from the English one — if you

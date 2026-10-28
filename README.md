@@ -11,7 +11,9 @@ on feature detail).
 
 **Current release:** employee directory, Pengajuan (requests), offboarding, profile change requests, documents, the admin
 panel, and attendance (which can be switched off, see below). Recruitment and the employee mobile app are not part of it.
-The on-site scanner agent lives in the separate `fingerspot-toolkit` project and needs attendance switched on.
+Attendance arrives by **upload**: head office's Fingerspot export, and a per-period rekap from each Cabang without a
+scanner (see [Attendance data](#attendance-data)). The automatic on-site agent lives in the separate `fingerspot-toolkit`
+folder and is switched off (`FEATURE_ATTENDANCE_AGENTS`).
 
 ---
 
@@ -111,7 +113,11 @@ app layout: `app.tsx` already does.
   office network) gets the full app for roles that hold the permissions. *Public* serves only the employee self-service
   routes listed in `Support/Access/PublicRoutes`, and on it every account is treated as a plain employee. Every route must
   be classed public or private, and a test fails if a new route is not. Separate session cookies per entrance.
-- **Feature switch.** `FEATURE_ATTENDANCE=false` ships without attendance (details in the configuration reference).
+- **Feature switches.** `FEATURE_ATTENDANCE=false` ships without attendance; `FEATURE_ATTENDANCE_AGENTS` (off by default)
+  brings back the automatic scanner sync on top of it (details in the configuration reference).
+- **Cabang.** Every employee belongs to one office (`employees.branch_id`, required). Each Cabang has a *Sumber absensi*
+  (scanner or rekap), which decides how its people's attendance is counted. The directory, Pengajuan, offboarding and the
+  attendance screens can be filtered by it.
 
 The data model diagrams and the reasoning behind these are in [DEVELOPMENT.md](DEVELOPMENT.md).
 
@@ -236,7 +242,9 @@ companies. Then:
 4. Remove `INITIAL_ADMIN_PASSWORD` from the env file and run the `up -d` command again. Running the seeder again never
    resets an existing account.
 5. HR then adds the employees (one by one or the CSV import in the directory). Each needs a unique 16-digit NIK, because
-   staff register with NIK + employee ID and then HR activates the account.
+   staff register with NIK + employee ID and then HR activates the account, and a **Cabang**. A new company is created
+   with at least one Cabang; add more under **Cabang** in the admin panel *before* importing. In the CSV a blank Cabang
+   column means the company's only Cabang, and is refused once it has several.
 6. HR sets up how absence is counted (admin panel, all of it saved in the database, so a later `up -d` never resets it):
    - **Jenis pengajuan:** each kind has **Dihitung sebagai** (Izin, Sakit, or neither). *Cuti sakit* is Sakit after the
      update migration. A Sakit kind **must** have "Boleh mundur (hari)" set: an employee is marked Alpa first, then files
@@ -428,6 +436,7 @@ going away for good.
 | Reset test data    | testing server only (`APP_ENV=staging`): `... exec app php artisan migrate:fresh --force`, then the seeders in step 4. Refused when `APP_ENV=production` |
 | A profile was closed by mistake, or someone returns | on the employee's profile, **Aktifkan kembali** (HR). It reopens the profile, clears the exit date and switches the sign-in offboarding turned off back on. A scanner mapping is not restored |
 | Change the env     | edit `docker/server/.env`, run `up -d` again (the configuration is cached when a container starts)                    |
+| Load attendance    | each working day, head office: Personnel's export uploaded on **Data absensi**; each period, the Cabang rekaps. See [Attendance data](#attendance-data) |
 | Back up the data   | automatic every night once set up, see [Backups](#backups); a copy right now (before a risky change): `bash docker/server/backup.sh` |
 | Logs               | `docker compose -f docker-compose.server.yml logs -f app web queue`                                                   |
 | Watch for guessing | `... logs app \| grep -E 'Sign-in (failed\|throttled)\|Two-factor (code refused\|attempts throttled)'`: a failed attempt keeps the end of the NIK, the address and the entrance, never the password. Successful sign-ins and 2FA changes are in the admin panel's audit log (type `auth`) |
@@ -461,6 +470,35 @@ docker image prune -f       # images no container uses
   restarted.
 - **Logs.** Containers log to Docker's JSON files, capped at 5 files of 10 MB each per container (`x-logging` in
   `docker-compose.server.yml`). Check `docker system df -v` if space shrinks without explanation anyway.
+
+### Attendance data
+
+How the data gets in, day to day. It needs `FEATURE_ATTENDANCE=true` and a **parent-wide** account with
+`manage-attendance` (HR Admin by default): a company-pinned HR admin cannot upload or map, because one scanner serves the
+whole group.
+
+**Head office** (a Cabang whose Sumber absensi is *Pemindai*), every working day:
+
+1. On the employee PC that runs Fingerspot Personnel: **Download ScanLog** (it fetches only what was not fetched before),
+   then export the report (`.xls` / `.xlsx`; the raw scan log and the *Laporan harian* both work, CSV too).
+2. In the app: **Data absensi** > tab **Laporan Absensi (pemindai)** > upload (20 MB at most). The same or an overlapping
+   file twice adds nothing the second time; each upload reports new, duplicate, waiting and refused rows.
+3. **Waiting IDs.** A scanner PIN not yet linked to an employee is held, never dropped. A new PIN is linked by itself when
+   the export carries the employee number (NIP) beside it and exactly one employee has that number; map the rest by hand
+   on the same tab, which moves their waiting scans in at once. A PIN reused for someone new gets a mapping with dates.
+4. **Data sampai** on that tab says how fresh the data is: the days after it are "no data", never absence. The dashboard
+   reminds the people who upload when it is behind.
+
+**Other Cabang** (Sumber absensi *Rekapitulasi*), once per period: the **Rekapitulasi cabang** tab, as in item 6 of
+[step 4](#4-create-the-first-account-then-the-companies).
+
+**Automatic, later (switched off).** The separate `fingerspot-toolkit` folder (its `README.txt` is the site runbook)
+receives each punch on the scanner's own network (`RtListener`, on SERVER-CAMAT), and its agent posts them over WireGuard
+to `/api/ingest/attendance`. It is proven up to "the scanner pushes a punch to the listener", and the agent only against a
+stand-in; the scanner's acknowledgement and the PIN mapping are still open (DEVELOPMENT.md, Phase 2). To switch it on:
+`FEATURE_ATTENDANCE_AGENTS=true` and `up -d`; make SERVER-CAMAT a WireGuard client (toolkit F10, with the peer rules of
+step 7 here); create the agent under **Agen sinkronisasi** in the admin panel and give its token to the agent (toolkit
+F11). The upload keeps working beside it, through the same de-duplication.
 
 ### Uploaded files
 
