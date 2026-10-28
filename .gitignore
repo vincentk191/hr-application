@@ -44,3 +44,6 @@
 # Server stack secrets (docker/server/.env) and the backup settings (docker/server/backup.env)
 docker/server/.env
 docker/server/backup.env
+# The VPN https key pair the Certbot hook copies in for the web container (the folder itself stays, via .gitkeep).
+docker/server/certs/*
+!docker/server/certs/.gitkeep

@@ -127,9 +127,11 @@ services:
             - '${WEB_BIND:-127.0.0.1}:${WEB_PORT:-8090}:80'
         volumes:
             - appstorage:/var/www/backend/storage:ro
-            # Read-only, and the whole directory rather than just live/<host>: Certbot's live/ files are symlinks
-            # into archive/, which only resolve if both are mounted at the same path they have on the host.
-            - /etc/letsencrypt:/etc/letsencrypt:ro
+            # The one certificate pair for VPN_HOSTNAME, copied here by the Certbot deploy hook (docker/server/
+            # reload-after-renew.sh). Not /etc/letsencrypt itself: that holds the private key of every site on this host,
+            # and this container is the one that faces the public entrance. Empty until the hook has run, and then Nginx
+            # starts without the VPN https (docker/server/15-vpn-tls.sh).
+            - ./docker/server/certs:/etc/hr-certs:ro
         depends_on:
             - app
         networks:

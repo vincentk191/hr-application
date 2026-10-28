@@ -65,6 +65,27 @@ listed in the checklist below. Nothing here is committed yet: changes are left f
 
 ## Change log (latest first)
 
+- **2026-10-28 (the `web` container no longer sees `/etc/letsencrypt`).** It mounted the whole directory read-only, which
+  holds the private key of every site on the host (the VPS is shared), in the container that faces the public entrance.
+  Now it mounts only `docker/server/certs/` at `/etc/hr-certs`, and the Certbot deploy hook
+  (`reload-after-renew.sh`) copies the `VPN_HOSTNAME` pair there (`cp -L` through Certbot's symlinks, written under a
+  temporary name and moved, key mode 600) when `RENEWED_DOMAINS` contains that exact name; the public certificate's
+  renewals only reload the host's Nginx. `15-vpn-tls.sh` and `vpn-tls.conf.template` read `/etc/hr-certs`. A folder in the
+  repo (kept by `.gitkeep`, contents ignored) rather than per-host bind mounts of `live/` and `archive/` on purpose: Docker
+  creates a missing host path for a bind mount, which would have left empty root-owned folders inside Certbot's directory
+  whenever the optional VPN https is off, and Certbot refuses to issue into an existing `live/<name>`.
+  - README, "HTTPS over the VPN": the hook is installed and run by hand once (step 3) before the rebuild (step 4), because
+    the first copy no longer comes from a renewal. A server that already served the VPN https runs it once before `up -d`.
+  - Checked: the hook against a fake server layout with Certbot-style symlinks and stand-in `nginx`/`docker` (issue, renewal,
+    public certificate leaves the pair alone, quoted and CRLF `.env`, multi-name certificate, look-alike names, empty or
+    missing `VPN_HOSTNAME`, a certificate without a key leaves the working pair in place and exits non-zero); the real `web`
+    image with these files laid over it: starts with no hostname, with an empty folder, and with a pair (https served on
+    172.30.0.10 with that certificate), shows no `/etc/letsencrypt`, the mount is read-only, and a changed pair is served
+    after `nginx -s reload`; `docker compose config` accepts the file.
+  - **Not done, the other half:** the `storage` volume is still mounted whole (private documents included). Narrowing it to
+    `storage/app/public` needs a volume `subpath` (Docker Engine 26+ / Compose 2.27+), so it waits for the server's versions
+    (`docker version`, `docker compose version`). Not run on a real server, with a real Certbot certificate.
+
 - **2026-10-28 (non-superuser database login).** The server stack used to sign the application in to PostgreSQL as the
   image's superuser (`POSTGRES_USER` was `DB_USERNAME`), so any SQL an attacker could run through a flaw in the app ran as a
   superuser (`COPY ... TO PROGRAM` is code execution in the database container). Now `POSTGRES_USER` is `DB_ADMIN_USERNAME`

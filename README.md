@@ -371,30 +371,40 @@ depends on it.
      Certbot prints a TXT record (`_acme-challenge.<vpn-host>`) and waits. Add exactly that record at idwebhost,
      wait a minute or two for it to propagate (`dig +short TXT _acme-challenge.<vpn-host>` from the server should
      show it), then press Enter to let Certbot verify and issue the certificate.
-3. **Set the hostname and rebuild.** In `docker/server/.env`, set `VPN_HOSTNAME=<vpn-host>` (no scheme, no port —
-   the exact name the certificate was issued for), then:
+3. **Set the hostname and install the hook.** In `docker/server/.env`, set `VPN_HOSTNAME=<vpn-host>` (no scheme, no port —
+   the exact name the certificate was issued for). The `web` container does **not** see `/etc/letsencrypt` (that holds
+   the private key of every site on the server, and this container faces the public entrance). It sees only
+   `docker/server/certs/`, and the Certbot deploy hook puts the key pair for `VPN_HOSTNAME` there, and reloads both
+   Nginxes after every renewal. Install the hook once, then run it by hand this first time, because no renewal has
+   happened yet:
+   ```bash
+   cp docker/server/reload-after-renew.sh /etc/letsencrypt/renewal-hooks/deploy/hr-app.sh
+   chmod +x /etc/letsencrypt/renewal-hooks/deploy/hr-app.sh
+   RENEWED_LINEAGE=/etc/letsencrypt/live/<vpn-host> RENEWED_DOMAINS=<vpn-host> /etc/letsencrypt/renewal-hooks/deploy/hr-app.sh
+   ls -l docker/server/certs
+   ```
+   Edit `REPO_DIR` in that file first if the clone is not at `/opt/hr-application`. `ls` should show `fullchain.pem`
+   and `privkey.pem` (the key readable by root only). The hook also covers the *public* certificate's own automatic
+   renewals (it reloads the host's Nginx and copies nothing for them), so install it even if you only care about those.
+   (The hook's last line reloads the `web` container, which fails if the stack is not running yet: on a first install,
+   start it with step 4 and ignore that error, the files are already in place.)
+4. **Rebuild.**
    ```bash
    docker compose -f docker-compose.server.yml --env-file docker/server/.env up -d --build
    docker compose -f docker-compose.server.yml --env-file docker/server/.env exec web nginx -t
    ```
    `nginx -t` must say "syntax is ok" / "test is successful". The HTTPS block is only added when `VPN_HOSTNAME` is set
-   **and** `/etc/letsencrypt/live/<vpn-host>/fullchain.pem` exists on the host, so check which happened with
+   **and** the pair is in `docker/server/certs/`, so check which happened with
    `docker compose -f docker-compose.server.yml --env-file docker/server/.env logs web | grep 15-vpn-tls`: "is on" is
-   what you want; "no certificate at …" means the name does not match the certificate (`certbot certificates` on the host
-   lists what exists) or step 2 has not been done yet. Nothing else is affected while it is off.
-4. **Install the reload hook once**, so a renewal actually reaches the `web` container (it mounts the host's
-   certificates read-only and does not otherwise notice a new one):
-   ```bash
-   cp docker/server/reload-after-renew.sh /etc/letsencrypt/renewal-hooks/deploy/hr-app.sh
-   chmod +x /etc/letsencrypt/renewal-hooks/deploy/hr-app.sh
-   ```
-   Edit `REPO_DIR` in that file first if the clone is not at `/opt/hr-application`. This also covers the *public*
-   certificate's own automatic renewals, so install it even if you only care about those.
+   what you want; "no certificate in …" means the hook has not copied the pair: step 2 is not done yet, or the name in
+   `.env` is not the one on the certificate (`certbot certificates` on the host lists what exists). Nothing else is
+   affected while it is off. **A server that already served the VPN https before this change** needs only the
+   `RENEWED_LINEAGE=…` command of step 3 once, then the `up -d` above.
 5. **Renewal.** With the `dns-cloudflare` plugin this is automatic, same as the public certificate — nothing to do.
    Doing step 2 the idwebhost way instead means doing it **by hand, every 60-90 days** (the certificate is valid
    90; renew with time to spare): without a DNS provider API, Certbot's own timer cannot do this one unattended — it
    skips it silently when it runs automatically, same as every other manual DNS-01 certificate. Repeat step 2's
-   command; a successful run still triggers step 4's hook, so there is nothing else to do afterward. If Certbot has
+   command; a successful run still triggers step 3's hook, so there is nothing else to do afterward. If Certbot has
    your real email from setup, it sends a reminder as the expiry approaches — a calendar reminder of your own is
    cheap insurance regardless.
 6. **Verify**, on a phone with the WireGuard app:
@@ -627,7 +637,8 @@ where it is), the host Nginx site file from step 5, and the DNS records. Certifi
 
 A WAF in front (Cloudflare, once the domain's DNS moves there; Nginx already limits the public entrance's requests), the
 Management accounts (they wait on the client's details), Web Push (alerts are in-app only),
-mounting only the one certificate and the public files into the `web` container,
+mounting only the public files, not all of `storage`, into the `web` container (its certificate mount is already just the
+one VPN pair; the files part needs Docker Engine 26+ / Compose 2.27+ on the server for a volume subpath),
 compressing PDFs in a sandbox, and a server of its own if the public entrance should not share a machine with other sites.
 Details and the open items per screen are in [DEVELOPMENT.md](DEVELOPMENT.md).
 
