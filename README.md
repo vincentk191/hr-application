@@ -217,7 +217,8 @@ Fill in `docker/server/.env` (every setting is in the [reference](#configuration
 - `APP_KEY`: generate with `docker run --rm php:8.4-cli php -r 'echo "base64:".base64_encode(random_bytes(32)).PHP_EOL;'`
 - `APP_ENV=production`, `COMPOSER_DEV=false`, `APP_URL=https://<hr-host>`
 - `DB_PASSWORD` (the application's database password; the database superuser gets none, see
-  [The database logins](#the-database-logins)), `WG_ADMIN_PASSWORD`, `WG_HOST` (the server's public address, for WireGuard)
+  [The database logins](#the-database-logins)), `WG_ADMIN_PASSWORD`, `WG_HOST` (the server's public IP, or a DNS-only name for it, for WireGuard; never the proxied
+  public hostname, see step 7)
 - `WEB_BIND=127.0.0.1` and `WEB_PORT=8090` when another Nginx on the same server does the https (step 5)
 - `FEATURE_ATTENDANCE=false` to ship without attendance
 - `INITIAL_ADMIN_EMAIL` and `INITIAL_ADMIN_PASSWORD` (12 or more characters) for the first account
@@ -319,6 +320,19 @@ approves, checklist owners, Management, HR, admins), and have them scan the QR c
 browse to `https://<vpn-host>` once step 7.5 is done (plain `http://172.30.0.10` until then). Delete a person's client when
 they leave.
 
+**Two settings in wg-easy's admin page (Admin > Config) to get right before adding the first client.** Both are written into
+every client's file when it is created, so changing one later means re-downloading or re-scanning each client's config.
+
+- **Host** (the `Endpoint` peers connect to) must be the server's public IP, or a name that is **DNS only** in Cloudflare
+  (grey cloud). Never the proxied `<hr-host>`: Cloudflare's proxy does not carry UDP, so the app shows "active" but never
+  completes a handshake (look for "Latest handshake" in the WireGuard window; an `Endpoint` that is a Cloudflare address, for
+  example `172.67.x.x`, gives it away). A dedicated record is simplest: `A`, name `hr-wg` or similar, the server's public IP,
+  DNS only. `WG_HOST` in `docker/server/.env` only seeds this on the very first start, so editing it later changes
+  nothing; change it here as well and keep the two in step.
+- **DNS** stays **empty**. A DNS server in the client file is sent through the tunnel by the WireGuard app on Windows, and
+  the firewall rules below drop everything except TCP 80 and 443 to the app, so name lookups time out. With it empty,
+  each device uses its normal DNS, which is what resolves `<vpn-host>` (step 7.5).
+
 **Limit what a VPN peer can reach (do this before adding the first client).** wg-easy lets a connected device send traffic
 anywhere the `wg` container can route, and `INIT_ALLOWED_IPS` only shapes what the *client* sends, which its owner can edit.
 Left alone, a peer could open the wg-easy admin page (it listens on every interface inside the container), reach every
@@ -348,12 +362,12 @@ address, so nothing is lost there.
 
 ### 7.5 HTTPS over the VPN
 
-**Planned, not started** (decided 2026-10-22, see `DEVELOPMENT.md` Phase 7): the domain's DNS is moving to Cloudflare
-first, so step 2 below can use an automatic DNS-01 plugin instead of idwebhost's manual one — chosen specifically
-because the people using this are not technical, and a self-signed certificate (the other way around idwebhost's
-missing TXT support) would ask each of them to install and trust a root certificate by hand, which is exactly the
-kind of step that goes wrong silently for someone who does not know what a certificate is. The steps below still
-work as written once `VPN_HOSTNAME`'s DNS lives wherever it ends up; only step 2's exact commands change.
+**Done on the server on 2026-11-03** (decided 2026-10-22, see `DEVELOPMENT.md` Phase 7): the domain's DNS is on
+Cloudflare, so step 2 uses the automatic `dns-cloudflare` plugin. It was chosen over a self-signed certificate
+(or idwebhost's manual DNS-01, which has no TXT records or API) because the people using this are not technical: a
+private CA would ask each of them to install and trust a root certificate by hand, which is exactly the kind of step
+that goes wrong silently for someone who does not know what a certificate is. If the domain's DNS ever lives somewhere
+else, only step 2's commands change.
 
 Elevated people get the install, the service worker and a real certificate too, not just plain `http://172.30.0.10`.
 This uses its own hostname, `<vpn-host>` — separate from `<hr-host>`, so elevated people end up with a second
@@ -363,21 +377,46 @@ keyed on the connection's source address, not the hostname, so nothing about whi
 address and the padlock are new. Skip this section to stay on plain `http://172.30.0.10` instead — nothing else here
 depends on it.
 
-1. **Add one DNS record**, at whichever provider holds the domain: type `A`, name `vpn` or similar, **172.30.0.10**
-   (not the server's public IP — this is deliberate, see below). `172.30.0.10` is a private address
+1. **Add one DNS record**, in Cloudflare: type `A`, name `hr-vpn` or similar, **172.30.0.10** (not the server's public
+   IP — this is deliberate, see below), **DNS only** (grey cloud; Cloudflare cannot proxy a private address and shows
+   it as "DNS only - reserved IP"). `172.30.0.10` is a private address
    (`172.16.0.0/12`), unreachable from the internet, so publishing it is harmless: off the VPN the name resolves but
    nothing answers; on the VPN, the peer's Allowed IPs already route that one address through the tunnel. No split
    DNS, no extra container, nothing proxied through the server.
 2. **Get the certificate with a DNS-01 challenge**, since `172.30.0.10` cannot be reached from the internet the way
    `certbot --nginx` needs (that only works for the public hostname in step 5, which stays unchanged).
-   - **With the domain on Cloudflare** (the plan — see above): `certbot dns-cloudflare` fully automates this, TXT
-     record and all, and keeps renewing it without anyone touching anything afterward.
-   - **Still on idwebhost**, which has no TXT records or API: do it by hand, and note it in the diary — it cannot
-     renew unattended, so repeat this command every 60-90 days:
+   - **With the domain on Cloudflare** (how this server is set up): the `dns-cloudflare` plugin adds and removes the
+     TXT record itself and keeps renewing the certificate with nobody touching it. There is no `certbot dns-cloudflare`
+     command: the plugin is switched on by flags on `certonly`.
+     1. **Create an API token** in Cloudflare (My Profile > API Tokens > Create Token > the **Edit zone DNS** template).
+        Permission **Zone / DNS / Edit**, zone resources **Include > Specific zone** (this domain only, never all
+        zones), and optionally Client IP Address Filtering set to the server's public IP. Copy it when shown; it
+        appears once. Never the Global API Key. If Certbot later says it cannot find the zone, add **Zone / Zone / Read**.
+     2. **Install the plugin the same way Certbot was installed.** If `snap list certbot` shows it, use
+        `sudo snap set certbot trust-plugin-with-root=ok` and `sudo snap install certbot-dns-cloudflare`; otherwise
+        `sudo apt install python3-certbot-dns-cloudflare`. Mixing the two leaves "plugin not found". `certbot plugins`
+        must list `dns-cloudflare`. (If `apt` waits on a lock held by an `apt upgrade` that has no terminal, it is
+        stuck at a prompt nobody can answer: stop that process, run `sudo dpkg --configure -a`, and rerun the upgrade
+        with `DEBIAN_FRONTEND=noninteractive`.)
+     3. **Save the token on the server only**, in `/etc/letsencrypt/cloudflare.ini`, then `chmod 600` it:
+        ```
+        dns_cloudflare_api_token = <the token>
+        ```
+        It can edit every DNS record in the zone, the public one included, so it stays out of the repository,
+        `docker/server/.env` and the backups.
+     4. **Issue the certificate**:
+        ```bash
+        sudo certbot certonly --dns-cloudflare \
+          --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini \
+          --dns-cloudflare-propagation-seconds 60 \
+          -d <vpn-host>
+        ```
+   - **Still on a DNS provider with no TXT records or API** (idwebhost): do it by hand, and note it in the diary — it
+     cannot renew unattended, so repeat this command every 60-90 days:
      ```bash
      certbot certonly --manual --preferred-challenges dns -d <vpn-host>
      ```
-     Certbot prints a TXT record (`_acme-challenge.<vpn-host>`) and waits. Add exactly that record at idwebhost,
+     Certbot prints a TXT record (`_acme-challenge.<vpn-host>`) and waits. Add exactly that record at the provider,
      wait a minute or two for it to propagate (`dig +short TXT _acme-challenge.<vpn-host>` from the server should
      show it), then press Enter to let Certbot verify and issue the certificate.
 3. **Set the hostname and install the hook.** In `docker/server/.env`, set `VPN_HOSTNAME=<vpn-host>` (no scheme, no port —
@@ -389,19 +428,29 @@ depends on it.
    ```bash
    cp docker/server/reload-after-renew.sh /etc/letsencrypt/renewal-hooks/deploy/hr-app.sh
    chmod +x /etc/letsencrypt/renewal-hooks/deploy/hr-app.sh
-   RENEWED_LINEAGE=/etc/letsencrypt/live/<vpn-host> RENEWED_DOMAINS=<vpn-host> /etc/letsencrypt/renewal-hooks/deploy/hr-app.sh
+   sudo env RENEWED_LINEAGE=/etc/letsencrypt/live/<vpn-host> RENEWED_DOMAINS=<vpn-host> /etc/letsencrypt/renewal-hooks/deploy/hr-app.sh
    ls -l docker/server/certs
    ```
-   Edit `REPO_DIR` in that file first if the clone is not at `/opt/hr-application`. `ls` should show `fullchain.pem`
-   and `privkey.pem` (the key readable by root only). The hook also covers the *public* certificate's own automatic
+   Set `REPO_DIR` in the installed file to the real clone path (the repository's copy says `/opt/hr-application`):
+   `sudo sed -i 's#^REPO_DIR=.*#REPO_DIR=<clone path>#' /etc/letsencrypt/renewal-hooks/deploy/hr-app.sh`. Run the
+   command above as one line (with `sudo env` in front of the two `RENEWED_*` words); a stray `cat` in front of it only
+   prints the script and runs nothing.
+   Re-copy the file after every `git pull` that changes `reload-after-renew.sh`: an older installed copy only reloads
+   Nginx and copies nothing, silently. `sh -x` in front of the path shows each step, and `grep -c CERT_DIR` on the
+   installed file is `0` for that older copy. `ls` should show `fullchain.pem` and `privkey.pem` (the key readable by
+   root only). The hook also covers the *public* certificate's own automatic
    renewals (it reloads the host's Nginx and copies nothing for them), so install it even if you only care about those.
    (The hook's last line reloads the `web` container, which fails if the stack is not running yet: on a first install,
    start it with step 4 and ignore that error, the files are already in place.)
-4. **Rebuild.**
+4. **Rebuild, and restart `web`.**
    ```bash
    docker compose -f docker-compose.server.yml --env-file docker/server/.env up -d --build
+   docker compose -f docker-compose.server.yml --env-file docker/server/.env restart web
    docker compose -f docker-compose.server.yml --env-file docker/server/.env exec web nginx -t
    ```
+   The `restart web` matters when the certificate files appeared after `web` last started: the HTTPS block is added by
+   a start-up script, and `up -d` does not recreate a container whose configuration has not changed (only the contents
+   of a mounted folder did), so without it the log keeps saying "no certificate" even though the files are there.
    `nginx -t` must say "syntax is ok" / "test is successful". The HTTPS block is only added when `VPN_HOSTNAME` is set
    **and** the pair is in `docker/server/certs/`, so check which happened with
    `docker compose -f docker-compose.server.yml --env-file docker/server/.env logs web | grep 15-vpn-tls`: "is on" is
@@ -410,6 +459,8 @@ depends on it.
    affected while it is off. **A server that already served the VPN https before this change** needs only the
    `RENEWED_LINEAGE=…` command of step 3 once, then the `up -d` above.
 5. **Renewal.** With the `dns-cloudflare` plugin this is automatic, same as the public certificate — nothing to do.
+   Prove it once: `sudo certbot renew --dry-run` must succeed for both certificates and show `hr-app.sh` running as the
+   deploy hook, and `sudo certbot certificates` lists both.
    Doing step 2 the idwebhost way instead means doing it **by hand, every 60-90 days** (the certificate is valid
    90; renew with time to spare): without a DNS provider API, Certbot's own timer cannot do this one unattended — it
    skips it silently when it runs automatically, same as every other manual DNS-01 certificate. Repeat step 2's
@@ -419,7 +470,9 @@ depends on it.
 6. **Verify**, on a phone with the WireGuard app:
    - VPN **off**: `https://<vpn-host>` does not load (no route to a private address) — expected, not a bug.
    - VPN **on**: it loads with a valid certificate, and an elevated account can use the email sign-in and open
-     `/employees` etc.
+     `/employees` etc. If the name does not resolve (`nslookup <vpn-host>`), check the client's DNS is empty (step 7), and
+     that the router does not strip private addresses from public DNS answers ("DNS rebinding protection"). To test
+     HTTPS and the firewall without DNS, add `172.30.0.10 <vpn-host>` to the laptop's hosts file, then remove it.
    - Install the PWA from `https://<vpn-host>` while connected. It is a separate install from the public one at
      `https://<hr-host>` — two icons, each only useful on its own network.
 

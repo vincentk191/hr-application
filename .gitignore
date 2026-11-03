@@ -47,3 +47,6 @@ docker/server/backup.env
 # The VPN https key pair the Certbot hook copies in for the web container (the folder itself stays, via .gitkeep).
 docker/server/certs/*
 !docker/server/certs/.gitkeep
+
+# This machine's own deployment (the Tailscale override, its script and notes): never part of the product.
+docker/server/local/

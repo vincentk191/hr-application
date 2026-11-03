@@ -36,7 +36,9 @@
 
         {{-- The installable app: manifest, colours, and the iPhone home-screen settings. --}}
         <link rel="manifest" href="/manifest.webmanifest">
-        <meta name="theme-color" content="#111827">
+        {{-- The status and navigation bars take the page background, light and dark (app.css --background). --}}
+        <meta name="theme-color" content="#f4f4f1" media="(prefers-color-scheme: light)">
+        <meta name="theme-color" content="#0c0b0a" media="(prefers-color-scheme: dark)">
         <meta name="mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-title" content="HR">
