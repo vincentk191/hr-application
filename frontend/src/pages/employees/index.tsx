@@ -241,7 +241,7 @@ export default function EmployeesIndex({
                         onChange={(departments) => apply({ departments })}
                     />
                     <MultiSelectFilter
-                        label="Jabatan"
+                        label="Posisi"
                         options={positions}
                         selected={filters.positions}
                         onChange={(positions) => apply({ positions })}
@@ -433,7 +433,7 @@ export default function EmployeesIndex({
                                             Departemen
                                         </th>
                                         <th className="p-3 font-medium">
-                                            Jabatan
+                                            Posisi
                                         </th>
                                         <th className="hidden p-3 font-medium md:table-cell">
                                             Atasan
@@ -617,7 +617,7 @@ export default function EmployeesIndex({
                     </div>
                 </FilterSection>
 
-                <FilterSection title="Jabatan">
+                <FilterSection title="Posisi">
                     <div className="flex flex-wrap gap-2">
                         {positions.map((name) => (
                             <button

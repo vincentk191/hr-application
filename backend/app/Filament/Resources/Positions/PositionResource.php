@@ -28,9 +28,9 @@ class PositionResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBriefcase;
 
-    protected static ?string $modelLabel = 'jabatan';
+    protected static ?string $modelLabel = 'posisi';
 
-    protected static ?string $pluralModelLabel = 'Jabatan';
+    protected static ?string $pluralModelLabel = 'Posisi';
 
     protected static ?int $navigationSort = 5;
 

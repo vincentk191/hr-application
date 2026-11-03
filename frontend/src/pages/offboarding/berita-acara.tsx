@@ -70,7 +70,7 @@ export default function BeritaAcara({ case: item }: { case: OffboardingCase }) {
                         <Field label="Nomor karyawan">
                             {item.employee.number}
                         </Field>
-                        <Field label="Jabatan · Departemen">
+                        <Field label="Posisi · Departemen">
                             {[item.employee.position, item.employee.department]
                                 .filter(Boolean)
                                 .join(' · ') || '—'}

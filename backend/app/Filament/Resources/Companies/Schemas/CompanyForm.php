@@ -25,6 +25,14 @@ class CompanyForm
                     ->label('Nama')
                     ->required()
                     ->maxLength(255),
+                TextInput::make('npwp_15')
+                    ->label('NPWP 15 digit')
+                    ->helperText('Nomor pokok wajib pajak perusahaan, format lama. Terisi dari berkas impor karyawan bila masih kosong.')
+                    ->maxLength(30),
+                TextInput::make('npwp_22')
+                    ->label('NPWP 22 digit')
+                    ->helperText('Nomor 22 digit (NITKU) yang kini dipakai kantor pajak. Terisi dari berkas impor karyawan bila masih kosong.')
+                    ->maxLength(30),
                 ColorPicker::make('brand_color')
                     ->label('Warna perusahaan')
                     ->helperText('Warna utama aplikasi saat perusahaan ini dipilih. Kosongkan untuk warna bawaan.')

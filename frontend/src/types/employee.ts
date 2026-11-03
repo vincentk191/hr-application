@@ -52,13 +52,62 @@ export type EmployeeDetail = EmployeeRow & {
         emergency_contact_phone: string | null;
         emergency_contact_relation: string | null;
     };
+    /** From HR's data sheet. `gender` and the like are the select values, `...Label` what the profile shows. */
+    personal: {
+        gender: string | null;
+        genderLabel: string | null;
+        birth_place: string | null;
+        birth_date: string | null;
+        religion: string | null;
+        religionLabel: string | null;
+        marital_status: string | null;
+        maritalStatusLabel: string | null;
+        education_level: string | null;
+        /** The sheet's Jabatan: a free-text title (Staff, Supervisor ...); `position` is its Posisi. */
+        job_title: string | null;
+    };
+    /** The rest of the home address; the street is `contact.address`. */
+    residence: {
+        residence_village: string | null;
+        residence_district: string | null;
+        residence_city: string | null;
+        residence_province: string | null;
+        residence_postal_code: string | null;
+    };
+    /** The address on the KTP. */
+    idAddress: {
+        id_address: string | null;
+        id_block: string | null;
+        id_house_number: string | null;
+        id_rt: string | null;
+        id_rw: string | null;
+        id_village: string | null;
+        id_district: string | null;
+        id_city: string | null;
+        id_province: string | null;
+        id_postal_code: string | null;
+    };
+    /** Null when the viewer lacks the sensitive-data permission (EMP-DET-006). */
+    identity: {
+        family_card_number: string | null;
+        mother_name: string | null;
+    } | null;
     /** Null when the viewer lacks the sensitive-data permission (EMP-DET-006). */
     bank: {
         bank_name: string | null;
         bank_account_number: string | null;
         bank_account_holder: string | null;
+        bank_branch: string | null;
         tax_number: string | null;
+        /** TK/0, K/1, K/I/2 ... */
+        ptkp_status: string | null;
         payment_method: string | null;
+    } | null;
+    /** BPJS and company insurance. Null when the viewer lacks the sensitive-data permission. */
+    coverage: {
+        bpjs_employment_number: string | null;
+        bpjs_health_number: string | null;
+        employee_insurance: string | null;
     } | null;
     payroll: EmployeePayroll | null;
     health: {

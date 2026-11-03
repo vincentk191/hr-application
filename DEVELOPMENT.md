@@ -69,6 +69,44 @@ left uncommitted for review.
 
 ## Change log (latest first)
 
+- **2026-11-03 (employee data refactor to HR's data sheet; uncommitted, on `feature/recruitement` though unrelated to
+  recruitment).** The sheet `Lembar data field karyawan 20261103.xlsx` (50 columns, header only) is now the shape of
+  the employee record, the import, the template and the export. Migration `add_sheet_fields_to_employees_and_companies`;
+  enums `Gender`, `Religion`, `MaritalStatus`, `PtkpStatus` (each reads the sheet's spellings with `fromSheet`);
+  `Support/Employees/EmployeeSheet` (the 50 columns in order, which are sensitive, a row from an employee, the sample
+  row) and `EmployeeTemplateWorkbook`.
+  - **Decided with the user:** the sheet's **Divisi = Departemen**, **Posisi = the app's Position**, **Jabatan = new
+    free-text `job_title`** (so the Position field is now labelled **Posisi** everywhere: form, profile, directory,
+    offboarding screens, the admin menu; the recruitment requisition's own "Jabatan" column is a different field and was
+    left). **Status Karyawan = employment type** (Tetap, Kontrak, Percobaan, Magang; PKWT and PKWTT are read too);
+    `Status` active/inactive is still driven by offboarding. **Asuransi Karyawan** is a new free-text field beside the
+    BPJS numbers. The existing health group (blood type, height, weight, medical check, declared conditions) is
+    untouched and not part of the import. **Sensitive** (behind `view-sensitive-data`, like bank and payroll): KK, mother's
+    name, PTKP, bank branch, BPJS and insurance, plus the NPWP and bank fields that already were. Personal data, the two
+    addresses and the education level are visible with the profile.
+  - **Import** (`ImportEmployees`) reads Excel (.xlsx/.xls, detected by content) or CSV. Dates typed as Excel dates and
+    16-digit numbers typed as numbers are restored; a mobile number that lost its leading zero gets it back. The
+    sheet's two "No KTP" columns are told apart by order: the second is the **house number** of the KTP address. The
+    **company named in the file must be the selected one** (ignoring PT/CV and case, and either name containing the
+    other); the company's NPWP 15/22 are filled from the file only while empty. A **Posisi** that exists under several
+    departments is picked by the row's Divisi, else refused. **Supervisor** may be an employee number or a full name
+    (compared without case, spacing or punctuation); a name two people share is refused. NPWP, NIK and KK are read as their
+    digits. **Sensitive columns are read only when the importer holds `view-sensitive-data`**; otherwise they are left
+    out and the result says so. Still never auto-creates a Cabang, department or position.
+  - **Template and export:** the template is now an Excel file (identifier, phone and date columns formatted as text,
+    so a NIK is not turned into 3,17E+15) with HR's headers verbatim, one example row and a "Petunjuk" sheet of the
+    accepted words. The directory export (still CSV) uses the same 50 columns, so it loads back; its sensitive columns are filled
+    only for someone with the permission, and it carries the company name, which has to be changed to load the file into
+    another company.
+  - **Screens:** the form has Data pribadi, Alamat tinggal and Alamat KTP, and (sensitive) Identitas keluarga, the
+    bank card with cabang bank and PTKP, and BPJS & asuransi; the profile shows the same cards, with a "restricted"
+    card in place of each sensitive one. The company form in the admin panel has the two NPWP fields.
+  - **Checked:** `EmployeeSheetImportTest` (8 cases), `EmployeeImportTest` and `EmployeeDirectoryTest` updated and extended;
+    Pint, TypeScript and the formatter clean.
+  - **Not done / to know:** the profile change request (`ProfileChangeRequest::FIELDS`) still offers only the fields it
+    did, so an employee cannot yet ask to change the new ones; `employees.insurance_number` ("No. asuransi / BPJS" in the
+    untouched health group) now overlaps the new BPJS fields; no sample rows were available, so the readers are built
+    from the header alone and need a real filled sheet to confirm value spellings (religion, PTKP, status).
 - **2026-10-28 (recruitment, first slice: requisition + approval; branch `feature/recruitement`).** Migrations
   `create_requisitions_table` (`requisitions`: company, department, optional Cabang, requester, position name, quota,
   reason, target start, description, `requirements` JSON, `draft_step`, `salary_min`/`salary_max` and who set them,
@@ -623,6 +661,12 @@ Three things in that diagram carry most of the design:
 emergency contact, bank and tax, payroll, and health and insurance — 23 nullable columns left
 off the diagram to keep it readable. **Money is integer rupiah** (`base_salary_idr` and
 friends), never a float.
+
+Since 2026-11-03 it also holds HR's data sheet (`Lembar data field karyawan`), 29 more nullable columns:
+personal (`gender`, `birth_place`, `birth_date`, `religion`, `marital_status`, `education_level`, `job_title`), the home
+address beyond `address` (`residence_*`), the KTP address (`id_*`), and the sensitive `family_card_number`,
+`mother_name`, `ptkp_status`, `bank_branch`, `bpjs_employment_number`, `bpjs_health_number`, `employee_insurance`.
+`companies` gained `npwp_15` and `npwp_22`. Nothing here is unique (a KK is shared by a household).
 
 ### The approval workflow engine
 

@@ -5,6 +5,10 @@ namespace App\Models;
 use App\Concerns\BelongsToCompany;
 use App\Enums\EmploymentStatus;
 use App\Enums\EmploymentType;
+use App\Enums\Gender;
+use App\Enums\MaritalStatus;
+use App\Enums\PtkpStatus;
+use App\Enums\Religion;
 use App\Enums\Zona;
 use App\Support\Access\Entrance;
 use App\Support\ReportingLine;
@@ -62,6 +66,35 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int|null $weight_kg
  * @property Carbon|null $last_medical_check_on
  * @property string|null $declared_conditions
+ * @property Gender|null $gender
+ * @property string|null $birth_place
+ * @property Carbon|null $birth_date
+ * @property Religion|null $religion
+ * @property MaritalStatus|null $marital_status
+ * @property string|null $education_level
+ * @property string|null $job_title the sheet's Jabatan (Staff, Supervisor ...); `position_id` is its Posisi
+ * @property string|null $residence_village
+ * @property string|null $residence_district
+ * @property string|null $residence_city
+ * @property string|null $residence_province
+ * @property string|null $residence_postal_code
+ * @property string|null $id_address
+ * @property string|null $id_block
+ * @property string|null $id_house_number
+ * @property string|null $id_rt
+ * @property string|null $id_rw
+ * @property string|null $id_village
+ * @property string|null $id_district
+ * @property string|null $id_city
+ * @property string|null $id_province
+ * @property string|null $id_postal_code
+ * @property string|null $family_card_number
+ * @property string|null $mother_name
+ * @property PtkpStatus|null $ptkp_status
+ * @property string|null $bank_branch
+ * @property string|null $bpjs_employment_number
+ * @property string|null $bpjs_health_number
+ * @property string|null $employee_insurance
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -108,20 +141,54 @@ use Spatie\Activitylog\Support\LogOptions;
     'weight_kg',
     'last_medical_check_on',
     'declared_conditions',
+    // Personal, home and KTP address (the data sheet)
+    ...self::PERSONAL_FIELDS,
+    ...self::RESIDENCE_FIELDS,
+    ...self::ID_ADDRESS_FIELDS,
+    ...self::IDENTITY_FIELDS,
+    ...self::COVERAGE_FIELDS,
+    'bank_branch',
+    'ptkp_status',
 ])]
 class Employee extends Model
 {
+    /** @var list<string> */
+    public const PERSONAL_FIELDS = [
+        'gender', 'birth_place', 'birth_date', 'religion', 'marital_status', 'education_level', 'job_title',
+    ];
+
+    /** The rest of the home address; `address` holds its street. @var list<string> */
+    public const RESIDENCE_FIELDS = [
+        'residence_village', 'residence_district', 'residence_city', 'residence_province', 'residence_postal_code',
+    ];
+
+    /** @var list<string> */
+    public const ID_ADDRESS_FIELDS = [
+        'id_address', 'id_block', 'id_house_number', 'id_rt', 'id_rw', 'id_village', 'id_district', 'id_city',
+        'id_province', 'id_postal_code',
+    ];
+
+    /** Who the person is to the state and their family: sensitive. @var list<string> */
+    public const IDENTITY_FIELDS = ['family_card_number', 'mother_name'];
+
+    /** BPJS and company insurance: sensitive. @var list<string> */
+    public const COVERAGE_FIELDS = ['bpjs_employment_number', 'bpjs_health_number', 'employee_insurance'];
+
     /**
-     * The bank, payroll and health fields (EMP-DET-003/004/005). Seeing or changing them needs
-     * the sensitive-data permission on top of access to the record (EMP-DET-006).
+     * The bank, payroll and health fields (EMP-DET-003/004/005), and the identity numbers, tax status and cover that
+     * came with the data sheet. Seeing or changing them needs the sensitive-data permission on top of access to the
+     * record (EMP-DET-006).
      *
      * @var list<string>
      */
     public const SENSITIVE_FIELDS = [
-        'bank_name', 'bank_account_number', 'bank_account_holder', 'tax_number', 'payment_method',
+        'bank_name', 'bank_account_number', 'bank_account_holder', 'bank_branch', 'tax_number', 'ptkp_status',
+        'payment_method',
         'pay_group', 'base_salary_idr', 'allowances_idr', 'overtime_rate_idr',
         'insurance_number', 'insurance_tier', 'blood_type', 'height_cm', 'weight_kg',
         'last_medical_check_on', 'declared_conditions',
+        'family_card_number', 'mother_name',
+        'bpjs_employment_number', 'bpjs_health_number', 'employee_insurance',
     ];
 
     /** @use HasFactory<EmployeeFactory> */
@@ -157,6 +224,11 @@ class Employee extends Model
             'joined_on' => 'date',
             'exited_on' => 'date',
             'last_medical_check_on' => 'date',
+            'gender' => Gender::class,
+            'religion' => Religion::class,
+            'marital_status' => MaritalStatus::class,
+            'ptkp_status' => PtkpStatus::class,
+            'birth_date' => 'date',
             'base_salary_idr' => 'integer',
             'allowances_idr' => 'integer',
             'overtime_rate_idr' => 'integer',
@@ -353,6 +425,13 @@ class Employee extends Model
                 'weight_kg',
                 'last_medical_check_on',
                 'declared_conditions',
+                ...self::PERSONAL_FIELDS,
+                ...self::RESIDENCE_FIELDS,
+                ...self::ID_ADDRESS_FIELDS,
+                ...self::IDENTITY_FIELDS,
+                ...self::COVERAGE_FIELDS,
+                'bank_branch',
+                'ptkp_status',
             ])
             ->logOnlyDirty()
             ->dontLogEmptyChanges();

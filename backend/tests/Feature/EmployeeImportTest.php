@@ -11,6 +11,7 @@ use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Testing\TestResponse;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use Spatie\Activitylog\Models\Activity;
 
 /**
@@ -76,7 +77,7 @@ function employeeImportResult(): array
 }
 
 it('creates employees from a CSV, matching columns by header name', function () {
-    importEmployeesCsv("ID karyawan,Nama,Departemen,Jabatan,Status,Tipe,Tanggal bergabung,Email\nK-1,Budi,Gudang,Staf,Aktif,Kontrak,15/01/2024,budi@example.com\nK-2,Siti,,,,,2024-02-01,\n")
+    importEmployeesCsv("ID karyawan,Nama,Departemen,Posisi,Status,Tipe,Tanggal bergabung,Email\nK-1,Budi,Gudang,Staf,Aktif,Kontrak,15/01/2024,budi@example.com\nK-2,Siti,,,,,2024-02-01,\n")
         ->assertRedirect(route('employees.import'));
 
     expect(employeeImportResult())->toMatchArray(['total' => 2, 'created' => 2, 'duplicates' => 0, 'rejected' => 0]);
@@ -153,7 +154,7 @@ it('rejects bad rows with their line number and still loads the good ones', func
     expect($result['created'])->toBe(1)
         ->and($result['rejected'])->toBe(5)
         ->and($result['errors'][0])->toStartWith('Baris 2:')
-        ->and(implode(' ', $result['errors']))->toContain('departemen', 'status', 'email', 'tanggal bergabung', 'ID karyawan');
+        ->and(implode(' ', $result['errors']))->toContain('departemen', 'status', 'email', 'tanggal mulai', 'ID karyawan');
     expect(Employee::where('employee_number', 'K-5')->exists())->toBeTrue();
 });
 
@@ -190,11 +191,10 @@ it('writes nothing on a dry run but reports what would happen', function () {
         ->and(Employee::count())->toBe(0);
 });
 
-it('ignores sensitive columns', function () {
-    importEmployeesCsv("ID,Nama,Gaji,Bank\nK-1,Budi,9000000,BCA\n");
+it('never reads payroll columns, which are not part of the sheet', function () {
+    importEmployeesCsv("ID,Nama,Gaji\nK-1,Budi,9000000\n");
 
-    $employee = Employee::firstOrFail();
-    expect($employee->base_salary_idr)->toBeNull()->and($employee->bank_name)->toBeNull();
+    expect(Employee::firstOrFail()->base_salary_idr)->toBeNull();
 });
 
 it('refuses a file without an ID or name column, and an empty one', function () {
@@ -260,16 +260,26 @@ it('refuses a NIK that another employee in any company, or an earlier row, alrea
 it('records the import on the audit trail', function () {
     importEmployeesCsv("ID,Nama\nK-1,Budi\n");
 
-    expect(Activity::where('description', 'Impor karyawan dari CSV')->count())->toBe(1);
+    expect(Activity::where('description', 'Impor karyawan dari berkas')->count())->toBe(1);
 });
 
-it('serves a template with the recognised columns', function () {
+it('serves an Excel template with HR\'s columns and a sheet of instructions', function () {
     $response = $this->actingAs($this->hr)->get(route('employees.import.template'))->assertOk();
 
-    expect($response->streamedContent())->toContain('ID karyawan', 'Tanggal bergabung');
+    $path = tempnam(sys_get_temp_dir(), 'tpl').'.xlsx';
+    file_put_contents($path, $response->streamedContent());
+    $book = IOFactory::load($path);
+    unlink($path);
+
+    expect($book->getSheetNames())->toBe(['Data karyawan', 'Petunjuk'])
+        ->and(array_slice($book->getSheet(0)->rangeToArray('A1:AX1', null, false, false, false)[0], 0, 4))
+        ->toBe(['Nama Perusahaan', 'NPWP 15 PERUSAHAAN', 'NPWP 22_PERESUHAAN', 'Nomor Induk Karyawan'])
+        ->and($book->getSheet(0)->getCell('AX1')->getValue())->toBe('Supervisor')
+        // The sample row's NIK is kept as text, so Excel cannot turn it into 3,17E+15.
+        ->and($book->getSheet(0)->getCell('V2')->getValue())->toBe('3174000000000001');
 });
 
-it('exports the filtered directory, matches the import columns and leaves out sensitive fields', function () {
+it('exports the filtered directory in the sheet\'s columns, without payroll', function () {
     $boss = Employee::factory()->forCompany($this->company)->create(['employee_number' => 'BOSS', 'full_name' => 'Bos']);
     Employee::factory()->inDepartment($this->warehouse)->create([
         'employee_number' => 'K-1', 'full_name' => 'Budi', 'manager_id' => $boss->id, 'base_salary_idr' => 7777777, 'bank_name' => 'BCA',
@@ -278,7 +288,9 @@ it('exports the filtered directory, matches the import columns and leaves out se
     Employee::factory()->forCompany($this->other)->create(['employee_number' => 'OTHER']);
 
     $all = $this->actingAs($this->hr)->get(route('employees.export'))->assertOk()->streamedContent();
-    expect($all)->toContain('K-1', 'K-2', 'BOSS', 'ID karyawan')->not->toContain('OTHER')->not->toContain('7777777')->not->toContain('BCA');
+    expect($all)->toContain('K-1', 'K-2', 'BOSS', 'Nomor Induk Karyawan', 'NPWP 16')->not->toContain('OTHER')->not->toContain('7777777')
+        // HR holds the sensitive-data permission, so the bank column is filled in.
+        ->toContain('BCA');
 
     $filtered = $this->actingAs($this->hr)->get(route('employees.export', ['departments' => [$this->warehouse->name]]))->streamedContent();
     expect($filtered)->toContain('K-1', 'Gudang')->not->toContain('K-2');
@@ -289,7 +301,8 @@ it('exports a file the importer can read back', function () {
     $boss = Employee::factory()->inDepartment($this->warehouse)->create(['employee_number' => 'BOSS', 'full_name' => 'Bos', 'joined_on' => '2020-03-04']);
     Employee::factory()->inDepartment($this->warehouse)->create(['employee_number' => 'K-1', 'full_name' => 'Budi', 'manager_id' => $boss->id, 'joined_on' => '2022-01-02']);
 
-    $csv = $this->actingAs($this->hr)->get(route('employees.export'))->streamedContent();
+    // The sheet names its company, and a file for another company is refused: renamed here, as HR would.
+    $csv = str_replace($this->company->name, $this->other->name, $this->actingAs($this->hr)->get(route('employees.export'))->streamedContent());
 
     // NIK is unique across the group, so the people exported must no longer hold theirs.
     Employee::query()->update(['national_id' => null]);

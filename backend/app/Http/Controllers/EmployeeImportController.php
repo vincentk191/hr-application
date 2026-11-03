@@ -3,32 +3,24 @@
 namespace App\Http\Controllers;
 
 use App\Actions\Employees\ImportEmployees;
+use App\Enums\Permission;
 use App\Http\Requests\StoreEmployeeImportRequest;
 use App\Models\Company;
 use App\Models\Employee;
 use App\Support\CompanyContext;
-use App\Support\CsvDownload;
+use App\Support\Employees\EmployeeSheet;
+use App\Support\Employees\EmployeeTemplateWorkbook;
 use App\Support\Employees\InvalidEmployeeImport;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class EmployeeImportController extends Controller
 {
-    /**
-     * Columns of the template and of the export, in order: the same set the importer reads, so an
-     * exported list can be edited and loaded into another company.
-     *
-     * @var list<string>
-     */
-    public const COLUMNS = [
-        'ID karyawan', 'Nama', 'Cabang', 'Departemen', 'Jabatan', 'ID atasan', 'Status', 'Tipe',
-        'Tanggal bergabung', 'Tanggal keluar', 'Email', 'Telepon', 'Alamat', 'NIK',
-    ];
-
     public function create(Request $request): Response
     {
         $this->authorize('create', Employee::class);
@@ -37,7 +29,9 @@ class EmployeeImportController extends Controller
 
         return Inertia::render('employees/import', [
             'company' => $companyId === null ? null : Company::query()->whereKey($companyId)->value('name'),
-            'columns' => self::COLUMNS,
+            // The sensitive ones are marked: they are read only for someone with the sensitive-data permission.
+            'columns' => array_map(fn (array $column): array => ['name' => $column[0], 'sensitive' => $column[2]], EmployeeSheet::COLUMNS),
+            'canImportSensitive' => $request->user()->can(Permission::ViewSensitiveData->value),
             'maxRows' => ImportEmployees::MAX_ROWS,
             'result' => $request->session()->get('employee_import_result'),
         ]);
@@ -71,9 +65,12 @@ class EmployeeImportController extends Controller
     {
         $this->authorize('create', Employee::class);
 
-        return CsvDownload::stream('templat-karyawan.csv', [
-            self::COLUMNS,
-            ['EMP-001', 'Budi Santoso', 'Pusat', 'Operasional', 'Staf', '', 'Aktif', 'Tetap', '2024-01-15', '', 'budi@example.com', '0812-0000-0000', 'Jl. Contoh No. 1', '3174000000000001'],
+        $book = (new EmployeeTemplateWorkbook)->build();
+
+        return response()->streamDownload(function () use ($book): void {
+            (new Xlsx($book))->save('php://output');
+        }, 'templat-karyawan.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
     }
 

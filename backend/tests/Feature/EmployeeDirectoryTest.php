@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\EmploymentStatus;
+use App\Enums\Permission;
 use App\Enums\Role;
 use App\Enums\Zona;
 use App\Models\Branch;
@@ -416,4 +417,103 @@ it('leaves the account alone when something other than the name changes', functi
     $employee->update(['phone' => '0812-0000-0000']);
 
     expect($account->refresh()->name)->toBe('Nama Akun');
+});
+
+// --- The fields of HR's data sheet ---
+
+/**
+ * @param  array<string, mixed>  $extra
+ * @return array<string, mixed>
+ */
+function sheetFormPayload(Branch $branch, array $extra = []): array
+{
+    return [
+        'employee_number' => 'EMP-7001',
+        'national_id' => '3174000000007001',
+        'full_name' => 'Budi Santoso',
+        'branch_id' => $branch->id,
+        'employment_status' => EmploymentStatus::Active->value,
+        ...$extra,
+    ];
+}
+
+it('saves the data sheet fields from the form and shows them on the profile', function () {
+    $branch = Branch::factory()->forCompany($this->company)->create();
+
+    $this->actingAs($this->hr)->post(route('employees.store'), sheetFormPayload($branch, [
+        'gender' => 'male', 'birth_place' => 'Surabaya', 'birth_date' => '1990-05-20', 'religion' => 'islam',
+        'marital_status' => 'married', 'education_level' => 'S1', 'job_title' => 'Supervisor Gudang',
+        'address' => 'Jl. Contoh No. 1', 'residence_village' => 'Menteng', 'residence_city' => 'Jakarta Pusat',
+        'id_address' => 'Jl. KTP No. 9', 'id_rt' => '001', 'id_rw' => '002', 'id_postal_code' => '10110',
+        'family_card_number' => '3174000000000002', 'mother_name' => 'Siti Aminah', 'ptkp_status' => 'K/1',
+        'bank_branch' => 'KCP Menteng', 'bpjs_employment_number' => '12345678901', 'bpjs_health_number' => '0001234567890',
+        'employee_insurance' => 'Allianz',
+    ]))->assertRedirect();
+
+    $employee = Employee::firstWhere('employee_number', 'EMP-7001');
+
+    expect($employee->gender->value)->toBe('male')
+        ->and($employee->birth_date->toDateString())->toBe('1990-05-20')
+        ->and($employee->ptkp_status->value)->toBe('K/1')
+        ->and($employee->family_card_number)->toBe('3174000000000002');
+
+    $this->actingAs($this->hr)->get(route('employees.show', $employee))->assertInertia(fn (Assert $page) => $page
+        ->where('employee.personal.genderLabel', 'Laki-laki')
+        ->where('employee.personal.religionLabel', 'Islam')
+        ->where('employee.personal.maritalStatusLabel', 'Kawin')
+        ->where('employee.personal.job_title', 'Supervisor Gudang')
+        ->where('employee.residence.residence_village', 'Menteng')
+        ->where('employee.idAddress.id_rt', '001')
+        ->where('employee.identity.mother_name', 'Siti Aminah')
+        ->where('employee.bank.ptkp_status', 'K/1')
+        ->where('employee.bank.bank_branch', 'KCP Menteng')
+        ->where('employee.coverage.bpjs_health_number', '0001234567890'));
+});
+
+it('refuses a bad KK, future birth date and unknown religion, gender, marital status or PTKP', function () {
+    $branch = Branch::factory()->forCompany($this->company)->create();
+
+    $this->actingAs($this->hr)->from(route('employees.create'))->post(route('employees.store'), sheetFormPayload($branch, [
+        'family_card_number' => '123', 'birth_date' => now()->addYear()->toDateString(), 'religion' => 'x',
+        'gender' => 'x', 'marital_status' => 'x', 'ptkp_status' => 'x',
+    ]))->assertSessionHasErrors(['family_card_number', 'birth_date', 'religion', 'gender', 'marital_status', 'ptkp_status']);
+
+    expect(Employee::firstWhere('employee_number', 'EMP-7001'))->toBeNull();
+});
+
+it('keeps the sheet\'s identity, tax and cover fields from anyone without the sensitive-data permission', function () {
+    $employee = Employee::factory()->forCompany($this->company)->create([
+        'family_card_number' => '3174000000000002', 'mother_name' => 'Siti Aminah', 'ptkp_status' => 'K/1',
+        'bank_branch' => 'KCP Menteng', 'bpjs_health_number' => '0001234567890', 'birth_place' => 'Surabaya',
+    ]);
+
+    $supervisor = User::factory()->create(['company_id' => $this->company->id]);
+    $supervisor->assignRole(Role::Supervisor->value);
+    $supervisor->givePermissionTo(Permission::UpdateEmployees->value);
+    $boss = Employee::factory()->forCompany($this->company)->create(['user_id' => $supervisor->id]);
+    $employee->update(['manager_id' => $boss->id]);
+
+    // The personal and address groups are open to anyone who can open the record; the rest is withheld.
+    $this->actingAs($supervisor)->get(route('employees.show', $employee))->assertInertia(fn (Assert $page) => $page
+        ->where('employee.personal.birth_place', 'Surabaya')
+        ->where('employee.identity', null)
+        ->where('employee.bank', null)
+        ->where('employee.coverage', null));
+
+    // A form that could not show them cannot blank them either.
+    $this->actingAs($supervisor)->put(route('employees.update', $employee), [
+        'employee_number' => $employee->employee_number,
+        'national_id' => $employee->national_id,
+        'full_name' => $employee->full_name,
+        'employment_status' => $employee->employment_status->value,
+        'birth_place' => 'Malang',
+        'family_card_number' => '', 'mother_name' => '', 'ptkp_status' => '', 'bank_branch' => '', 'bpjs_health_number' => '',
+    ])->assertRedirect();
+
+    $employee->refresh();
+
+    expect($employee->birth_place)->toBe('Malang')
+        ->and([$employee->family_card_number, $employee->mother_name, $employee->bank_branch, $employee->bpjs_health_number])
+        ->toBe(['3174000000000002', 'Siti Aminah', 'KCP Menteng', '0001234567890'])
+        ->and($employee->ptkp_status->value)->toBe('K/1');
 });

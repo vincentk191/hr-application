@@ -6,7 +6,11 @@ use App\Actions\Employees\ReactivateEmployee;
 use App\Enums\DocumentCategory;
 use App\Enums\EmploymentStatus;
 use App\Enums\EmploymentType;
+use App\Enums\Gender;
+use App\Enums\MaritalStatus;
 use App\Enums\Permission;
+use App\Enums\PtkpStatus;
+use App\Enums\Religion;
 use App\Enums\Zona;
 use App\Http\Requests\StoreEmployeeRequest;
 use App\Http\Requests\UpdateEmployeeRequest;
@@ -25,10 +29,12 @@ use App\Support\Attendance\DailyAttendance;
 use App\Support\Attendance\EmployeeTimesheet;
 use App\Support\CompanyContext;
 use App\Support\CsvDownload;
+use App\Support\Employees\EmployeeSheet;
 use App\Support\Employees\TeamSlice;
 use App\Support\Features;
 use App\Support\Leave\LeaveRequestPresenter;
 use App\Support\OrganisationNames;
+use App\Support\ReportingLine;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -123,40 +129,35 @@ class EmployeeController extends Controller
     }
 
     /**
-     * Download the filtered directory as CSV (EMP-DIR-011): the same columns the import reads, and
-     * never the bank, payroll or health fields. The download is on the audit trail.
+     * Download the filtered directory as CSV (EMP-DIR-011): the columns of HR's data sheet, so the file loads
+     * back through the import. The sensitive columns (bank, tax, KK, BPJS ...) are filled only for someone with
+     * the sensitive-data permission, and never the payroll or health fields. The download is on the audit trail.
      */
     public function export(Request $request): StreamedResponse
     {
         $this->authorize('viewAny', Employee::class);
 
+        $withSensitive = $request->user()->can(Permission::ViewSensitiveData->value);
+
         $employees = $this->filteredQuery($this->filtersFrom($request), $request->user())
-            ->with(['branch:id,name', 'department:id,name', 'position:id,name', 'manager:id,employee_number'])
+            ->with(['company:id,name,npwp_15,npwp_22', 'branch:id,name', 'department:id,name', 'position:id,name', 'manager:id,full_name'])
             ->get();
 
         activity('employee')
             ->causedBy($request->user())
-            ->withProperties(['rows' => $employees->count()])
+            ->withProperties(['rows' => $employees->count(), 'sensitive' => $withSensitive])
             ->log('Ekspor direktori karyawan ke CSV');
 
-        $rows = $employees->map(fn (Employee $employee): array => [
-            $employee->employee_number,
-            $employee->full_name,
-            $employee->branch?->name,
-            $employee->department?->name,
-            $employee->position?->name,
-            $employee->manager?->employee_number,
-            $employee->employment_status->label(),
-            $employee->employment_type?->label(),
-            $employee->joined_on?->toDateString(),
-            $employee->exited_on?->toDateString(),
-            $employee->email,
-            $employee->phone,
-            $employee->address,
-            $employee->national_id,
-        ]);
+        // The directory only lists people the reader may see, so a manager outside that reach is left out of the file.
+        $visibleIds = app(ReportingLine::class)->visibleIds($request->user());
 
-        return CsvDownload::stream('karyawan-'.now()->format('Y-m-d').'.csv', [EmployeeImportController::COLUMNS, ...$rows]);
+        $rows = $employees->map(fn (Employee $employee): array => EmployeeSheet::row(
+            $employee,
+            $withSensitive,
+            $visibleIds === null || in_array($employee->manager_id, $visibleIds, true),
+        ));
+
+        return CsvDownload::stream('karyawan-'.now()->format('Y-m-d').'.csv', [EmployeeSheet::headers(), ...$rows]);
     }
 
     /**
@@ -379,6 +380,10 @@ class EmployeeController extends Controller
                 fn (Zona $zona): array => ['value' => $zona->value, 'label' => $zona->label()],
                 Zona::cases(),
             ),
+            'genders' => array_map(fn (Gender $gender): array => ['value' => $gender->value, 'label' => $gender->label()], Gender::cases()),
+            'religions' => array_map(fn (Religion $religion): array => ['value' => $religion->value, 'label' => $religion->label()], Religion::cases()),
+            'maritalStatuses' => array_map(fn (MaritalStatus $status): array => ['value' => $status->value, 'label' => $status->label()], MaritalStatus::cases()),
+            'ptkpStatuses' => array_map(fn (PtkpStatus $status): array => ['value' => $status->value, 'label' => $status->label()], PtkpStatus::cases()),
         ];
     }
 
@@ -430,11 +435,29 @@ class EmployeeController extends Controller
                 'email', 'phone', 'address', 'national_id',
                 'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relation',
             ]),
+            // The enums go out as their values, which the form's selects use; the profile shows the labels.
+            'personal' => [
+                'gender' => $employee->gender?->value,
+                'genderLabel' => $employee->gender?->label(),
+                'birth_place' => $employee->birth_place,
+                'birth_date' => $employee->birth_date?->toDateString(),
+                'religion' => $employee->religion?->value,
+                'religionLabel' => $employee->religion?->label(),
+                'marital_status' => $employee->marital_status?->value,
+                'maritalStatusLabel' => $employee->marital_status?->label(),
+                'education_level' => $employee->education_level,
+                'job_title' => $employee->job_title,
+            ],
+            'residence' => $employee->only(Employee::RESIDENCE_FIELDS),
+            'idAddress' => $employee->only(Employee::ID_ADDRESS_FIELDS),
             // Null, not empty, when the viewer may not see them, so the page can say "restricted"
             // rather than show a convincing blank (EMP-DET-006).
-            'bank' => $includeSensitive ? $employee->only([
-                'bank_name', 'bank_account_number', 'bank_account_holder', 'tax_number', 'payment_method',
-            ]) : null,
+            'identity' => $includeSensitive ? $employee->only(Employee::IDENTITY_FIELDS) : null,
+            'bank' => $includeSensitive ? [
+                ...$employee->only(['bank_name', 'bank_account_number', 'bank_account_holder', 'bank_branch', 'tax_number', 'payment_method']),
+                'ptkp_status' => $employee->ptkp_status?->value,
+            ] : null,
+            'coverage' => $includeSensitive ? $employee->only(Employee::COVERAGE_FIELDS) : null,
             'payroll' => $includeSensitive ? $employee->only([
                 'pay_group', 'base_salary_idr', 'allowances_idr', 'overtime_rate_idr',
             ]) : null,

@@ -295,7 +295,7 @@ export default function OffboardingForm({
                                             </div>
                                             <div>
                                                 <dt className="label-mono">
-                                                    Jabatan · Departemen
+                                                    Posisi · Departemen
                                                 </dt>
                                                 <dd>
                                                     {[

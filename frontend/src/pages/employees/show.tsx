@@ -451,7 +451,11 @@ export default function EmployeeShow({
                                 label="Departemen"
                                 value={employee.department}
                             />
-                            <Field label="Jabatan" value={employee.position} />
+                            <Field label="Posisi" value={employee.position} />
+                            <Field
+                                label="Jabatan"
+                                value={employee.personal.job_title}
+                            />
                             <Field label="Atasan" value={employee.manager} />
                             <Field
                                 label="Bergabung"
@@ -459,6 +463,33 @@ export default function EmployeeShow({
                             />
                             <Field label="Keluar" value={employee.exitedOn} />
                             <Field label="Akun" value={employee.accountLabel} />
+                        </Card>
+
+                        <Card title="Data pribadi">
+                            <Field
+                                label="Jenis kelamin"
+                                value={employee.personal.genderLabel}
+                            />
+                            <Field
+                                label="Tempat lahir"
+                                value={employee.personal.birth_place}
+                            />
+                            <Field
+                                label="Tanggal lahir"
+                                value={employee.personal.birth_date}
+                            />
+                            <Field
+                                label="Agama"
+                                value={employee.personal.religionLabel}
+                            />
+                            <Field
+                                label="Status perkawinan"
+                                value={employee.personal.maritalStatusLabel}
+                            />
+                            <Field
+                                label="Pendidikan terakhir"
+                                value={employee.personal.education_level}
+                            />
                         </Card>
 
                         <Card title="Kontak & darurat">
@@ -469,10 +500,6 @@ export default function EmployeeShow({
                             <Field
                                 label="Telepon"
                                 value={employee.contact.phone}
-                            />
-                            <Field
-                                label="Alamat"
-                                value={employee.contact.address}
                             />
                             <Field
                                 label="NIK"
@@ -494,6 +521,92 @@ export default function EmployeeShow({
                             />
                         </Card>
 
+                        <Card title="Alamat tinggal">
+                            <Field
+                                label="Alamat"
+                                value={employee.contact.address}
+                            />
+                            <Field
+                                label="Kelurahan"
+                                value={employee.residence.residence_village}
+                            />
+                            <Field
+                                label="Kecamatan"
+                                value={employee.residence.residence_district}
+                            />
+                            <Field
+                                label="Kabupaten / kota"
+                                value={employee.residence.residence_city}
+                            />
+                            <Field
+                                label="Provinsi"
+                                value={employee.residence.residence_province}
+                            />
+                            <Field
+                                label="Kode pos"
+                                value={employee.residence.residence_postal_code}
+                            />
+                        </Card>
+
+                        <Card title="Alamat KTP">
+                            <Field
+                                label="Alamat"
+                                value={employee.idAddress.id_address}
+                            />
+                            <Field
+                                label="Blok"
+                                value={employee.idAddress.id_block}
+                            />
+                            <Field
+                                label="No."
+                                value={employee.idAddress.id_house_number}
+                            />
+                            <Field
+                                label="RT / RW"
+                                value={
+                                    employee.idAddress.id_rt ||
+                                    employee.idAddress.id_rw
+                                        ? `${employee.idAddress.id_rt ?? '—'} / ${employee.idAddress.id_rw ?? '—'}`
+                                        : null
+                                }
+                            />
+                            <Field
+                                label="Kelurahan"
+                                value={employee.idAddress.id_village}
+                            />
+                            <Field
+                                label="Kecamatan"
+                                value={employee.idAddress.id_district}
+                            />
+                            <Field
+                                label="Kabupaten / kota"
+                                value={employee.idAddress.id_city}
+                            />
+                            <Field
+                                label="Provinsi"
+                                value={employee.idAddress.id_province}
+                            />
+                            <Field
+                                label="Kode pos"
+                                value={employee.idAddress.id_postal_code}
+                            />
+                        </Card>
+
+                        {employee.identity ? (
+                            <Card title="Identitas keluarga">
+                                <Field
+                                    label="No. KK"
+                                    value={employee.identity.family_card_number}
+                                />
+                                <Field
+                                    label="Nama ibu kandung"
+                                    value={employee.identity.mother_name}
+                                />
+                            </Card>
+                        ) : (
+                            <RestrictedCard title="Identitas keluarga" />
+                        )}
+
                         {employee.bank ? (
                             <Card title="Bank & pajak">
                                 <Field
@@ -509,8 +622,16 @@ export default function EmployeeShow({
                                     value={employee.bank.bank_account_holder}
                                 />
                                 <Field
+                                    label="Cabang bank"
+                                    value={employee.bank.bank_branch}
+                                />
+                                <Field
                                     label="NPWP"
                                     value={employee.bank.tax_number}
+                                />
+                                <Field
+                                    label="Status PTKP"
+                                    value={employee.bank.ptkp_status}
                                 />
                                 <Field
                                     label="Metode bayar"
@@ -519,6 +640,27 @@ export default function EmployeeShow({
                             </Card>
                         ) : (
                             <RestrictedCard title="Bank & pajak" />
+                        )}
+
+                        {employee.coverage ? (
+                            <Card title="BPJS & asuransi karyawan">
+                                <Field
+                                    label="BPJS Ketenagakerjaan"
+                                    value={
+                                        employee.coverage.bpjs_employment_number
+                                    }
+                                />
+                                <Field
+                                    label="BPJS Kesehatan"
+                                    value={employee.coverage.bpjs_health_number}
+                                />
+                                <Field
+                                    label="Asuransi karyawan"
+                                    value={employee.coverage.employee_insurance}
+                                />
+                            </Card>
+                        ) : (
+                            <RestrictedCard title="BPJS & asuransi karyawan" />
                         )}
 
                         {employee.payroll ? (

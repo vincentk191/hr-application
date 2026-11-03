@@ -193,7 +193,7 @@ export default function OffboardingIndex({
                                         Karyawan
                                     </th>
                                     <th className="hidden p-3 font-medium md:table-cell">
-                                        Jabatan · Departemen
+                                        Posisi · Departemen
                                     </th>
                                     <th className="p-3 font-medium">
                                         Hari terakhir

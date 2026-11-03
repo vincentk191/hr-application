@@ -51,7 +51,7 @@ class OffboardingItemResource extends Resource
                 ->required(),
             Select::make('owner_employee_id')
                 ->label('Pemilik (opsional)')
-                ->helperText('Orang yang bertanggung jawab atas item ini, dari perusahaan mana pun. Jabatan dan departemennya diambil dari data karyawan. Kosongkan untuk memakai kepala departemen di bawah.')
+                ->helperText('Orang yang bertanggung jawab atas item ini, dari perusahaan mana pun. Posisi dan departemennya diambil dari data karyawan. Kosongkan untuk memakai kepala departemen di bawah.')
                 ->searchable()
                 ->getSearchResultsUsing(fn (string $search): array => Employee::acrossCompanies()
                     ->whereNotNull('user_id')

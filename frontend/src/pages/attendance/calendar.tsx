@@ -229,7 +229,7 @@ function DayRows({
                     <tr>
                         <th className="p-3 font-medium">Karyawan</th>
                         <th className="hidden p-3 font-medium md:table-cell">
-                            Jabatan
+                            Posisi
                         </th>
                         <th className="hidden p-3 font-medium md:table-cell">
                             Atasan

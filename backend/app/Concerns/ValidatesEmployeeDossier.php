@@ -4,6 +4,10 @@ namespace App\Concerns;
 
 use App\Enums\EmploymentStatus;
 use App\Enums\EmploymentType;
+use App\Enums\Gender;
+use App\Enums\MaritalStatus;
+use App\Enums\PtkpStatus;
+use App\Enums\Religion;
 use App\Enums\Zona;
 use App\Models\Branch;
 use App\Models\Company;
@@ -98,6 +102,41 @@ trait ValidatesEmployeeDossier
             'weight_kg' => ['nullable', 'integer', 'min:0', 'max:500'],
             'last_medical_check_on' => ['nullable', 'date'],
             'declared_conditions' => ['nullable', 'string', 'max:2000'],
+
+            // Personal, from the data sheet
+            'gender' => ['nullable', Rule::enum(Gender::class)],
+            'birth_place' => ['nullable', 'string', 'max:255'],
+            'birth_date' => ['nullable', 'date', 'before:today'],
+            'religion' => ['nullable', Rule::enum(Religion::class)],
+            'marital_status' => ['nullable', Rule::enum(MaritalStatus::class)],
+            'education_level' => ['nullable', 'string', 'max:100'],
+            'job_title' => ['nullable', 'string', 'max:150'],
+
+            // The home address (`address` above is its street) and the address on the KTP
+            'residence_village' => ['nullable', 'string', 'max:255'],
+            'residence_district' => ['nullable', 'string', 'max:255'],
+            'residence_city' => ['nullable', 'string', 'max:255'],
+            'residence_province' => ['nullable', 'string', 'max:255'],
+            'residence_postal_code' => ['nullable', 'string', 'max:10'],
+            'id_address' => ['nullable', 'string', 'max:1000'],
+            'id_block' => ['nullable', 'string', 'max:50'],
+            'id_house_number' => ['nullable', 'string', 'max:50'],
+            'id_rt' => ['nullable', 'string', 'max:10'],
+            'id_rw' => ['nullable', 'string', 'max:10'],
+            'id_village' => ['nullable', 'string', 'max:255'],
+            'id_district' => ['nullable', 'string', 'max:255'],
+            'id_city' => ['nullable', 'string', 'max:255'],
+            'id_province' => ['nullable', 'string', 'max:255'],
+            'id_postal_code' => ['nullable', 'string', 'max:10'],
+
+            // Sensitive, from the data sheet. Shared by a household, so a family card number is not unique.
+            'family_card_number' => ['nullable', 'string', 'regex:/^\d{16}$/'],
+            'mother_name' => ['nullable', 'string', 'max:255'],
+            'ptkp_status' => ['nullable', Rule::enum(PtkpStatus::class)],
+            'bank_branch' => ['nullable', 'string', 'max:255'],
+            'bpjs_employment_number' => ['nullable', 'string', 'max:50'],
+            'bpjs_health_number' => ['nullable', 'string', 'max:50'],
+            'employee_insurance' => ['nullable', 'string', 'max:255'],
         ];
     }
 
@@ -123,6 +162,12 @@ trait ValidatesEmployeeDossier
             'photo.mimes' => 'Foto harus berformat JPG, PNG, atau WebP.',
             'photo.max' => 'Ukuran foto maksimal 2 MB.',
             'exited_on.after_or_equal' => 'Tanggal keluar tidak boleh sebelum tanggal bergabung.',
+            'birth_date.before' => 'Tanggal lahir harus sebelum hari ini.',
+            'gender.enum' => 'Pilih Laki-laki atau Perempuan.',
+            'religion.enum' => 'Pilih agama dari daftar.',
+            'marital_status.enum' => 'Pilih status perkawinan dari daftar.',
+            'ptkp_status.enum' => 'Pilih status PTKP dari daftar (mis. TK/0, K/1, K/I/2).',
+            'family_card_number.regex' => 'No. KK harus 16 digit angka.',
         ];
     }
 

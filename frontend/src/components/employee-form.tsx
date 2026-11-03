@@ -23,6 +23,10 @@ export type EmployeeFormOptions = {
     employmentStatuses: ValueOption[];
     employmentTypes: ValueOption[];
     zonas: ValueOption[];
+    genders: ValueOption[];
+    religions: ValueOption[];
+    maritalStatuses: ValueOption[];
+    ptkpStatuses: ValueOption[];
 };
 
 const selectClasses =
@@ -79,6 +83,40 @@ function TextField({
                 defaultValue={defaultValue ?? ''}
                 {...rest}
             />
+            <InputError message={error} />
+        </div>
+    );
+}
+
+function SelectField({
+    name,
+    label,
+    options,
+    defaultValue,
+    error,
+}: {
+    name: string;
+    label: string;
+    options: ValueOption[];
+    defaultValue?: string | null;
+    error?: string;
+}) {
+    return (
+        <div className="grid gap-2">
+            <Label htmlFor={name}>{label}</Label>
+            <select
+                id={name}
+                name={name}
+                defaultValue={defaultValue ?? ''}
+                className={selectClasses}
+            >
+                <option value="">—</option>
+                {options.map((option) => (
+                    <option key={option.value} value={option.value}>
+                        {option.label}
+                    </option>
+                ))}
+            </select>
             <InputError message={error} />
         </div>
     );
@@ -239,7 +277,7 @@ export function EmployeeForm({
                         </div>
 
                         <div className="grid gap-2">
-                            <Label htmlFor="position_id">Jabatan</Label>
+                            <Label htmlFor="position_id">Posisi</Label>
                             <select
                                 id="position_id"
                                 name="position_id"
@@ -260,6 +298,14 @@ export function EmployeeForm({
                             </select>
                             <InputError message={errors.position_id} />
                         </div>
+
+                        <TextField
+                            name="job_title"
+                            label="Jabatan"
+                            defaultValue={employee?.personal.job_title}
+                            error={errors.job_title}
+                            placeholder="Mis. Staff, Supervisor, Manager"
+                        />
 
                         <div className="grid gap-2">
                             <Label htmlFor="manager_id">Atasan langsung</Label>
@@ -376,6 +422,50 @@ export function EmployeeForm({
                         />
                     </Section>
 
+                    <Section title="Data pribadi">
+                        <SelectField
+                            name="gender"
+                            label="Jenis kelamin"
+                            options={options.genders}
+                            defaultValue={employee?.personal.gender}
+                            error={errors.gender}
+                        />
+                        <SelectField
+                            name="religion"
+                            label="Agama"
+                            options={options.religions}
+                            defaultValue={employee?.personal.religion}
+                            error={errors.religion}
+                        />
+                        <TextField
+                            name="birth_place"
+                            label="Tempat lahir"
+                            defaultValue={employee?.personal.birth_place}
+                            error={errors.birth_place}
+                        />
+                        <TextField
+                            name="birth_date"
+                            label="Tanggal lahir"
+                            type="date"
+                            defaultValue={employee?.personal.birth_date}
+                            error={errors.birth_date}
+                        />
+                        <SelectField
+                            name="marital_status"
+                            label="Status perkawinan"
+                            options={options.maritalStatuses}
+                            defaultValue={employee?.personal.marital_status}
+                            error={errors.marital_status}
+                        />
+                        <TextField
+                            name="education_level"
+                            label="Pendidikan terakhir"
+                            defaultValue={employee?.personal.education_level}
+                            error={errors.education_level}
+                            placeholder="Mis. SMA, D3, S1"
+                        />
+                    </Section>
+
                     <Section title="Kontak & kontak darurat">
                         <TextField
                             name="email"
@@ -389,12 +479,6 @@ export function EmployeeForm({
                             label="Telepon"
                             defaultValue={employee?.contact.phone}
                             error={errors.phone}
-                        />
-                        <TextField
-                            name="address"
-                            label="Alamat"
-                            defaultValue={employee?.contact.address}
-                            error={errors.address}
                         />
                         <TextField
                             name="national_id"
@@ -431,8 +515,150 @@ export function EmployeeForm({
                         />
                     </Section>
 
+                    <Section title="Alamat tinggal">
+                        <div className="sm:col-span-2">
+                            <TextField
+                                name="address"
+                                label="Alamat (jalan, nomor)"
+                                defaultValue={employee?.contact.address}
+                                error={errors.address}
+                            />
+                        </div>
+                        <TextField
+                            name="residence_village"
+                            label="Kelurahan"
+                            defaultValue={employee?.residence.residence_village}
+                            error={errors.residence_village}
+                        />
+                        <TextField
+                            name="residence_district"
+                            label="Kecamatan"
+                            defaultValue={
+                                employee?.residence.residence_district
+                            }
+                            error={errors.residence_district}
+                        />
+                        <TextField
+                            name="residence_city"
+                            label="Kabupaten / kota"
+                            defaultValue={employee?.residence.residence_city}
+                            error={errors.residence_city}
+                        />
+                        <TextField
+                            name="residence_province"
+                            label="Provinsi"
+                            defaultValue={
+                                employee?.residence.residence_province
+                            }
+                            error={errors.residence_province}
+                        />
+                        <TextField
+                            name="residence_postal_code"
+                            label="Kode pos"
+                            defaultValue={
+                                employee?.residence.residence_postal_code
+                            }
+                            error={errors.residence_postal_code}
+                            inputMode="numeric"
+                            maxLength={10}
+                        />
+                    </Section>
+
+                    <Section
+                        title="Alamat KTP"
+                        description="Sesuai yang tertulis di KTP."
+                    >
+                        <div className="sm:col-span-2">
+                            <TextField
+                                name="id_address"
+                                label="Alamat"
+                                defaultValue={employee?.idAddress.id_address}
+                                error={errors.id_address}
+                            />
+                        </div>
+                        <TextField
+                            name="id_block"
+                            label="Blok"
+                            defaultValue={employee?.idAddress.id_block}
+                            error={errors.id_block}
+                        />
+                        <TextField
+                            name="id_house_number"
+                            label="No. rumah"
+                            defaultValue={employee?.idAddress.id_house_number}
+                            error={errors.id_house_number}
+                        />
+                        <TextField
+                            name="id_rt"
+                            label="RT"
+                            defaultValue={employee?.idAddress.id_rt}
+                            error={errors.id_rt}
+                            maxLength={10}
+                        />
+                        <TextField
+                            name="id_rw"
+                            label="RW"
+                            defaultValue={employee?.idAddress.id_rw}
+                            error={errors.id_rw}
+                            maxLength={10}
+                        />
+                        <TextField
+                            name="id_village"
+                            label="Kelurahan"
+                            defaultValue={employee?.idAddress.id_village}
+                            error={errors.id_village}
+                        />
+                        <TextField
+                            name="id_district"
+                            label="Kecamatan"
+                            defaultValue={employee?.idAddress.id_district}
+                            error={errors.id_district}
+                        />
+                        <TextField
+                            name="id_city"
+                            label="Kabupaten / kota"
+                            defaultValue={employee?.idAddress.id_city}
+                            error={errors.id_city}
+                        />
+                        <TextField
+                            name="id_province"
+                            label="Provinsi"
+                            defaultValue={employee?.idAddress.id_province}
+                            error={errors.id_province}
+                        />
+                        <TextField
+                            name="id_postal_code"
+                            label="Kode pos"
+                            defaultValue={employee?.idAddress.id_postal_code}
+                            error={errors.id_postal_code}
+                            inputMode="numeric"
+                            maxLength={10}
+                        />
+                    </Section>
+
                     {canEditSensitive && (
                         <>
+                            <Section title="Identitas keluarga">
+                                <TextField
+                                    name="family_card_number"
+                                    label="No. KK (16 digit)"
+                                    defaultValue={
+                                        employee?.identity?.family_card_number
+                                    }
+                                    error={errors.family_card_number}
+                                    inputMode="numeric"
+                                    maxLength={16}
+                                />
+                                <TextField
+                                    name="mother_name"
+                                    label="Nama ibu kandung"
+                                    defaultValue={
+                                        employee?.identity?.mother_name
+                                    }
+                                    error={errors.mother_name}
+                                />
+                            </Section>
+
                             <Section title="Bank & pajak">
                                 <TextField
                                     name="bank_name"
@@ -457,10 +683,23 @@ export function EmployeeForm({
                                     error={errors.bank_account_holder}
                                 />
                                 <TextField
+                                    name="bank_branch"
+                                    label="Cabang bank"
+                                    defaultValue={employee?.bank?.bank_branch}
+                                    error={errors.bank_branch}
+                                />
+                                <TextField
                                     name="tax_number"
                                     label="NPWP"
                                     defaultValue={employee?.bank?.tax_number}
                                     error={errors.tax_number}
+                                />
+                                <SelectField
+                                    name="ptkp_status"
+                                    label="Status PTKP"
+                                    options={options.ptkpStatuses}
+                                    defaultValue={employee?.bank?.ptkp_status}
+                                    error={errors.ptkp_status}
                                 />
                                 <TextField
                                     name="payment_method"
@@ -469,6 +708,34 @@ export function EmployeeForm({
                                         employee?.bank?.payment_method
                                     }
                                     error={errors.payment_method}
+                                />
+                            </Section>
+
+                            <Section title="BPJS & asuransi karyawan">
+                                <TextField
+                                    name="bpjs_employment_number"
+                                    label="No. BPJS Ketenagakerjaan"
+                                    defaultValue={
+                                        employee?.coverage
+                                            ?.bpjs_employment_number
+                                    }
+                                    error={errors.bpjs_employment_number}
+                                />
+                                <TextField
+                                    name="bpjs_health_number"
+                                    label="No. BPJS Kesehatan"
+                                    defaultValue={
+                                        employee?.coverage?.bpjs_health_number
+                                    }
+                                    error={errors.bpjs_health_number}
+                                />
+                                <TextField
+                                    name="employee_insurance"
+                                    label="Asuransi karyawan"
+                                    defaultValue={
+                                        employee?.coverage?.employee_insurance
+                                    }
+                                    error={errors.employee_insurance}
                                 />
                             </Section>
 

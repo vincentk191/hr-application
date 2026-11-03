@@ -243,10 +243,14 @@ companies. Then:
 3. Create each company's first HR Admin under **Pengguna**: pick the company and the role *Admin HR*.
 4. Remove `INITIAL_ADMIN_PASSWORD` from the env file and run the `up -d` command again. Running the seeder again never
    resets an existing account.
-5. HR then adds the employees (one by one or the CSV import in the directory). Each needs a unique 16-digit NIK, because
-   staff register with NIK + employee ID and then HR activates the account, and a **Cabang**. A new company is created
-   with at least one Cabang; add more under **Cabang** in the admin panel *before* importing. In the CSV a blank Cabang
-   column means the company's only Cabang, and is refused once it has several.
+5. HR then adds the employees (one by one, or the import in the directory: download the Excel template there, fill in
+   HR's data sheet and upload it). Each needs a unique 16-digit NIK, because staff register with NIK + employee ID and
+   then HR activates the account, and a **Cabang**. A new company is created with at least one Cabang; add more under
+   **Cabang** in the admin panel *before* importing, and create the departments and positions the sheet names (the
+   import never creates them). A blank Cabang column means the company's only Cabang, and is refused once it has
+   several. The company named in the sheet must be the one selected in the company switcher. Bank, NPWP, KK, BPJS
+   and the other sensitive columns are read only for an HR Admin (the `view-sensitive-data` permission).
+   After updating, run `docker compose exec app php artisan migrate` for the new columns.
 6. HR sets up how absence is counted (admin panel, all of it saved in the database, so a later `up -d` never resets it):
    - **Jenis pengajuan:** each kind has **Dihitung sebagai** (Izin, Sakit, or neither). *Cuti sakit* is Sakit after the
      update migration. A Sakit kind **must** have "Boleh mundur (hari)" set: an employee is marked Alpa first, then files

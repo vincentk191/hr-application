@@ -25,11 +25,13 @@ use Illuminate\Support\Facades\Storage;
  * @property string|null $brand_color
  * @property string|null $logo_path
  * @property string|null $logo_dark_path
+ * @property string|null $npwp_15
+ * @property string|null $npwp_22
  * @property bool $is_active
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['code', 'name', 'brand_color', 'logo_path', 'logo_dark_path', 'is_active'])]
+#[Fillable(['code', 'name', 'brand_color', 'logo_path', 'logo_dark_path', 'npwp_15', 'npwp_22', 'is_active'])]
 class Company extends Model
 {
     /** @use HasFactory<CompanyFactory> */

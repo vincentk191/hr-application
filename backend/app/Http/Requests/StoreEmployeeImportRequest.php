@@ -18,7 +18,7 @@ class StoreEmployeeImportRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'file' => ['required', 'file', 'mimes:csv,txt', 'max:2048'],
+            'file' => ['required', 'file', 'mimes:csv,txt,xlsx,xls', 'max:2048'],
             'dry_run' => ['nullable', 'boolean'],
         ];
     }
@@ -29,8 +29,8 @@ class StoreEmployeeImportRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'file.required' => 'Pilih berkas CSV yang akan diimpor.',
-            'file.mimes' => 'Berkas harus berformat CSV. Jika dari Excel, simpan sebagai CSV terlebih dahulu.',
+            'file.required' => 'Pilih berkas Excel atau CSV yang akan diimpor.',
+            'file.mimes' => 'Berkas harus berformat Excel (.xlsx, .xls) atau CSV.',
             'file.max' => 'Ukuran berkas maksimal 2 MB.',
         ];
     }

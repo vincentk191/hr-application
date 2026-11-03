@@ -228,7 +228,7 @@ function SubmittedTab({ item }: { item: OffboardingCase }) {
                     </Link>{' '}
                     · {item.employee.number}
                 </Row>
-                <Row label="Jabatan · Departemen">
+                <Row label="Posisi · Departemen">
                     {[item.employee.position, item.employee.department]
                         .filter(Boolean)
                         .join(' · ') || '—'}
