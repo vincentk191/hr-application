@@ -15,8 +15,8 @@ use Inertia\Response;
 
 /**
  * The candidate form (REC-INT): reached only from the personal link in an interview invitation, by someone who is not
- * signed in. The link is a long random token; what is kept is its hash. It works once, lapses after a week, and shows
- * nothing about anyone but the person it was made for.
+ * signed in. The link is a long random token; what is kept is its hash. It opens only on the day of the interview, works
+ * once, lapses at the end of that day, and shows nothing about anyone but the person it was made for.
  */
 class CandidateFormController extends Controller
 {
@@ -32,6 +32,7 @@ class CandidateFormController extends Controller
             $candidate->form_submitted_at !== null => 'submitted',
             $requisition->stage()->isFinal() => 'closed',
             $candidate->inviteState() === 'expired' => 'expired',
+            $this->isEarly($candidate) => 'early',
             default => 'open',
         };
 
@@ -41,6 +42,13 @@ class CandidateFormController extends Controller
             'companyName' => $requisition->company?->name,
             'candidateName' => $candidate->name,
         ];
+
+        if ($state === 'early') {
+            return Inertia::render('candidate-form/show', [
+                ...$base,
+                'opensOn' => InvitationMessage::dayLabel($candidate->interview_at ?? now()),
+            ]);
+        }
 
         if ($state !== 'open') {
             return Inertia::render('candidate-form/show', $base);
@@ -69,6 +77,7 @@ class CandidateFormController extends Controller
         if (! $candidate instanceof Candidate
             || ! $requisition instanceof Requisition
             || $candidate->inviteState() !== 'invited'
+            || $this->isEarly($candidate)
             || $requisition->stage()->isFinal()) {
             return to_route('candidate-form.show', $token);
         }
@@ -86,6 +95,16 @@ class CandidateFormController extends Controller
         $submit->handle($candidate, $requisition, $answers, $request->details());
 
         return to_route('candidate-form.show', $token);
+    }
+
+    /**
+     * The link is not open yet: it opens on the morning of the interview day.
+     */
+    private function isEarly(Candidate $candidate): bool
+    {
+        $opens = $candidate->formOpensAt();
+
+        return $opens !== null && now()->lt($opens);
     }
 
     /**

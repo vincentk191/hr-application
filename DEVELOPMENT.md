@@ -85,8 +85,16 @@ left uncommitted for review.
     pasted by HR; there is no Google integration. Inviting again (a new time, or the message was lost) makes a new link
     and the old one stops working; if the form is already filled, only the schedule is resent, without a link.
   - **Candidate form (public, no sign-in):** `/lamaran/{token}`. The token is 48 random characters; **only its SHA-256 is
-    stored**, so a copy of the database holds no working link. It works **once**, lapses after **7 days**, and closes if the
-    requisition is cancelled or filled. Both routes are throttled (20 a minute per address) and are classed public in
+    stored**, so a copy of the database holds no working link. **Revised the same day: it opens only on the day of the
+    interview** (company time, from 00:00) **and expires at the end of that day, or as soon as the form is filled in**,
+    whichever comes first (before the day the page says when it opens and accepts nothing; after it, it says the link has
+    lapsed). It also closes if the requisition is cancelled or filled. A new time (re-invite) moves the window with it.
+  - **The link is built on the public hostname (added the same day).** HR creates invitations on the VPN hostname
+    (`hr-vpn…`), which a candidate cannot reach, so the link no longer takes the address of the request. Set **`PUBLIC_URL`**
+    (`config('app.public_url')`; in `backend/.env` and `docker/server/.env`, e.g. `https://hr.<your-domain>`) to the public
+    hostname; the link is `PUBLIC_URL` + `/lamaran/<token>`. Left empty it falls back to the address HR is on, which is
+    only right when HR is on the public one. The entrance is still decided by the connection's source address, not the
+    hostname, so `/lamaran` works on the public host and nothing else does. Both routes are throttled (20 a minute per address) and are classed public in
     `PublicRoutes`, so they are reachable on the public entrance; nothing else is. The page shows the position, company and
     the interview, then a **Ya/Tidak on every line of the requisition's checklist** (all required) and optionally expected
     salary, earliest start date and a message. Invalid, replaced, expired, used and closed links each show a short plain
@@ -1333,7 +1341,7 @@ Screening now happens inside the platforms, and the app only meets the people HR
 | `REC-APR`                         | Stage 01 Approval           | 9   | 5   | ✅     | Built 10-28: chain Manajemen → HR (decided 2026-10-28, see Phase 4 notes), "Setujui sebagai …", reject with a reason back to a draft, "Lanjut ke Posting" gated on every approval, Edit, "Diajukan <date> oleh <requester>", Ekspektasi Gaji required for Management's approval with "Simpan" before it (007/008), comment thread (009) |
 | `REC-PST`                         | Stage 02 Posting            | 7   | 4   | ✅     | Built 11-04 (revised plan: manual, no cmp-api push): copy buttons (Judul, Deskripsi, Persyaratan, Semua), "Tandai sudah diposting" per platform with date and optional link, correct/remove, "Lanjut ke Screening" once one is recorded, "Batalkan lowongan" with a reason (PST-004) |
 | `REC-SCR`                         | Stage 03 Screening          | 8   | 4   | ✅     | Built 11-04 (revised plan): total-applicants count, quick-add of shortlisted candidates (duplicate warning, paste-to-autofill, optional CV), shortlist list, "Lanjut ke Interview". No ranking. Candidate list is HR-only |
-| `REC-INT`                         | Stage 04 Interview          | 8   | 3   | 🟡     | Built 11-04 (revised plan): invitation (time, online/in person, Meet link or address) by email with the same text for WhatsApp, single-use 7-day link to the public in-app candidate form (Ya/Tidak on the checklist, salary, start date), answers shown to HR. Not yet: candidate reschedule, Google Meet creation, feedback/scoring, reminders |
+| `REC-INT`                         | Stage 04 Interview          | 8   | 3   | 🟡     | Built 11-04 (revised plan): invitation (time, online/in person, Meet link or address) by email with the same text for WhatsApp, single-use link, open only on the interview day, to the public in-app candidate form (Ya/Tidak on the checklist, salary, start date), answers shown to HR. Not yet: candidate reschedule, Google Meet creation, feedback/scoring, reminders |
 | `REC-OFS`                         | Stage 05 Offer              | 9   | 8   | ⬜     | Management final approval + offer letter                    |
 | `REC-FIL`                         | Stage 06 Filled             | 7   | 6   | ⬜     | Convert-to-employee (L). Creates the profile the hire then registers against (`CORE-REG`); until this exists HR creates profiles by hand or CSV |
 | `REC-CAN` · `REC-CDT` · `REC-CRV` | Candidate detail + tabs     | 11  | 8   | ⬜     |                                                             |

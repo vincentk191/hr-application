@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Concerns\BelongsToCompany;
 use App\Enums\CandidateSource;
+use Carbon\CarbonImmutable;
 use Database\Factories\CandidateFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -105,6 +106,16 @@ class Candidate extends Model
             $this->invite_expires_at === null || $this->invite_expires_at->isPast() => 'expired',
             default => 'invited',
         };
+    }
+
+    /**
+     * The form opens on the morning of the interview day (company time) and not before.
+     */
+    public function formOpensAt(): ?CarbonImmutable
+    {
+        return $this->interview_at === null
+            ? null
+            : CarbonImmutable::instance($this->interview_at)->setTimezone((string) config('attendance.device_timezone'))->startOfDay();
     }
 
     /**

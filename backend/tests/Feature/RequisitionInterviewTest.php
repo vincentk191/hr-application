@@ -98,7 +98,7 @@ it('invites a candidate by email and hands HR the text and link for WhatsApp', f
     expect($candidate->inviteState())->toBe('invited')
         ->and($candidate->interview_at->toDateTimeString())->toBe('2026-11-10 03:00:00')
         ->and($candidate->interview_mode)->toBe('online')
-        ->and($candidate->invite_expires_at->toDateString())->toBe('2026-11-11')
+        ->and($candidate->invite_expires_at->toDateString())->toBe('2026-11-10')
         ->and($candidate->invited_by_user_id)->toBe($this->hr->id)
         ->and($candidate->invite_token_hash)->toHaveLength(64);
 
@@ -198,8 +198,8 @@ it('shows HR who is invited and what each answered', function () {
 
 // --- The candidate form ---
 
-/** Invites, and returns the personal link from the email. */
-function invitedLink(Requisition $requisition, Candidate $candidate): string
+/** Invites, and returns the personal link from the email. The candidate is now the one asking: nobody is signed in. */
+function sentLink(Requisition $requisition, Candidate $candidate): string
 {
     $link = '';
 
@@ -211,11 +211,49 @@ function invitedLink(Requisition $requisition, Candidate $candidate): string
         return true;
     });
 
-    // From here the candidate is the one asking: nobody is signed in.
     auth()->logout();
 
     return $link;
 }
+
+/** The same, and then it is the morning of the interview day (10 November, 08:00), when the form can be opened. */
+function invitedLink(Requisition $requisition, Candidate $candidate): string
+{
+    $link = sentLink($requisition, $candidate);
+
+    test()->travelTo(CarbonImmutable::parse('2026-11-10 08:00', 'Asia/Jakarta'));
+
+    return $link;
+}
+
+it('opens the form only on the day of the interview, and closes it at the end of that day', function () {
+    $requisition = interviewRequisition();
+    $candidate = Candidate::factory()->for($requisition)->create();
+    $link = sentLink($requisition, $candidate);
+    $answers = ['education_0' => 'yes', 'hard_0' => 'yes', 'soft_0' => 'yes', 'bonus_0' => 'yes'];
+
+    // The invitation goes out on 4 November: the day before, the link says when it opens and takes nothing.
+    $this->get($link)->assertInertia(fn (Assert $page) => $page
+        ->where('state', 'early')
+        ->where('opensOn', 'Selasa, 10 November 2026')
+        ->missing('questions'));
+    $this->post($link, ['answers' => $answers]);
+    expect($candidate->refresh()->inviteState())->toBe('invited');
+
+    $this->travelTo(CarbonImmutable::parse('2026-11-09 23:59', 'Asia/Jakarta'));
+    $this->get($link)->assertInertia(fn (Assert $page) => $page->where('state', 'early'));
+
+    $this->travelTo(CarbonImmutable::parse('2026-11-10 00:01', 'Asia/Jakarta'));
+    $this->get($link)->assertInertia(fn (Assert $page) => $page->where('state', 'open'));
+
+    $this->travelTo(CarbonImmutable::parse('2026-11-10 23:59', 'Asia/Jakarta'));
+    $this->get($link)->assertInertia(fn (Assert $page) => $page->where('state', 'open'));
+
+    $this->travelTo(CarbonImmutable::parse('2026-11-11 00:01', 'Asia/Jakarta'));
+    $this->get($link)->assertInertia(fn (Assert $page) => $page->where('state', 'expired'));
+    $this->post($link, ['answers' => $answers]);
+    expect($candidate->refresh()->inviteState())->toBe('expired');
+});
 
 it('opens the form from the personal link without signing in, showing only what the candidate needs', function () {
     $requisition = interviewRequisition();
@@ -337,4 +375,26 @@ it('serves the form on the public entrance, with a limit per address', function 
     }
 
     $response->assertStatus(429);
+});
+
+it('builds the candidate link on the public address even when HR is on the VPN one', function () {
+    config(['app.public_url' => 'https://hr.example.com/']);
+    $requisition = interviewRequisition();
+    $candidate = Candidate::factory()->for($requisition)->create();
+
+    $this->withServerVariables(['HTTP_HOST' => 'hr-vpn.example.com']);
+    invite($requisition, $candidate)->assertSessionDoesntHaveErrors();
+
+    Mail::assertQueued(CandidateInvitation::class, fn (CandidateInvitation $mail): bool => str_contains($mail->body, 'https://hr.example.com/lamaran/')
+        && ! str_contains($mail->body, 'hr-vpn'));
+});
+
+it('falls back to the address of the request when no public address is set', function () {
+    config(['app.public_url' => null]);
+    $requisition = interviewRequisition();
+    $candidate = Candidate::factory()->for($requisition)->create();
+
+    invite($requisition, $candidate)->assertSessionDoesntHaveErrors();
+
+    Mail::assertQueued(CandidateInvitation::class, fn (CandidateInvitation $mail): bool => (bool) preg_match('#https?://[^/\s]+/lamaran/\S{48}#', $mail->body));
 });

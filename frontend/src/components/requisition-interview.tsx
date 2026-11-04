@@ -60,7 +60,7 @@ function InvitationResult({
                             ? `Email dikirim ke ${invitation.email}. `
                             : 'Kandidat ini tidak punya email, jadi kirim pesan di bawah lewat WhatsApp atau chat platform. '}
                         {invitation.link
-                            ? `Tautan formulir hanya tampil sekarang dan berlaku sampai ${invitation.expiresOn}.`
+                            ? `Tautan formulir hanya tampil sekarang. Tautan hanya bisa dibuka pada hari interview (${invitation.expiresOn}) dan kedaluwarsa di akhir hari itu atau setelah formulir diisi.`
                             : 'Formulirnya sudah diisi, jadi pesan ini hanya memuat jadwal baru.'}
                     </DialogDescription>
                 </DialogHeader>
@@ -393,7 +393,7 @@ export function InterviewTab({ item }: { item: Requisition }) {
                                         {candidate.inviteState === 'invited' &&
                                             candidate.inviteExpiresOn && (
                                                 <p className="label-mono">
-                                                    Tautan berlaku sampai{' '}
+                                                    Tautan hanya berlaku pada{' '}
                                                     {shortDate(
                                                         candidate.inviteExpiresOn,
                                                     )}

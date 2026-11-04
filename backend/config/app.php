@@ -69,6 +69,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Public Address
+    |--------------------------------------------------------------------------
+    |
+    | The address outsiders reach the public entrance on (the public hostname, not the VPN one). Links
+    | that go to people who are not on the VPN, such as the candidate form in an interview invitation,
+    | are built from this, because HR creates them while on the VPN hostname. When it is empty they use
+    | the address of the request, which is only right when HR is on the public one.
+    |
+    */
+
+    'public_url' => env('PUBLIC_URL'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

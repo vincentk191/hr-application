@@ -54,7 +54,7 @@ class InvitationMessage
     /**
      * @param  string|null  $link  the personal link to the form, or null when the form is already filled in (a new time)
      */
-    public static function text(Candidate $candidate, Requisition $requisition, ?string $link, ?CarbonInterface $linkExpiresAt, ?string $note = null): string
+    public static function text(Candidate $candidate, Requisition $requisition, ?string $link, ?string $note = null): string
     {
         $company = $requisition->company->name;
         $when = $candidate->interview_at;
@@ -73,8 +73,9 @@ class InvitationMessage
 
         if ($link !== null) {
             $lines[] = '';
-            $lines[] = 'Sebelum interview, mohon lengkapi formulir singkat berikut'
-                .($linkExpiresAt !== null ? ' (berlaku sampai '.self::dayLabel($linkExpiresAt, false).')' : '').':';
+            $lines[] = 'Pada hari interview'
+                .($when === null ? '' : ' ('.self::dayLabel($when, false).')')
+                .', mohon lengkapi formulir singkat berikut. Tautan ini hanya bisa dibuka pada hari itu dan hanya sekali pakai:';
             $lines[] = $link;
         }
 

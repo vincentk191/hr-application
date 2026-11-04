@@ -8,7 +8,9 @@ import { store } from '@/routes/candidate-form';
 type Question = { key: string; group: string; text: string };
 
 type Props = {
-    state: 'open' | 'submitted' | 'expired' | 'closed' | 'invalid';
+    state: 'open' | 'early' | 'submitted' | 'expired' | 'closed' | 'invalid';
+    /** For a link opened before the interview day: the day it opens. */
+    opensOn?: string;
     positionName?: string;
     companyName?: string | null;
     candidateName?: string;
@@ -139,6 +141,17 @@ export default function CandidateForm(props: Props) {
         );
     }
 
+    if (state === 'early') {
+        return (
+            <>
+                <Head title="Formulir belum dibuka" />
+                <Notice title="Formulir belum dibuka">
+                    {`Formulir ini hanya bisa dibuka dan diisi pada hari interview: ${props.opensOn}. Silakan buka kembali tautan ini pada hari itu.`}
+                </Notice>
+            </>
+        );
+    }
+
     if (state === 'closed') {
         return (
             <>
@@ -164,10 +177,8 @@ export default function CandidateForm(props: Props) {
                     </h1>
                     <p className="text-muted-foreground">
                         Halo {props.candidateName}, lengkapi formulir singkat
-                        ini sebelum interview.
-                        {props.expiresOn
-                            ? ` Berlaku sampai ${props.expiresOn}.`
-                            : ''}
+                        ini hari ini. Formulir hanya bisa dibuka pada hari
+                        interview dan berakhir pada akhir hari ini.
                     </p>
                 </header>
 
