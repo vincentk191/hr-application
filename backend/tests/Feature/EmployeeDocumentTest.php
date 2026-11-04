@@ -273,7 +273,7 @@ it('flags expired and expiring documents and leaves the rest alone', function ()
 
 // --- Sensitive groups on the profile (EMP-DET-006) ---
 
-it('withholds bank, payroll and health from roles without the sensitive-data permission', function () {
+it('withholds bank, payroll and BPJS numbers from roles without the sensitive-data permission', function () {
     $this->employee->update(['base_salary_idr' => 9000000, 'bank_name' => 'BCA']);
 
     $supervisor = docUser(Role::Supervisor, $this->company);
@@ -285,7 +285,7 @@ it('withholds bank, payroll and health from roles without the sensitive-data per
         ->assertInertia(fn (Assert $page) => $page
             ->where('employee.bank', null)
             ->where('employee.payroll', null)
-            ->where('employee.health', null)
+            ->where('employee.coverage', null)
             ->where('employee.contact.email', $this->employee->email));
 
     $this->actingAs($this->hr)

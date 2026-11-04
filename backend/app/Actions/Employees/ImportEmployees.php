@@ -38,7 +38,7 @@ use SplFileObject;
  *  - Columns are found by header name (English or Indonesian), in any order; see EmployeeSheet for HR's layout.
  *  - The sensitive columns (bank, NPWP, KK, BPJS, PTKP, mother's name, insurance) are read only when the person
  *    importing holds the sensitive-data permission, like the profile form. Without it they are ignored and the result
- *    says so. Payroll and health columns are not part of the sheet and are never read.
+ *    says so. Payroll columns are not part of the sheet and are never read.
  *  - A Cabang, department or position must already exist by name. Nothing is auto-created. Every employee needs a
  *    Cabang: a blank one is read as the company's only Cabang, so a file made before Cabang existed still loads, and
  *    is an error once there are several.
@@ -110,7 +110,6 @@ class ImportEmployees
         'tax_number' => ['npwp16', 'npwp', 'nonpwp'],
         'bpjs_employment_number' => ['nobpjsketenagakerjaan', 'bpjsketenagakerjaan', 'bpjstk'],
         'bpjs_health_number' => ['nobpjskesehatan', 'bpjskesehatan'],
-        'employee_insurance' => ['asuransikaryawan', 'asuransi'],
     ];
 
     /**
@@ -124,7 +123,7 @@ class ImportEmployees
         'id_address', 'id_block', 'id_house_number', 'id_rt', 'id_rw', 'id_village', 'id_district', 'id_city',
         'id_province', 'id_postal_code',
         'mother_name', 'bank_account_number', 'bank_account_holder', 'bank_name', 'bank_branch',
-        'bpjs_employment_number', 'bpjs_health_number', 'employee_insurance',
+        'bpjs_employment_number', 'bpjs_health_number',
     ];
 
     private const STATUSES = [

@@ -103,22 +103,12 @@ export type EmployeeDetail = EmployeeRow & {
         ptkp_status: string | null;
         payment_method: string | null;
     } | null;
-    /** BPJS and company insurance. Null when the viewer lacks the sensitive-data permission. */
+    /** Kesehatan & asuransi: the two BPJS numbers. Null when the viewer lacks the sensitive-data permission. */
     coverage: {
         bpjs_employment_number: string | null;
         bpjs_health_number: string | null;
-        employee_insurance: string | null;
     } | null;
     payroll: EmployeePayroll | null;
-    health: {
-        insurance_number: string | null;
-        insurance_tier: string | null;
-        blood_type: string | null;
-        height_cm: number | null;
-        weight_kg: number | null;
-        declared_conditions: string | null;
-        last_medical_check_on: string | null;
-    } | null;
 };
 
 export type EmployeeFilters = {

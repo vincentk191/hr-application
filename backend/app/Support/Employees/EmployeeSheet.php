@@ -65,7 +65,6 @@ class EmployeeSheet
         ['No Handphone', 'phone', false],
         ['No BPJS Ketenagakerjaan', 'bpjs_employment_number', true],
         ['No BPJS Kesehatan', 'bpjs_health_number', true],
-        ['Asuransi Karyawan', 'employee_insurance', true],
         ['Alamat Email', 'email', false],
         ['Status Karyawan', 'employment_type', false],
         ['Pendidikan Terakhir', 'education_level', false],
@@ -155,7 +154,7 @@ class EmployeeSheet
             'bank_account_number' => '1234567890', 'bank_account_holder' => 'Budi Santoso', 'bank_name' => 'BCA',
             'bank_branch' => 'KCP Menteng', 'tax_number' => '0123456789012000', 'phone' => '081200000000',
             'bpjs_employment_number' => '12345678901', 'bpjs_health_number' => '0001234567890',
-            'employee_insurance' => 'Allianz', 'email' => 'budi@example.com', 'employment_type' => 'Tetap',
+            'email' => 'budi@example.com', 'employment_type' => 'Tetap',
             'education_level' => 'S1', 'zona' => 'Hijau', 'manager' => '',
         ];
 

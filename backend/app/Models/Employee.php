@@ -59,13 +59,6 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int|null $base_salary_idr
  * @property int|null $allowances_idr
  * @property int|null $overtime_rate_idr
- * @property string|null $insurance_number
- * @property string|null $insurance_tier
- * @property string|null $blood_type
- * @property int|null $height_cm
- * @property int|null $weight_kg
- * @property Carbon|null $last_medical_check_on
- * @property string|null $declared_conditions
  * @property Gender|null $gender
  * @property string|null $birth_place
  * @property Carbon|null $birth_date
@@ -133,14 +126,6 @@ use Spatie\Activitylog\Support\LogOptions;
     'base_salary_idr',
     'allowances_idr',
     'overtime_rate_idr',
-    // Health and insurance (EMP-DET-005)
-    'insurance_number',
-    'insurance_tier',
-    'blood_type',
-    'height_cm',
-    'weight_kg',
-    'last_medical_check_on',
-    'declared_conditions',
     // Personal, home and KTP address (the data sheet)
     ...self::PERSONAL_FIELDS,
     ...self::RESIDENCE_FIELDS,
@@ -171,11 +156,16 @@ class Employee extends Model
     /** Who the person is to the state and their family: sensitive. @var list<string> */
     public const IDENTITY_FIELDS = ['family_card_number', 'mother_name'];
 
-    /** BPJS and company insurance: sensitive. @var list<string> */
-    public const COVERAGE_FIELDS = ['bpjs_employment_number', 'bpjs_health_number', 'employee_insurance'];
+    /**
+     * The "Kesehatan & asuransi" section: the two BPJS numbers and nothing else, since the rest of a person's cover is
+     * on the BPJS site. Sensitive.
+     *
+     * @var list<string>
+     */
+    public const COVERAGE_FIELDS = ['bpjs_employment_number', 'bpjs_health_number'];
 
     /**
-     * The bank, payroll and health fields (EMP-DET-003/004/005), and the identity numbers, tax status and cover that
+     * The bank and payroll fields (EMP-DET-003/004), and the identity numbers, tax status and BPJS numbers that
      * came with the data sheet. Seeing or changing them needs the sensitive-data permission on top of access to the
      * record (EMP-DET-006).
      *
@@ -185,10 +175,8 @@ class Employee extends Model
         'bank_name', 'bank_account_number', 'bank_account_holder', 'bank_branch', 'tax_number', 'ptkp_status',
         'payment_method',
         'pay_group', 'base_salary_idr', 'allowances_idr', 'overtime_rate_idr',
-        'insurance_number', 'insurance_tier', 'blood_type', 'height_cm', 'weight_kg',
-        'last_medical_check_on', 'declared_conditions',
         'family_card_number', 'mother_name',
-        'bpjs_employment_number', 'bpjs_health_number', 'employee_insurance',
+        'bpjs_employment_number', 'bpjs_health_number',
     ];
 
     /** @use HasFactory<EmployeeFactory> */
@@ -223,7 +211,6 @@ class Employee extends Model
             'zona' => Zona::class,
             'joined_on' => 'date',
             'exited_on' => 'date',
-            'last_medical_check_on' => 'date',
             'gender' => Gender::class,
             'religion' => Religion::class,
             'marital_status' => MaritalStatus::class,
@@ -232,8 +219,6 @@ class Employee extends Model
             'base_salary_idr' => 'integer',
             'allowances_idr' => 'integer',
             'overtime_rate_idr' => 'integer',
-            'height_cm' => 'integer',
-            'weight_kg' => 'integer',
         ];
     }
 
@@ -418,13 +403,6 @@ class Employee extends Model
                 'base_salary_idr',
                 'allowances_idr',
                 'overtime_rate_idr',
-                'insurance_number',
-                'insurance_tier',
-                'blood_type',
-                'height_cm',
-                'weight_kg',
-                'last_medical_check_on',
-                'declared_conditions',
                 ...self::PERSONAL_FIELDS,
                 ...self::RESIDENCE_FIELDS,
                 ...self::ID_ADDRESS_FIELDS,

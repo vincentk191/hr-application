@@ -272,9 +272,9 @@ it('serves an Excel template with HR\'s columns and a sheet of instructions', fu
     unlink($path);
 
     expect($book->getSheetNames())->toBe(['Data karyawan', 'Petunjuk'])
-        ->and(array_slice($book->getSheet(0)->rangeToArray('A1:AX1', null, false, false, false)[0], 0, 4))
+        ->and(array_slice($book->getSheet(0)->rangeToArray('A1:AW1', null, false, false, false)[0], 0, 4))
         ->toBe(['Nama Perusahaan', 'NPWP 15 PERUSAHAAN', 'NPWP 22_PERESUHAAN', 'Nomor Induk Karyawan'])
-        ->and($book->getSheet(0)->getCell('AX1')->getValue())->toBe('Supervisor')
+        ->and($book->getSheet(0)->getCell('AW1')->getValue())->toBe('Supervisor')
         // The sample row's NIK is kept as text, so Excel cannot turn it into 3,17E+15.
         ->and($book->getSheet(0)->getCell('V2')->getValue())->toBe('3174000000000001');
 });

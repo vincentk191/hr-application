@@ -87,7 +87,7 @@ class EmployeeTemplateWorkbook
             ['Status Karyawan', $labels(EmploymentType::cases())],
             ['Zona Absen Karyawan', $labels(Zona::cases()).' (kosong = Hijau)'],
             ['Tanggal', '2026-12-31 atau 31/12/2026'],
-            ['Kolom sensitif', 'Bank, NPWP, KK, nama ibu, PTKP, BPJS dan asuransi hanya dibaca bila yang mengunggah berhak melihat data sensitif.'],
+            ['Kolom sensitif', 'Bank, NPWP, KK, nama ibu, PTKP dan nomor BPJS hanya dibaca bila yang mengunggah berhak melihat data sensitif.'],
         ];
 
         foreach ($lines as $index => [$left, $right]) {

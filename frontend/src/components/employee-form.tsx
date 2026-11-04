@@ -711,7 +711,10 @@ export function EmployeeForm({
                                 />
                             </Section>
 
-                            <Section title="BPJS & asuransi karyawan">
+                            <Section
+                                title="Kesehatan & asuransi"
+                                description="Data lainnya dapat dilihat di situs BPJS."
+                            >
                                 <TextField
                                     name="bpjs_employment_number"
                                     label="No. BPJS Ketenagakerjaan"
@@ -728,14 +731,6 @@ export function EmployeeForm({
                                         employee?.coverage?.bpjs_health_number
                                     }
                                     error={errors.bpjs_health_number}
-                                />
-                                <TextField
-                                    name="employee_insurance"
-                                    label="Asuransi karyawan"
-                                    defaultValue={
-                                        employee?.coverage?.employee_insurance
-                                    }
-                                    error={errors.employee_insurance}
                                 />
                             </Section>
 
@@ -781,67 +776,6 @@ export function EmployeeForm({
                                         employee?.payroll?.overtime_rate_idr
                                     }
                                     error={errors.overtime_rate_idr}
-                                />
-                            </Section>
-
-                            <Section
-                                title="Kesehatan & asuransi"
-                                description="Data sensitif untuk polis kesehatan grup."
-                            >
-                                <TextField
-                                    name="insurance_number"
-                                    label="No. asuransi / BPJS"
-                                    defaultValue={
-                                        employee?.health?.insurance_number
-                                    }
-                                    error={errors.insurance_number}
-                                />
-                                <TextField
-                                    name="insurance_tier"
-                                    label="Tingkat polis"
-                                    defaultValue={
-                                        employee?.health?.insurance_tier
-                                    }
-                                    error={errors.insurance_tier}
-                                />
-                                <TextField
-                                    name="blood_type"
-                                    label="Golongan darah"
-                                    defaultValue={employee?.health?.blood_type}
-                                    error={errors.blood_type}
-                                />
-                                <TextField
-                                    name="height_cm"
-                                    label="Tinggi (cm)"
-                                    type="number"
-                                    min={0}
-                                    defaultValue={employee?.health?.height_cm}
-                                    error={errors.height_cm}
-                                />
-                                <TextField
-                                    name="weight_kg"
-                                    label="Berat (kg)"
-                                    type="number"
-                                    min={0}
-                                    defaultValue={employee?.health?.weight_kg}
-                                    error={errors.weight_kg}
-                                />
-                                <TextField
-                                    name="last_medical_check_on"
-                                    label="Medical check terakhir"
-                                    type="date"
-                                    defaultValue={
-                                        employee?.health?.last_medical_check_on
-                                    }
-                                    error={errors.last_medical_check_on}
-                                />
-                                <TextField
-                                    name="declared_conditions"
-                                    label="Kondisi yang dilaporkan"
-                                    defaultValue={
-                                        employee?.health?.declared_conditions
-                                    }
-                                    error={errors.declared_conditions}
                                 />
                             </Section>
                         </>

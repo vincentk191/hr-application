@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Enums\Role;
+use App\Models\Branch;
 use App\Models\Company;
 use App\Models\Department;
 use App\Models\Employee;
@@ -24,9 +25,14 @@ use Illuminate\Support\Facades\DB;
  * Also adds Marketing and Sales to every company, which already have Design.
  *
  * Idempotent: accounts are matched by email, and an existing one is re-pointed at its role and place
- * in the line rather than duplicated. Local only — never run this where real data lives.
+ * in the line rather than duplicated.
  *
- *     php artisan db:seed --class=RoleTestAccountSeeder
+ * It also runs on a production server, for a trial run before real data goes in. There it never invents the
+ * placeholder companies (it needs the System Admin to have created a real one first), and it uses no Faker, which
+ * a production install does not have. Every account has the same well-known password, so on a server that is to
+ * keep its data, delete these accounts (or the whole database) before real staff are given access.
+ *
+ *     php artisan db:seed --class=RoleTestAccountSeeder          (add --force on production)
  */
 class RoleTestAccountSeeder extends Seeder
 {
@@ -48,16 +54,14 @@ class RoleTestAccountSeeder extends Seeder
 
     public function run(): void
     {
-        if (app()->isProduction()) {
-            $this->command->error('RoleTestAccountSeeder is for local use only.');
+        // Local databases get the three placeholder companies; a real server's companies are made by the System Admin.
+        $this->call(app()->isProduction() ? [RoleSeeder::class] : [CompanySeeder::class, RoleSeeder::class]);
+
+        if (! Company::query()->exists()) {
+            $this->command->error('No company exists yet. Create one in the admin panel, then run this seeder again.');
 
             return;
         }
-
-        $this->call([
-            CompanySeeder::class,
-            RoleSeeder::class,
-        ]);
 
         DB::transaction(function (): void {
             Company::orderBy('id')->get()->each(fn (Company $company) => $this->addExtraDepartments($company));
@@ -115,6 +119,10 @@ class RoleTestAccountSeeder extends Seeder
             ));
         }
 
+        if (app()->isProduction()) {
+            $this->command->warn("  These accounts share the well-known password '".self::PASSWORD."'. Remove them before real staff are given access.");
+        }
+
         $this->command->newLine();
     }
 
@@ -141,10 +149,14 @@ class RoleTestAccountSeeder extends Seeder
             'name' => $positionName,
         ]);
 
+        // Built directly rather than with the factory: Faker is a dev dependency and absent from a production install.
         $employee = Employee::acrossCompanies()->where('user_id', $user->id)->first()
-            ?? Employee::factory()->forCompany($company)->create([
+            ?? Employee::acrossCompanies()->create([
+                'company_id' => $company->id,
+                'branch_id' => Branch::acrossCompanies()->firstOrCreate(['company_id' => $company->id, 'name' => 'Pusat'])->id,
                 'user_id' => $user->id,
                 'employee_number' => $this->nextEmployeeNumber($company),
+                'full_name' => $name,
                 'joined_on' => now()->subYears(2)->toDateString(),
             ]);
 

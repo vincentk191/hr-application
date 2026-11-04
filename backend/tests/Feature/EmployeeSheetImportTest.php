@@ -152,7 +152,6 @@ function budiOnTheSheet(array $overrides = []): array
         'phone' => 81200000000,
         'bpjs_employment_number' => '12345678901',
         'bpjs_health_number' => '0001234567890',
-        'employee_insurance' => 'Allianz',
         'email' => 'budi@example.com',
         'employment_type' => 'Kontrak',
         'education_level' => 'S1',
@@ -199,8 +198,8 @@ it('loads HR\'s data sheet from Excel: every column lands, dates and long number
         ->toBe(['BCA', '1234567890', 'Budi Santoso', 'KCP Menteng'])
         // Dots and dashes are read as the digits they are around.
         ->and($budi->tax_number)->toBe('012345678901000')
-        ->and([$budi->bpjs_employment_number, $budi->bpjs_health_number, $budi->employee_insurance])
-        ->toBe(['12345678901', '0001234567890', 'Allianz']);
+        ->and([$budi->bpjs_employment_number, $budi->bpjs_health_number])
+        ->toBe(['12345678901', '0001234567890']);
 });
 
 it('reads the sensitive columns only for someone who may handle them, and says when it skipped them', function () {
@@ -218,7 +217,7 @@ it('reads the sensitive columns only for someone who may handle them, and says w
         ->and($budi->id_address)->toBe('Jl. KTP No. 9')
         ->and($budi->national_id)->toBe('3174000000000001')
         ->and([$budi->bank_name, $budi->bank_account_number, $budi->tax_number, $budi->family_card_number, $budi->mother_name])->each->toBeNull()
-        ->and([$budi->ptkp_status, $budi->bpjs_health_number, $budi->employee_insurance])->each->toBeNull();
+        ->and([$budi->ptkp_status, $budi->bpjs_health_number])->each->toBeNull();
 });
 
 it('refuses a sheet that names another company, and fills the company\'s NPWP only while it has none', function () {

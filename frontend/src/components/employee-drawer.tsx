@@ -315,11 +315,17 @@ function ProfileTab({ data }: { data: Summary }) {
                             .join(' · ')}
                     />
                 )}
-                {employee.health && (
-                    <Field
-                        label="Asuransi"
-                        value={employee.health.insurance_number}
-                    />
+                {employee.coverage && (
+                    <>
+                        <Field
+                            label="BPJS Ketenagakerjaan"
+                            value={employee.coverage.bpjs_employment_number}
+                        />
+                        <Field
+                            label="BPJS Kesehatan"
+                            value={employee.coverage.bpjs_health_number}
+                        />
+                    </>
                 )}
             </dl>
         </div>

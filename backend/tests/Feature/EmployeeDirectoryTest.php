@@ -275,7 +275,7 @@ it('shows the dossier groups on the profile', function () {
     $employee = Employee::factory()->forCompany($this->company)->create([
         'bank_name' => 'BCA',
         'base_salary_idr' => 9000000,
-        'blood_type' => 'O',
+        'bpjs_health_number' => '0001234567890',
     ]);
 
     $this->actingAs($this->hr)
@@ -284,7 +284,8 @@ it('shows the dossier groups on the profile', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->where('employee.bank.bank_name', 'BCA')
             ->where('employee.payroll.base_salary_idr', 9000000)
-            ->where('employee.health.blood_type', 'O')
+            ->where('employee.coverage', ['bpjs_employment_number' => null, 'bpjs_health_number' => '0001234567890'])
+            ->missing('employee.health')
             ->where('canUpdate', true)
             ->has('requests')
             ->where('leaveTakenThisYear', 0)
@@ -447,7 +448,6 @@ it('saves the data sheet fields from the form and shows them on the profile', fu
         'id_address' => 'Jl. KTP No. 9', 'id_rt' => '001', 'id_rw' => '002', 'id_postal_code' => '10110',
         'family_card_number' => '3174000000000002', 'mother_name' => 'Siti Aminah', 'ptkp_status' => 'K/1',
         'bank_branch' => 'KCP Menteng', 'bpjs_employment_number' => '12345678901', 'bpjs_health_number' => '0001234567890',
-        'employee_insurance' => 'Allianz',
     ]))->assertRedirect();
 
     $employee = Employee::firstWhere('employee_number', 'EMP-7001');

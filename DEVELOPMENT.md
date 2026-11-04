@@ -104,9 +104,12 @@ left uncommitted for review.
   - **Checked:** `EmployeeSheetImportTest` (8 cases), `EmployeeImportTest` and `EmployeeDirectoryTest` updated and extended;
     Pint, TypeScript and the formatter clean.
   - **Not done / to know:** the profile change request (`ProfileChangeRequest::FIELDS`) still offers only the fields it
-    did, so an employee cannot yet ask to change the new ones; `employees.insurance_number` ("No. asuransi / BPJS" in the
-    untouched health group) now overlaps the new BPJS fields; no sample rows were available, so the readers are built
+    did, so an employee cannot yet ask to change the new ones; no sample rows were available, so the readers are built
     from the header alone and need a real filled sheet to confirm value spellings (religion, PTKP, status).
+  - **2026-11-04:** "Kesehatan & asuransi" now holds only the two BPJS numbers (`bpjs_employment_number`,
+    `bpjs_health_number`); the rest is on the BPJS site. Migration `drop_unused_health_and_insurance_columns_from_employees_table`
+    drops `insurance_number`, `insurance_tier`, `blood_type`, `height_cm`, `weight_kg`, `last_medical_check_on`,
+    `declared_conditions` and `employee_insurance` ("Asuransi Karyawan" left the sheet too). The profile's `health` group is gone.
 - **2026-10-28 (recruitment, first slice: requisition + approval; branch `feature/recruitement`).** Migrations
   `create_requisitions_table` (`requisitions`: company, department, optional Cabang, requester, position name, quota,
   reason, target start, description, `requirements` JSON, `draft_step`, `salary_min`/`salary_max` and who set them,
@@ -665,7 +668,7 @@ friends), never a float.
 Since 2026-11-03 it also holds HR's data sheet (`Lembar data field karyawan`), 29 more nullable columns:
 personal (`gender`, `birth_place`, `birth_date`, `religion`, `marital_status`, `education_level`, `job_title`), the home
 address beyond `address` (`residence_*`), the KTP address (`id_*`), and the sensitive `family_card_number`,
-`mother_name`, `ptkp_status`, `bank_branch`, `bpjs_employment_number`, `bpjs_health_number`, `employee_insurance`.
+`mother_name`, `ptkp_status`, `bank_branch`, `bpjs_employment_number`, `bpjs_health_number` (the old health group and `employee_insurance` were dropped on 2026-11-04).
 `companies` gained `npwp_15` and `npwp_22`. Nothing here is unique (a KK is shared by a household).
 
 ### The approval workflow engine

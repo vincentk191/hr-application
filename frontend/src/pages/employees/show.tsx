@@ -643,7 +643,7 @@ export default function EmployeeShow({
                         )}
 
                         {employee.coverage ? (
-                            <Card title="BPJS & asuransi karyawan">
+                            <Card title="Kesehatan & asuransi">
                                 <Field
                                     label="BPJS Ketenagakerjaan"
                                     value={
@@ -654,13 +654,9 @@ export default function EmployeeShow({
                                     label="BPJS Kesehatan"
                                     value={employee.coverage.bpjs_health_number}
                                 />
-                                <Field
-                                    label="Asuransi karyawan"
-                                    value={employee.coverage.employee_insurance}
-                                />
                             </Card>
                         ) : (
-                            <RestrictedCard title="BPJS & asuransi karyawan" />
+                            <RestrictedCard title="Kesehatan & asuransi" />
                         )}
 
                         {employee.payroll ? (
@@ -690,43 +686,6 @@ export default function EmployeeShow({
                             </Card>
                         ) : (
                             <RestrictedCard title="Payroll" />
-                        )}
-
-                        {employee.health ? (
-                            <Card title="Kesehatan & asuransi">
-                                <Field
-                                    label="No. asuransi"
-                                    value={employee.health.insurance_number}
-                                />
-                                <Field
-                                    label="Tingkat"
-                                    value={employee.health.insurance_tier}
-                                />
-                                <Field
-                                    label="Gol. darah"
-                                    value={employee.health.blood_type}
-                                />
-                                <Field
-                                    label="Tinggi (cm)"
-                                    value={employee.health.height_cm}
-                                />
-                                <Field
-                                    label="Berat (kg)"
-                                    value={employee.health.weight_kg}
-                                />
-                                <Field
-                                    label="Medical check terakhir"
-                                    value={
-                                        employee.health.last_medical_check_on
-                                    }
-                                />
-                                <Field
-                                    label="Kondisi dilaporkan"
-                                    value={employee.health.declared_conditions}
-                                />
-                            </Card>
-                        ) : (
-                            <RestrictedCard title="Kesehatan & asuransi" />
                         )}
                     </div>
                 )}

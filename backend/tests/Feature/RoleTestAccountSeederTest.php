@@ -81,3 +81,25 @@ it('can be run again without duplicating anything', function () {
         ->and(Employee::acrossCompanies()->whereIn('user_id', User::pluck('id'))->count())->toBe(5)
         ->and(Department::acrossCompanies()->where('name', 'Sales')->count())->toBe(Company::count());
 });
+
+it('runs on a production server, using the companies already there and inventing none', function () {
+    $company = Company::factory()->create(['code' => 'REAL-1']);
+    app()->detectEnvironment(fn (): string => 'production');
+
+    $this->artisan('db:seed', ['--class' => RoleTestAccountSeeder::class, '--force' => true])->assertSuccessful();
+
+    expect(Company::count())->toBe(1)
+        ->and(seededEmployee('supervisor@hr.test')->company_id)->toBe($company->id)
+        ->and(User::where('email', 'like', '%@hr.test')->count())->toBe(5)
+        ->and(Department::acrossCompanies()->where('company_id', $company->id)->pluck('name')->sort()->values()->all())
+        ->toBe(['Design', 'Marketing', 'Sales']);
+});
+
+it('creates nothing on a production server that has no company yet', function () {
+    app()->detectEnvironment(fn (): string => 'production');
+
+    $this->artisan('db:seed', ['--class' => RoleTestAccountSeeder::class, '--force' => true])->assertSuccessful();
+
+    expect(Company::count())->toBe(0)
+        ->and(User::where('email', 'like', '%@hr.test')->exists())->toBeFalse();
+});

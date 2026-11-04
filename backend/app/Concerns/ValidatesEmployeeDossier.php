@@ -94,15 +94,6 @@ trait ValidatesEmployeeDossier
             'allowances_idr' => ['nullable', 'integer', 'min:0'],
             'overtime_rate_idr' => ['nullable', 'integer', 'min:0'],
 
-            // Health and insurance (EMP-DET-005)
-            'insurance_number' => ['nullable', 'string', 'max:100'],
-            'insurance_tier' => ['nullable', 'string', 'max:100'],
-            'blood_type' => ['nullable', 'string', 'max:10'],
-            'height_cm' => ['nullable', 'integer', 'min:0', 'max:300'],
-            'weight_kg' => ['nullable', 'integer', 'min:0', 'max:500'],
-            'last_medical_check_on' => ['nullable', 'date'],
-            'declared_conditions' => ['nullable', 'string', 'max:2000'],
-
             // Personal, from the data sheet
             'gender' => ['nullable', Rule::enum(Gender::class)],
             'birth_place' => ['nullable', 'string', 'max:255'],
@@ -134,9 +125,9 @@ trait ValidatesEmployeeDossier
             'mother_name' => ['nullable', 'string', 'max:255'],
             'ptkp_status' => ['nullable', Rule::enum(PtkpStatus::class)],
             'bank_branch' => ['nullable', 'string', 'max:255'],
+            // Kesehatan & asuransi: the two BPJS numbers are all that is kept; the rest is on the BPJS site.
             'bpjs_employment_number' => ['nullable', 'string', 'max:50'],
             'bpjs_health_number' => ['nullable', 'string', 'max:50'],
-            'employee_insurance' => ['nullable', 'string', 'max:255'],
         ];
     }
 

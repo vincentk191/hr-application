@@ -131,7 +131,7 @@ class EmployeeController extends Controller
     /**
      * Download the filtered directory as CSV (EMP-DIR-011): the columns of HR's data sheet, so the file loads
      * back through the import. The sensitive columns (bank, tax, KK, BPJS ...) are filled only for someone with
-     * the sensitive-data permission, and never the payroll or health fields. The download is on the audit trail.
+     * the sensitive-data permission, and never the payroll fields. The download is on the audit trail.
      */
     public function export(Request $request): StreamedResponse
     {
@@ -461,13 +461,6 @@ class EmployeeController extends Controller
             'payroll' => $includeSensitive ? $employee->only([
                 'pay_group', 'base_salary_idr', 'allowances_idr', 'overtime_rate_idr',
             ]) : null,
-            'health' => $includeSensitive ? [
-                ...$employee->only([
-                    'insurance_number', 'insurance_tier', 'blood_type',
-                    'height_cm', 'weight_kg', 'declared_conditions',
-                ]),
-                'last_medical_check_on' => $employee->last_medical_check_on?->toDateString(),
-            ] : null,
         ];
     }
 
@@ -501,7 +494,7 @@ class EmployeeController extends Controller
     }
 
     /**
-     * Whether this user may see the bank, payroll and health groups of this record: anyone with
+     * Whether this user may see the bank, payroll and BPJS groups of this record: anyone with
      * the sensitive-data permission, and an employee looking at their own record.
      */
     private function maySeeSensitive(User $user, Employee $employee): bool
