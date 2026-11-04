@@ -129,7 +129,7 @@ class RoleTestAccountSeeder extends Seeder
     /**
      * Create or re-point one login and the dossier record behind it.
      */
-    private function person(Company $company, Department $department, string $name, string $email, Role $role, string $positionName, ?Employee $manager): Employee
+    public function person(Company $company, Department $department, string $name, string $email, Role $role, string $positionName, ?Employee $manager): Employee
     {
         $user = User::updateOrCreate(
             ['email' => $email],
