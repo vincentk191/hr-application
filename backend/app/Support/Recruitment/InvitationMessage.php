@@ -44,48 +44,63 @@ class InvitationMessage
         return self::dayLabel($moment).' · '.self::local($moment)->format('H:i').' WIB';
     }
 
+    /**
+     * The subject line, from the template HR set.
+     */
     public static function subject(Requisition $requisition): string
     {
-        $company = $requisition->company->name;
-
-        return 'Undangan interview — '.$requisition->position_name.($company ? " ({$company})" : '');
+        return InvitationTemplate::render(app(InvitationTemplate::class)->current()['subject'], [
+            'posisi' => $requisition->position_name,
+            'perusahaan' => $requisition->company->name,
+        ]);
     }
 
     /**
+     * The invitation text for a candidate, from the template HR set.
+     *
      * @param  string|null  $link  the personal link to the form, or null when the form is already filled in (a new time)
      */
     public static function text(Candidate $candidate, Requisition $requisition, ?string $link, ?string $note = null): string
     {
-        $company = $requisition->company->name;
         $when = $candidate->interview_at;
         $online = $candidate->interview_mode === 'online';
 
-        $lines = [
-            "Halo {$candidate->name},",
-            '',
-            "Terima kasih sudah melamar posisi {$requisition->position_name} di {$company}. Kami mengundang Anda untuk interview:",
-            '',
-            'Hari/tanggal : '.($when === null ? '-' : self::dayLabel($when)),
-            'Jam          : '.($when === null ? '-' : self::local($when)->format('H:i')).' WIB',
-            'Format       : '.($online ? 'Online' : 'Tatap muka'),
-            ($online ? 'Tautan       : ' : 'Tempat       : ').($candidate->interview_place ?? '-'),
+        $form = $link === null ? '' : 'Pada hari interview'
+            .($when === null ? '' : ' ('.self::dayLabel($when, false).')')
+            .", mohon lengkapi formulir singkat berikut. Tautan ini hanya bisa dibuka pada hari itu dan hanya sekali pakai:\n".$link;
+
+        return InvitationTemplate::render(app(InvitationTemplate::class)->current()['body'], [
+            'nama' => $candidate->name,
+            'posisi' => $requisition->position_name,
+            'perusahaan' => $requisition->company->name,
+            'hari_tanggal' => $when === null ? '-' : self::dayLabel($when),
+            'jam' => $when === null ? '-' : self::local($when)->format('H:i'),
+            'format' => $online ? 'Online' : 'Tatap muka',
+            'tempat_label' => str_pad($online ? 'Tautan' : 'Tempat', 12),
+            'tempat' => $candidate->interview_place ?? '-',
+            'formulir' => $form,
+            'catatan' => trim((string) $note),
+        ]);
+    }
+
+    /**
+     * Example values for the admin page's preview: a candidate invited to an online interview on a future date.
+     *
+     * @return array<string, string>
+     */
+    public static function sampleValues(): array
+    {
+        return [
+            'nama' => 'Budi Santoso',
+            'posisi' => 'Staf Gudang',
+            'perusahaan' => 'PT Contoh Maju',
+            'hari_tanggal' => 'Selasa, 10 November 2026',
+            'jam' => '10:00',
+            'format' => 'Online',
+            'tempat_label' => str_pad('Tautan', 12),
+            'tempat' => 'https://meet.google.com/abc-defg-hij',
+            'formulir' => "Pada hari interview (10 November 2026), mohon lengkapi formulir singkat berikut. Tautan ini hanya bisa dibuka pada hari itu dan hanya sekali pakai:\nhttps://hr.example.com/lamaran/xxxxxxxx",
+            'catatan' => 'Mohon hadir 10 menit lebih awal.',
         ];
-
-        if ($link !== null) {
-            $lines[] = '';
-            $lines[] = 'Pada hari interview'
-                .($when === null ? '' : ' ('.self::dayLabel($when, false).')')
-                .', mohon lengkapi formulir singkat berikut. Tautan ini hanya bisa dibuka pada hari itu dan hanya sekali pakai:';
-            $lines[] = $link;
-        }
-
-        if (filled($note)) {
-            $lines[] = '';
-            $lines[] = trim((string) $note);
-        }
-
-        array_push($lines, '', 'Mohon konfirmasi kehadiran dengan membalas pesan ini. Terima kasih.', '', "HR {$company}");
-
-        return implode("\n", $lines);
     }
 }

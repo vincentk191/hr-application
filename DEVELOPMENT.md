@@ -89,6 +89,29 @@ left uncommitted for review.
     interview** (company time, from 00:00) **and expires at the end of that day, or as soon as the form is filled in**,
     whichever comes first (before the day the page says when it opens and accepts nothing; after it, it says the link has
     lapsed). It also closes if the requisition is cancelled or filled. A new time (re-invite) moves the window with it.
+  - **Invitation template in the admin panel, and the sent invitation on each candidate (same day).** Admin page
+    **Template undangan** (`ManageInvitationTemplate`, same gate and parent-wide HR Admin as "Template rekrutmen"): the
+    email subject and the body with `{placeholders}` (`nama`, `posisi`, `perusahaan`, `hari_tanggal`, `jam`, `format`,
+    `tempat_label`, `tempat`, `formulir`, `catatan`), a live preview with an example candidate, "Kembalikan ke bawaan",
+    audited. It refuses a placeholder that does not exist and a body without `{hari_tanggal}`, `{jam}` and `{formulir}`
+    (without the last, nobody would get the form's link). Stored in `app_settings` (`recruitment.invitation`) through
+    `Support/Recruitment/InvitationTemplate`; `InvitationMessage` renders from it, and the email and the WhatsApp text are
+    still one text. Migration `add_sent_invitation_to_candidates_table` stores, per candidate, the subject and text that
+    were **actually sent** (with the personal link replaced by a marker, since only the link's hash may be kept) and
+    whether it went by email, so changing the template never rewrites an invitation already made. The Interview tab shows
+    it under each candidate as a fold-out "Undangan terkirim · date · lewat email / disalin untuk WhatsApp", and clicking
+    an interview in the calendar opens the candidate's whole card (schedule, contacts, invitation, form answers, the
+    reschedule action) in a pop-up.
+  - **Interview view reshaped to the wireframe (frontend only, same day).** `requisition-interview.tsx`: a summary line
+    (candidates, scheduled and how many this week, past, not yet scheduled); a **week calendar** (days across, hours down,
+    a card per interview with name, time and Online/Tatap muka, previous/next week and "Hari ini", today highlighted); and
+    a side list "Kandidat & jadwal" in three groups: **Terjadwal**, **Sudah lewat**, **Belum dijadwalkan**, each row with the
+    schedule, place or Meet link, contacts, invitation state, the action ("+ Jadwalkan", "Ubah jadwal / kirim ulang") and
+    the folded form answers. Clicking an empty future slot opens the invite form on that time (it asks which candidate when
+    several are unscheduled). The calendar shows from desktop width; on a phone the list alone is shown. Not in the view
+    because the data does not exist yet: interview length (a slot shows its start time only), interviewers, evaluation
+    status ("Review", "Recommended") and a clash check; "Sudah lewat" means the time has passed, not that it was evaluated.
+    Times are laid out in the browser's own time zone, which is WIB for the office.
   - **The link is built on the public hostname (added the same day).** HR creates invitations on the VPN hostname
     (`hr-vpn…`), which a candidate cannot reach, so the link no longer takes the address of the request. Set **`PUBLIC_URL`**
     (`config('app.public_url')`; in `backend/.env` and `docker/server/.env`, e.g. `https://hr.<your-domain>`) to the public

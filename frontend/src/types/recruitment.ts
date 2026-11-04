@@ -140,8 +140,18 @@ export type Candidate = {
     interviewMode: 'online' | 'onsite' | null;
     interviewPlace: string | null;
     formSubmittedOn: string | null;
+    /** The invitation as sent, without its personal link; null if never invited. */
+    invitation: SentInvitation | null;
     /** What the candidate answered on their form; null until they send it. */
     form: CandidateForm | null;
+};
+
+export type SentInvitation = {
+    subject: string | null;
+    message: string;
+    /** It went out by email; otherwise HR copied it for WhatsApp. */
+    emailed: boolean;
+    sentOn: string | null;
 };
 
 export type CandidateForm = {

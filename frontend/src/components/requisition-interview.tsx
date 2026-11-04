@@ -1,6 +1,7 @@
 import { Form, router } from '@inertiajs/react';
 import { Mail, Phone } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import InputError from '@/components/input-error';
 import { CopyButton } from '@/components/requisition-posting';
 import { shortDate } from '@/components/requisition-summary';
@@ -104,10 +105,13 @@ function InvitationResult({
 function InviteDialog({
     item,
     candidate,
+    defaultAt,
     onClose,
 }: {
     item: Requisition;
     candidate: Candidate;
+    /** A datetime-local value to start from, when the dialog was opened from a slot of the calendar. */
+    defaultAt?: string;
     onClose: () => void;
 }) {
     const [mode, setMode] = useState<string>(
@@ -158,7 +162,9 @@ function InviteDialog({
                                     name="interview_at"
                                     type="datetime-local"
                                     defaultValue={
-                                        candidate.interviewAtInput ?? ''
+                                        candidate.interviewAtInput ??
+                                        defaultAt ??
+                                        ''
                                     }
                                     required
                                 />
@@ -283,13 +289,522 @@ function FormAnswers({ candidate }: { candidate: Candidate }) {
     );
 }
 
+type Scheduled = { candidate: Candidate; at: Date };
+
+/** "2026-11-10T10:00" as a date in the browser's own time, which is how the schedule is laid out. */
+function parseLocal(value: string | null): Date | null {
+    const found = value?.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+
+    return found
+        ? new Date(+found[1], +found[2] - 1, +found[3], +found[4], +found[5])
+        : null;
+}
+
+function startOfWeek(date: Date): Date {
+    const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+
+    return start;
+}
+
+function addDays(date: Date, days: number): Date {
+    const next = new Date(date);
+    next.setDate(next.getDate() + days);
+
+    return next;
+}
+
+function sameDay(a: Date, b: Date): boolean {
+    return a.toDateString() === b.toDateString();
+}
+
+/** A datetime-local value for the top of an hour on a day, to prefill the invite form from a clicked slot. */
+function slotValue(day: Date, hour: number): string {
+    const pad = (value: number) => String(value).padStart(2, '0');
+
+    return `${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}T${pad(hour)}:00`;
+}
+
+const weekdayFormat = new Intl.DateTimeFormat('id-ID', { weekday: 'short' });
+const monthFormat = new Intl.DateTimeFormat('id-ID', { month: 'long' });
+const dayMonthFormat = new Intl.DateTimeFormat('id-ID', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+});
+
+function clock(date: Date): string {
+    return `${String(date.getHours()).padStart(2, '0')}.${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+/** "7–12 September", or "28 September – 3 Oktober" when the week crosses a month. */
+function weekTitle(start: Date): string {
+    const end = addDays(start, 6);
+
+    return start.getMonth() === end.getMonth()
+        ? `${start.getDate()}–${end.getDate()} ${monthFormat.format(end)}`
+        : `${start.getDate()} ${monthFormat.format(start)} – ${end.getDate()} ${monthFormat.format(end)}`;
+}
+
+function initials(name: string): string {
+    return name
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase())
+        .join('');
+}
+
+/** "Agus P." for a slot too narrow for a whole name. */
+function shortName(name: string): string {
+    const [first, ...rest] = name.split(/\s+/).filter(Boolean);
+
+    return rest.length === 0 ? first : `${first} ${rest[0][0].toUpperCase()}.`;
+}
+
+function modeLabel(mode: Candidate['interviewMode']): string {
+    return mode === 'online' ? 'Online' : 'Tatap muka';
+}
+
 /**
- * Stage 04 · Interview (REC-INT). HR invites each shortlisted candidate with the time and place; the invitation is
- * emailed, and its text and personal link are handed over for WhatsApp too. The candidate's answers to the checklist
- * show here once they send their form. Screening stays open on its own tab for more candidates.
+ * The invitation as it was sent, folded under one line: the subject, whether it went by email, and the text (with the
+ * personal link left out, since that is shown only when the invitation is made).
+ */
+function InvitationPreview({ candidate }: { candidate: Candidate }) {
+    const sent = candidate.invitation;
+
+    if (sent === null) {
+        return null;
+    }
+
+    return (
+        <details
+            className="rounded-xl border p-3 text-sm"
+            data-test="invitation-preview"
+        >
+            <summary className="cursor-pointer font-medium">
+                Undangan terkirim
+                {sent.sentOn ? ` · ${shortDate(sent.sentOn)}` : ''} ·{' '}
+                {sent.emailed ? 'lewat email' : 'disalin untuk WhatsApp'}
+            </summary>
+            {sent.subject && (
+                <p className="mt-2 font-semibold">{sent.subject}</p>
+            )}
+            <pre className="mt-2 font-sans text-sm whitespace-pre-wrap text-muted-foreground">
+                {sent.message}
+            </pre>
+        </details>
+    );
+}
+
+/** One candidate in the side list: who, when and where, where the invitation stands, and what HR can do next. */
+function CandidateRow({
+    candidate,
+    at,
+    canManage,
+    onInvite,
+}: {
+    candidate: Candidate;
+    at: Date | null;
+    canManage: boolean;
+    onInvite: (candidate: Candidate) => void;
+}) {
+    const unscheduled = candidate.inviteState === 'none';
+
+    return (
+        <li className="space-y-3 p-4" data-test="interview-candidate">
+            <div className="flex items-start gap-3">
+                <span
+                    className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-sm font-bold"
+                    aria-hidden
+                >
+                    {initials(candidate.name)}
+                </span>
+                <div className="min-w-0 flex-1 space-y-1">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="font-semibold">{candidate.name}</p>
+                        <Badge variant={STATE[candidate.inviteState].variant}>
+                            {STATE[candidate.inviteState].label}
+                        </Badge>
+                    </div>
+                    <p className="label-mono pr-6">
+                        {at
+                            ? `${dayMonthFormat.format(at)} · ${clock(at)} · ${modeLabel(candidate.interviewMode)}`
+                            : 'Belum ada jadwal'}
+                    </p>
+                    {candidate.interviewPlace && (
+                        <p className="text-sm break-words text-muted-foreground">
+                            {candidate.interviewPlace}
+                        </p>
+                    )}
+                    <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                        {candidate.phone && (
+                            <a
+                                href={`tel:${candidate.phone.replace(/[^\d+]/g, '')}`}
+                                className="inline-flex items-center gap-1 underline-offset-4 hover:underline"
+                            >
+                                <Phone className="size-3.5" />
+                                {candidate.phone}
+                            </a>
+                        )}
+                        {candidate.email && (
+                            <a
+                                href={`mailto:${candidate.email}`}
+                                className="inline-flex items-center gap-1 underline-offset-4 hover:underline"
+                            >
+                                <Mail className="size-3.5" />
+                                {candidate.email}
+                            </a>
+                        )}
+                    </p>
+                    {candidate.inviteState === 'invited' &&
+                        candidate.inviteExpiresOn && (
+                            <p className="label-mono">
+                                Tautan hanya berlaku pada{' '}
+                                {shortDate(candidate.inviteExpiresOn)}
+                            </p>
+                        )}
+                </div>
+            </div>
+
+            {canManage && (
+                <Button
+                    type="button"
+                    size="sm"
+                    variant={unscheduled ? 'default' : 'outline'}
+                    onClick={() => onInvite(candidate)}
+                    data-test="invite-candidate"
+                >
+                    {unscheduled
+                        ? '+ Jadwalkan'
+                        : candidate.inviteState === 'expired'
+                          ? 'Buat tautan baru'
+                          : 'Ubah jadwal / kirim ulang'}
+                </Button>
+            )}
+
+            <InvitationPreview candidate={candidate} />
+            <FormAnswers candidate={candidate} />
+        </li>
+    );
+}
+
+/**
+ * A candidate's whole card in a pop-up, opened by clicking their slot in the calendar: schedule, contacts, the
+ * invitation as sent and the form answers, which are too much to fit in a calendar cell.
+ */
+function CandidateCard({
+    candidate,
+    at,
+    canManage,
+    onInvite,
+    onClose,
+}: {
+    candidate: Candidate;
+    at: Date | null;
+    canManage: boolean;
+    onInvite: (candidate: Candidate) => void;
+    onClose: () => void;
+}) {
+    return (
+        <Dialog open onOpenChange={(open) => !open && onClose()}>
+            <DialogContent
+                className="max-h-[85vh] gap-0 overflow-y-auto p-0 sm:max-w-xl"
+                data-test="candidate-card"
+            >
+                <DialogHeader className="sr-only">
+                    <DialogTitle>{candidate.name}</DialogTitle>
+                    <DialogDescription>
+                        Jadwal interview, undangan dan jawaban formulir
+                    </DialogDescription>
+                </DialogHeader>
+                <ul>
+                    <CandidateRow
+                        candidate={candidate}
+                        at={at}
+                        canManage={canManage}
+                        onInvite={onInvite}
+                    />
+                </ul>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+/** A titled group in the side list, with how many are in it. */
+function Group({
+    title,
+    count,
+    children,
+}: {
+    title: string;
+    count: number;
+    children: ReactNode;
+}) {
+    return (
+        <section className="overflow-hidden rounded-xl border">
+            <header className="flex items-center justify-between gap-3 border-b bg-muted/40 px-4 py-2.5">
+                <h3 className="label-mono">{title}</h3>
+                <span className="label-mono">{count}</span>
+            </header>
+            {count === 0 ? (
+                <p className="p-4 text-sm text-muted-foreground">Tidak ada.</p>
+            ) : (
+                <ul className="divide-y">{children}</ul>
+            )}
+        </section>
+    );
+}
+
+/** The week as a calendar: days across, hours down, a card in the slot of each scheduled interview. */
+function WeekCalendar({
+    entries,
+    now,
+    canSchedule,
+    onPickSlot,
+    onOpenEntry,
+}: {
+    entries: Scheduled[];
+    now: Date;
+    canSchedule: boolean;
+    onPickSlot: (value: string) => void;
+    /** A scheduled interview was clicked: show that candidate's card. */
+    onOpenEntry: (candidate: Candidate) => void;
+}) {
+    const upcoming = entries
+        .filter((entry) => entry.at >= now)
+        .sort((a, b) => a.at.getTime() - b.at.getTime())[0];
+    const [weekStart, setWeekStart] = useState(() =>
+        startOfWeek(upcoming?.at ?? now),
+    );
+
+    const days = Array.from({ length: 7 }, (_, index) =>
+        addDays(weekStart, index),
+    );
+    const inWeek = entries.filter(
+        (entry) => entry.at >= weekStart && entry.at < addDays(weekStart, 7),
+    );
+    const hours = inWeek.map((entry) => entry.at.getHours());
+    const first = Math.min(8, ...hours);
+    const last = Math.max(17, ...hours);
+    const rows = Array.from({ length: last - first + 1 }, (_, i) => first + i);
+
+    return (
+        <section
+            className="surface hidden overflow-hidden lg:block"
+            data-test="week-calendar"
+        >
+            <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
+                <div>
+                    <h2 className="text-lg font-extrabold tracking-tight">
+                        Minggu {weekTitle(weekStart)}
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                        {canSchedule
+                            ? 'Klik slot kosong untuk menjadwalkan kandidat yang belum punya jadwal.'
+                            : 'Jadwal interview kandidat minggu ini.'}
+                    </p>
+                </div>
+                <div className="flex gap-2">
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setWeekStart(addDays(weekStart, -7))}
+                        data-test="week-prev"
+                    >
+                        ‹ Minggu lalu
+                    </Button>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setWeekStart(startOfWeek(now))}
+                    >
+                        Hari ini
+                    </Button>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setWeekStart(addDays(weekStart, 7))}
+                        data-test="week-next"
+                    >
+                        Minggu depan ›
+                    </Button>
+                </div>
+            </header>
+
+            <div
+                className="grid"
+                style={{
+                    gridTemplateColumns: '4rem repeat(7, minmax(0, 1fr))',
+                }}
+            >
+                <div className="label-mono border-b p-2">WIB</div>
+                {days.map((day) => (
+                    <div
+                        key={day.toISOString()}
+                        className={`border-b border-l p-2 ${sameDay(day, now) ? 'bg-primary/10' : ''}`}
+                    >
+                        <p className="label-mono">
+                            {weekdayFormat.format(day)}
+                        </p>
+                        <p className="text-lg font-extrabold">
+                            {day.getDate()}
+                        </p>
+                    </div>
+                ))}
+
+                {rows.map((hour) => (
+                    <Fragment key={hour}>
+                        <div className="label-mono border-b p-2">
+                            {String(hour).padStart(2, '0')}.00
+                        </div>
+                        {days.map((day) => {
+                            const here = inWeek.filter(
+                                (entry) =>
+                                    sameDay(entry.at, day) &&
+                                    entry.at.getHours() === hour,
+                            );
+                            const free =
+                                canSchedule &&
+                                here.length === 0 &&
+                                new Date(
+                                    day.getFullYear(),
+                                    day.getMonth(),
+                                    day.getDate(),
+                                    hour + 1,
+                                ) > now;
+
+                            return (
+                                <div
+                                    key={day.toISOString()}
+                                    className="relative min-h-16 space-y-1 border-b border-l p-1"
+                                >
+                                    {free && (
+                                        <button
+                                            type="button"
+                                            aria-label={`Jadwalkan ${dayMonthFormat.format(day)} jam ${hour}`}
+                                            onClick={() =>
+                                                onPickSlot(slotValue(day, hour))
+                                            }
+                                            className="absolute inset-0 rounded-sm transition-colors hover:bg-primary/10 focus-visible:bg-primary/10 focus-visible:outline-none"
+                                            data-test="free-slot"
+                                        />
+                                    )}
+                                    {here.map((entry) => (
+                                        <button
+                                            type="button"
+                                            key={entry.candidate.id}
+                                            onClick={() =>
+                                                onOpenEntry(entry.candidate)
+                                            }
+                                            className={`relative block w-full rounded-lg border p-2 text-left text-xs transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
+                                                entry.at < now
+                                                    ? 'bg-muted text-muted-foreground'
+                                                    : 'border-primary/40 bg-primary/10'
+                                            }`}
+                                            data-test="calendar-entry"
+                                        >
+                                            <p className="font-bold">
+                                                {shortName(
+                                                    entry.candidate.name,
+                                                )}
+                                            </p>
+                                            <p className="label-mono">
+                                                {clock(entry.at)}
+                                            </p>
+                                            <p className="label-mono">
+                                                {entry.candidate
+                                                    .interviewMode === 'online'
+                                                    ? 'ONLINE'
+                                                    : 'TATAP MUKA'}
+                                            </p>
+                                        </button>
+                                    ))}
+                                </div>
+                            );
+                        })}
+                    </Fragment>
+                ))}
+            </div>
+
+            <footer className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3">
+                <span className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1.5">
+                        <span className="size-3 rounded-sm border border-primary/40 bg-primary/10" />
+                        Terjadwal
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                        <span className="size-3 rounded-sm border bg-muted" />
+                        Sudah lewat
+                    </span>
+                </span>
+                {canSchedule && (
+                    <span className="label-mono">Slot kosong bisa diklik</span>
+                )}
+            </footer>
+        </section>
+    );
+}
+
+/** Which unscheduled candidate a clicked slot is for. */
+function PickCandidate({
+    candidates,
+    onPick,
+    onClose,
+}: {
+    candidates: Candidate[];
+    onPick: (candidate: Candidate) => void;
+    onClose: () => void;
+}) {
+    return (
+        <Dialog open onOpenChange={(open) => !open && onClose()}>
+            <DialogContent
+                className="gap-4 sm:max-w-md"
+                data-test="pick-candidate"
+            >
+                <DialogHeader>
+                    <DialogTitle>Jadwalkan siapa?</DialogTitle>
+                    <DialogDescription>
+                        Pilih kandidat yang belum punya jadwal untuk slot ini.
+                    </DialogDescription>
+                </DialogHeader>
+                <ul className="space-y-2">
+                    {candidates.map((candidate) => (
+                        <li key={candidate.id}>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="w-full justify-start"
+                                onClick={() => onPick(candidate)}
+                            >
+                                {candidate.name}
+                            </Button>
+                        </li>
+                    ))}
+                </ul>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+/**
+ * Stage 04 · Interview (REC-INT). A summary line, the week as a calendar, and a side list of the candidates in three
+ * groups: scheduled, already past, not yet scheduled. HR schedules by clicking an empty slot or "+ Jadwalkan"; the
+ * invitation is emailed and its text and personal link handed over for WhatsApp too. The candidate's answers to the
+ * checklist show under their name once they send their form. Screening stays open on its own tab for more candidates.
  */
 export function InterviewTab({ item }: { item: Requisition }) {
-    const [inviting, setInviting] = useState<Candidate | null>(null);
+    const [now] = useState(() => new Date());
+    const [inviting, setInviting] = useState<{
+        candidate: Candidate;
+        at?: string;
+    } | null>(null);
+    const [slot, setSlot] = useState<string | null>(null);
+    // The candidate whose card is open, by id so it follows the page's data after a re-invite.
+    const [viewingId, setViewingId] = useState<number | null>(null);
     const [invitation, setInvitation] = useState<Invitation | null>(null);
 
     // The invitation (with its link) comes back once, as flash data on the redirect after sending it.
@@ -313,127 +828,136 @@ export function InterviewTab({ item }: { item: Requisition }) {
         );
     }
 
+    const entries: Scheduled[] = item.shortlist.flatMap((candidate) => {
+        const at = parseLocal(candidate.interviewAtInput);
+
+        return at ? [{ candidate, at }] : [];
+    });
+    const unscheduled = item.shortlist.filter(
+        (candidate) => parseLocal(candidate.interviewAtInput) === null,
+    );
+    const upcoming = entries
+        .filter((entry) => entry.at >= now)
+        .sort((a, b) => a.at.getTime() - b.at.getTime());
+    const past = entries
+        .filter((entry) => entry.at < now)
+        .sort((a, b) => b.at.getTime() - a.at.getTime());
+    const thisWeek = upcoming.filter(
+        (entry) => entry.at < addDays(startOfWeek(now), 7),
+    ).length;
+    const canManage = item.canManageInterview;
+    const viewing =
+        item.shortlist.find((candidate) => candidate.id === viewingId) ?? null;
+
+    const row = (candidate: Candidate, at: Date | null) => (
+        <CandidateRow
+            key={candidate.id}
+            candidate={candidate}
+            at={at}
+            canManage={canManage}
+            onInvite={(chosen) => setInviting({ candidate: chosen })}
+        />
+    );
+
     return (
         <div className="space-y-5" data-test="interview-tab">
-            <section className="surface overflow-hidden">
-                <header className="flex items-center justify-between gap-3 border-b bg-muted/40 px-4 py-3">
-                    <h2 className="text-lg font-extrabold tracking-tight">
-                        Kandidat untuk interview
-                    </h2>
-                    <span className="label-mono">
-                        {
-                            item.shortlist.filter(
-                                (c) => c.inviteState !== 'none',
-                            ).length
-                        }{' '}
-                        / {item.shortlist.length} DIUNDANG
-                    </span>
-                </header>
+            <p
+                className="surface px-4 py-3 text-sm font-medium"
+                data-test="interview-summary"
+            >
+                {item.shortlist.length} kandidat di tahap interview ·{' '}
+                {upcoming.length} terjadwal ({thisWeek} minggu ini) ·{' '}
+                {past.length} sudah lewat.
+                {unscheduled.length > 0
+                    ? ` ${unscheduled.length} kandidat belum punya jadwal.`
+                    : ''}
+            </p>
 
-                {item.shortlist.length === 0 ? (
-                    <p className="p-4 text-sm text-muted-foreground">
-                        Belum ada kandidat. Tambahkan di tab Screening.
-                    </p>
-                ) : (
-                    <ul className="divide-y">
-                        {item.shortlist.map((candidate) => (
-                            <li
-                                key={candidate.id}
-                                className="space-y-3 p-4"
-                                data-test="interview-candidate"
+            <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_24rem]">
+                <WeekCalendar
+                    entries={entries}
+                    now={now}
+                    canSchedule={canManage && unscheduled.length > 0}
+                    onOpenEntry={(candidate) => setViewingId(candidate.id)}
+                    onPickSlot={(value) => {
+                        if (unscheduled.length === 1) {
+                            setInviting({
+                                candidate: unscheduled[0],
+                                at: value,
+                            });
+                        } else {
+                            setSlot(value);
+                        }
+                    }}
+                />
+
+                <aside
+                    className="surface space-y-4 p-4 lg:col-start-2 lg:row-start-1"
+                    data-test="interview-list"
+                >
+                    <header className="flex items-center justify-between gap-3">
+                        <h2 className="label-mono">Kandidat &amp; jadwal</h2>
+                        <span className="label-mono">
+                            {item.shortlist.length} ORANG
+                        </span>
+                    </header>
+
+                    {item.shortlist.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                            Belum ada kandidat. Tambahkan di tab Screening.
+                        </p>
+                    ) : (
+                        <>
+                            <Group title="Terjadwal" count={upcoming.length}>
+                                {upcoming.map((entry) =>
+                                    row(entry.candidate, entry.at),
+                                )}
+                            </Group>
+                            <Group title="Sudah lewat" count={past.length}>
+                                {past.map((entry) =>
+                                    row(entry.candidate, entry.at),
+                                )}
+                            </Group>
+                            <Group
+                                title="Belum dijadwalkan"
+                                count={unscheduled.length}
                             >
-                                <div className="flex flex-wrap items-start justify-between gap-3">
-                                    <div className="min-w-0 space-y-1">
-                                        <p className="flex flex-wrap items-center gap-2 font-semibold">
-                                            {candidate.name}
-                                            <Badge
-                                                variant={
-                                                    STATE[candidate.inviteState]
-                                                        .variant
-                                                }
-                                            >
-                                                {
-                                                    STATE[candidate.inviteState]
-                                                        .label
-                                                }
-                                            </Badge>
-                                        </p>
-                                        <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-                                            {candidate.phone && (
-                                                <a
-                                                    href={`tel:${candidate.phone.replace(/[^\d+]/g, '')}`}
-                                                    className="inline-flex items-center gap-1 underline-offset-4 hover:underline"
-                                                >
-                                                    <Phone className="size-3.5" />
-                                                    {candidate.phone}
-                                                </a>
-                                            )}
-                                            {candidate.email && (
-                                                <a
-                                                    href={`mailto:${candidate.email}`}
-                                                    className="inline-flex items-center gap-1 underline-offset-4 hover:underline"
-                                                >
-                                                    <Mail className="size-3.5" />
-                                                    {candidate.email}
-                                                </a>
-                                            )}
-                                        </p>
-                                        {candidate.interviewAtLabel && (
-                                            <p className="text-sm">
-                                                {candidate.interviewAtLabel} ·{' '}
-                                                {candidate.interviewMode ===
-                                                'online'
-                                                    ? 'Online'
-                                                    : 'Tatap muka'}
-                                                {candidate.interviewPlace
-                                                    ? ` · ${candidate.interviewPlace}`
-                                                    : ''}
-                                            </p>
-                                        )}
-                                        {candidate.inviteState === 'invited' &&
-                                            candidate.inviteExpiresOn && (
-                                                <p className="label-mono">
-                                                    Tautan hanya berlaku pada{' '}
-                                                    {shortDate(
-                                                        candidate.inviteExpiresOn,
-                                                    )}
-                                                </p>
-                                            )}
-                                    </div>
-                                    {item.canManageInterview && (
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant={
-                                                candidate.inviteState === 'none'
-                                                    ? 'default'
-                                                    : 'outline'
-                                            }
-                                            onClick={() =>
-                                                setInviting(candidate)
-                                            }
-                                            data-test="invite-candidate"
-                                        >
-                                            {candidate.inviteState === 'none'
-                                                ? 'Undang'
-                                                : candidate.inviteState ===
-                                                    'expired'
-                                                  ? 'Buat tautan baru'
-                                                  : 'Ubah jadwal / kirim ulang'}
-                                        </Button>
-                                    )}
-                                </div>
-                                <FormAnswers candidate={candidate} />
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </section>
+                                {unscheduled.map((candidate) =>
+                                    row(candidate, null),
+                                )}
+                            </Group>
+                        </>
+                    )}
+                </aside>
+            </div>
 
+            {viewing && (
+                <CandidateCard
+                    candidate={viewing}
+                    at={parseLocal(viewing.interviewAtInput)}
+                    canManage={canManage}
+                    onInvite={(chosen) => {
+                        setViewingId(null);
+                        setInviting({ candidate: chosen });
+                    }}
+                    onClose={() => setViewingId(null)}
+                />
+            )}
+            {slot !== null && (
+                <PickCandidate
+                    candidates={unscheduled}
+                    onClose={() => setSlot(null)}
+                    onPick={(candidate) => {
+                        setInviting({ candidate, at: slot });
+                        setSlot(null);
+                    }}
+                />
+            )}
             {inviting && (
                 <InviteDialog
                     item={item}
-                    candidate={inviting}
+                    candidate={inviting.candidate}
+                    defaultAt={inviting.at}
                     onClose={() => setInviting(null)}
                 />
             )}

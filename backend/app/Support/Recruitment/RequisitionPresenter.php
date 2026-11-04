@@ -252,6 +252,12 @@ class RequisitionPresenter
             'interviewAtInput' => $when?->format('Y-m-d\TH:i'),
             'interviewMode' => $candidate->interview_mode,
             'interviewPlace' => $candidate->interview_place,
+            'invitation' => $candidate->invitation_message === null ? null : [
+                'subject' => $candidate->invitation_subject,
+                'message' => $candidate->invitation_message,
+                'emailed' => $candidate->invitation_emailed,
+                'sentOn' => $candidate->invited_at?->copy()->setTimezone($timezone)->toDateString(),
+            ],
             'formSubmittedOn' => $candidate->form_submitted_at?->copy()->setTimezone($timezone)->toDateString(),
             'form' => $candidate->form_submitted_at === null ? null : [
                 'answers' => $answers,

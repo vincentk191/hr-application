@@ -19,6 +19,9 @@ use Illuminate\Support\Str;
  */
 class InviteCandidate
 {
+    /** Stands in for the personal link in the copy of the invitation that is kept. */
+    public const MASKED_LINK = '[tautan formulir pribadi — hanya tampil saat undangan dibuat]';
+
     /**
      * The link on the **public** address: HR creates it on the VPN hostname, but the candidate is not on the VPN.
      */
@@ -55,12 +58,20 @@ class InviteCandidate
         $link = $formOpen ? $this->publicLink($token) : null;
         $message = InvitationMessage::text($candidate, $requisition, $link, $fields['note']);
 
+        $subject = InvitationMessage::subject($requisition);
         $emailed = false;
 
         if (filled($candidate->email)) {
-            Mail::to($candidate->email)->queue(new CandidateInvitation(InvitationMessage::subject($requisition), $message));
+            Mail::to($candidate->email)->queue(new CandidateInvitation($subject, $message));
             $emailed = true;
         }
+
+        // What is kept to read again is the same text with the personal link masked: the link is the credential.
+        $candidate->forceFill([
+            'invitation_subject' => $subject,
+            'invitation_message' => $link === null ? $message : InvitationMessage::text($candidate, $requisition, self::MASKED_LINK, $fields['note']),
+            'invitation_emailed' => $emailed,
+        ])->save();
 
         return ['link' => $link, 'message' => $message, 'emailed' => $emailed, 'expiresAt' => $expiresAt];
     }
