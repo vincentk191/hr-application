@@ -149,14 +149,18 @@ class LeaveRequestController extends Controller
         $canFileForOthers = $user->can('createOnBehalf', LeaveRequest::class);
 
         $date = $request->string('date')->toString();
+        $leaveTypes = app(LeaveLimits::class)->options();
+        $type = $request->string('type')->toString();
 
         return Inertia::render('leave-requests/create', [
             // Opened from an employee's profile or an issue, the form comes filled in: who, and which day.
             'prefill' => [
                 'employeeId' => $request->integer('employee') ?: null,
                 'date' => preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) === 1 && CarbonImmutable::canBeCreatedFromFormat($date, 'Y-m-d') ? $date : null,
+                // The dashboard's shortcuts open the form on a type; one that is not on offer is ignored.
+                'type' => collect($leaveTypes)->contains('value', $type) ? $type : null,
             ],
-            'leaveTypes' => app(LeaveLimits::class)->options(),
+            'leaveTypes' => $leaveTypes,
             'canFileForOthers' => $canFileForOthers,
             'canBackdate' => $user->can('backdate', LeaveRequest::class),
             'employees' => Employee::query()

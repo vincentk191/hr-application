@@ -1,10 +1,11 @@
 import { Head, Link } from '@inertiajs/react';
+import { EmployeeOverview } from '@/components/dashboard-overview';
 import { Badge } from '@/components/ui/badge';
-import { PlaceholderPattern } from '@/components/ui/placeholder-pattern';
 import { dashboard } from '@/routes';
 import { device } from '@/routes/attendance';
 import { show } from '@/routes/employees';
 import type { CaptureStatus } from '@/types/attendance';
+import type { Overview } from '@/types/dashboard';
 
 type ExpiringDocuments = {
     total: number;
@@ -125,36 +126,44 @@ function AttendanceStatusCard({
 }
 
 export default function Dashboard({
+    overview,
+    canCreateRequest,
     expiringDocuments,
     attendanceStatus,
 }: {
+    /** Null for an account with no employee record, which has no personal overview. */
+    overview: Overview | null;
+    canCreateRequest: boolean;
     expiringDocuments: ExpiringDocuments | null;
     attendanceStatus: (CaptureStatus & { agentStale: boolean }) | null;
 }) {
+    // The cards for this person's duties; each is null unless their role calls for it.
+    const duties = (
+        <>
+            {attendanceStatus && <AttendanceStatusCard status={attendanceStatus} />}
+            {expiringDocuments && <ExpiringDocumentsCard data={expiringDocuments} />}
+        </>
+    );
+
     return (
         <>
             <Head title="Dashboard" />
-            <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-                {attendanceStatus && (
-                    <AttendanceStatusCard status={attendanceStatus} />
+            <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 md:gap-6 md:p-6">
+                {overview ? (
+                    <EmployeeOverview
+                        overview={overview}
+                        canCreateRequest={canCreateRequest}
+                    >
+                        {duties}
+                    </EmployeeOverview>
+                ) : (
+                    <>
+                        <h1 className="text-3xl font-extrabold tracking-tight">
+                            Dashboard
+                        </h1>
+                        {duties}
+                    </>
                 )}
-                {expiringDocuments && (
-                    <ExpiringDocumentsCard data={expiringDocuments} />
-                )}
-                <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-                    <div className="surface relative aspect-video overflow-hidden border-sidebar-border/70 dark:border-sidebar-border">
-                        <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
-                    </div>
-                    <div className="surface relative aspect-video overflow-hidden border-sidebar-border/70 dark:border-sidebar-border">
-                        <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
-                    </div>
-                    <div className="surface relative aspect-video overflow-hidden border-sidebar-border/70 dark:border-sidebar-border">
-                        <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
-                    </div>
-                </div>
-                <div className="surface relative min-h-[100vh] flex-1 overflow-hidden border-sidebar-border/70 md:min-h-min dark:border-sidebar-border">
-                    <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
-                </div>
             </div>
         </>
     );

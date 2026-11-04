@@ -3,9 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Enums\Permission;
+use App\Models\Employee;
 use App\Models\EmployeeDocument;
+use App\Models\LeaveRequest;
 use App\Support\Attendance\AgentStatus;
 use App\Support\Attendance\CaptureStatus;
+use App\Support\Dashboard\EmployeeOverview;
 use App\Support\Features;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -18,7 +21,7 @@ class DashboardController extends Controller
      */
     private const EXPIRY_LIST_LIMIT = 8;
 
-    public function __invoke(Request $request, CaptureStatus $status, AgentStatus $agents): Response
+    public function __invoke(Request $request, CaptureStatus $status, AgentStatus $agents, EmployeeOverview $overview): Response
     {
         $user = $request->user();
 
@@ -34,7 +37,13 @@ class DashboardController extends Controller
                 ->values()
             : null;
 
+        // The person's own record, for the greeting, today's attendance and their requests. An account with no
+        // dossier record (a System Admin, say) has none of that and sees only the cards for its own duties.
+        $own = Employee::acrossCompanies()->where('user_id', $user->id)->first();
+
         return Inertia::render('dashboard', [
+            'overview' => $own === null ? null : $overview->for($own, withAttendance: Features::attendance()),
+            'canCreateRequest' => $user->can('create', LeaveRequest::class),
             // Only for the people who capture the scanner log; everyone else gets no card.
             'attendanceStatus' => $user->can('manage-attendance-device')
                 ? [...$status->resolve(), 'agentStale' => Features::attendanceAgents() && $agents->anyStale()]

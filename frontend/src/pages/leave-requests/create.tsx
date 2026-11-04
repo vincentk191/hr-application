@@ -22,7 +22,7 @@ const selectClasses =
  * The new request form (REQ-WIZ), as a single page rather than the design's three columns.
  *
  * Working days are counted by the server (weekends and calendar holidays excluded, REQ-WIZ-005).
- * The form can open already filled in with `?employee=` and `?date=`, which is how the profile and
+ * The form can open already filled in with `?employee=`, `?date=` and `?type=` (the dashboard's shortcuts), which is how the profile and
  * the issues screen send someone here.
  */
 export default function LeaveRequestCreate({
@@ -32,14 +32,18 @@ export default function LeaveRequestCreate({
     canBackdate,
     prefill,
 }: {
-    prefill: { employeeId: number | null; date: string | null };
+    prefill: {
+        employeeId: number | null;
+        date: string | null;
+        type: string | null;
+    };
     leaveTypes: LeaveTypeOption[];
     employees: EmployeeOption[];
     canFileForOthers: boolean;
     /** HR Admin and Management may start a request in the past. */
     canBackdate: boolean;
 }) {
-    const [type, setType] = useState('');
+    const [type, setType] = useState(prefill.type ?? '');
     const selectedType = leaveTypes.find((item) => item.value === type);
     const maxDays = selectedType?.maxDays;
     const backDays = selectedType?.backDays;
