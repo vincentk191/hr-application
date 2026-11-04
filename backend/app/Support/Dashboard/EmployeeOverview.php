@@ -18,7 +18,7 @@ use Illuminate\Support\Str;
 
 /**
  * What the dashboard shows one employee about themselves: today's attendance, the requests still being decided,
- * this month's attendance rate and what is left of their annual leave.
+ * this month's attendance rate and the leave they have taken this year.
  *
  * All of it is derived from the same sources as the pages it links to (the attendance calendar, the leave
  * queue), so the dashboard cannot disagree with them.
@@ -27,6 +27,9 @@ class EmployeeOverview
 {
     /** How many open requests the dashboard lists before pointing at the full list. */
     public const OPEN_REQUEST_LIMIT = 5;
+
+    /** The request type the Cuti shortcut opens the form on. */
+    public const ANNUAL_TYPE_CODE = 'annual';
 
     /**
      * What the badge says for each status of today, and the tone the page paints it in.
@@ -51,14 +54,13 @@ class EmployeeOverview
     public function for(Employee $employee, ?CarbonImmutable $now = null, bool $withAttendance = true): array
     {
         $now = ($now ?? CarbonImmutable::now())->setTimezone($this->timezone());
-        $balance = $this->leaveBalance($employee, $now);
 
         return [
             'attendance' => $withAttendance ? $this->today($employee, $now) : null,
             'month' => $withAttendance ? $this->month($employee, $now) : null,
-            'leaveBalance' => $balance,
+            'leaveTaken' => ['days' => $this->leaveTakenThisYear($employee, $now), 'year' => $now->year],
             'openRequests' => $this->openRequests($employee),
-            'quickActions' => $this->quickActions($balance['remaining']),
+            'quickActions' => $this->quickActions(),
         ];
     }
 
@@ -163,22 +165,16 @@ class EmployeeOverview
     }
 
     /**
-     * The annual leave left this year: the entitlement less the approved days of the annual type, never below zero.
-     *
-     * @return array{entitlement: int, taken: int, remaining: int}
+     * The working days of approved leave that start this year, of every type: the same count as "leave taken this year"
+     * on the employee's profile. No entitlement is modelled anywhere, so there is no maximum and no balance to show.
      */
-    private function leaveBalance(Employee $employee, CarbonImmutable $now): array
+    private function leaveTakenThisYear(Employee $employee, CarbonImmutable $now): int
     {
-        $entitlement = max(0, (int) config('leave.annual_entitlement_days'));
-
-        $taken = (int) LeaveRequest::query()
+        return (int) LeaveRequest::query()
             ->where('employee_id', $employee->id)
-            ->where('leave_type', (string) config('leave.annual_type_code'))
             ->whereYear('start_on', $now->year)
             ->whereHas('workflow', fn (Builder $query) => $query->where('current_stage', LeaveRequestStage::Approved->value))
             ->sum('days');
-
-        return ['entitlement' => $entitlement, 'taken' => $taken, 'remaining' => max(0, $entitlement - $taken)];
     }
 
     /**
@@ -275,7 +271,7 @@ class EmployeeOverview
      *
      * @return list<array{key: string, label: string, hint: string, type: string|null}>
      */
-    private function quickActions(int $daysLeft): array
+    private function quickActions(): array
     {
         $types = RequestType::query()->where('is_active', true)->ordered()->get();
 
@@ -283,8 +279,8 @@ class EmployeeOverview
             [
                 'key' => 'cuti',
                 'label' => 'Cuti',
-                'hint' => "Sisa {$daysLeft} hari",
-                'type' => $types->firstWhere('code', config('leave.annual_type_code'))?->code,
+                'hint' => 'Tahunan, duka, dan lainnya',
+                'type' => $types->firstWhere('code', self::ANNUAL_TYPE_CODE)?->code,
             ],
             [
                 'key' => 'izin',

@@ -402,15 +402,11 @@ export function OpenRequests({ requests }: { requests: OpenRequest[] }) {
 }
 
 /**
- * This month's attendance rate and what is left of the annual leave. The rate counts days attended over days
+ * This month's attendance rate and the leave taken this year. The rate counts days attended over days
  * attended plus days absent, like the calendar, so approved leave does not lower it.
  */
 export function MonthSummary({ overview }: { overview: Overview }) {
-    const { month, leaveBalance } = overview;
-    const share =
-        leaveBalance.entitlement === 0
-            ? 0
-            : leaveBalance.remaining / leaveBalance.entitlement;
+    const { month, leaveTaken } = overview;
     const rate = month?.rate == null ? '—' : `${month.rate}%`;
 
     return (
@@ -432,13 +428,15 @@ export function MonthSummary({ overview }: { overview: Overview }) {
                 )}
                 <div className="surface rounded-2xl p-4">
                     <p className="text-3xl font-extrabold">
-                        {leaveBalance.remaining}
+                        {leaveTaken.days}
                         <span className="text-base font-medium text-muted-foreground">
                             {' '}
-                            / {leaveBalance.entitlement}
+                            hari
                         </span>
                     </p>
-                    <p className="text-sm text-muted-foreground">Sisa cuti</p>
+                    <p className="text-sm text-muted-foreground">
+                        Cuti terpakai
+                    </p>
                 </div>
             </div>
 
@@ -463,28 +461,15 @@ export function MonthSummary({ overview }: { overview: Overview }) {
                     </div>
                 )}
                 <div className="p-6">
-                    <p className="label-mono">Sisa cuti</p>
-                    <p className="mt-2 flex items-baseline gap-2">
+                    <p className="label-mono">Cuti terpakai</p>
+                    <p className="mt-2 flex items-baseline gap-3">
                         <span className="text-5xl font-extrabold">
-                            {leaveBalance.remaining}
+                            {leaveTaken.days}
                         </span>
                         <span className="text-sm text-muted-foreground">
-                            / {leaveBalance.entitlement} hari
+                            hari kerja di {leaveTaken.year}
                         </span>
                     </p>
-                    <div
-                        className="mt-4 h-2 overflow-hidden rounded-full bg-muted"
-                        role="progressbar"
-                        aria-label="Sisa cuti"
-                        aria-valuemin={0}
-                        aria-valuemax={leaveBalance.entitlement}
-                        aria-valuenow={leaveBalance.remaining}
-                    >
-                        <div
-                            className="h-full rounded-full bg-foreground"
-                            style={{ width: `${share * 100}%` }}
-                        />
-                    </div>
                 </div>
             </div>
         </section>

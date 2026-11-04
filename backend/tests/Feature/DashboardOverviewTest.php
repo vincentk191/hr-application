@@ -155,21 +155,21 @@ it('works out the month as days attended over days attended plus absent', functi
             ->where('overview.month.rate', 67));
 });
 
-it('subtracts only approved annual leave of this year from the entitlement', function () {
+it('counts the approved leave of this year, of every type, and no entitlement', function () {
     [$user, $employee, $supervisorUser] = overviewEmployee();
 
     $approved = overviewLeave($user, $employee, '2026-11-02', '2026-11-04');
     $this->actingAs($supervisorUser)->put(route('leave-requests.decision', $approved), ['decision' => 'approve']);
 
-    // One still waiting, one approved but not annual: neither comes off the balance.
+    // One still waiting does not count; an approved one of another type does, as on the profile.
     overviewLeave($user, $employee, '2026-12-01', '2026-12-02');
     $unpaid = overviewLeave($user, $employee, '2026-11-09', '2026-11-09', 'unpaid');
     $this->actingAs($supervisorUser)->put(route('leave-requests.decision', $unpaid), ['decision' => 'approve']);
 
     $this->actingAs($user)->get(route('dashboard'))
         ->assertInertia(fn (Assert $page) => $page
-            ->where('overview.leaveBalance', ['entitlement' => 12, 'taken' => 3, 'remaining' => 9])
-            ->where('overview.quickActions.0.hint', 'Sisa 9 hari'));
+            ->where('overview.leaveTaken', ['days' => 4, 'year' => 2026])
+            ->where('overview.quickActions.0.hint', 'Tahunan, duka, dan lainnya'));
 });
 
 it('lists the employee\'s own open requests with the steps they go through', function () {

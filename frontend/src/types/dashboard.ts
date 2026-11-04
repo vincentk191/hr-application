@@ -54,7 +54,8 @@ export type Overview = {
         attended: number;
         expected: number;
     } | null;
-    leaveBalance: { entitlement: number; taken: number; remaining: number };
+    /** Working days of approved leave this year. There is no entitlement in the app, so no maximum or balance. */
+    leaveTaken: { days: number; year: number };
     openRequests: OpenRequest[];
     quickActions: QuickAction[];
 };
