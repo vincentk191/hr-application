@@ -18,3 +18,6 @@
 Homestead.json
 Homestead.yaml
 /auth.json
+
+# Wayfinder output belongs in frontend/src; the artisan default lands here by mistake.
+/resources/js
