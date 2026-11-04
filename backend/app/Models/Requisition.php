@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -44,6 +45,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $salary_max
  * @property int|null $salary_set_by_user_id
  * @property Carbon|null $submitted_at
+ * @property string|null $cancel_reason
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -68,6 +70,7 @@ use Illuminate\Support\Carbon;
     'salary_max',
     'salary_set_by_user_id',
     'submitted_at',
+    'cancel_reason',
 ])]
 class Requisition extends Model
 {
@@ -127,6 +130,16 @@ class Requisition extends Model
     public function manager(): BelongsTo
     {
         return $this->belongsTo(Employee::class, 'manager_employee_id')->withoutGlobalScope(CompanyScope::class);
+    }
+
+    /**
+     * Where the listing was posted by hand (REC-PST), oldest first.
+     *
+     * @return HasMany<RequisitionPosting, $this>
+     */
+    public function postings(): HasMany
+    {
+        return $this->hasMany(RequisitionPosting::class)->orderBy('posted_on')->orderBy('id');
     }
 
     public function reference(): string

@@ -19,7 +19,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { WorkflowDiscussion } from '@/components/workflow-discussion';
-import { advance, decide, edit, index, salary } from '@/routes/recruitment';
+import { PostingTab } from '@/components/requisition-posting';
+import {
+    advance,
+    cancel,
+    decide,
+    edit,
+    index,
+    salary,
+    screening,
+} from '@/routes/recruitment';
 import {
     read as readComments,
     store as storeComment,
@@ -202,8 +211,8 @@ function SubmittedTab({ item }: { item: Requisition }) {
 }
 
 /**
- * A requisition on its pipeline (REC-PIP). It opens on its current stage (REC-PIP-005). Stage 01 is built; the
- * later stages are filled in by the slices that follow.
+ * A requisition on its pipeline (REC-PIP). It opens on its current stage (REC-PIP-005). Stages 01 and 02 are built;
+ * the later stages are filled in by the slices that follow.
  */
 export default function RequisitionShow({
     requisition: item,
@@ -221,8 +230,11 @@ export default function RequisitionShow({
 
     const { errors } = usePage().props as { errors: Record<string, string> };
 
+    // A cancelled requisition has no current stage: open on the last one it reached.
     const current =
-        item.tabs.find((tab) => tab.state === 'current')?.stage ?? 'submitted';
+        item.tabs.find((tab) => tab.state === 'current')?.stage ??
+        item.tabs.filter((tab) => tab.state === 'done').at(-1)?.stage ??
+        'submitted';
     const [tab, setTab] = useState<string>(current);
 
     const phaseActions: PhaseAction[] = [
@@ -345,6 +357,68 @@ export default function RequisitionShow({
                   },
               ]
             : []),
+        ...(item.canManagePostings
+            ? [
+                  {
+                      key: 'screening',
+                      label: 'Lanjut ke Screening ›',
+                      short: 'Lanjut',
+                      rank: item.screeningBlockers.length === 0 ? 1 : 3,
+                      render: (label: string, className?: string) => (
+                          <Button
+                              data-test="advance-screening"
+                              className={className}
+                              disabled={item.screeningBlockers.length > 0}
+                              title={
+                                  item.screeningBlockers.join(' ') || undefined
+                              }
+                              onClick={() =>
+                                  router.post(
+                                      screening(item.id).url,
+                                      {},
+                                      { preserveScroll: true },
+                                  )
+                              }
+                          >
+                              {label}
+                          </Button>
+                      ),
+                  },
+              ]
+            : []),
+        ...(item.canCancel
+            ? [
+                  {
+                      key: 'cancel',
+                      label: 'Batalkan lowongan',
+                      short: 'Batalkan',
+                      rank: 5,
+                      render: (label: string, className?: string) => (
+                          <DecisionDialog
+                              form={cancel.form(item.id)}
+                              decision="cancel"
+                              title={`Batalkan lowongan — ${item.positionName}`}
+                              subtitle={`${item.reference} · pembatalan tidak bisa diurungkan`}
+                              fieldLabel="Alasan pembatalan"
+                              hint="Wajib diisi · terkirim ke pemohon lewat notifikasi"
+                              required
+                              confirmLabel="Batalkan lowongan"
+                              footnote="Lowongan ditutup"
+                              destructive
+                              trigger={
+                                  <Button
+                                      variant="outline"
+                                      data-test="cancel-requisition"
+                                      className={className}
+                                  >
+                                      {label}
+                                  </Button>
+                              }
+                          />
+                      ),
+                  },
+              ]
+            : []),
     ];
 
     return (
@@ -417,6 +491,24 @@ export default function RequisitionShow({
                     </p>
                 )}
 
+                {item.stage === 'cancelled' && (
+                    <section
+                        className="surface space-y-1 border-destructive/50 p-4"
+                        data-test="cancelled-banner"
+                    >
+                        <h2 className="label-mono text-destructive">
+                            Lowongan dibatalkan
+                        </h2>
+                        <p className="text-sm">{item.cancelledReason ?? '—'}</p>
+                        <p className="label-mono">
+                            {item.cancelledBy
+                                ? `Oleh ${item.cancelledBy}`
+                                : 'Dibatalkan'}
+                            {item.cancelledAt ? ` · ${item.cancelledAt}` : ''}
+                        </p>
+                    </section>
+                )}
+
                 {tab === 'submitted' ? (
                     <>
                         <ApprovalChain
@@ -427,6 +519,8 @@ export default function RequisitionShow({
                         />
                         <SubmittedTab item={item} />
                     </>
+                ) : tab === 'posting' ? (
+                    <PostingTab item={item} />
                 ) : (
                     <section className="surface p-6 text-sm text-muted-foreground">
                         Tahap ini disiapkan pada tahap pengembangan berikutnya.

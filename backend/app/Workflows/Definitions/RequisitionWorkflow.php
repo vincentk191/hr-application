@@ -7,6 +7,7 @@ use App\Workflows\Contracts\TransitionGuard;
 use App\Workflows\Contracts\WorkflowDefinition;
 use App\Workflows\Contracts\WorkflowStage;
 use App\Workflows\Guards\ChainFullyApproved;
+use App\Workflows\Guards\HasBeenPosted;
 use BackedEnum;
 
 /**
@@ -15,7 +16,8 @@ use BackedEnum;
  *
  * Forward only (REC-PIP-004): a stage never goes back to an earlier one, except that a rejection at stage 01
  * returns the requisition to its requester as a draft (REC-APR-006). Posting needs every approval done
- * (REC-APR-003). The later stages have no guards yet: each gets its own when it is built.
+ * (REC-APR-003), and Screening needs the listing recorded on a platform (REC-PST-003). The later stages have no
+ * guards yet: each gets its own when it is built.
  */
 class RequisitionWorkflow implements WorkflowDefinition
 {
@@ -58,6 +60,7 @@ class RequisitionWorkflow implements WorkflowDefinition
     {
         return [
             Stage::Posting->value => [ChainFullyApproved::class],
+            Stage::Screening->value => [HasBeenPosted::class],
         ];
     }
 }

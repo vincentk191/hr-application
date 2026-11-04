@@ -328,6 +328,26 @@ class Notifier
     }
 
     /**
+     * HR called a requisition off (REC-PST-004): tell its requester, with the reason.
+     */
+    public function requisitionCancelled(Requisition $requisition, string $reason, User $actor): void
+    {
+        $requisition->loadMissing('creator');
+        $requester = $requisition->creator;
+
+        if ($requester === null || ! $requester->is_active || $requester->is($actor)) {
+            return;
+        }
+
+        $requester->notify(new InAppNotice(
+            'recruitment',
+            "{$requisition->reference()} dibatalkan: {$requisition->position_name}",
+            "Alasan: {$reason}",
+            route('recruitment.show', $requisition, absolute: false),
+        ));
+    }
+
+    /**
      * A comment on a requisition: tell its requester, whoever decides next, and anyone who has already spoken.
      */
     public function requisitionCommented(Requisition $requisition, WorkflowComment $comment, User $author): void

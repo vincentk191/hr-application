@@ -42,10 +42,10 @@ left uncommitted for review.
 | Phase 1         | Directory (Cabang, CSV import/export, list/grid/org chart, phone layout), profile, add/edit, reactivation, documents, admin panel |
 | Phase 2         | Manual import of the Fingerspot export, branch rekap import, Zona and potongan, calendar, holidays/events, recap with Excel export, issues, timesheet corrections. The ingest API and on-site agents are built but switched off (`FEATURE_ATTENDANCE_AGENTS`) |
 | Phase 3         | Pengajuan end to end (types, timeframe, attachments, queue with filters/export/badge), leave on the calendar's side panel, in-app notices |
-| Phase 4         | First slice (2026-10-28, branch `feature/recruitement`): requisition dashboard, 3-step wizard, pipeline tracker, stage 01 approval (Management with the salary expectation, then HR), "Lanjut ke Posting". Stages 02-06 not built |
+| Phase 4         | First slice (2026-10-28, branch `feature/recruitement`): requisition dashboard, 3-step wizard, pipeline tracker, stage 01 approval (Management with the salary expectation, then HR), "Lanjut ke Posting". Stage 02 Posting (2026-11-04, manual): copy shortcuts, platform records, cancel. Stages 03-06 not built |
 | Phase 5         | Offboarding end to end: wizard, Management approval, checklist, sign-off, exit, berita acara, Cabang filter, phone action bar |
 | Phase 7         | Server stack, VPN, backups with an admin page, non-superuser database login, security headers and limits      |
-| Not built       | Recruitment stages 02-06 (plan revised 2026-11-04: manual posting, shortlist quick-add, invitation to an in-app form; no public career page); Home KPIs; employee app (Web Push, API); CSP, Ghostscript sandbox, narrowing `web`'s `storage` mount |
+| Not built       | Recruitment stages 03-06 (plan revised 2026-11-04: manual posting, shortlist quick-add, invitation to an in-app form; no public career page); Home KPIs; employee app (Web Push, API); CSP, Ghostscript sandbox, narrowing `web`'s `storage` mount |
 
 ---
 
@@ -69,6 +69,28 @@ left uncommitted for review.
 
 ## Change log (latest first)
 
+- **2026-11-04 (recruitment stage 02, Posting; branch `feature/recruitement`).** Migration
+  `create_requisition_postings_table` (one row per platform: `platform`, `platform_name` for "Lainnya", optional `url`,
+  `posted_on`, who recorded it) and `requisitions.cancel_reason`. `JobPlatform` (Glints, JobStreet, LinkedIn, Indeed,
+  Kalibrr, Lainnya), model `RequisitionPosting`, actions `SavePosting`, `RemovePosting`, `AdvanceToScreening`,
+  `CancelRequisition`, guard `HasBeenPosted` on the Screening stage, policy `managePostings` and `cancel`, routes
+  `recruitment.postings.*`, `recruitment.screening`, `recruitment.cancel`.
+  - **How it works:** the platforms are on free accounts, so nothing is pushed or imported. At **02 Diposting** HR (with
+    `manage-recruitment`) sees copy buttons (Judul, Deskripsi, Persyaratan, Semua; plain text built in the browser,
+    with a fallback for pages opened over plain http), posts the listing by hand, and records each platform with its
+    date and optional link. A named platform is recorded once; "Lainnya" (with a name) as often as needed. The date may
+    not be after today in the company timezone; the link must be http(s). Everyone who can see the requisition sees the
+    record; its status line reads "Belum diposting" or "Diposting di Glints, …".
+  - **Lanjut ke Screening:** HR only, shut until at least one posting is recorded (the guard's message shows on the
+    disabled button). Stage 03 itself is not built, so it opens the placeholder.
+  - **Batalkan lowongan (REC-PST-004):** HR only, from Posting up to Offer (before that, a rejection already sends it
+    back; after Filled it is final). A reason is required; it is kept on the requisition, written into the thread under the
+    stage it was in, shown in a banner, and the requester is notified. A cancelled requisition leaves the open count, is
+    found under the "Dibatalkan" filter, and its reached stages stay open to look at.
+  - **Checked:** `RequisitionPostingTest` (9 cases) plus the existing recruitment tests; Pint, PHPStan, TypeScript and the
+    formatter clean on the touched files.
+  - **Not done:** the applicant count (stage 03), the candidate quick-add, the invitation and the in-app form; the
+    requester is not told when the listing is posted.
 - **2026-11-03 (employee data refactor to HR's data sheet; uncommitted, on `feature/recruitement` though unrelated to
   recruitment).** The sheet `Lembar data field karyawan 20261103.xlsx` (50 columns, header only) is now the shape of
   the employee record, the import, the template and the export. Migration `add_sheet_fields_to_employees_and_companies`;
@@ -1193,7 +1215,7 @@ and the scheduling automation.
   is what the candidate form on cmp.id will pre-fill and score against (REC-CAR-002, REC-SCR-006), so its shape is the
   contract to hold steady.
 
-**Revised 2026-11-04, stages 02-04 (decided; nothing built yet).** The job platforms (Glints, JobStreet and the
+**Revised 2026-11-04, stages 02-04 (decided; stage 02 built the same day, 03 and 04 not yet).** The job platforms (Glints, JobStreet and the
 others) are on free accounts, which have no bulk export or API, and the original plan (candidates applying on a public
 form on cmp.id, then ranked in the app) would have put a public door and every applicant's personal data in the app.
 Screening now happens inside the platforms, and the app only meets the people HR shortlists:
@@ -1224,9 +1246,9 @@ Screening now happens inside the platforms, and the app only meets the people HR
 | `REC-WIZ`                         | Requisition wizard shell    | 6   | 4   | 🟡     | Built 10-28: stepper, Sebelumnya/Selanjutnya keeping the values, Simpan Draft at any step (back to the dashboard), resume at the saved step, edit while sent and undecided (005). Not yet: fast-track flag (006) |
 | `REC-WZ1` · `REC-WZ2` · `REC-WZ3` | Wizard steps 01–03          | 8   | 7   | ✅     | Built 10-28, reworked the same day to the design's fixed template (see the Phase 4 notes). Step 1 "The ask": Posisi, Departemen, Cabang (optional, added), Jumlah kuota (whole, ≥ 1), Tipe kontrak (+ months for Kontrak/Magang), Atasan langsung, Target mulai kerja (never in the past), Alasan permintaan. Step 2: the job posting (Tentang Posisi, Tanggung Jawab Utama with the requester's own subtitles, Benefit & Fasilitas) and the candidate checklist (Kualifikasi, Skills, Nilai Plus). Step 3: one review page, then "Ajukan untuk Persetujuan" builds the chain. `REC-WZ2-002`'s requirement list is now the checklist; its base is the admin template (`REC-TPL-001`) |
 | `REC-TPL`                         | Templates (admin)           | 1   | 0   | 🟡     | Built 10-28: admin page **Template rekrutmen** (parent-wide HR Admin) holds the base lines for Benefit & Fasilitas and for each fixed checklist subtitle (Pendidikan, Pengalaman, Hard Skills, Soft Skills, Nilai Plus); a new requisition copies them. The sections and subtitles themselves are fixed in code |
-| `REC-PIP`                         | Requisition pipeline        | 6   | 4   | 🟡     | Built 10-28: header and breadcrumb, 6-stage tracker with the date each was reached, locked future stages, forward-only (`RequisitionWorkflow`), opens on the current stage, status line (006). Stages 02-06 show a placeholder |
+| `REC-PIP`                         | Requisition pipeline        | 6   | 4   | 🟡     | Built 10-28: header and breadcrumb, 6-stage tracker with the date each was reached, locked future stages, forward-only (`RequisitionWorkflow`), opens on the current stage, status line (006). Stage 02 is built (11-04); stages 03-06 show a placeholder. A cancelled requisition keeps the stages it reached open |
 | `REC-APR`                         | Stage 01 Approval           | 9   | 5   | ✅     | Built 10-28: chain Manajemen → HR (decided 2026-10-28, see Phase 4 notes), "Setujui sebagai …", reject with a reason back to a draft, "Lanjut ke Posting" gated on every approval, Edit, "Diajukan <date> oleh <requester>", Ekspektasi Gaji required for Management's approval with "Simpan" before it (007/008), comment thread (009) |
-| `REC-PST`                         | Stage 02 Posting            | 7   | 4   | ⬜     | Revised 11-04: manual "posted on <platform>" with link and date, copy shortcuts, cancel (PST-004). No cmp-api push |
+| `REC-PST`                         | Stage 02 Posting            | 7   | 4   | ✅     | Built 11-04 (revised plan: manual, no cmp-api push): copy buttons (Judul, Deskripsi, Persyaratan, Semua), "Tandai sudah diposting" per platform with date and optional link, correct/remove, "Lanjut ke Screening" once one is recorded, "Batalkan lowongan" with a reason (PST-004) |
 | `REC-SCR`                         | Stage 03 Screening          | 8   | 4   | ⬜     | Revised 11-04: total-applicants count + quick-add of shortlisted candidates (duplicate warning, paste-to-autofill). No ranking (about M) |
 | `REC-INT`                         | Stage 04 Interview          | 8   | 3   | ⬜     | Revised 11-04: email invitation with a single-use link to the in-app candidate form (checklist moves there), WhatsApp copy text as fallback, Google Meet, reschedule (XL) |
 | `REC-OFS`                         | Stage 05 Offer              | 9   | 8   | ⬜     | Management final approval + offer letter                    |

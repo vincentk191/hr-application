@@ -3,7 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Actions\Recruitment\AdvanceToPosting;
+use App\Actions\Recruitment\AdvanceToScreening;
+use App\Actions\Recruitment\CancelRequisition;
 use App\Actions\Recruitment\DecideRequisition;
+use App\Actions\Recruitment\RemovePosting;
+use App\Actions\Recruitment\SavePosting;
 use App\Actions\Recruitment\SaveRequisitionDraft;
 use App\Actions\Recruitment\SaveSalaryExpectation;
 use App\Actions\Recruitment\SubmitRequisition;
@@ -12,11 +16,13 @@ use App\Enums\EmploymentType;
 use App\Enums\RequisitionStage;
 use App\Enums\Role;
 use App\Http\Requests\DecideRequisitionRequest;
+use App\Http\Requests\SavePostingRequest;
 use App\Http\Requests\SaveRequisitionRequest;
 use App\Models\Branch;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Requisition;
+use App\Models\RequisitionPosting;
 use App\Models\User;
 use App\Support\Notifications\Notifier;
 use App\Support\Recruitment\RequisitionDepartments;
@@ -34,7 +40,8 @@ use Inertia\Response;
 
 /**
  * Recruitment, first slice: a supervisor or HR raises a requisition, Management and then HR approve it, and HR
- * moves it on to posting (REC-DSH, REC-WIZ, REC-PIP, REC-APR). The later stages come with their own slices.
+ * moves it on to posting (REC-DSH, REC-WIZ, REC-PIP, REC-APR). HR then records where the listing was posted by
+ * hand and moves it on, or calls it off (REC-PST). The later stages come with their own slices.
  */
 class RequisitionController extends Controller
 {
@@ -55,7 +62,7 @@ class RequisitionController extends Controller
         $visible = fn (): Builder => Requisition::query()->visibleTo($user);
 
         $requisitions = $visible()
-            ->with(['department:id,name', 'branch:id,name', 'creator:id,name', 'workflow.steps'])
+            ->with(['department:id,name', 'branch:id,name', 'creator:id,name', 'workflow.steps', 'postings'])
             ->when($filters['status'] === 'open', fn (Builder $query) => $query->open())
             ->when(! in_array($filters['status'], ['open', 'all'], true), fn (Builder $query) => $query->whereHas('workflow', fn (Builder $workflow) => $workflow->where('current_stage', $filters['status'])))
             ->when($filters['department'] !== null, fn (Builder $query) => $query->whereHas('department', fn (Builder $department) => $department->where('name', $filters['department'])))
@@ -251,6 +258,75 @@ class RequisitionController extends Controller
         }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => "{$requisition->reference()} lanjut ke tahap Posting."]);
+
+        return back();
+    }
+
+    /**
+     * "Tandai sudah diposting": HR records that the listing is up on a platform (REC-PST-002).
+     */
+    public function storePosting(SavePostingRequest $request, Requisition $requisition, SavePosting $save): RedirectResponse
+    {
+        $posting = $save->handle($requisition, $request->postingFields(), $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "Tercatat diposting di {$posting->platformLabel()}."]);
+
+        return back();
+    }
+
+    /**
+     * Correct where, when or the link of a recorded posting (REC-PST-002).
+     */
+    public function updatePosting(SavePostingRequest $request, Requisition $requisition, RequisitionPosting $posting, SavePosting $save): RedirectResponse
+    {
+        $save->handle($requisition, $request->postingFields(), $request->user(), $posting);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Catatan posting diperbarui.']);
+
+        return back();
+    }
+
+    public function destroyPosting(Requisition $requisition, RequisitionPosting $posting, RemovePosting $remove): RedirectResponse
+    {
+        $this->authorize('managePostings', $requisition);
+
+        $remove->handle($posting);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Catatan posting dihapus.']);
+
+        return back();
+    }
+
+    /**
+     * "Lanjut ke Screening ›" (REC-PST-003), refused until the listing is recorded on a platform.
+     */
+    public function advanceToScreening(Request $request, Requisition $requisition, AdvanceToScreening $advance): RedirectResponse
+    {
+        $this->authorize('managePostings', $requisition);
+
+        try {
+            $advance->handle($requisition, $request->user());
+        } catch (TransitionBlocked $blocked) {
+            throw ValidationException::withMessages(['advance' => $blocked->getMessage()]);
+        }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "{$requisition->reference()} lanjut ke tahap Screening."]);
+
+        return back();
+    }
+
+    /**
+     * "Batalkan lowongan": HR calls the requisition off with a reason (REC-PST-004).
+     */
+    public function cancel(Request $request, Requisition $requisition, CancelRequisition $cancel): RedirectResponse
+    {
+        $this->authorize('cancel', $requisition);
+
+        $validated = $request->validate(['note' => ['required', 'string', 'max:2000']], ['note.required' => 'Tulis alasan pembatalan.']);
+
+        $cancel->handle($requisition, $request->user(), $validated['note']);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "{$requisition->reference()} dibatalkan."]);
 
         return back();
     }

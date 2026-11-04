@@ -2,10 +2,13 @@
 
 namespace App\Support\Recruitment;
 
+use App\Enums\JobPlatform;
 use App\Enums\Permission;
 use App\Enums\RequisitionStage;
 use App\Enums\Role;
+use App\Http\Requests\SaveRequisitionRequest;
 use App\Models\Requisition;
+use App\Models\RequisitionPosting;
 use App\Models\User;
 use App\Models\WorkflowStep;
 use App\Models\WorkflowTransition;
@@ -52,8 +55,11 @@ class RequisitionPresenter
      */
     public function detail(Requisition $requisition, User $viewer): array
     {
-        $requisition->loadMissing(['department', 'branch', 'manager:id,full_name', 'creator:id,name', 'workflow.steps.decidedBy:id,name', 'workflow.steps.approver:id,name', 'workflow.transitions']);
+        $requisition->loadMissing(['department', 'branch', 'manager:id,full_name', 'creator:id,name', 'workflow.steps.decidedBy:id,name', 'workflow.steps.approver:id,name', 'workflow.transitions.actor:id,name', 'postings.postedBy:id,name']);
         $stage = $requisition->stage();
+        $cancelled = $stage === RequisitionStage::Cancelled
+            ? $requisition->workflow?->transitions->filter(fn (WorkflowTransition $transition): bool => $transition->to_stage === RequisitionStage::Cancelled->value)->last()
+            : null;
         $open = $stage === RequisitionStage::Submitted ? $requisition->workflow?->steps->firstWhere('status', 'pending') : null;
         $seesSalary = $viewer->can(Permission::ManageRecruitment->value) || $viewer->isA(Role::Management);
 
@@ -97,11 +103,31 @@ class RequisitionPresenter
             'advanceBlockers' => $stage === RequisitionStage::Submitted
                 ? $this->engine->blockingReasons($requisition->workflow, RequisitionStage::Posting)
                 : [],
+            'postings' => $requisition->postings->map(fn (RequisitionPosting $posting): array => [
+                'id' => $posting->id,
+                'platform' => $posting->platform->value,
+                'customName' => $posting->platform_name,
+                'label' => $posting->platformLabel(),
+                'url' => $posting->url,
+                'postedOn' => $posting->posted_on->toDateString(),
+                'postedBy' => $posting->postedBy?->name,
+            ])->values()->all(),
+            // The company's today, which the posting date may not pass.
+            'today' => SaveRequisitionRequest::today()->toDateString(),
+            'platformOptions' => array_map(fn (JobPlatform $platform): array => ['value' => $platform->value, 'label' => $platform->label()], JobPlatform::cases()),
+            'screeningBlockers' => $stage === RequisitionStage::Posting
+                ? $this->engine->blockingReasons($requisition->workflow, RequisitionStage::Screening)
+                : [],
+            'cancelledReason' => $requisition->cancel_reason,
+            'cancelledAt' => $cancelled?->created_at->toDateString(),
+            'cancelledBy' => $cancelled?->actor?->name,
             'canEdit' => $viewer->can('update', $requisition),
             'canDelete' => $viewer->can('delete', $requisition),
             'canDecide' => $viewer->can('decide', $requisition),
             'canSaveSalary' => $viewer->can('saveSalary', $requisition),
             'canAdvance' => $viewer->can('advance', $requisition),
+            'canManagePostings' => $viewer->can('managePostings', $requisition),
+            'canCancel' => $viewer->can('cancel', $requisition),
             'canComment' => $viewer->can('comment', $requisition),
         ];
     }
@@ -118,15 +144,16 @@ class RequisitionPresenter
         $now = array_search($stage, $pipeline, true);
         $transitions = $requisition->workflow === null ? collect() : $requisition->workflow->transitions;
 
-        return array_map(function (RequisitionStage $tab, int $index) use ($now, $transitions): array {
+        return array_map(function (RequisitionStage $tab, int $index) use ($now, $stage, $transitions): array {
             $reached = $transitions->filter(fn (WorkflowTransition $transition): bool => $transition->to_stage === $tab->value)->last();
 
             return [
                 'stage' => $tab->value,
                 'label' => $tab->label(),
                 'number' => str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT),
+                // A cancelled requisition sits on no tab: those it reached stay open to look at.
                 'state' => match (true) {
-                    $now === false => 'locked',
+                    $now === false => $reached !== null && $stage === RequisitionStage::Cancelled ? 'done' : 'locked',
                     $index < $now => 'done',
                     $index === $now => 'current',
                     default => 'locked',
@@ -161,6 +188,16 @@ class RequisitionPresenter
     }
 
     /**
+     * Where posting stands: not posted anywhere yet, or the platforms it is on.
+     */
+    private function postingStatus(Requisition $requisition): string
+    {
+        $platforms = $requisition->postings->map(fn (RequisitionPosting $posting): string => $posting->platformLabel())->unique();
+
+        return $platforms->isEmpty() ? 'Belum diposting' : 'Diposting di '.$platforms->implode(', ');
+    }
+
+    /**
      * The one-line status beside the stage name (REC-PIP-006): where in the stage the requisition actually is.
      */
     private function statusLabel(Requisition $requisition, RequisitionStage $stage): string
@@ -168,7 +205,7 @@ class RequisitionPresenter
         if ($stage !== RequisitionStage::Submitted) {
             return match ($stage) {
                 RequisitionStage::Draft => $requisition->submitted_at === null ? 'Draft' : 'Dikembalikan ke pemohon',
-                RequisitionStage::Posting => 'Siap diposting',
+                RequisitionStage::Posting => $this->postingStatus($requisition),
                 default => $stage->label(),
             };
         }

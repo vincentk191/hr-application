@@ -96,6 +96,22 @@ export type ManagerOption = {
     company_id: number;
 };
 
+/** A job platform HR can record a posting on (REC-PST). "other" is named by HR. */
+export type PlatformOption = { value: string; label: string };
+
+/** A listing HR recorded as posted on one platform (REC-PST-002). */
+export type RequisitionPosting = {
+    id: number;
+    platform: string;
+    /** The name HR typed for "Lainnya"; null for a named platform. */
+    customName: string | null;
+    /** The platform as it is shown: its name, or the custom one. */
+    label: string;
+    url: string | null;
+    postedOn: string;
+    postedBy: string | null;
+};
+
 /** A requisition on its pipeline, or in the wizard (REC-PIP, REC-WIZ). */
 export type Requisition = RequisitionRow & {
     departmentId: number;
@@ -123,6 +139,17 @@ export type Requisition = RequisitionRow & {
     awaitingSalary: boolean;
     /** Why "Lanjut ke Posting" is not open yet (REC-APR-003). */
     advanceBlockers: string[];
+    postings: RequisitionPosting[];
+    platformOptions: PlatformOption[];
+    /** Today in the company's timezone: the latest date a posting may carry. */
+    today: string;
+    /** Why "Lanjut ke Screening" is not open yet (REC-PST-003). */
+    screeningBlockers: string[];
+    cancelledReason: string | null;
+    cancelledAt: string | null;
+    cancelledBy: string | null;
+    canManagePostings: boolean;
+    canCancel: boolean;
     canEdit: boolean;
     canDelete: boolean;
     canDecide: boolean;

@@ -92,6 +92,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('recruitment/{requisition}/decision', [RequisitionController::class, 'decide'])->name('recruitment.decide');
     Route::put('recruitment/{requisition}/salary', [RequisitionController::class, 'salary'])->name('recruitment.salary');
     Route::post('recruitment/{requisition}/advance', [RequisitionController::class, 'advance'])->name('recruitment.advance');
+    Route::post('recruitment/{requisition}/postings', [RequisitionController::class, 'storePosting'])->name('recruitment.postings.store');
+    Route::put('recruitment/{requisition}/postings/{posting}', [RequisitionController::class, 'updatePosting'])->scopeBindings()->name('recruitment.postings.update');
+    Route::delete('recruitment/{requisition}/postings/{posting}', [RequisitionController::class, 'destroyPosting'])->scopeBindings()->name('recruitment.postings.destroy');
+    Route::post('recruitment/{requisition}/screening', [RequisitionController::class, 'advanceToScreening'])->name('recruitment.screening');
+    Route::post('recruitment/{requisition}/cancel', [RequisitionController::class, 'cancel'])->name('recruitment.cancel');
     Route::post('recruitment/{requisition}/comments', [RequisitionController::class, 'comment'])->name('recruitment.comments.store');
     Route::post('recruitment/{requisition}/comments/read', [RequisitionController::class, 'markCommentsRead'])->name('recruitment.comments.read');
 

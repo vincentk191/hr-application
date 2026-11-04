@@ -106,6 +106,28 @@ class RequisitionPolicy
     }
 
     /**
+     * Recording where the listing was posted, and moving on to Screening, are HR's while the requisition is at
+     * 02 Diposting (REC-PST-002/003).
+     */
+    public function managePostings(User $user, Requisition $requisition): bool
+    {
+        return $requisition->stage() === RequisitionStage::Posting
+            && $user->can(Permission::ManageRecruitment->value)
+            && $user->canAccessCompany($requisition->company_id);
+    }
+
+    /**
+     * Calling a requisition off is HR's, once it is out of approval and until it is filled (REC-PST-004). Before
+     * that a rejection already sends it back to its requester.
+     */
+    public function cancel(User $user, Requisition $requisition): bool
+    {
+        return in_array($requisition->stage(), [RequisitionStage::Posting, RequisitionStage::Screening, RequisitionStage::Interview, RequisitionStage::Offer], true)
+            && $user->can(Permission::ManageRecruitment->value)
+            && $user->canAccessCompany($requisition->company_id);
+    }
+
+    /**
      * The thread between the requester, Management and HR (REC-APR-009), from the first time it is sent.
      */
     public function comment(User $user, Requisition $requisition): bool
