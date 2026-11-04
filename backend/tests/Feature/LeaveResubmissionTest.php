@@ -7,6 +7,7 @@ use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\User;
 use App\Support\Leave\LeaveLimits;
+use Carbon\CarbonImmutable;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -19,6 +20,9 @@ use Inertia\Testing\AssertableInertia as Assert;
  */
 beforeEach(function () {
     $this->seed(RoleSeeder::class);
+    // A fixed clock before the dates filed below: a request may not start in the past, so letting the real date
+    // drift past them would break these tests.
+    $this->travelTo(CarbonImmutable::parse('2026-10-20 12:00', 'Asia/Jakarta'));
     Storage::fake('local');
     $this->company = Company::factory()->create();
     $this->hr = resubUser(Role::HrAdmin, $this->company);
