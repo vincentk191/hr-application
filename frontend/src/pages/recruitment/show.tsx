@@ -21,7 +21,10 @@ import { Label } from '@/components/ui/label';
 import { WorkflowDiscussion } from '@/components/workflow-discussion';
 import { InterviewTab } from '@/components/requisition-interview';
 import { PostingTab } from '@/components/requisition-posting';
-import { ScreeningTab } from '@/components/requisition-screening';
+import {
+    AddCandidateDialog,
+    ScreeningTab,
+} from '@/components/requisition-screening';
 import {
     advance,
     cancel,
@@ -414,6 +417,30 @@ export default function RequisitionShow({
                           >
                               {label}
                           </Button>
+                      ),
+                  },
+              ]
+            : []),
+        ...(item.canManageScreening
+            ? [
+                  {
+                      key: 'add-candidate',
+                      label: 'Tambah kandidat',
+                      short: 'Tambah',
+                      rank: 2,
+                      render: (label: string, className?: string) => (
+                          <AddCandidateDialog
+                              item={item}
+                              trigger={
+                                  <Button
+                                      variant="outline"
+                                      data-test="add-candidate-button"
+                                      className={className}
+                                  >
+                                      {label}
+                                  </Button>
+                              }
+                          />
                       ),
                   },
               ]

@@ -1,12 +1,21 @@
 import { Form, router } from '@inertiajs/react';
 import { Mail, Phone, Wand2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import { FileLink, useFilePreview } from '@/components/file-preview';
 import InputError from '@/components/input-error';
 import LimitedFileInput from '@/components/limited-file-input';
 import { shortDate } from '@/components/requisition-summary';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { parseApplicantText } from '@/lib/applicant-paste';
@@ -141,7 +150,8 @@ function Shortlist({ item, list }: { item: Requisition; list: Candidate[] }) {
                     data-test="no-candidates"
                 >
                     Belum ada kandidat. Saring pelamar di platform, lalu
-                    tambahkan yang layak lanjut di bawah.
+                    tambahkan yang layak lanjut lewat tombol “Tambah kandidat”
+                    di atas.
                 </p>
             ) : (
                 <ul className="divide-y">
@@ -292,9 +302,7 @@ function QuickAdd({ item }: { item: Requisition }) {
     };
 
     return (
-        <section className="surface space-y-4 p-4" data-test="quick-add">
-            <h2 className="label-mono">Tambah ke shortlist</h2>
-
+        <div className="space-y-4" data-test="quick-add">
             <div className="space-y-2">
                 <Label htmlFor="pasted-applicant">
                     Tempel data pelamar (opsional)
@@ -503,7 +511,7 @@ function QuickAdd({ item }: { item: Requisition }) {
                     </>
                 )}
             </Form>
-        </section>
+        </div>
     );
 }
 
@@ -521,9 +529,10 @@ export function ScreeningTab({ item }: { item: Requisition }) {
                         data-test="screening-continues"
                     >
                         Lowongan sudah di tahap berikutnya, tetapi screening
-                        tetap terbuka: tambahkan kandidat baru ke shortlist
-                        kapan saja, misalnya bila semua yang sudah diinterview
-                        tidak lolos atau penawaran ditolak.
+                        tetap terbuka: tambahkan kandidat baru lewat tombol
+                        “Tambah kandidat” di atas kapan saja, misalnya bila
+                        semua yang sudah diinterview tidak lolos atau penawaran
+                        ditolak.
                     </p>
                 )}
 
@@ -536,8 +545,39 @@ export function ScreeningTab({ item }: { item: Requisition }) {
             ) : (
                 <Shortlist item={item} list={item.shortlist} />
             )}
-
-            {item.canManageScreening && <QuickAdd item={item} />}
         </div>
+    );
+}
+
+/**
+ * “Tambah kandidat”: the quick-add form in a pop-up opened from the button at the top of the requisition page, so it is
+ * in reach from every tab and every stage that keeps screening open. It stays open after each save, ready for the next
+ * candidate; the cross closes it.
+ */
+export function AddCandidateDialog({
+    item,
+    trigger,
+}: {
+    item: Requisition;
+    trigger: ReactNode;
+}) {
+    return (
+        <Dialog>
+            <DialogTrigger asChild>{trigger}</DialogTrigger>
+            <DialogContent
+                className="max-h-[90vh] gap-4 overflow-y-auto sm:max-w-2xl"
+                data-test="add-candidate-dialog"
+            >
+                <DialogHeader>
+                    <DialogTitle>Tambah ke shortlist</DialogTitle>
+                    <DialogDescription>
+                        Masukkan kandidat yang lolos saring di platform. Setelah
+                        disimpan, formulir dikosongkan untuk kandidat
+                        berikutnya.
+                    </DialogDescription>
+                </DialogHeader>
+                <QuickAdd item={item} />
+            </DialogContent>
+        </Dialog>
     );
 }

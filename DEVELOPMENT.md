@@ -89,6 +89,12 @@ left uncommitted for review.
     interview** (company time, from 00:00) **and expires at the end of that day, or as soon as the form is filled in**,
     whichever comes first (before the day the page says when it opens and accepts nothing; after it, it says the link has
     lapsed). It also closes if the requisition is cancelled or filled. A new time (re-invite) moves the window with it.
+  - **"Tambah kandidat" is now a button at the top of the requisition page (same day).** The quick-add form left the
+    Screening tab: a **Tambah kandidat** button sits in the action bar next to "Batalkan lowongan" and opens it in a
+    pop-up (`AddCandidateDialog`), so it is in reach from every tab and every stage where screening is open (Screening,
+    Interview, Offer; HR only). The pop-up stays open after each save, emptied for the next candidate with the source
+    kept, and the cross closes it. On a phone the button follows the same action-bar rule as the others ("Tambah" in the
+    bar or under "⋯"). The Screening tab keeps the counts and the shortlist and points to the button. No backend change.
   - **Invitation template in the admin panel, and the sent invitation on each candidate (same day).** Admin page
     **Template undangan** (`ManageInvitationTemplate`, same gate and parent-wide HR Admin as "Template rekrutmen"): the
     email subject and the body with `{placeholders}` (`nama`, `posisi`, `perusahaan`, `hari_tanggal`, `jam`, `format`,
@@ -1351,6 +1357,33 @@ Screening now happens inside the platforms, and the app only meets the people HR
   a **personal link**: a single-use, expiring token that opens the candidate form **hosted in this app**, on the public
   entrance, and nothing else on it is reachable. The yes/no checklist from the requisition moves into this form, so the
   candidate answers it before the interview. Google Meet scheduling and reschedule stay in this stage.
+- **Google Meet automation: phased plan (decided 2026-11-04, not built; checked against Google's documentation).** Today HR
+  pastes the Meet link. Creating it automatically is possible through the Google Calendar API (an event inserted with
+  `conferenceDataVersion=1` and `conferenceData.createRequest` of type `hangoutsMeet`; the link appears in `entryPoints`
+  once the creation, which is asynchronous and may first read "pending", succeeds; `sendUpdates=all` makes Google email
+  the guest an invite). Whether it is practical depends on one fact nobody has confirmed yet: **CMP has a Google
+  account, but it is not known whether it is Google Workspace** (a company-domain account managed in admin.google.com)
+  or an ordinary `gmail.com` one.
+  - **Phase 0 · Find out (no code, first):** ask whoever runs CMP's Google account whether they can sign in to
+    admin.google.com and whether company email addresses are hosted on Google. The answer picks the path below.
+  - **Path A · Workspace:** an **Internal** OAuth app (members of the organisation only), or a service account with
+    domain-wide delegation authorised by a Workspace super admin, acting as one recruiting user whose calendar owns the
+    meetings. Stable, no re-consent. *Not confirmed in the docs read: whether Internal apps avoid the Testing-status
+    token expiry; check when building.*
+  - **Path B · `gmail.com` only:** possible with a one-time OAuth consent, but an app left in **Testing** status has refresh
+    tokens that **expire after 7 days** (HR would reconnect weekly); publishing it avoids that but brings Google's
+    verification for the Calendar scope. **Not recommended: stay with the manual link** unless CMP accepts that.
+  - **Phase 1 · Groundwork (either path):** an interview **length** (default 45 minutes, per invitation); an admin-panel
+    page to connect and disconnect the Google account and show its state; the credentials kept encrypted, never in the
+    repository; the Laravel HTTP client rather than a new package (a package needs approval).
+  - **Phase 2 · Create on invite:** a "Buat Meet otomatis" option in the invite form that creates the event, waits for the
+    link (re-reading while pending), and puts it in the invitation text; **any failure falls back to the pasted link**
+    and says so. One conference per interview, never shared.
+  - **Phase 3 · Keep it in step:** rescheduling updates the event, and cancelling the requisition or removing the
+    candidate deletes it. Decide then whether Google's own invite replaces ours (it would skip the candidate form's
+    link, so probably not) and whether the candidate is added as a guest at all.
+  - **Phase 4 · Hardening:** tell HR Admin when the connection breaks (revoked, expired, admin policy), and log every
+    call. Until Phase 0 is answered, nothing here is built; the manual flow is unchanged.
 - Consequence: `REC-SCR` shrinks from XL to about M, and the funnel on the dashboard is applicants (the count) →
   shortlisted → interviewed → offered → filled. The checklist's shape is still the thing to hold steady.
 
