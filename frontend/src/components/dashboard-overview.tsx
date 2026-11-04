@@ -1,10 +1,10 @@
 import { Link } from '@inertiajs/react';
 import { ArrowRight, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { create, index as leaveRequestsIndex } from '@/routes/leave-requests';
 import type {
+    Intro,
     OpenRequest,
     Overview,
     QuickAction,
@@ -46,7 +46,7 @@ function span(total: number): string {
  * The scanner's time of day, counted on from the minute the page was built so the duration and the bar move
  * without a reload. A tab left open past midnight is not followed: the next visit shows the new day.
  */
-function useScannerMinutes(initial: number): number {
+export function useScannerMinutes(initial: number): number {
     const [now, setNow] = useState(initial);
 
     useEffect(() => {
@@ -74,32 +74,31 @@ function Badge({ tone, children }: { tone: Tone; children: string }) {
 }
 
 /**
- * The greeting, and on a wide screen the clock and the shortcut to a new request. On a phone the date sits above the
- * greeting and the shortcuts below do the asking.
+ * The greeting, for everyone who signs in, and on a wide screen the clock and the shortcut to a new request. On a
+ * phone the date sits above the greeting and the shortcuts below do the asking.
  */
 export function OverviewHeader({
-    overview,
+    intro,
     now,
     canCreateRequest,
 }: {
-    overview: Overview;
-    /** Scanner time in minutes, or null when the attendance module is off and the clock has no source. */
-    now: number | null;
+    intro: Intro;
+    /** Scanner time in minutes after midnight, counted on from when the page was built. */
+    now: number;
     canCreateRequest: boolean;
 }) {
     return (
         <header className="flex items-start justify-between gap-4">
             <div className="min-w-0">
                 <p className="text-sm text-muted-foreground md:hidden">
-                    {overview.dateLabel}
+                    {intro.dateLabel}
                 </p>
                 <p className="label-mono hidden md:block">
-                    {overview.dateLabel.replace(',', '').toUpperCase()}{' '}
-                    {overview.year}
-                    {now !== null && ` · ${clock(now)}`}
+                    {intro.dateLabel.replace(',', '').toUpperCase()}{' '}
+                    {intro.year} · {clock(now)}
                 </p>
                 <h1 className="text-3xl font-extrabold tracking-tight md:mt-3 md:text-4xl">
-                    {overview.greeting}, {overview.name}
+                    {intro.greeting}, {intro.name}
                 </h1>
             </div>
             {canCreateRequest && (
@@ -493,31 +492,20 @@ export function MonthSummary({ overview }: { overview: Overview }) {
 }
 
 /**
- * The person's own overview: header, today's attendance, shortcuts, open requests and the month. One column on a
- * phone, in the order they are most often wanted; two columns (wide left, narrow right) from tablet width.
+ * The person's own overview: today's attendance, shortcuts, open requests and the month. One column on a phone, in
+ * the order they are most often wanted; two columns (wide left, narrow right) from tablet width.
  */
 export function EmployeeOverview({
     overview,
     canCreateRequest,
-    children,
+    now,
 }: {
     overview: Overview;
     canCreateRequest: boolean;
-    /** Cards for this person's duties (alerts to act on), shown between the greeting and the overview. */
-    children?: ReactNode;
+    now: number;
 }) {
-    const now = useScannerMinutes(overview.attendance?.nowMinutes ?? 0);
-
     return (
         <>
-            <OverviewHeader
-                overview={overview}
-                now={overview.attendance ? now : null}
-                canCreateRequest={canCreateRequest}
-            />
-
-            {children}
-
             <div className="flex flex-col gap-4 md:grid md:grid-cols-3 md:items-start md:gap-6">
                 <div className="contents md:col-span-2 md:flex md:flex-col md:gap-6">
                     {overview.attendance && (

@@ -46,10 +46,6 @@ export type TodayAttendance = {
 };
 
 export type Overview = {
-    name: string;
-    greeting: string;
-    dateLabel: string;
-    year: number;
     /** Null when the attendance module is switched off. */
     attendance: TodayAttendance | null;
     month: {
@@ -61,4 +57,14 @@ export type Overview = {
     leaveBalance: { entitlement: number; taken: number; remaining: number };
     openRequests: OpenRequest[];
     quickActions: QuickAction[];
+};
+
+/** The greeting at the top, for every account, with or without an employee record. */
+export type Intro = {
+    name: string;
+    greeting: string;
+    dateLabel: string;
+    year: number;
+    /** Minutes after midnight, scanner time, when the page was built; the page counts on from there. */
+    nowMinutes: number;
 };

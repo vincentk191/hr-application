@@ -79,13 +79,13 @@ function overviewLeave(User $actor, Employee $employee, string $from, string $to
     return LeaveRequest::query()->latest('id')->firstOrFail();
 }
 
-it('has no personal overview for an account without an employee record', function () {
+it('greets an account without an employee record by name but gives it no personal overview', function () {
     $this->seed(RoleSeeder::class);
-    $admin = User::factory()->create();
+    $admin = User::factory()->create(['name' => 'Admin Sistem']);
     $admin->assignRole(Role::SystemAdmin->value);
 
     $this->actingAs($admin)->get(route('dashboard'))
-        ->assertInertia(fn (Assert $page) => $page->where('overview', null));
+        ->assertInertia(fn (Assert $page) => $page->where('overview', null)->where('intro.name', 'Admin'));
 });
 
 it('greets the employee by first name, with the day and the time of day', function () {
@@ -93,10 +93,10 @@ it('greets the employee by first name, with the day and the time of day', functi
 
     $this->actingAs($user)->get(route('dashboard'))
         ->assertInertia(fn (Assert $page) => $page
-            ->where('overview.name', 'Rina')
-            ->where('overview.greeting', 'Selamat pagi')
-            ->where('overview.dateLabel', 'Selasa, 20 Oktober')
-            ->where('overview.year', 2026));
+            ->where('intro.name', 'Rina')
+            ->where('intro.greeting', 'Selamat pagi')
+            ->where('intro.dateLabel', 'Selasa, 20 Oktober')
+            ->where('intro.year', 2026));
 });
 
 it('shows today\'s first scan, no departure yet, and the working day', function () {
@@ -135,7 +135,7 @@ it('leaves attendance and the month out when the attendance module is switched o
         ->assertInertia(fn (Assert $page) => $page
             ->where('overview.attendance', null)
             ->where('overview.month', null)
-            ->where('overview.name', 'Rina'));
+            ->where('intro.name', 'Rina'));
 });
 
 it('works out the month as days attended over days attended plus absent', function () {

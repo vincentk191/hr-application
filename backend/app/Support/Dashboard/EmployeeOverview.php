@@ -54,15 +54,30 @@ class EmployeeOverview
         $balance = $this->leaveBalance($employee, $now);
 
         return [
-            'name' => Str::before(trim($employee->full_name), ' '),
-            'greeting' => $this->greeting($now),
-            'dateLabel' => $now->locale('id')->translatedFormat('l, j F'),
-            'year' => $now->year,
             'attendance' => $withAttendance ? $this->today($employee, $now) : null,
             'month' => $withAttendance ? $this->month($employee, $now) : null,
             'leaveBalance' => $balance,
             'openRequests' => $this->openRequests($employee),
             'quickActions' => $this->quickActions($balance['remaining']),
+        ];
+    }
+
+    /**
+     * The greeting at the top of the dashboard, for anyone signed in, with or without an employee record: their
+     * first name, the day, and the scanner's time of day for the clock.
+     *
+     * @return array{name: string, greeting: string, dateLabel: string, year: int, nowMinutes: int}
+     */
+    public function intro(string $fullName, ?CarbonImmutable $now = null): array
+    {
+        $now = ($now ?? CarbonImmutable::now())->setTimezone($this->timezone());
+
+        return [
+            'name' => Str::before(trim($fullName), ' '),
+            'greeting' => $this->greeting($now),
+            'dateLabel' => $now->locale('id')->translatedFormat('l, j F'),
+            'year' => $now->year,
+            'nowMinutes' => $now->hour * 60 + $now->minute,
         ];
     }
 

@@ -1,11 +1,15 @@
 import { Head, Link } from '@inertiajs/react';
-import { EmployeeOverview } from '@/components/dashboard-overview';
+import {
+    EmployeeOverview,
+    OverviewHeader,
+    useScannerMinutes,
+} from '@/components/dashboard-overview';
 import { Badge } from '@/components/ui/badge';
 import { dashboard } from '@/routes';
 import { device } from '@/routes/attendance';
 import { show } from '@/routes/employees';
 import type { CaptureStatus } from '@/types/attendance';
-import type { Overview } from '@/types/dashboard';
+import type { Intro, Overview } from '@/types/dashboard';
 
 type ExpiringDocuments = {
     total: number;
@@ -126,43 +130,43 @@ function AttendanceStatusCard({
 }
 
 export default function Dashboard({
+    intro,
     overview,
     canCreateRequest,
     expiringDocuments,
     attendanceStatus,
 }: {
+    intro: Intro;
     /** Null for an account with no employee record, which has no personal overview. */
     overview: Overview | null;
     canCreateRequest: boolean;
     expiringDocuments: ExpiringDocuments | null;
     attendanceStatus: (CaptureStatus & { agentStale: boolean }) | null;
 }) {
-    // The cards for this person's duties; each is null unless their role calls for it.
-    const duties = (
-        <>
-            {attendanceStatus && <AttendanceStatusCard status={attendanceStatus} />}
-            {expiringDocuments && <ExpiringDocumentsCard data={expiringDocuments} />}
-        </>
-    );
+    const now = useScannerMinutes(intro.nowMinutes);
 
     return (
         <>
             <Head title="Dashboard" />
             <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 md:gap-6 md:p-6">
-                {overview ? (
+                <OverviewHeader
+                    intro={intro}
+                    now={now}
+                    canCreateRequest={canCreateRequest && overview !== null}
+                />
+                {/* The cards for this person's duties; each is null unless their role calls for it. */}
+                {attendanceStatus && (
+                    <AttendanceStatusCard status={attendanceStatus} />
+                )}
+                {expiringDocuments && (
+                    <ExpiringDocumentsCard data={expiringDocuments} />
+                )}
+                {overview && (
                     <EmployeeOverview
                         overview={overview}
                         canCreateRequest={canCreateRequest}
-                    >
-                        {duties}
-                    </EmployeeOverview>
-                ) : (
-                    <>
-                        <h1 className="text-3xl font-extrabold tracking-tight">
-                            Dashboard
-                        </h1>
-                        {duties}
-                    </>
+                        now={now}
+                    />
                 )}
             </div>
         </>

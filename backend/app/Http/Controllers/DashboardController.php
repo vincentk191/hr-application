@@ -42,6 +42,7 @@ class DashboardController extends Controller
         $own = Employee::acrossCompanies()->where('user_id', $user->id)->first();
 
         return Inertia::render('dashboard', [
+            'intro' => $overview->intro($own?->full_name ?? $user->name),
             'overview' => $own === null ? null : $overview->for($own, withAttendance: Features::attendance()),
             'canCreateRequest' => $user->can('create', LeaveRequest::class),
             // Only for the people who capture the scanner log; everyone else gets no card.
