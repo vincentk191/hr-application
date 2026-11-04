@@ -2,6 +2,7 @@ import { Link } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import { EmployeeTeamTab } from '@/components/employee-team';
+import { useFilePreview } from '@/components/file-preview';
 import { LeaveRequestDetail } from '@/components/leave-request-detail';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -333,6 +334,10 @@ function ProfileTab({ data }: { data: Summary }) {
 }
 
 function DocumentsTab({ data }: { data: Summary }) {
+    const { open, dialog } = useFilePreview(
+        data.documents.flatMap((document) => document.versions.slice(0, 1)),
+    );
+
     if (data.documents.length === 0) {
         return (
             <p className="text-sm text-muted-foreground">Belum ada dokumen.</p>
@@ -340,47 +345,60 @@ function DocumentsTab({ data }: { data: Summary }) {
     }
 
     return (
-        <ul className="divide-y rounded-lg border text-sm">
-            {data.documents.map((document) => {
-                const latest = document.versions[0];
+        <>
+            {dialog}
+            <ul className="divide-y rounded-lg border text-sm">
+                {data.documents.map((document) => {
+                    const latest = document.versions[0];
 
-                return (
-                    <li
-                        key={document.id}
-                        className="flex items-center justify-between gap-3 p-3"
-                    >
-                        <div className="min-w-0">
-                            <p className="truncate font-medium">
-                                {document.title}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                                {document.categoryLabel}
-                                {document.expiresOn
-                                    ? ` · berlaku s/d ${document.expiresOn}`
-                                    : ''}
-                            </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            {document.expiryStatus && (
-                                <Badge variant="destructive">
-                                    {document.expiryStatus === 'expired'
-                                        ? 'Kedaluwarsa'
-                                        : 'Segera berakhir'}
-                                </Badge>
-                            )}
-                            {latest && (
-                                <a
-                                    href={latest.downloadUrl}
-                                    className="underline"
-                                >
-                                    Unduh
-                                </a>
-                            )}
-                        </div>
-                    </li>
-                );
-            })}
-        </ul>
+                    return (
+                        <li
+                            key={document.id}
+                            className="flex items-center justify-between gap-3 p-3"
+                        >
+                            <div className="min-w-0">
+                                <p className="truncate font-medium">
+                                    {document.title}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                    {document.categoryLabel}
+                                    {document.expiresOn
+                                        ? ` · berlaku s/d ${document.expiresOn}`
+                                        : ''}
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {document.expiryStatus && (
+                                    <Badge variant="destructive">
+                                        {document.expiryStatus === 'expired'
+                                            ? 'Kedaluwarsa'
+                                            : 'Segera berakhir'}
+                                    </Badge>
+                                )}
+                                {latest?.previewUrl && (
+                                    <button
+                                        type="button"
+                                        onClick={() => open(latest)}
+                                        className="underline"
+                                        data-test="preview-file"
+                                    >
+                                        Lihat
+                                    </button>
+                                )}
+                                {latest && (
+                                    <a
+                                        href={latest.downloadUrl}
+                                        className="underline"
+                                    >
+                                        Unduh
+                                    </a>
+                                )}
+                            </div>
+                        </li>
+                    );
+                })}
+            </ul>
+        </>
     );
 }
 

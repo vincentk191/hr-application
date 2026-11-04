@@ -69,6 +69,17 @@ left uncommitted for review.
 
 ## Change log (latest first)
 
+- **2026-11-04 (UI adjustments).** (1) Home dashboard, "Pengajuan berjalan": each row (phone card and desktop table row,
+  also by keyboard) opens that request's dialog on the Pengajuan page (`?open=ID`, as a search result does). (2) Posting
+  tab: each copy section (Judul, Deskripsi, Persyaratan, Semua) can be expanded to show the exact text that will be
+  copied; the first three open by default. (3) **Image preview:** a picture attached to a Pengajuan or filed in an
+  employee profile (profile Dokumen tab and its version history, the employee drawer, the leave dialog and edit page)
+  opens in a pop-up (`file-preview`: arrows between the list's pictures, tap to zoom, Unduh) instead of downloading.
+  `Support/Files/InlineImage` serves a file inline only when `?inline=1` is asked for **and** it is jpg/jpeg/png/webp
+  (type fixed from the extension, `nosniff`); everything else, PDFs and Office files included, still downloads. The
+  existing download routes keep their policy checks, so a preview needs the same access as a download. Offboarding
+  files and PDF preview are not included.
+
 - **2026-11-04 (recruitment stage 02, Posting; branch `feature/recruitement`).** Migration
   `create_requisition_postings_table` (one row per platform: `platform`, `platform_name` for "Lainnya", optional `url`,
   `posted_on`, who recorded it) and `requisitions.cancel_reason`. `JobPlatform` (Glints, JobStreet, LinkedIn, Indeed,

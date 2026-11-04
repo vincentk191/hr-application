@@ -14,7 +14,7 @@ import { dashboard } from '@/routes';
  * company, notifications and the person signed in. The side menu sits beneath it.
  */
 export function AppTopbar() {
-    const { branding, entrance } = usePage().props;
+    const { branding } = usePage().props;
 
     // Wear the colour of the company being looked at, and take it off again when there is none.
     useEffect(() => {
@@ -60,6 +60,22 @@ export function AppTopbar() {
                     <UserChip />
                 </div>
             </header>
+        </>
+    );
+}
+
+/**
+ * The notices that sit above a page's content: the offer to install the app, and the warning that this is the
+ * limited public entrance.
+ *
+ * They belong in the content area, beside the side menu, not under the top bar across the full width: the side menu
+ * is fixed from the top bar's edge down, so a full-width strip there would run underneath it and lose its first words.
+ */
+export function TopbarNotices() {
+    const { entrance } = usePage().props;
+
+    return (
+        <>
             <InstallBanner />
             {entrance?.limited && (
                 <div

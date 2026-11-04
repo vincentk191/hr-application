@@ -1,5 +1,5 @@
 import { Form, router } from '@inertiajs/react';
-import { Check, Copy, ExternalLink } from 'lucide-react';
+import { Check, ChevronDown, Copy, ExternalLink } from 'lucide-react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { shortDate } from '@/components/requisition-summary';
@@ -60,36 +60,100 @@ function CopyButton({
 }
 
 /** Copy shortcuts for pasting the listing into a platform's own form (REC-PST-001). */
+function CopySection({
+    label,
+    hint,
+    text,
+    testId,
+    defaultOpen,
+}: {
+    label: string;
+    hint?: string;
+    text: string;
+    testId: string;
+    defaultOpen: boolean;
+}) {
+    const [open, setOpen] = useState(defaultOpen);
+    const lines = text.trim() === '' ? 0 : text.split('\n').length;
+
+    return (
+        <div className="overflow-hidden rounded-xl border" data-test={testId}>
+            <div className="flex items-center justify-between gap-3 p-3">
+                <button
+                    type="button"
+                    onClick={() => setOpen((value) => !value)}
+                    aria-expanded={open}
+                    className="flex min-w-0 items-center gap-2 text-left"
+                    data-test={`${testId}-toggle`}
+                >
+                    <ChevronDown
+                        className={`size-4 shrink-0 transition-transform ${open ? '' : '-rotate-90'}`}
+                    />
+                    <span className="min-w-0">
+                        <span className="block font-semibold">{label}</span>
+                        <span className="label-mono block">
+                            {hint ? `${hint} · ` : ''}
+                            {lines} BARIS
+                        </span>
+                    </span>
+                </button>
+                <CopyButton
+                    label="Salin"
+                    text={text}
+                    testId={`copy-${testId}`}
+                />
+            </div>
+            {open && (
+                <pre
+                    className="max-h-72 overflow-auto border-t bg-muted/30 p-3 font-sans text-sm whitespace-pre-wrap"
+                    data-test={`${testId}-preview`}
+                >
+                    {text.trim() === '' ? 'Belum ada isi.' : text}
+                </pre>
+            )}
+        </div>
+    );
+}
+
 function CopyShortcuts({ item }: { item: Requisition }) {
     return (
         <section className="surface space-y-3 p-4" data-test="copy-shortcuts">
             <div>
                 <h2 className="label-mono">Salin untuk platform</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                    Tempel tiap bagian ke kolom yang sesuai di Glints, JobStreet
-                    dan lainnya. Lalu catat di bawah.
+                    Buka tiap bagian untuk melihat teks yang akan disalin, lalu
+                    tempel ke kolom yang sesuai di Glints, JobStreet dan
+                    lainnya. Catat postingnya di bawah.
                 </p>
             </div>
-            <div className="flex flex-wrap gap-2">
-                <CopyButton
+            <div className="space-y-2">
+                <CopySection
                     label="Judul"
+                    hint="Kolom judul pekerjaan"
                     text={postingTitle(item)}
-                    testId="copy-title"
+                    testId="title"
+                    defaultOpen
                 />
-                <CopyButton
+                <CopySection
                     label="Deskripsi"
+                    hint="Tentang posisi, tanggung jawab, benefit"
                     text={postingDescription(item)}
-                    testId="copy-description"
+                    testId="description"
+                    defaultOpen
                 />
-                <CopyButton
+                <CopySection
                     label="Persyaratan"
+                    hint="Kualifikasi, skills, nilai plus"
                     text={postingRequirements(item)}
-                    testId="copy-requirements"
+                    testId="requirements"
+                    defaultOpen
                 />
-                <CopyButton
+                <CopySection
                     label="Semua"
+                    hint="Judul, deskripsi dan persyaratan sekaligus"
                     text={postingAll(item)}
-                    testId="copy-all"
+                    testId="all"
+                    defaultOpen={false}
                 />
             </div>
         </section>

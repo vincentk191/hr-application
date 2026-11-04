@@ -12,6 +12,8 @@ export type LeaveAttachmentRow = {
     name: string;
     sizeBytes: number;
     downloadUrl: string;
+    /** Set for a picture, which can be looked at without downloading. */
+    previewUrl: string | null;
 };
 
 /** One remark in a request's history: an approver's note from an earlier round, or the requester's reply. */

@@ -6,6 +6,7 @@ use App\Models\LeaveRequest;
 use App\Models\LeaveRequestAttachment;
 use App\Models\User;
 use App\Models\WorkflowComment;
+use App\Support\Files\InlineImage;
 
 /**
  * The parts of a leave request that both the queue and the profile show: its files, the history of
@@ -23,7 +24,7 @@ class LeaveRequestPresenter
 
     /**
      * @return array{
-     *     attachments: array<int, array{id: int, name: string, sizeBytes: int, downloadUrl: string}>,
+     *     attachments: array<int, array{id: int, name: string, sizeBytes: int, downloadUrl: string, previewUrl: string|null}>,
      *     history: array<int, array{author: string|null, stage: string|null, stageLabel: string, note: string, at: string|null}>,
      *     canResubmit: bool
      * }
@@ -36,6 +37,7 @@ class LeaveRequestPresenter
                 'name' => $attachment->original_name,
                 'sizeBytes' => $attachment->size_bytes,
                 'downloadUrl' => route('leave-attachments.download', $attachment),
+                'previewUrl' => InlineImage::previewUrl(route('leave-attachments.download', $attachment), $attachment->original_name),
             ])->values()->all(),
             'history' => ($leave->workflow->comments ?? collect())->map(fn (WorkflowComment $comment): array => [
                 'author' => $comment->author?->name,

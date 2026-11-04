@@ -1,4 +1,4 @@
-import { Link } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import { ArrowRight, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -52,8 +52,7 @@ export function useScannerMinutes(initial: number): number {
     useEffect(() => {
         const loadedAt = Date.now();
         const timer = window.setInterval(
-            () =>
-                setNow(initial + Math.floor((Date.now() - loadedAt) / 60000)),
+            () => setNow(initial + Math.floor((Date.now() - loadedAt) / 60000)),
             15000,
         );
 
@@ -158,7 +157,7 @@ export function AttendanceToday({
 
             <dl className="mt-4 grid grid-cols-3 gap-3 md:mt-0 md:gap-0 md:divide-x">
                 <div className="md:p-6">
-                    <dt className="text-sm text-muted-foreground md:label-mono">
+                    <dt className="md:label-mono text-sm text-muted-foreground">
                         Masuk
                     </dt>
                     <dd className="mt-1 text-3xl font-extrabold tabular-nums md:mt-2 md:text-5xl">
@@ -169,7 +168,7 @@ export function AttendanceToday({
                     </p>
                 </div>
                 <div className="md:p-6">
-                    <dt className="text-sm text-muted-foreground md:label-mono">
+                    <dt className="md:label-mono text-sm text-muted-foreground">
                         Pulang
                     </dt>
                     <dd
@@ -182,7 +181,7 @@ export function AttendanceToday({
                     </p>
                 </div>
                 <div className="md:p-6">
-                    <dt className="text-sm text-muted-foreground md:label-mono">
+                    <dt className="md:label-mono text-sm text-muted-foreground">
                         Durasi
                     </dt>
                     <dd
@@ -229,7 +228,10 @@ export function AttendanceToday({
  */
 export function QuickActions({ actions }: { actions: QuickAction[] }) {
     return (
-        <section className="md:surface md:rounded-2xl" data-test="quick-actions">
+        <section
+            className="md:surface md:rounded-2xl"
+            data-test="quick-actions"
+        >
             <h2 className="hidden border-b px-6 py-4 font-semibold md:block">
                 Ajukan cepat
             </h2>
@@ -296,6 +298,11 @@ function StepBars({ steps }: { steps: OpenRequest['steps'] }) {
     );
 }
 
+/** A request opens in the Pengajuan page's own dialog, the way a search result or a notification does. */
+function requestHref(request: OpenRequest): string {
+    return leaveRequestsIndex({ query: { open: request.id } }).url;
+}
+
 /**
  * The person's own requests that are still waiting for a decision. A phone gets cards with the step bars; a wide
  * screen gets the table, with who the request is waiting on as the status. Finished requests are on the
@@ -304,7 +311,7 @@ function StepBars({ steps }: { steps: OpenRequest['steps'] }) {
 export function OpenRequests({ requests }: { requests: OpenRequest[] }) {
     return (
         <section
-            className="space-y-3 md:surface md:space-y-0 md:rounded-2xl"
+            className="md:surface space-y-3 md:space-y-0 md:rounded-2xl"
             data-test="open-requests"
         >
             <div className="flex items-baseline justify-between gap-3 md:border-b md:px-6 md:py-4">
@@ -316,7 +323,7 @@ export function OpenRequests({ requests }: { requests: OpenRequest[] }) {
                 </h2>
                 <Link
                     href={leaveRequestsIndex()}
-                    className="inline-flex items-center gap-1.5 text-sm font-bold text-primary md:label-mono md:text-primary"
+                    className="md:label-mono inline-flex items-center gap-1.5 text-sm font-bold text-primary md:text-primary"
                 >
                     <span className="md:hidden">Semua</span>
                     <span className="hidden md:inline">Semua pengajuan</span>
@@ -332,19 +339,22 @@ export function OpenRequests({ requests }: { requests: OpenRequest[] }) {
                 <>
                     <ul className="space-y-3 md:hidden">
                         {requests.map((request) => (
-                            <li
-                                key={request.id}
-                                className="surface rounded-2xl p-5"
-                            >
-                                <div className="flex items-baseline justify-between gap-3">
-                                    <p className="text-lg font-bold">
-                                        {request.type}
-                                    </p>
-                                    <p className="text-sm whitespace-nowrap text-muted-foreground">
-                                        {request.dates}
-                                    </p>
-                                </div>
-                                <StepBars steps={request.steps} />
+                            <li key={request.id}>
+                                <Link
+                                    href={requestHref(request)}
+                                    className="surface block rounded-2xl p-5 transition-colors active:bg-muted/60"
+                                    data-test="open-request"
+                                >
+                                    <div className="flex items-baseline justify-between gap-3">
+                                        <p className="text-lg font-bold">
+                                            {request.type}
+                                        </p>
+                                        <p className="text-sm whitespace-nowrap text-muted-foreground">
+                                            {request.dates}
+                                        </p>
+                                    </div>
+                                    <StepBars steps={request.steps} />
+                                </Link>
                             </li>
                         ))}
                     </ul>
@@ -363,7 +373,21 @@ export function OpenRequests({ requests }: { requests: OpenRequest[] }) {
                         </thead>
                         <tbody className="divide-y">
                             {requests.map((request) => (
-                                <tr key={request.id}>
+                                <tr
+                                    key={request.id}
+                                    role="link"
+                                    tabIndex={0}
+                                    onClick={() =>
+                                        router.visit(requestHref(request))
+                                    }
+                                    onKeyDown={(event) => {
+                                        if (event.key === 'Enter') {
+                                            router.visit(requestHref(request));
+                                        }
+                                    }}
+                                    className="cursor-pointer transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none"
+                                    data-test="open-request"
+                                >
                                     <td className="px-6 py-4 font-mono text-xs text-muted-foreground">
                                         {request.reference}
                                     </td>

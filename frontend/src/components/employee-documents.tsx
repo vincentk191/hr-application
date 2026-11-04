@@ -1,6 +1,8 @@
 import { Form, router } from '@inertiajs/react';
-import { Download, Lock } from 'lucide-react';
+import { Download, Eye, Lock } from 'lucide-react';
 import { useState } from 'react';
+import { useFilePreview } from '@/components/file-preview';
+import type { PreviewableFile } from '@/components/file-preview';
 import InputError from '@/components/input-error';
 import LimitedFileInput from '@/components/limited-file-input';
 import { Badge } from '@/components/ui/badge';
@@ -123,10 +125,13 @@ function DocumentCard({
     document,
     categories,
     canRestrict,
+    preview,
 }: {
     document: EmployeeDocumentRow;
     categories: ValueOption[];
     canRestrict: boolean;
+    /** Shows a picture version in the pop-up. */
+    preview: (file: PreviewableFile) => void;
 }) {
     const [panel, setPanel] = useState<'history' | 'version' | 'edit' | null>(
         null,
@@ -165,6 +170,17 @@ function DocumentCard({
                 </div>
 
                 <div className="flex flex-wrap gap-2">
+                    {current?.previewUrl && (
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            type="button"
+                            onClick={() => preview(current)}
+                            data-test="preview-file"
+                        >
+                            <Eye /> Lihat
+                        </Button>
+                    )}
                     {current && (
                         <Button asChild size="sm" variant="outline">
                             <a href={current.downloadUrl}>
@@ -238,12 +254,24 @@ function DocumentCard({
                                 {version.uploadedAt}
                                 {version.note ? ` · ${version.note}` : ''}
                             </span>
-                            <a
-                                href={version.downloadUrl}
-                                className="text-primary underline-offset-4 hover:underline"
-                            >
-                                Unduh
-                            </a>
+                            <span className="flex items-center gap-3">
+                                {version.previewUrl && (
+                                    <button
+                                        type="button"
+                                        onClick={() => preview(version)}
+                                        className="text-primary underline-offset-4 hover:underline"
+                                        data-test="preview-file"
+                                    >
+                                        Lihat
+                                    </button>
+                                )}
+                                <a
+                                    href={version.downloadUrl}
+                                    className="text-primary underline-offset-4 hover:underline"
+                                >
+                                    Unduh
+                                </a>
+                            </span>
                         </li>
                     ))}
                 </ul>
@@ -346,8 +374,13 @@ export function EmployeeDocuments({
     canManage: boolean;
     canRestrict: boolean;
 }) {
+    const { open, dialog } = useFilePreview(
+        documents.flatMap((document) => document.versions),
+    );
+
     return (
         <div className="flex flex-col gap-4">
+            {dialog}
             {canManage && (
                 <Form
                     action={store(employeeId).url}
@@ -402,6 +435,7 @@ export function EmployeeDocuments({
                             document={document}
                             categories={categories}
                             canRestrict={canRestrict}
+                            preview={open}
                         />
                     ))}
                 </ul>

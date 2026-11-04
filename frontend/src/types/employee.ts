@@ -134,6 +134,8 @@ export type EmployeeDocumentVersion = {
     uploadedBy: string | null;
     uploadedAt: string | null;
     downloadUrl: string;
+    /** Set for a picture, which can be looked at without downloading. */
+    previewUrl: string | null;
 };
 
 export type EmployeeDocumentRow = {

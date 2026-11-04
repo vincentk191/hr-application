@@ -9,8 +9,10 @@ use App\Http\Requests\UpdateEmployeeDocumentRequest;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
 use App\Models\EmployeeDocumentVersion;
+use App\Support\Files\InlineImage;
 use App\Support\Files\UploadFiler;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -95,7 +97,7 @@ class EmployeeDocumentController extends Controller
         return back();
     }
 
-    public function download(EmployeeDocument $document, EmployeeDocumentVersion $version): StreamedResponse
+    public function download(Request $request, EmployeeDocument $document, EmployeeDocumentVersion $version): StreamedResponse
     {
         $this->authorize('view', $document);
 
@@ -110,7 +112,7 @@ class EmployeeDocumentController extends Controller
                 ->log('Restricted document downloaded');
         }
 
-        return Storage::disk(self::DISK)->download($version->path, $version->original_name);
+        return InlineImage::serve($request, self::DISK, $version->path, $version->original_name);
     }
 
     private function addVersion(EmployeeDocument $document, UploadedFile $file, ?string $note): EmployeeDocumentVersion

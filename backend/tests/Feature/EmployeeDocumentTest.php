@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
 use App\Models\User;
+use App\Support\Files\InlineImage;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -365,4 +366,57 @@ it('leaves a restricted lapsing document off the reminder for a reader without t
 
     $this->actingAs($reader)->get(route('dashboard'))
         ->assertInertia(fn (Assert $page) => $page->where('expiringDocuments.total', 0));
+});
+
+// --- Looking at a picture without downloading it ---
+
+function pictureDocument(Employee $employee, string $name = 'ktp.png'): EmployeeDocument
+{
+    $document = EmployeeDocument::factory()->forEmployee($employee)->create();
+    $document->versions()->create([
+        'version_no' => 1,
+        'path' => UploadedFile::fake()->image($name)->store("employee-documents/{$employee->id}", 'local'),
+        'original_name' => $name,
+        'mime_type' => 'image/png',
+        'size_bytes' => 1024,
+    ]);
+
+    return $document;
+}
+
+it('shows a picture in the page when the preview is asked for, and downloads it otherwise', function () {
+    $document = pictureDocument($this->employee);
+    $version = $document->versions->first();
+
+    $inline = $this->actingAs($this->hr)->get(route('documents.download', [$document, $version, 'inline' => 1]))->assertOk();
+
+    expect($inline->headers->get('Content-Type'))->toBe('image/png')
+        ->and($inline->headers->get('Content-Disposition'))->toStartWith('inline')
+        ->and($inline->headers->get('X-Content-Type-Options'))->toBe('nosniff');
+
+    $this->actingAs($this->hr)->get(route('documents.download', [$document, $version]))->assertDownload('ktp.png');
+});
+
+it('never shows anything but a picture inline', function () {
+    $document = fileDocument($this->employee);
+
+    $this->actingAs($this->hr)
+        ->get(route('documents.download', [$document, $document->versions->first(), 'inline' => 1]))
+        ->assertDownload('kontrak.pdf');
+});
+
+it('keeps the document policy on the preview', function () {
+    $document = pictureDocument($this->employee);
+    $version = $document->versions->first();
+
+    $this->actingAs(docUser(Role::Supervisor, $this->company))
+        ->get(route('documents.download', [$document, $version, 'inline' => 1]))
+        ->assertForbidden();
+});
+
+it('offers a preview link for pictures only', function () {
+    expect(InlineImage::previewUrl('/documents/1/versions/2', 'KTP.PNG'))->toBe('/documents/1/versions/2?inline=1')
+        ->and(InlineImage::previewUrl('/leave-attachments/3?x=1', 'surat.jpeg'))->toBe('/leave-attachments/3?x=1&inline=1')
+        ->and(InlineImage::previewUrl('/documents/1/versions/2', 'kontrak.pdf'))->toBeNull()
+        ->and(InlineImage::previewUrl('/documents/1/versions/2', 'gambar.svg'))->toBeNull();
 });

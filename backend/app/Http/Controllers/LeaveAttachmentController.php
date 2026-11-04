@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\LeaveRequestAttachment;
+use App\Support\Files\InlineImage;
 use App\Support\Leave\LeaveAttachments;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -13,12 +15,12 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class LeaveAttachmentController extends Controller
 {
-    public function download(LeaveRequestAttachment $attachment): StreamedResponse
+    public function download(Request $request, LeaveRequestAttachment $attachment): StreamedResponse
     {
         $this->authorize('view', $attachment->leaveRequest);
 
         abort_unless(Storage::disk(LeaveAttachments::DISK)->exists($attachment->path), 404);
 
-        return Storage::disk(LeaveAttachments::DISK)->download($attachment->path, $attachment->original_name);
+        return InlineImage::serve($request, LeaveAttachments::DISK, $attachment->path, $attachment->original_name);
     }
 }

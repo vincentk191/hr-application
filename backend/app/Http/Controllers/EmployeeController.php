@@ -32,6 +32,7 @@ use App\Support\CsvDownload;
 use App\Support\Employees\EmployeeSheet;
 use App\Support\Employees\TeamSlice;
 use App\Support\Features;
+use App\Support\Files\InlineImage;
 use App\Support\Leave\LeaveRequestPresenter;
 use App\Support\OrganisationNames;
 use App\Support\ReportingLine;
@@ -551,6 +552,7 @@ class EmployeeController extends Controller
                     'uploadedBy' => $version->uploadedBy?->name,
                     'uploadedAt' => $version->created_at?->toDateString(),
                     'downloadUrl' => route('documents.download', [$document, $version]),
+                    'previewUrl' => InlineImage::previewUrl(route('documents.download', [$document, $version]), $version->original_name),
                 ])->values()->all(),
             ])
             ->values()

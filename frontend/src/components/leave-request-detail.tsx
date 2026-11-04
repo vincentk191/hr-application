@@ -1,4 +1,5 @@
 import { Link } from '@inertiajs/react';
+import { FileLink, useFilePreview } from '@/components/file-preview';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { edit } from '@/routes/leave-requests';
@@ -27,6 +28,8 @@ function size(bytes: number): string {
 
 /** The files on a request, each downloadable (served by an authorised route). */
 export function LeaveAttachments({ files }: { files: LeaveAttachmentRow[] }) {
+    const { open, dialog } = useFilePreview(files);
+
     if (files.length === 0) {
         return (
             <span className="text-muted-foreground">Tidak ada lampiran</span>
@@ -34,18 +37,19 @@ export function LeaveAttachments({ files }: { files: LeaveAttachmentRow[] }) {
     }
 
     return (
-        <ul className="flex flex-col gap-1">
-            {files.map((file) => (
-                <li key={file.id}>
-                    <a href={file.downloadUrl} className="underline">
-                        {file.name}
-                    </a>{' '}
-                    <span className="text-xs text-muted-foreground">
-                        {size(file.sizeBytes)}
-                    </span>
-                </li>
-            ))}
-        </ul>
+        <>
+            <ul className="flex flex-col gap-1">
+                {files.map((file) => (
+                    <li key={file.id}>
+                        <FileLink file={file} open={open} />{' '}
+                        <span className="text-xs text-muted-foreground">
+                            {size(file.sizeBytes)}
+                        </span>
+                    </li>
+                ))}
+            </ul>
+            {dialog}
+        </>
     );
 }
 

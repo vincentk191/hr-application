@@ -1,5 +1,6 @@
 import { Form, Head } from '@inertiajs/react';
 import { useState } from 'react';
+import { FileLink, useFilePreview } from '@/components/file-preview';
 import InputError from '@/components/input-error';
 import LimitedFileInput from '@/components/limited-file-input';
 import { TimeframeFields } from '@/components/timeframe-fields';
@@ -32,6 +33,7 @@ export default function LeaveRequestEdit({
 }) {
     const [type, setType] = useState(request.leaveType);
     const [removed, setRemoved] = useState<number[]>([]);
+    const { open, dialog } = useFilePreview(request.attachments);
     const maxDays = leaveTypes.find((item) => item.value === type)?.maxDays;
     const rejection = request.steps.filter(
         (step) => step.status === 'rejected' && step.note,
@@ -40,6 +42,7 @@ export default function LeaveRequestEdit({
     return (
         <>
             <Head title={`Ubah ${request.reference}`} />
+            {dialog}
 
             <div className="flex max-w-xl flex-col gap-5 p-4">
                 <div>
@@ -198,8 +201,9 @@ export default function LeaveRequestEdit({
                                                     }
                                                     aria-label={`Hapus ${file.name}`}
                                                 />
-                                                <a
-                                                    href={file.downloadUrl}
+                                                <FileLink
+                                                    file={file}
+                                                    open={open}
                                                     className={`underline ${
                                                         removed.includes(
                                                             file.id,
@@ -207,9 +211,7 @@ export default function LeaveRequestEdit({
                                                             ? 'text-muted-foreground line-through'
                                                             : ''
                                                     }`}
-                                                >
-                                                    {file.name}
-                                                </a>
+                                                />
                                             </li>
                                         ))}
                                     </ul>
