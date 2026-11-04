@@ -126,10 +126,30 @@ class RequisitionPolicy
     }
 
     /**
-     * Entering the applicant total, shortlisting and moving on to Interview are HR's while the requisition is at
-     * 03 Screening (REC-SCR).
+     * Entering the applicant total and shortlisting are HR's at 03 Screening, and stay open at 04 Interview and 05 Offer: screening
+     * goes on while people are interviewed, and more candidates are needed if everyone interviewed so far falls through
+     * (REC-SCR).
      */
     public function manageScreening(User $user, Requisition $requisition): bool
+    {
+        return in_array($requisition->stage(), [RequisitionStage::Screening, RequisitionStage::Interview, RequisitionStage::Offer], true)
+            && $this->viewCandidates($user, $requisition);
+    }
+
+    /**
+     * Inviting shortlisted candidates to interview is HR's at 04 Interview, and while an offer is open, where
+     * candidates shortlisted late still need inviting (REC-INT).
+     */
+    public function manageInterview(User $user, Requisition $requisition): bool
+    {
+        return in_array($requisition->stage(), [RequisitionStage::Interview, RequisitionStage::Offer], true)
+            && $this->viewCandidates($user, $requisition);
+    }
+
+    /**
+     * "Lanjut ke Interview" is HR's, once, from 03 Screening.
+     */
+    public function advanceToInterview(User $user, Requisition $requisition): bool
     {
         return $requisition->stage() === RequisitionStage::Screening && $this->viewCandidates($user, $requisition);
     }

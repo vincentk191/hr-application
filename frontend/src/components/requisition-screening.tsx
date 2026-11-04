@@ -514,6 +514,19 @@ function QuickAdd({ item }: { item: Requisition }) {
 export function ScreeningTab({ item }: { item: Requisition }) {
     return (
         <div className="space-y-5" data-test="screening-tab">
+            {(item.stage === 'interview' || item.stage === 'offer') &&
+                item.canManageScreening && (
+                    <p
+                        className="surface p-4 text-sm text-muted-foreground"
+                        data-test="screening-continues"
+                    >
+                        Lowongan sudah di tahap berikutnya, tetapi screening
+                        tetap terbuka: tambahkan kandidat baru ke shortlist
+                        kapan saja, misalnya bila semua yang sudah diinterview
+                        tidak lolos atau penawaran ditolak.
+                    </p>
+                )}
+
             <Counts item={item} />
 
             {item.shortlist === null ? (

@@ -8,6 +8,7 @@ use App\Actions\Recruitment\AdvanceToPosting;
 use App\Actions\Recruitment\AdvanceToScreening;
 use App\Actions\Recruitment\CancelRequisition;
 use App\Actions\Recruitment\DecideRequisition;
+use App\Actions\Recruitment\InviteCandidate;
 use App\Actions\Recruitment\RemoveCandidate;
 use App\Actions\Recruitment\RemovePosting;
 use App\Actions\Recruitment\SaveApplicantCount;
@@ -21,6 +22,7 @@ use App\Enums\RequisitionStage;
 use App\Enums\Role;
 use App\Http\Requests\AddCandidateRequest;
 use App\Http\Requests\DecideRequisitionRequest;
+use App\Http\Requests\InviteCandidateRequest;
 use App\Http\Requests\SavePostingRequest;
 use App\Http\Requests\SaveRequisitionRequest;
 use App\Models\Branch;
@@ -32,6 +34,7 @@ use App\Models\RequisitionPosting;
 use App\Models\User;
 use App\Support\Files\InlineImage;
 use App\Support\Notifications\Notifier;
+use App\Support\Recruitment\InvitationMessage;
 use App\Support\Recruitment\RequisitionDepartments;
 use App\Support\Recruitment\RequisitionPresenter;
 use App\Support\Recruitment\RequisitionTemplate;
@@ -373,6 +376,27 @@ class RequisitionController extends Controller
     }
 
     /**
+     * "Undang": invite a shortlisted candidate to interview (REC-INT). The invitation is emailed when the candidate has
+     * an email, and always handed back once (with its personal link) so HR can paste it into WhatsApp.
+     */
+    public function inviteCandidate(InviteCandidateRequest $request, Requisition $requisition, Candidate $candidate, InviteCandidate $invite): RedirectResponse
+    {
+        $result = $invite->handle($requisition, $candidate, $request->invitationFields(), $request->user());
+
+        Inertia::flash('invitation', [
+            'candidateId' => $candidate->id,
+            'name' => $candidate->name,
+            'email' => $result['emailed'] ? $candidate->email : null,
+            'link' => $result['link'],
+            'message' => $result['message'],
+            'expiresOn' => $result['expiresAt'] === null ? null : InvitationMessage::dayLabel($result['expiresAt'], false),
+        ]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => "{$candidate->name} diundang interview."]);
+
+        return back();
+    }
+
+    /**
      * A candidate's CV, from the private disk. A picture can be looked at in the page with `?inline=1`.
      */
     public function candidateCv(Request $request, Requisition $requisition, Candidate $candidate): StreamedResponse
@@ -389,7 +413,7 @@ class RequisitionController extends Controller
      */
     public function advanceToInterview(Request $request, Requisition $requisition, AdvanceToInterview $advance): RedirectResponse
     {
-        $this->authorize('manageScreening', $requisition);
+        $this->authorize('advanceToInterview', $requisition);
 
         try {
             $advance->handle($requisition, $request->user());

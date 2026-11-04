@@ -18,6 +18,8 @@ class PublicRoutes
     /** Route names served on the public entrance. */
     public const PUBLIC_NAMES = [
         'home',
+        // The candidate form, opened from the link in an interview invitation (no sign-in; the link is the credential).
+        'candidate-form.show', 'candidate-form.store',
         // Signing in and out, two-factor, and confirming a password.
         'login', 'login.store', 'logout', 'register', 'register.store',
         'two-factor.login', 'two-factor.login.store', 'two-factor.enable', 'two-factor.confirm', 'two-factor.disable',

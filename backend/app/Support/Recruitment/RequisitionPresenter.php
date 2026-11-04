@@ -124,6 +124,8 @@ class RequisitionPresenter
                 ? $this->engine->blockingReasons($requisition->workflow, RequisitionStage::Interview)
                 : [],
             'canManageScreening' => $viewer->can('manageScreening', $requisition),
+            'canAdvanceToInterview' => $viewer->can('advanceToInterview', $requisition),
+            'canManageInterview' => $viewer->can('manageInterview', $requisition),
             // The company's today, which the posting date may not pass.
             'today' => SaveRequisitionRequest::today()->toDateString(),
             'platformOptions' => array_map(fn (JobPlatform $platform): array => ['value' => $platform->value, 'label' => $platform->label()], JobPlatform::cases()),
@@ -225,8 +227,40 @@ class RequisitionPresenter
                 'cvSize' => $candidate->cv_size,
                 'cvUrl' => $cvUrl,
                 'cvPreviewUrl' => $cvUrl === null ? null : InlineImage::previewUrl($cvUrl, (string) $candidate->cv_name),
+                ...$this->interviewFields($candidate),
             ];
         })->all());
+    }
+
+    /**
+     * Where a candidate stands on the interview: invited or not, when and where, and what they answered on the form.
+     *
+     * @return array<string, mixed>
+     */
+    private function interviewFields(Candidate $candidate): array
+    {
+        $timezone = (string) config('attendance.device_timezone');
+        $when = $candidate->interview_at?->copy()->setTimezone($timezone);
+        $form = $candidate->form_data;
+        $answers = is_array($form['answers'] ?? null) ? $form['answers'] : [];
+
+        return [
+            'inviteState' => $candidate->inviteState(),
+            'invitedOn' => $candidate->invited_at?->copy()->setTimezone($timezone)->toDateString(),
+            'inviteExpiresOn' => $candidate->invite_expires_at?->copy()->setTimezone($timezone)->toDateString(),
+            'interviewAtLabel' => $when === null ? null : InvitationMessage::whenLabel($when),
+            'interviewAtInput' => $when?->format('Y-m-d\TH:i'),
+            'interviewMode' => $candidate->interview_mode,
+            'interviewPlace' => $candidate->interview_place,
+            'formSubmittedOn' => $candidate->form_submitted_at?->copy()->setTimezone($timezone)->toDateString(),
+            'form' => $candidate->form_submitted_at === null ? null : [
+                'answers' => $answers,
+                'yes' => count(array_filter($answers, fn (mixed $answer): bool => is_array($answer) && ($answer['answer'] ?? false) === true)),
+                'expectedSalary' => $form['expected_salary'] ?? null,
+                'availableFrom' => $form['available_from'] ?? null,
+                'message' => $form['message'] ?? null,
+            ],
+        ];
     }
 
     private function reachedScreening(RequisitionStage $stage): bool

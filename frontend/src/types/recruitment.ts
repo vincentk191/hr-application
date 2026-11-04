@@ -129,6 +129,40 @@ export type Candidate = {
     cvUrl: string | null;
     /** Set when the CV is a picture, which can be looked at without downloading. */
     cvPreviewUrl: string | null;
+    /** Where the interview invitation stands (REC-INT). */
+    inviteState: 'none' | 'invited' | 'expired' | 'submitted';
+    invitedOn: string | null;
+    inviteExpiresOn: string | null;
+    /** "Selasa, 10 November 2026 · 10:00 WIB". */
+    interviewAtLabel: string | null;
+    /** The same moment as a datetime-local value, to prefill the form. */
+    interviewAtInput: string | null;
+    interviewMode: 'online' | 'onsite' | null;
+    interviewPlace: string | null;
+    formSubmittedOn: string | null;
+    /** What the candidate answered on their form; null until they send it. */
+    form: CandidateForm | null;
+};
+
+export type CandidateForm = {
+    answers: { group: string; text: string; answer: boolean }[];
+    /** How many were answered Ya. */
+    yes: number;
+    expectedSalary: number | null;
+    availableFrom: string | null;
+    message: string | null;
+};
+
+/** What HR is handed once, right after inviting: the personal link and the text for WhatsApp. */
+export type Invitation = {
+    candidateId: number;
+    name: string;
+    /** The address the email went to; null when there was none. */
+    email: string | null;
+    /** Null when the candidate had already filled the form (a new time only). */
+    link: string | null;
+    message: string;
+    expiresOn: string | null;
 };
 
 /** A requisition on its pipeline, or in the wizard (REC-PIP, REC-WIZ). */
@@ -175,7 +209,11 @@ export type Requisition = RequisitionRow & {
     sourceOptions: PlatformOption[];
     /** Why "Lanjut ke Interview" is not open yet. */
     interviewBlockers: string[];
+    /** HR may enter the total and shortlist: at Screening, and still at Interview. */
     canManageScreening: boolean;
+    canAdvanceToInterview: boolean;
+    /** HR may invite shortlisted candidates, at Interview and Offer. */
+    canManageInterview: boolean;
     canManagePostings: boolean;
     canCancel: boolean;
     canEdit: boolean;

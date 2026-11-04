@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { WorkflowDiscussion } from '@/components/workflow-discussion';
+import { InterviewTab } from '@/components/requisition-interview';
 import { PostingTab } from '@/components/requisition-posting';
 import { ScreeningTab } from '@/components/requisition-screening';
 import {
@@ -388,7 +389,7 @@ export default function RequisitionShow({
                   },
               ]
             : []),
-        ...(item.canManageScreening
+        ...(item.canAdvanceToInterview
             ? [
                   {
                       key: 'interview',
@@ -554,6 +555,8 @@ export default function RequisitionShow({
                     <PostingTab item={item} />
                 ) : tab === 'screening' ? (
                     <ScreeningTab item={item} />
+                ) : tab === 'interview' ? (
+                    <InterviewTab item={item} />
                 ) : (
                     <section className="surface p-6 text-sm text-muted-foreground">
                         Tahap ini disiapkan pada tahap pengembangan berikutnya.

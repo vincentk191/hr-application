@@ -29,6 +29,15 @@ use Illuminate\Support\Carbon;
  * @property string|null $cv_name
  * @property int|null $cv_size
  * @property int|null $added_by_user_id
+ * @property string|null $invite_token_hash
+ * @property Carbon|null $invited_at
+ * @property Carbon|null $invite_expires_at
+ * @property int|null $invited_by_user_id
+ * @property Carbon|null $interview_at
+ * @property string|null $interview_mode
+ * @property string|null $interview_place
+ * @property Carbon|null $form_submitted_at
+ * @property array<string, mixed>|null $form_data
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -46,6 +55,15 @@ use Illuminate\Support\Carbon;
     'cv_name',
     'cv_size',
     'added_by_user_id',
+    'invite_token_hash',
+    'invited_at',
+    'invite_expires_at',
+    'invited_by_user_id',
+    'interview_at',
+    'interview_mode',
+    'interview_place',
+    'form_submitted_at',
+    'form_data',
 ])]
 class Candidate extends Model
 {
@@ -65,7 +83,36 @@ class Candidate extends Model
         return [
             'source' => CandidateSource::class,
             'cv_size' => 'integer',
+            'invited_at' => 'datetime',
+            'invite_expires_at' => 'datetime',
+            'interview_at' => 'datetime',
+            'form_submitted_at' => 'datetime',
+            'form_data' => 'array',
         ];
+    }
+
+    /**
+     * Where the invitation stands: not invited, invited and waiting for the form, the link has lapsed, or the form was
+     * filled in.
+     *
+     * @return 'none'|'invited'|'expired'|'submitted'
+     */
+    public function inviteState(): string
+    {
+        return match (true) {
+            $this->form_submitted_at !== null => 'submitted',
+            $this->invited_at === null => 'none',
+            $this->invite_expires_at === null || $this->invite_expires_at->isPast() => 'expired',
+            default => 'invited',
+        };
+    }
+
+    /**
+     * What is kept of an invitation link: its hash, so a copy of the database holds no working link.
+     */
+    public static function hashToken(string $token): string
+    {
+        return hash('sha256', $token);
     }
 
     /**

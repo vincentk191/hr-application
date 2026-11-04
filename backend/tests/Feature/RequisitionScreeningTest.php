@@ -208,18 +208,43 @@ it('takes someone off the shortlist and deletes their CV, on that requisition on
 
 // --- Who may do and see what ---
 
-it('lets only HR shortlist, and only while the requisition is at Screening', function () {
+it('lets only HR shortlist, and only from Screening to Offer', function () {
     $requisition = screeningRequisition();
 
     shortlist($requisition, as: $this->requester)->assertForbidden();
     shortlist($requisition, as: $this->management)->assertForbidden();
     $this->actingAs($this->requester)->put(route('recruitment.applicants.update', $requisition), ['applicants_count' => 5])->assertForbidden();
 
-    foreach ([RequisitionStage::Posting, RequisitionStage::Interview] as $stage) {
+    foreach ([RequisitionStage::Submitted, RequisitionStage::Posting, RequisitionStage::Filled, RequisitionStage::Cancelled] as $stage) {
         shortlist(screeningRequisition($stage))->assertForbidden();
     }
 
     expect(Candidate::query()->count())->toBe(0);
+});
+
+it('keeps screening open once interviews have started, so more candidates can be added', function () {
+    $requisition = screeningRequisition(RequisitionStage::Interview);
+
+    $this->actingAs($this->hr)->put(route('recruitment.applicants.update', $requisition), ['applicants_count' => 120])->assertRedirect();
+    shortlist($requisition)->assertSessionDoesntHaveErrors();
+    shortlist($requisition, ['name' => 'Ani', 'phone' => '081200000009', 'email' => null])->assertSessionDoesntHaveErrors();
+
+    expect($requisition->refresh()->applicants_count)->toBe(120)
+        ->and($requisition->candidates()->count())->toBe(2);
+
+    $this->actingAs($this->hr)->get(route('recruitment.show', $requisition))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('requisition.canManageScreening', true)
+            ->where('requisition.canAdvanceToInterview', false)
+            ->where('requisition.tabs.2.state', 'done'));
+
+    $this->actingAs($this->hr)->post(route('recruitment.interview', $requisition))->assertForbidden();
+    shortlist($requisition, as: $this->requester)->assertForbidden();
+
+    // An offer that falls through needs more candidates too.
+    $offer = screeningRequisition(RequisitionStage::Offer);
+    shortlist($offer, ['phone' => '081200000010', 'email' => null, 'name' => 'Dewi'])->assertSessionDoesntHaveErrors();
+    expect($offer->candidates()->count())->toBe(1);
 });
 
 it('keeps the names to HR and gives everyone else the counts', function () {

@@ -20,7 +20,7 @@ const selectClasses =
     'border-input bg-card h-10 rounded-xl border px-3 text-sm';
 
 /** A copy button: puts the text on the clipboard and says so for a moment. */
-function CopyButton({
+export function CopyButton({
     label,
     text,
     testId,

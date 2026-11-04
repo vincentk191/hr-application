@@ -11,6 +11,7 @@ use App\Http\Controllers\AttendancePunchController;
 use App\Http\Controllers\AttendanceRecapController;
 use App\Http\Controllers\AttendanceRekapController;
 use App\Http\Controllers\CalendarEventController;
+use App\Http\Controllers\CandidateFormController;
 use App\Http\Controllers\CompanySwitcherController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeeAccountController;
@@ -40,6 +41,13 @@ Route::middleware('guest')->group(function () {
     Route::post('register', [AccountRegistrationController::class, 'store'])
         ->middleware('throttle:register')
         ->name('register.store');
+});
+
+// The candidate form, reached from the personal link in an interview invitation (REC-INT). No sign-in: the link is the
+// credential (a long random token, kept hashed, single use, lapsing after a week), and both routes are throttled.
+Route::middleware('throttle:candidate-form')->group(function () {
+    Route::get('lamaran/{token}', [CandidateFormController::class, 'show'])->name('candidate-form.show');
+    Route::post('lamaran/{token}', [CandidateFormController::class, 'store'])->name('candidate-form.store');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -100,6 +108,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('recruitment/{requisition}/candidates', [RequisitionController::class, 'storeCandidate'])->name('recruitment.candidates.store');
     Route::delete('recruitment/{requisition}/candidates/{candidate}', [RequisitionController::class, 'destroyCandidate'])->scopeBindings()->name('recruitment.candidates.destroy');
     Route::get('recruitment/{requisition}/candidates/{candidate}/cv', [RequisitionController::class, 'candidateCv'])->scopeBindings()->name('recruitment.candidates.cv');
+    Route::post('recruitment/{requisition}/candidates/{candidate}/invitation', [RequisitionController::class, 'inviteCandidate'])->scopeBindings()->name('recruitment.candidates.invite');
     Route::post('recruitment/{requisition}/interview', [RequisitionController::class, 'advanceToInterview'])->name('recruitment.interview');
     Route::post('recruitment/{requisition}/cancel', [RequisitionController::class, 'cancel'])->name('recruitment.cancel');
     Route::post('recruitment/{requisition}/comments', [RequisitionController::class, 'comment'])->name('recruitment.comments.store');

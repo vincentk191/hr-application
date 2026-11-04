@@ -3,6 +3,7 @@
 namespace App\Support\Notifications;
 
 use App\Enums\Permission;
+use App\Models\Candidate;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
 use App\Models\LeaveRequest;
@@ -345,6 +346,23 @@ class Notifier
             "Alasan: {$reason}",
             route('recruitment.show', $requisition, absolute: false),
         ));
+    }
+
+    /**
+     * A candidate filled in the form from their interview invitation (REC-INT): tell HR, who see it on the requisition.
+     */
+    public function candidateFormSubmitted(Requisition $requisition, Candidate $candidate): void
+    {
+        $notice = new InAppNotice(
+            'recruitment',
+            "{$candidate->name} mengisi formulir: {$requisition->position_name}",
+            "{$requisition->reference()} · jawaban checklist tersedia di tahap Interview.",
+            route('recruitment.show', $requisition, absolute: false),
+        );
+
+        foreach ($this->hrAdmins($requisition->company_id) as $hr) {
+            $hr->notify($notice);
+        }
     }
 
     /**

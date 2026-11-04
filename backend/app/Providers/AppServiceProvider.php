@@ -145,6 +145,9 @@ class AppServiceProvider extends ServiceProvider
      */
     protected function configureApiRateLimiting(): void
     {
+        // The candidate form is open to anyone holding a link, so it is limited per address (REC-INT).
+        RateLimiter::for('candidate-form', fn (Request $request): Limit => Limit::perMinute(20)->by((string) $request->ip()));
+
         RateLimiter::for('attendance-ingest', function (Request $request): Limit {
             $agent = Auth::guard('sanctum')->user();
             $token = $agent instanceof AttendanceAgent ? $agent->currentAccessToken() : null;
