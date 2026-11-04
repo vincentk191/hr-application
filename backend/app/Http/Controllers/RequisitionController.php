@@ -2,11 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Recruitment\AddCandidate;
+use App\Actions\Recruitment\AdvanceToInterview;
 use App\Actions\Recruitment\AdvanceToPosting;
 use App\Actions\Recruitment\AdvanceToScreening;
 use App\Actions\Recruitment\CancelRequisition;
 use App\Actions\Recruitment\DecideRequisition;
+use App\Actions\Recruitment\RemoveCandidate;
 use App\Actions\Recruitment\RemovePosting;
+use App\Actions\Recruitment\SaveApplicantCount;
 use App\Actions\Recruitment\SavePosting;
 use App\Actions\Recruitment\SaveRequisitionDraft;
 use App\Actions\Recruitment\SaveSalaryExpectation;
@@ -15,15 +19,18 @@ use App\Enums\EmploymentStatus;
 use App\Enums\EmploymentType;
 use App\Enums\RequisitionStage;
 use App\Enums\Role;
+use App\Http\Requests\AddCandidateRequest;
 use App\Http\Requests\DecideRequisitionRequest;
 use App\Http\Requests\SavePostingRequest;
 use App\Http\Requests\SaveRequisitionRequest;
 use App\Models\Branch;
+use App\Models\Candidate;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Requisition;
 use App\Models\RequisitionPosting;
 use App\Models\User;
+use App\Support\Files\InlineImage;
 use App\Support\Notifications\Notifier;
 use App\Support\Recruitment\RequisitionDepartments;
 use App\Support\Recruitment\RequisitionPresenter;
@@ -34,9 +41,11 @@ use App\Workflows\WorkflowEngine;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Recruitment, first slice: a supervisor or HR raises a requisition, Management and then HR approve it, and HR
@@ -62,7 +71,7 @@ class RequisitionController extends Controller
         $visible = fn (): Builder => Requisition::query()->visibleTo($user);
 
         $requisitions = $visible()
-            ->with(['department:id,name', 'branch:id,name', 'creator:id,name', 'workflow.steps', 'postings'])
+            ->with(['department:id,name', 'branch:id,name', 'creator:id,name', 'workflow.steps', 'postings', 'candidates:id,requisition_id'])
             ->when($filters['status'] === 'open', fn (Builder $query) => $query->open())
             ->when(! in_array($filters['status'], ['open', 'all'], true), fn (Builder $query) => $query->whereHas('workflow', fn (Builder $workflow) => $workflow->where('current_stage', $filters['status'])))
             ->when($filters['department'] !== null, fn (Builder $query) => $query->whereHas('department', fn (Builder $department) => $department->where('name', $filters['department'])))
@@ -311,6 +320,84 @@ class RequisitionController extends Controller
         }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => "{$requisition->reference()} lanjut ke tahap Screening."]);
+
+        return back();
+    }
+
+    /**
+     * HR enters the total number of applicants, across every platform (REC-SCR). Only the number is kept.
+     */
+    public function updateApplicants(Request $request, Requisition $requisition, SaveApplicantCount $save): RedirectResponse
+    {
+        $this->authorize('manageScreening', $requisition);
+
+        $validated = $request->validate(
+            ['applicants_count' => ['required', 'integer', 'min:0', 'max:100000']],
+            ['applicants_count.required' => 'Isi jumlah pelamar.', 'applicants_count.integer' => 'Jumlah pelamar harus angka bulat.', 'applicants_count.min' => 'Jumlah pelamar tidak boleh negatif.', 'applicants_count.max' => 'Jumlah pelamar terlalu besar.'],
+        );
+
+        $save->handle($requisition, (int) $validated['applicants_count']);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Jumlah pelamar disimpan.']);
+
+        return back();
+    }
+
+    /**
+     * "Tambah ke shortlist": HR shortlists a candidate from what the platform showed (REC-SCR).
+     */
+    public function storeCandidate(AddCandidateRequest $request, Requisition $requisition, AddCandidate $add): RedirectResponse
+    {
+        $candidate = $add->handle(
+            $requisition,
+            $request->candidateFields(),
+            $request->user(),
+            $request->file('cv'),
+            $request->boolean('confirm_duplicate'),
+        );
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "{$candidate->name} masuk shortlist."]);
+
+        return back();
+    }
+
+    public function destroyCandidate(Requisition $requisition, Candidate $candidate, RemoveCandidate $remove): RedirectResponse
+    {
+        $this->authorize('manageScreening', $requisition);
+
+        $remove->handle($candidate);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Kandidat dihapus dari shortlist.']);
+
+        return back();
+    }
+
+    /**
+     * A candidate's CV, from the private disk. A picture can be looked at in the page with `?inline=1`.
+     */
+    public function candidateCv(Request $request, Requisition $requisition, Candidate $candidate): StreamedResponse
+    {
+        $this->authorize('viewCandidates', $requisition);
+
+        abort_unless($candidate->cv_path !== null && Storage::disk(Candidate::CV_DISK)->exists($candidate->cv_path), 404);
+
+        return InlineImage::serve($request, Candidate::CV_DISK, $candidate->cv_path, (string) $candidate->cv_name);
+    }
+
+    /**
+     * "Lanjut ke Interview ›" (REC-SCR), refused until somebody is shortlisted.
+     */
+    public function advanceToInterview(Request $request, Requisition $requisition, AdvanceToInterview $advance): RedirectResponse
+    {
+        $this->authorize('manageScreening', $requisition);
+
+        try {
+            $advance->handle($requisition, $request->user());
+        } catch (TransitionBlocked $blocked) {
+            throw ValidationException::withMessages(['advance' => $blocked->getMessage()]);
+        }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "{$requisition->reference()} lanjut ke tahap Interview."]);
 
         return back();
     }

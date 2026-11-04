@@ -20,12 +20,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { WorkflowDiscussion } from '@/components/workflow-discussion';
 import { PostingTab } from '@/components/requisition-posting';
+import { ScreeningTab } from '@/components/requisition-screening';
 import {
     advance,
     cancel,
     decide,
     edit,
     index,
+    interview,
     salary,
     screening,
 } from '@/routes/recruitment';
@@ -211,7 +213,7 @@ function SubmittedTab({ item }: { item: Requisition }) {
 }
 
 /**
- * A requisition on its pipeline (REC-PIP). It opens on its current stage (REC-PIP-005). Stages 01 and 02 are built;
+ * A requisition on its pipeline (REC-PIP). It opens on its current stage (REC-PIP-005). Stages 01 to 03 are built;
  * the later stages are filled in by the slices that follow.
  */
 export default function RequisitionShow({
@@ -386,6 +388,35 @@ export default function RequisitionShow({
                   },
               ]
             : []),
+        ...(item.canManageScreening
+            ? [
+                  {
+                      key: 'interview',
+                      label: 'Lanjut ke Interview ›',
+                      short: 'Lanjut',
+                      rank: item.interviewBlockers.length === 0 ? 1 : 3,
+                      render: (label: string, className?: string) => (
+                          <Button
+                              data-test="advance-interview"
+                              className={className}
+                              disabled={item.interviewBlockers.length > 0}
+                              title={
+                                  item.interviewBlockers.join(' ') || undefined
+                              }
+                              onClick={() =>
+                                  router.post(
+                                      interview(item.id).url,
+                                      {},
+                                      { preserveScroll: true },
+                                  )
+                              }
+                          >
+                              {label}
+                          </Button>
+                      ),
+                  },
+              ]
+            : []),
         ...(item.canCancel
             ? [
                   {
@@ -521,6 +552,8 @@ export default function RequisitionShow({
                     </>
                 ) : tab === 'posting' ? (
                     <PostingTab item={item} />
+                ) : tab === 'screening' ? (
+                    <ScreeningTab item={item} />
                 ) : (
                     <section className="surface p-6 text-sm text-muted-foreground">
                         Tahap ini disiapkan pada tahap pengembangan berikutnya.

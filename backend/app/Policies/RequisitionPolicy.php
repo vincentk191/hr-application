@@ -117,6 +117,24 @@ class RequisitionPolicy
     }
 
     /**
+     * Candidates are personal data: only HR sees who was shortlisted. Everyone else who can see the requisition sees
+     * the counts.
+     */
+    public function viewCandidates(User $user, Requisition $requisition): bool
+    {
+        return $user->can(Permission::ManageRecruitment->value) && $user->canAccessCompany($requisition->company_id);
+    }
+
+    /**
+     * Entering the applicant total, shortlisting and moving on to Interview are HR's while the requisition is at
+     * 03 Screening (REC-SCR).
+     */
+    public function manageScreening(User $user, Requisition $requisition): bool
+    {
+        return $requisition->stage() === RequisitionStage::Screening && $this->viewCandidates($user, $requisition);
+    }
+
+    /**
      * Calling a requisition off is HR's, once it is out of approval and until it is filled (REC-PST-004). Before
      * that a rejection already sends it back to its requester.
      */

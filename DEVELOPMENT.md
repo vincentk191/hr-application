@@ -42,10 +42,10 @@ left uncommitted for review.
 | Phase 1         | Directory (Cabang, CSV import/export, list/grid/org chart, phone layout), profile, add/edit, reactivation, documents, admin panel |
 | Phase 2         | Manual import of the Fingerspot export, branch rekap import, Zona and potongan, calendar, holidays/events, recap with Excel export, issues, timesheet corrections. The ingest API and on-site agents are built but switched off (`FEATURE_ATTENDANCE_AGENTS`) |
 | Phase 3         | Pengajuan end to end (types, timeframe, attachments, queue with filters/export/badge), leave on the calendar's side panel, in-app notices |
-| Phase 4         | First slice (2026-10-28, branch `feature/recruitement`): requisition dashboard, 3-step wizard, pipeline tracker, stage 01 approval (Management with the salary expectation, then HR), "Lanjut ke Posting". Stage 02 Posting (2026-11-04, manual): copy shortcuts, platform records, cancel. Stages 03-06 not built |
+| Phase 4         | First slice (2026-10-28, branch `feature/recruitement`): requisition dashboard, 3-step wizard, pipeline tracker, stage 01 approval (Management with the salary expectation, then HR), "Lanjut ke Posting". Stage 02 Posting (2026-11-04, manual): copy shortcuts, platform records, cancel. Stage 03 Screening (2026-11-04): applicant total, shortlist quick-add. Stages 04-06 not built |
 | Phase 5         | Offboarding end to end: wizard, Management approval, checklist, sign-off, exit, berita acara, Cabang filter, phone action bar |
 | Phase 7         | Server stack, VPN, backups with an admin page, non-superuser database login, security headers and limits      |
-| Not built       | Recruitment stages 03-06 (plan revised 2026-11-04: manual posting, shortlist quick-add, invitation to an in-app form; no public career page); Home KPIs; employee app (Web Push, API); CSP, Ghostscript sandbox, narrowing `web`'s `storage` mount |
+| Not built       | Recruitment stages 04-06 (plan revised 2026-11-04: manual posting, shortlist quick-add, invitation to an in-app form; no public career page); Home KPIs; employee app (Web Push, API); CSP, Ghostscript sandbox, narrowing `web`'s `storage` mount |
 
 ---
 
@@ -68,6 +68,38 @@ left uncommitted for review.
 ---
 
 ## Change log (latest first)
+
+- **2026-11-04 (recruitment stage 03, Screening; branch `feature/recruitement`).** Migration `create_candidates_table`
+  (`candidates`: requisition, name, phone and `phone_key`, lower-cased email, source, note, optional CV path/name/size,
+  who added it) and `requisitions.applicants_count`. `CandidateSource` (the platforms, Walk-in, Referral, Lainnya),
+  model `Candidate` (`phoneKey()` reads 0812-…, +62 812…, 62812… and 812… as one number), actions `SaveApplicantCount`,
+  `AddCandidate`, `RemoveCandidate`, `AdvanceToInterview`, guard `HasShortlist` on the Interview stage, policy
+  `viewCandidates`, `manageScreening`, routes `recruitment.applicants.update`, `recruitment.candidates.*`,
+  `recruitment.interview`. Screen: `components/requisition-screening.tsx`, `lib/applicant-paste.ts`.
+  - **Model of the stage (decided 2026-11-04):** screening is done inside the platforms. HR enters **one total** of
+    applicants (a bare count) and **shortlists** the ones worth taking further; applicants who are not shortlisted are
+    never stored. The screen shows total, shortlisted and the share that passed.
+  - **Quick-add:** name, phone/WhatsApp and/or email (one of them is required, the phone must be a plausible number),
+    source (defaults to the first platform the listing was posted on and stays between entries), optional note and CV
+    (PDF, JPG/PNG/WebP, Word; 5 MB; on the private disk, a picture opens in the preview pop-up). After saving, the form
+    empties and the cursor returns to the name. **"Isi otomatis":** HR pastes the text of the applicant's card and the
+    phone and email are detected by shape; the name is a guess (a line after "Nama:", else the first name-like line) that
+    HR confirms; nothing is saved from the paste itself.
+  - **Duplicates:** the same phone number (however written) or email already shortlisted anywhere in the company stops
+    the save with a message naming the other requisition; "Ini orang yang berbeda, simpan tetap" saves anyway.
+  - **Total vs shortlist:** the total cannot be set below the shortlist, and adding a candidate raises a total that
+    would fall below it (everyone shortlisted applied). Removing someone deletes the row and the CV file.
+  - **Who sees what:** the names, contacts and CVs are **HR only** (`manage-recruitment`); the requester and Management
+    see the counts and a note that the list is HR's. The dashboard's "Kand." column shows the shortlist size from
+    Screening on, and the status line reads "N pelamar · M shortlist".
+  - **Lanjut ke Interview:** HR only, shut until at least one candidate is shortlisted. Stage 04 itself is not built,
+    so it opens the placeholder. Cancelling works at this stage as before.
+  - **Checked:** `RequisitionScreeningTest` (14 cases) with the posting and requisition tests (63 pass); Pint, TypeScript and
+    the formatter clean; PHPStan clean on the touched files. The paste reader was checked by hand on two sample texts only.
+  - **Not done:** the invitation by email, the in-app candidate form and Google Meet (stage 04); the candidate's
+    yes/no checklist; a candidate status. The generated Wayfinder output must go to `frontend/src` (run it from the
+    `frontend` folder, or let `npm run dev` do it); `backend/resources/js` is now ignored after it was committed by
+    mistake and removed.
 
 - **2026-11-04 (UI adjustments).** (1) Home dashboard, "Pengajuan berjalan": each row (phone card and desktop table row,
   also by keyboard) opens that request's dialog on the Pengajuan page (`?open=ID`, as a search result does). (2) Posting
@@ -1226,7 +1258,7 @@ and the scheduling automation.
   is what the candidate form on cmp.id will pre-fill and score against (REC-CAR-002, REC-SCR-006), so its shape is the
   contract to hold steady.
 
-**Revised 2026-11-04, stages 02-04 (decided; stage 02 built the same day, 03 and 04 not yet).** The job platforms (Glints, JobStreet and the
+**Revised 2026-11-04, stages 02-04 (decided; stages 02 and 03 built the same day, 04 not yet).** The job platforms (Glints, JobStreet and the
 others) are on free accounts, which have no bulk export or API, and the original plan (candidates applying on a public
 form on cmp.id, then ranked in the app) would have put a public door and every applicant's personal data in the app.
 Screening now happens inside the platforms, and the app only meets the people HR shortlists:
@@ -1257,10 +1289,10 @@ Screening now happens inside the platforms, and the app only meets the people HR
 | `REC-WIZ`                         | Requisition wizard shell    | 6   | 4   | 🟡     | Built 10-28: stepper, Sebelumnya/Selanjutnya keeping the values, Simpan Draft at any step (back to the dashboard), resume at the saved step, edit while sent and undecided (005). Not yet: fast-track flag (006) |
 | `REC-WZ1` · `REC-WZ2` · `REC-WZ3` | Wizard steps 01–03          | 8   | 7   | ✅     | Built 10-28, reworked the same day to the design's fixed template (see the Phase 4 notes). Step 1 "The ask": Posisi, Departemen, Cabang (optional, added), Jumlah kuota (whole, ≥ 1), Tipe kontrak (+ months for Kontrak/Magang), Atasan langsung, Target mulai kerja (never in the past), Alasan permintaan. Step 2: the job posting (Tentang Posisi, Tanggung Jawab Utama with the requester's own subtitles, Benefit & Fasilitas) and the candidate checklist (Kualifikasi, Skills, Nilai Plus). Step 3: one review page, then "Ajukan untuk Persetujuan" builds the chain. `REC-WZ2-002`'s requirement list is now the checklist; its base is the admin template (`REC-TPL-001`) |
 | `REC-TPL`                         | Templates (admin)           | 1   | 0   | 🟡     | Built 10-28: admin page **Template rekrutmen** (parent-wide HR Admin) holds the base lines for Benefit & Fasilitas and for each fixed checklist subtitle (Pendidikan, Pengalaman, Hard Skills, Soft Skills, Nilai Plus); a new requisition copies them. The sections and subtitles themselves are fixed in code |
-| `REC-PIP`                         | Requisition pipeline        | 6   | 4   | 🟡     | Built 10-28: header and breadcrumb, 6-stage tracker with the date each was reached, locked future stages, forward-only (`RequisitionWorkflow`), opens on the current stage, status line (006). Stage 02 is built (11-04); stages 03-06 show a placeholder. A cancelled requisition keeps the stages it reached open |
+| `REC-PIP`                         | Requisition pipeline        | 6   | 4   | 🟡     | Built 10-28: header and breadcrumb, 6-stage tracker with the date each was reached, locked future stages, forward-only (`RequisitionWorkflow`), opens on the current stage, status line (006). Stages 02 and 03 are built (11-04); stages 04-06 show a placeholder. A cancelled requisition keeps the stages it reached open |
 | `REC-APR`                         | Stage 01 Approval           | 9   | 5   | ✅     | Built 10-28: chain Manajemen → HR (decided 2026-10-28, see Phase 4 notes), "Setujui sebagai …", reject with a reason back to a draft, "Lanjut ke Posting" gated on every approval, Edit, "Diajukan <date> oleh <requester>", Ekspektasi Gaji required for Management's approval with "Simpan" before it (007/008), comment thread (009) |
 | `REC-PST`                         | Stage 02 Posting            | 7   | 4   | ✅     | Built 11-04 (revised plan: manual, no cmp-api push): copy buttons (Judul, Deskripsi, Persyaratan, Semua), "Tandai sudah diposting" per platform with date and optional link, correct/remove, "Lanjut ke Screening" once one is recorded, "Batalkan lowongan" with a reason (PST-004) |
-| `REC-SCR`                         | Stage 03 Screening          | 8   | 4   | ⬜     | Revised 11-04: total-applicants count + quick-add of shortlisted candidates (duplicate warning, paste-to-autofill). No ranking (about M) |
+| `REC-SCR`                         | Stage 03 Screening          | 8   | 4   | ✅     | Built 11-04 (revised plan): total-applicants count, quick-add of shortlisted candidates (duplicate warning, paste-to-autofill, optional CV), shortlist list, "Lanjut ke Interview". No ranking. Candidate list is HR-only |
 | `REC-INT`                         | Stage 04 Interview          | 8   | 3   | ⬜     | Revised 11-04: email invitation with a single-use link to the in-app candidate form (checklist moves there), WhatsApp copy text as fallback, Google Meet, reschedule (XL) |
 | `REC-OFS`                         | Stage 05 Offer              | 9   | 8   | ⬜     | Management final approval + offer letter                    |
 | `REC-FIL`                         | Stage 06 Filled             | 7   | 6   | ⬜     | Convert-to-employee (L). Creates the profile the hire then registers against (`CORE-REG`); until this exists HR creates profiles by hand or CSV |

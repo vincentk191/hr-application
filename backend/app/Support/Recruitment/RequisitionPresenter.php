@@ -2,16 +2,19 @@
 
 namespace App\Support\Recruitment;
 
+use App\Enums\CandidateSource;
 use App\Enums\JobPlatform;
 use App\Enums\Permission;
 use App\Enums\RequisitionStage;
 use App\Enums\Role;
 use App\Http\Requests\SaveRequisitionRequest;
+use App\Models\Candidate;
 use App\Models\Requisition;
 use App\Models\RequisitionPosting;
 use App\Models\User;
 use App\Models\WorkflowStep;
 use App\Models\WorkflowTransition;
+use App\Support\Files\InlineImage;
 use App\Workflows\WorkflowEngine;
 
 /**
@@ -36,9 +39,9 @@ class RequisitionPresenter
             'department' => $requisition->department?->name,
             'branch' => $requisition->branch?->name,
             'quota' => $requisition->quota,
-            // Nobody is hired yet: candidates arrive with stage 03, offers with stage 05.
+            // Nobody is hired yet: offers come with stage 05. Candidates are the shortlist, from stage 03 on.
             'filled' => 0,
-            'candidates' => null,
+            'candidates' => $this->reachedScreening($stage) ? $requisition->candidates->count() : null,
             'stage' => $stage->value,
             'stageLabel' => $stage->label(),
             'step' => $this->stepNumber($stage),
@@ -112,6 +115,15 @@ class RequisitionPresenter
                 'postedOn' => $posting->posted_on->toDateString(),
                 'postedBy' => $posting->postedBy?->name,
             ])->values()->all(),
+            'applicantsCount' => $requisition->applicants_count,
+            'shortlistedCount' => $requisition->candidates->count(),
+            // Personal data: only HR sees who was shortlisted; everyone else sees the counts.
+            'shortlist' => $viewer->can('viewCandidates', $requisition) ? $this->candidates($requisition) : null,
+            'sourceOptions' => array_map(fn (CandidateSource $source): array => ['value' => $source->value, 'label' => $source->label()], CandidateSource::cases()),
+            'interviewBlockers' => $stage === RequisitionStage::Screening
+                ? $this->engine->blockingReasons($requisition->workflow, RequisitionStage::Interview)
+                : [],
+            'canManageScreening' => $viewer->can('manageScreening', $requisition),
             // The company's today, which the posting date may not pass.
             'today' => SaveRequisitionRequest::today()->toDateString(),
             'platformOptions' => array_map(fn (JobPlatform $platform): array => ['value' => $platform->value, 'label' => $platform->label()], JobPlatform::cases()),
@@ -188,6 +200,41 @@ class RequisitionPresenter
     }
 
     /**
+     * The shortlist, oldest first, with where each CV can be opened.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function candidates(Requisition $requisition): array
+    {
+        $requisition->loadMissing('candidates.addedBy:id,name');
+
+        return array_values($requisition->candidates->map(function (Candidate $candidate) use ($requisition): array {
+            $cvUrl = $candidate->cv_path === null ? null : route('recruitment.candidates.cv', [$requisition, $candidate]);
+
+            return [
+                'id' => $candidate->id,
+                'name' => $candidate->name,
+                'phone' => $candidate->phone,
+                'email' => $candidate->email,
+                'source' => $candidate->source->value,
+                'sourceLabel' => $candidate->sourceLabel(),
+                'note' => $candidate->note,
+                'addedOn' => $candidate->created_at?->toDateString(),
+                'addedBy' => $candidate->addedBy?->name,
+                'cvName' => $candidate->cv_name,
+                'cvSize' => $candidate->cv_size,
+                'cvUrl' => $cvUrl,
+                'cvPreviewUrl' => $cvUrl === null ? null : InlineImage::previewUrl($cvUrl, (string) $candidate->cv_name),
+            ];
+        })->all());
+    }
+
+    private function reachedScreening(RequisitionStage $stage): bool
+    {
+        return in_array($stage, [RequisitionStage::Screening, RequisitionStage::Interview, RequisitionStage::Offer, RequisitionStage::Filled, RequisitionStage::Cancelled], true);
+    }
+
+    /**
      * Where posting stands: not posted anywhere yet, or the platforms it is on.
      */
     private function postingStatus(Requisition $requisition): string
@@ -206,6 +253,7 @@ class RequisitionPresenter
             return match ($stage) {
                 RequisitionStage::Draft => $requisition->submitted_at === null ? 'Draft' : 'Dikembalikan ke pemohon',
                 RequisitionStage::Posting => $this->postingStatus($requisition),
+                RequisitionStage::Screening => ($requisition->applicants_count === null ? '—' : $requisition->applicants_count).' pelamar · '.$requisition->candidates->count().' shortlist',
                 default => $stage->label(),
             };
         }

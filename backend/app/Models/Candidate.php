@@ -1,0 +1,115 @@
+<?php
+
+namespace App\Models;
+
+use App\Concerns\BelongsToCompany;
+use App\Enums\CandidateSource;
+use Database\Factories\CandidateFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
+
+/**
+ * Someone HR shortlisted for a requisition (REC-SCR). Applicants who were not shortlisted are never stored, so a
+ * row here is a person HR chose to take further. The CV, when given, is on the private disk.
+ *
+ * @property int $id
+ * @property int $company_id
+ * @property int $requisition_id
+ * @property string $name
+ * @property string|null $phone
+ * @property string|null $phone_key
+ * @property string|null $email
+ * @property CandidateSource $source
+ * @property string|null $source_name
+ * @property string|null $note
+ * @property string|null $cv_path
+ * @property string|null $cv_name
+ * @property int|null $cv_size
+ * @property int|null $added_by_user_id
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ */
+#[Fillable([
+    'company_id',
+    'requisition_id',
+    'name',
+    'phone',
+    'phone_key',
+    'email',
+    'source',
+    'source_name',
+    'note',
+    'cv_path',
+    'cv_name',
+    'cv_size',
+    'added_by_user_id',
+])]
+class Candidate extends Model
+{
+    /** @use HasFactory<CandidateFactory> */
+    use BelongsToCompany, HasFactory;
+
+    /** The private disk and folder the CVs are kept on. */
+    public const CV_DISK = 'local';
+
+    public const CV_DIRECTORY = 'candidate-cvs';
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'source' => CandidateSource::class,
+            'cv_size' => 'integer',
+        ];
+    }
+
+    /**
+     * @return BelongsTo<Requisition, $this>
+     */
+    public function requisition(): BelongsTo
+    {
+        return $this->belongsTo(Requisition::class);
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function addedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'added_by_user_id');
+    }
+
+    /**
+     * The source as the pages say it: its name, or the one HR typed for "Lainnya".
+     */
+    public function sourceLabel(): string
+    {
+        return $this->source === CandidateSource::Other
+            ? ($this->source_name ?: $this->source->label())
+            : $this->source->label();
+    }
+
+    /**
+     * A phone number as bare digits in 62… form, so "0812-3456-7890", "+62 812 3456 7890" and "62812…" are one number.
+     * Null when it is empty or cannot be a phone number (fewer than 8 or more than 15 digits).
+     */
+    public static function phoneKey(?string $phone): ?string
+    {
+        $digits = preg_replace('/\D+/', '', (string) $phone) ?? '';
+
+        $key = match (true) {
+            $digits === '' => null,
+            str_starts_with($digits, '62') => $digits,
+            str_starts_with($digits, '0') => '62'.substr($digits, 1),
+            str_starts_with($digits, '8') => '62'.$digits,
+            default => $digits,
+        };
+
+        return $key !== null && strlen($key) >= 8 && strlen($key) <= 15 ? $key : null;
+    }
+}

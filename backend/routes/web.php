@@ -96,6 +96,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('recruitment/{requisition}/postings/{posting}', [RequisitionController::class, 'updatePosting'])->scopeBindings()->name('recruitment.postings.update');
     Route::delete('recruitment/{requisition}/postings/{posting}', [RequisitionController::class, 'destroyPosting'])->scopeBindings()->name('recruitment.postings.destroy');
     Route::post('recruitment/{requisition}/screening', [RequisitionController::class, 'advanceToScreening'])->name('recruitment.screening');
+    Route::put('recruitment/{requisition}/applicants', [RequisitionController::class, 'updateApplicants'])->name('recruitment.applicants.update');
+    Route::post('recruitment/{requisition}/candidates', [RequisitionController::class, 'storeCandidate'])->name('recruitment.candidates.store');
+    Route::delete('recruitment/{requisition}/candidates/{candidate}', [RequisitionController::class, 'destroyCandidate'])->scopeBindings()->name('recruitment.candidates.destroy');
+    Route::get('recruitment/{requisition}/candidates/{candidate}/cv', [RequisitionController::class, 'candidateCv'])->scopeBindings()->name('recruitment.candidates.cv');
+    Route::post('recruitment/{requisition}/interview', [RequisitionController::class, 'advanceToInterview'])->name('recruitment.interview');
     Route::post('recruitment/{requisition}/cancel', [RequisitionController::class, 'cancel'])->name('recruitment.cancel');
     Route::post('recruitment/{requisition}/comments', [RequisitionController::class, 'comment'])->name('recruitment.comments.store');
     Route::post('recruitment/{requisition}/comments/read', [RequisitionController::class, 'markCommentsRead'])->name('recruitment.comments.read');

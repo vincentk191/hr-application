@@ -112,6 +112,25 @@ export type RequisitionPosting = {
     postedBy: string | null;
 };
 
+/** Someone HR shortlisted (REC-SCR). Only HR is given these. */
+export type Candidate = {
+    id: number;
+    name: string;
+    phone: string | null;
+    email: string | null;
+    source: string;
+    /** The source as shown: its name, or the one typed for "Lainnya". */
+    sourceLabel: string;
+    note: string | null;
+    addedOn: string | null;
+    addedBy: string | null;
+    cvName: string | null;
+    cvSize: number | null;
+    cvUrl: string | null;
+    /** Set when the CV is a picture, which can be looked at without downloading. */
+    cvPreviewUrl: string | null;
+};
+
 /** A requisition on its pipeline, or in the wizard (REC-PIP, REC-WIZ). */
 export type Requisition = RequisitionRow & {
     departmentId: number;
@@ -148,6 +167,15 @@ export type Requisition = RequisitionRow & {
     cancelledReason: string | null;
     cancelledAt: string | null;
     cancelledBy: string | null;
+    /** The total number of applicants HR entered; null until then. */
+    applicantsCount: number | null;
+    shortlistedCount: number;
+    /** The shortlist; null for anyone but HR, who see the counts only. */
+    shortlist: Candidate[] | null;
+    sourceOptions: PlatformOption[];
+    /** Why "Lanjut ke Interview" is not open yet. */
+    interviewBlockers: string[];
+    canManageScreening: boolean;
     canManagePostings: boolean;
     canCancel: boolean;
     canEdit: boolean;
