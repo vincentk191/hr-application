@@ -18,6 +18,8 @@ declare module '@inertiajs/core' {
             companySwitcher: CompanySwitcher | null;
             branding: Branding | null;
             notifications: NotificationSummary | null;
+            /** The public half of the server's Web Push key, or null where push is not set up. */
+            push: { publicKey: string | null };
             /** Requests waiting on the signed-in person: the badge on "Pengajuan". */
             pendingForMe: number;
             /** Open offboarding cases this person may see: the badge on "Offboarding". */

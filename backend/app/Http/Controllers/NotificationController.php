@@ -34,6 +34,9 @@ class NotificationController extends Controller
                 'total' => $notifications->total(),
             ],
             'filter' => $filter,
+            // The browsers and phones this person has turned push on for; the page compares them with the one in
+            // front of it, which may still hold the subscription of whoever used it before.
+            'pushEndpoints' => $user->pushSubscriptions()->pluck('endpoint')->all(),
         ]);
     }
 

@@ -28,6 +28,7 @@ class PublicRoutes
         // The person's own pages.
         'dashboard', 'search', 'active-company.update',
         'notifications.index', 'notifications.open', 'notifications.read-all',
+        'push-subscriptions.store', 'push-subscriptions.destroy', 'push-subscriptions.test',
         'leave-requests.index', 'leave-requests.create', 'leave-requests.store', 'leave-requests.edit', 'leave-requests.update', 'leave-requests.export',
         'leave-attachments.download',
         'employees.show', 'employees.edit', 'employees.update', 'employees.summary', 'employees.changes.create', 'employees.changes.store',

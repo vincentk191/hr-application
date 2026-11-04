@@ -27,6 +27,7 @@ use App\Http\Controllers\OffboardingCaseController;
 use App\Http\Controllers\OffboardingChecklistController;
 use App\Http\Controllers\OffboardingSignOffController;
 use App\Http\Controllers\ProfileChangeRequestController;
+use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\RequisitionController;
 use App\Http\Controllers\SearchController;
 use Illuminate\Support\Facades\Route;
@@ -185,6 +186,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
     Route::get('notifications/{notification}', [NotificationController::class, 'open'])->name('notifications.open');
+
+    Route::post('push-subscriptions', [PushSubscriptionController::class, 'store'])->name('push-subscriptions.store');
+    Route::delete('push-subscriptions', [PushSubscriptionController::class, 'destroy'])->name('push-subscriptions.destroy');
+    Route::post('push-subscriptions/test', [PushSubscriptionController::class, 'test'])->name('push-subscriptions.test');
 
     Route::get('leave-requests', [LeaveRequestController::class, 'index'])->name('leave-requests.index');
     Route::get('leave-requests/export', [LeaveRequestController::class, 'export'])->name('leave-requests.export');

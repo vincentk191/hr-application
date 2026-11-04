@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Sanctum\HasApiTokens;
+use NotificationChannels\WebPush\HasPushSubscriptions;
 use Spatie\Permission\Traits\HasRoles;
 
 /**
@@ -48,7 +49,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable implements FilamentUser, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable, TwoFactorAuthenticatable;
+    use HasApiTokens, HasFactory, HasPushSubscriptions, Notifiable, TwoFactorAuthenticatable;
 
     use HasRoles {
         checkPermissionTo as private permissionCheckedByRoles;
@@ -78,6 +79,7 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         static::saved(function (self $user): void {
             if ($user->wasChanged('is_active') && ! $user->is_active) {
                 $user->revokeAccess();
+                $user->pushSubscriptions()->delete();
             }
         });
     }

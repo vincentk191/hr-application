@@ -172,11 +172,11 @@ it('puts the number waiting on you on every page, for the menu badge', function 
 it('opens the new-request form already filled in for the employee and day it was sent from', function () {
     $props = $this->actingAs($this->hr)->get('/leave-requests/create?employee='.$this->budi->id.'&date=2026-10-06')->assertOk()->viewData('page')['props'];
 
-    expect($props['prefill'])->toBe(['employeeId' => $this->budi->id, 'date' => '2026-10-06']);
+    expect($props['prefill'])->toBe(['employeeId' => $this->budi->id, 'date' => '2026-10-06', 'type' => null]);
 });
 
 it('opens the new-request form empty, and ignores a date that is not one', function () {
     $props = $this->actingAs($this->hr)->get('/leave-requests/create?date=besok&employee=abc')->assertOk()->viewData('page')['props'];
 
-    expect($props['prefill'])->toBe(['employeeId' => null, 'date' => null]);
+    expect($props['prefill'])->toBe(['employeeId' => null, 'date' => null, 'type' => null]);
 });

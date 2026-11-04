@@ -97,6 +97,8 @@ class HandleInertiaRequests extends Middleware
             // The header bell: how many are unread and the latest few. Lazy, so a request that does not
             // render a page (a redirect) never pays for it.
             'notifications' => fn (): ?array => $this->notifications($request),
+            // The public half of the VAPID pair, which a browser needs to subscribe to push; null where push is not set up.
+            'push' => fn (): array => ['publicKey' => filled(config('webpush.vapid.private_key')) ? config('webpush.vapid.public_key') : null],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }
