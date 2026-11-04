@@ -45,7 +45,7 @@ left uncommitted for review.
 | Phase 4         | First slice (2026-10-28, branch `feature/recruitement`): requisition dashboard, 3-step wizard, pipeline tracker, stage 01 approval (Management with the salary expectation, then HR), "Lanjut ke Posting". Stage 02 Posting (2026-11-04, manual): copy shortcuts, platform records, cancel. Stage 03 Screening (2026-11-04): applicant total, shortlist quick-add. Stage 04 Interview (2026-11-04): invitation by email/WhatsApp text, public single-use candidate form. Stages 05-06 not built |
 | Phase 5         | Offboarding end to end: wizard, Management approval, checklist, sign-off, exit, berita acara, Cabang filter, phone action bar |
 | Phase 7         | Server stack, VPN, backups with an admin page, non-superuser database login, security headers and limits      |
-| Not built       | Recruitment stages 05-06 and the rest of 04 (reschedule, feedback) (plan revised 2026-11-04: manual posting, shortlist quick-add, invitation to an in-app form; no public career page); Home KPIs; employee app (API); CSP, Ghostscript sandbox, narrowing `web`'s `storage` mount |
+| Not built       | Recruitment stages 05-06 and the rest of 04 (reschedule, feedback) (plan revised 2026-11-04: manual posting, shortlist quick-add, invitation to an in-app form; no public career page); Home KPIs; employee app (Web Push, API); CSP, Ghostscript sandbox, narrowing `web`'s `storage` mount |
 
 ---
 
@@ -1274,7 +1274,7 @@ unapproved-absence detection needs approved-leave data.
 | `ATT-LVE`  | Absensi › Cuti         | 10  | 5   | ➖     | Built, then folded into the calendar on 2026-10-09: the on-leave side panel (`ATT-SID-004`) and the Pengajuan queue cover it. The 14-working-day chart, present-per-department bars and head-count reconciliation were dropped |
 | `EMP-REQ`  | Profile — requests tab | 2   | 2   | ✅     | The employee's requests, opening to their detail            |
 | `ATT-ISS`  | Attendance issues      | 7   | 5   | 🟡     | Six exception types (incl. a scan on approved leave), filters, bulk excuse with audit, reopen. Employee and supervisor are notified the next morning |
-| `CORE-NOT` | Notifications          | 8   | 5   | 🟡     | Bell, list, leave / attendance / document notices, and Web Push to devices that turn it on (built 2026-11-04, awaiting a test on real phones). Email is not built, by decision |
+| `CORE-NOT` | Notifications          | 8   | 5   | 🟡     | In-app only, by decision: bell, list, leave / attendance / document notices. Email and Web Push (with the PWA) are not built |
 
 **Open rules:** which kinds of request require evidence (attachments are optional today)?
 _Settled: a rejection requires a reason, and there is no annual entitlement — leave-taken only, no
@@ -1427,7 +1427,7 @@ table, the checklist and the screens.
 | ---------- | ------------------------ | --- | --- | ------ | --------------------------------------------------------------------------------------------------------- |
 | `DAS-MAI`  | Home                     | 5   | 3   | ⬜     | Cross-module KPIs — needs the modules to exist first                                                      |
 | `CORE-SRC` | Global search & settings | 4   | 3   | 🟡     | Global search is done (header box, Ctrl/⌘ K). The leave and holiday policy live in the admin panel and on the calendar; the Indonesian translation-file setup (004) is not done |
-| —          | Employee app (PWA)       | —   | —   | 🟡     | **Feasibility build 2026-10-20:** manifest, icons, service worker (offline page, built assets only, never a page or data), install banner (Android prompt, iPhone hint). Web Push added 2026-11-04 (see Notifications). Not built: the Sanctum API, saved drafts. See "PWA feasibility build" below |
+| —          | Employee app (PWA)       | —   | —   | 🟡     | **Feasibility build 2026-10-20:** manifest, icons, service worker (offline page, built assets only, never a page or data), install banner (Android prompt, iPhone hint). Not built: Web Push, the Sanctum API, saved drafts. See "PWA feasibility build" below |
 
 ### Phase 6b — Public entrance and access tiers (decided 2026-10-19; tier middleware built 2026-10-20)
 
@@ -1564,14 +1564,12 @@ feel right on real phones before building on it.
   host has no PHP, which the build needs) and needs a secure origin: `localhost` works on a desktop, a phone needs
   HTTPS (the real public hostname, or a tunnel while testing). Stop the Vite dev server so `public/hot` is gone,
   otherwise Laravel serves the dev assets and no worker is registered.
-- **Still open:** saved drafts, the Sanctum API for approvals (which will be private-entrance only), iPhone
+- **Still open:** Web Push, saved drafts, the Sanctum API for approvals (which will be private-entrance only), iPhone
   testing of the home-screen install, and what "installed" should open at.
 
-#### Web Push — scope (2026-10-22; built 2026-11-04, see Notifications)
+#### Web Push — scope (2026-10-22, not started)
 
-The plan below is what was built, except that the subscribe routes went onto the public allowlist now rather than
-waiting for the Phase 6b audit, and the subscribe prompt lives on `/notifications`, not in the install banner.
-Written before the build: the installable shell above had no push plumbing at all — `sw.js` has no
+Checked against the current code: the installable shell above has no push plumbing at all — `sw.js` has no
 `push` or `notificationclick` listener, there is no VAPID key anywhere, and `CORE-NOT` (Notifications) is
 in-app/database-channel only, by the same deliberate choice noted there and under Known gaps. This is the
 full list of what adding it touches, so the work is not picked up half-done:
@@ -2022,28 +2020,10 @@ Progress Tracking analytics (Appendix C).
   It runs through the company scope like every other screen, matches case-insensitively, and treats
   `%` and `_` as ordinary characters. It is a plain database search, not an index: fine at this scale,
   and the place to change if it ever is not.
-- **Notifications are in-app, plus Web Push to the devices that turned it on** (nothing goes by email). A bell
-  in the header shows the unread count and the latest eight, `/notifications` lists them
+- **Notifications are in-app only** (the database channel; a deliberate choice, nothing goes by email or
+  push). A bell in the header shows the unread count and the latest eight, `/notifications` lists them
   all (all / unread), and choosing one marks it read and goes where it points. They are only ever the
   signed-in person's own, and a stored link that is not a path inside the app is never followed.
-  - **Web Push (built 2026-11-04, untested on real phones).** `laravel-notification-channels/webpush` (approved
-    2026-11-04). `InAppNotice` is queued with a channel per delivery: the database copy is written at once
-    (`viaConnections`: `sync`), and the push goes through the queue (`queue:work`) only for someone with a row in
-    `push_subscriptions` and only where the VAPID keys are set, so a person with push off costs no job. Every
-    notice `Notifier` sends reaches phones by this one path; nothing was added per notice type. Tapping one opens
-    `notifications/{id}` (marks it read, then follows the notice's link). The subscription is the person's, per device
-    (`HasPushSubscriptions` on `User`); an expired one (410) is deleted by the package, a deactivated account's are
-    deleted, and a phone that someone else subscribes on moves to them. Subscribing is a card at the top of
-    `/notifications` (**Aktifkan**, **Kirim uji**, **Matikan**); routes `push-subscriptions.store|destroy|test` are
-    on the public allowlist. The endpoint must belong to a known push service (`webpush.allowed_endpoint_hosts`),
-    because the server later posts to it. `sw.js` shows the push and opens the page on a tap; it still stores
-    nothing. iPhone/iPad need the installed app (the card says so); a development build registers no worker, so the
-    card reads "unsupported" there. **Not covered:** the lock screen shows the notice text; signing out does not
-    remove the device's subscription (turn it off first on a shared phone); a push is not retried (`--tries=1`).
-  - **Keys.** `php artisan webpush:vapid` once per environment (on Windows PHP set `OPENSSL_CONF` to the
-    `openssl.cnf` beside PHP first, or it fails with "Unable to create the key"), then set `VAPID_SUBJECT` to a real
-    contact (`mailto:` or `https:`). Changing the pair later drops every subscribed device. On the server the keys
-    go in `docker/server/.env`, then rebuild.
   - **Leave:** filing or resubmitting tells the Atasan the request is waiting on, and every HR Admin that it
     exists (information only; an HR Admin who is the approver is told once); the decision
     tells the requester (and whoever filed it for them), with the reason and a link to correct a rejection.
