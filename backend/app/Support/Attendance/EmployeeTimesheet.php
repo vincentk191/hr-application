@@ -37,6 +37,10 @@ class EmployeeTimesheet
         $from = $month->startOfMonth();
         $to = $month->endOfMonth()->startOfDay();
 
+        if ($employee->attendsViaRekap()) {
+            return $this->rekapMonth($month);
+        }
+
         $result = $this->attendance->forRange($from, $to, [
             $employee->id => [
                 'joined' => $employee->joined_on?->toDateString(),
@@ -78,6 +82,7 @@ class EmployeeTimesheet
             'prev' => $month->startOfMonth()->subMonth()->format('Y-m'),
             'next' => $month->startOfMonth()->addMonth()->format('Y-m'),
             'dataThrough' => $result['dataThrough'],
+            'viaRekap' => false,
             'days' => $days,
             'totals' => [
                 'present' => $counts[AttendanceDayStatus::Present->value],
@@ -113,6 +118,10 @@ class EmployeeTimesheet
         $timezone = (string) config('attendance.device_timezone');
         $from = CarbonImmutable::create($year, 1, 1, 0, 0, 0, $timezone);
         $to = $from->endOfYear()->startOfDay();
+
+        if ($employee->attendsViaRekap()) {
+            return $this->rekapYear($year);
+        }
 
         $result = $this->attendance->forRange($from, $to, [
             $employee->id => [
@@ -163,8 +172,48 @@ class EmployeeTimesheet
             'prev' => $year - 1,
             'next' => $year + 1,
             'dataThrough' => $result['dataThrough'],
+            'viaRekap' => false,
             'months' => $months,
             'totals' => [...$sum, 'rate' => $this->rate($sum)],
+        ];
+    }
+
+    /**
+     * The month of someone whose Cabang sends a rekapitulasi: nothing is derived and no scan is shown,
+     * because the Cabang's setting decides where attendance comes from. The tab says so instead.
+     *
+     * @return array{period: 'month', month: string, label: string, prev: string, next: string, dataThrough: string|null, viaRekap: true, days: list<never>, totals: array<string, int>}
+     */
+    private function rekapMonth(CarbonImmutable $month): array
+    {
+        return [
+            'period' => 'month',
+            'month' => $month->format('Y-m'),
+            'label' => $month->settings(['locale' => 'id'])->translatedFormat('F Y'),
+            'prev' => $month->startOfMonth()->subMonth()->format('Y-m'),
+            'next' => $month->startOfMonth()->addMonth()->format('Y-m'),
+            'dataThrough' => null,
+            'viaRekap' => true,
+            'days' => [],
+            'totals' => ['present' => 0, 'late' => 0, 'early_leave' => 0, 'absent' => 0, 'leave' => 0, 'minutes' => 0],
+        ];
+    }
+
+    /**
+     * @return array{period: 'year', year: int, label: string, prev: int, next: int, dataThrough: string|null, viaRekap: true, months: list<never>, totals: array<string, int|float|null>}
+     */
+    private function rekapYear(int $year): array
+    {
+        return [
+            'period' => 'year',
+            'year' => $year,
+            'label' => (string) $year,
+            'prev' => $year - 1,
+            'next' => $year + 1,
+            'dataThrough' => null,
+            'viaRekap' => true,
+            'months' => [],
+            'totals' => ['present' => 0, 'late' => 0, 'early_leave' => 0, 'absent' => 0, 'leave' => 0, 'minutes' => 0, 'rate' => null],
         ];
     }
 

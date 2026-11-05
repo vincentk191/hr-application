@@ -93,12 +93,17 @@ class EmployeeRoster
     /**
      * The employment window of each person, in the shape DailyAttendance takes.
      *
+     * People of a Cabang that sends a rekapitulasi are left out: they have no scanner, so there is no
+     * daily attendance to derive for them, and any punch recorded against them does not count. Every
+     * screen that derives days through here follows the Cabang's setting that way, and reads their days
+     * as missing rather than as "no data".
+     *
      * @param  Collection<int, Employee>  $employees
      * @return array<int, array{joined: string|null, exited: string|null, company: int|null, department: int|null, branch: int|null}>
      */
     public function windows(Collection $employees): array
     {
-        return $employees->mapWithKeys(fn (Employee $employee): array => [
+        return $employees->reject(fn (Employee $employee): bool => $employee->attendsViaRekap())->mapWithKeys(fn (Employee $employee): array => [
             $employee->id => [
                 'joined' => $employee->joined_on?->toDateString(),
                 'exited' => $employee->exited_on?->toDateString(),

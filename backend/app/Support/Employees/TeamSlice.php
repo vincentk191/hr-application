@@ -47,7 +47,7 @@ class TeamSlice
         $grand = $supervisor?->manager_id === null ? null : $this->visible($viewer)->find($supervisor->manager_id);
 
         $peers = $supervisor === null
-            ? collect([$employee->loadMissing('position:id,name')])
+            ? collect([$employee->loadMissing(['position:id,name', 'branch:id,name,attendance_source'])])
             : $this->visible($viewer)->active()
                 ->where(fn (Builder $query) => $query->where('manager_id', $supervisor->id)->orWhereKey($employee->id))
                 ->orderBy('full_name')->get();
@@ -74,7 +74,7 @@ class TeamSlice
      */
     private function active(): Builder
     {
-        return Employee::query()->with('position:id,name')->active();
+        return Employee::query()->with(['position:id,name', 'branch:id,name,attendance_source'])->active();
     }
 
     /**
@@ -84,7 +84,7 @@ class TeamSlice
      */
     private function visible(?User $viewer): Builder
     {
-        return Employee::query()->with('position:id,name')
+        return Employee::query()->with(['position:id,name', 'branch:id,name,attendance_source'])
             ->when($viewer !== null, fn (Builder $query) => $query->visibleTo($viewer));
     }
 

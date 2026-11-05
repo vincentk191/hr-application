@@ -58,7 +58,8 @@ class EmployeeOverview
 
         return [
             'attendance' => $withAttendance ? $this->today($employee, $now) : null,
-            'month' => $withAttendance ? $this->month($employee, $now) : null,
+            // No daily attendance, so no rate, for a Cabang that sends a rekapitulasi.
+            'month' => $withAttendance && ! $employee->attendsViaRekap() ? $this->month($employee, $now) : null,
             'leaveTaken' => ['days' => $this->leaveTakenThisYear($employee, $now), 'year' => $now->year],
             'sickDays' => $this->sickDays($employee, $now),
             'openRequests' => $this->openRequests($employee),
@@ -111,12 +112,31 @@ class EmployeeOverview
      */
     private function today(Employee $employee, CarbonImmutable $now): array
     {
+        $schedule = WorkSchedule::current();
+
+        // A Cabang that sends a rekapitulasi has no scanner: there is no first or last scan to show.
+        if ($employee->attendsViaRekap()) {
+            return [
+                'viaRekap' => true,
+                'status' => 'rekap',
+                'statusLabel' => 'Rekapitulasi',
+                'tone' => 'muted',
+                'in' => null,
+                'out' => null,
+                'minutes' => null,
+                'workStart' => $schedule->start,
+                'workEnd' => $schedule->endFor($now),
+                'isWorkday' => $schedule->isWorkday($now),
+                'nowMinutes' => $now->hour * 60 + $now->minute,
+            ];
+        }
+
         $result = $this->attendance->forRange($now, $now, [$employee->id => $this->employment($employee)], $now);
         $record = $result['records'][$employee->id][$now->toDateString()];
-        $schedule = WorkSchedule::current();
         [$label, $tone] = self::STATUS_BADGES[$record['status']];
 
         return [
+            'viaRekap' => false,
             'status' => $record['status'],
             'statusLabel' => $label,
             'tone' => $tone,

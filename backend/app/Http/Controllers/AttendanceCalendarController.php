@@ -208,12 +208,9 @@ class AttendanceCalendarController extends Controller
 
         $employees = $roster->between($from, $to, $filters['departments'], $filters['search'], $filters['team'], $filters['leaveType'], $request->user(), $filters['branches']);
 
-        // A Cabang that sends a rekapitulasi has no scanner, so there is no daily attendance to derive
-        // for its people: judging them would only mark every workday "no data". They stay on the
-        // calendar, with their Pengajuan, but outside the attendance figures.
-        $scanned = $employees->reject(fn (Employee $employee): bool => $employee->attendsViaRekap());
-
-        $result = $attendance->forRange($from, $to, $roster->windows($scanned));
+        // The roster leaves out people of a Cabang that sends a rekapitulasi: no scanner, so no daily
+        // attendance to derive. They stay on the calendar, with their Pengajuan, outside its figures.
+        $result = $attendance->forRange($from, $to, $roster->windows($employees));
         $withScannerId = AttendanceEnrolMap::acrossCompanies()->pluck('employee_id')->flip();
         $rows = $this->rowsWithStatus($employees, $result['records'], $filters['statuses'], $withScannerId, $this->requestsByEmployee($employees, $from, $to, $filters['leaveType']));
 
