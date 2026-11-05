@@ -132,7 +132,7 @@ it('builds the invitations from the template HR saved, and keeps what was sent',
 
     Mail::assertQueued(CandidateInvitation::class, fn (CandidateInvitation $mail): bool => $mail->subjectLine === 'Undangan Staf Gudang - PT Maju Jaya'
         && str_starts_with($mail->body, 'Yth. Budi')
-        && str_contains($mail->body, 'Jadwal: Selasa, 10 November 2026, 10:00, Online')
+        && str_contains($mail->body, 'Jadwal: Selasa, 10 November 2026, 10:00, Daring')
         && str_contains($mail->body, '/lamaran/')
         && str_contains($mail->body, 'Bawa KTP.'));
 

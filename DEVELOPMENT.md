@@ -69,6 +69,12 @@ left uncommitted for review.
 
 ## Change log (latest first)
 
+- **2026-11-05 (UI language sweep).** Every page checked for English and for explainer subtitles: the recruitment
+  wizard (Permintaan › Detail & Kualifikasi › Review, no FIELD/BAGIAN counts), the review summary, Settings,
+  2FA, confirm-password and verify-email pages, and leftovers (Overview → Ringkasan, List/Grid/Chart →
+  Daftar/Kartu/Bagan, Payroll → Penggajian, Online → Daring, Resign → Mengundurkan diri, Referral → Rekomendasi
+  karyawan). Backend switched to `APP_LOCALE=id` with `lang/id`. Fixed double-encoded characters ("â€”", "Â·")
+  in eight Filament files that a PowerShell edit had saved in the wrong encoding.
 - **2026-11-04 (recruitment stage 04, Interview: invitation and candidate form; branch `feature/recruitement`).**
   Migration `add_interview_invitation_to_candidates_table` (hash of the link's token, `invited_at`, expiry, who invited,
   `interview_at` (UTC), `interview_mode`, `interview_place`, `form_submitted_at`, `form_data` JSON). Mailable
@@ -1003,7 +1009,17 @@ Originally planned on spatie/laravel-model-states; dropped 2026-10-05 — reason
   content and declares `Page.layout = { breadcrumbs }`; breadcrumbs that depend on props use
   `setLayoutProps({ breadcrumbs })` instead (see `frontend/src/pages/employees/show.tsx`).
 - **Money, when it arrives, is integer rupiah.** No floats.
-- **UI text is Indonesian**, held in translation files so English can be added later.
+- **UI text is Indonesian.** Pages and components write it directly; the backend runs `APP_LOCALE=id` (also the
+  config default), with hand-written `backend/lang/id/*.php` and `backend/lang/id.json` for Laravel's validation,
+  auth, password and Fortify messages and the reset/verify emails, and Filament's own Indonesian for the admin
+  chrome. English terms that stay as borrowed words: Draft, Review, Checklist, Shortlist, Screening, Interview,
+  Posting, Offboarding, Benefit, Skills (Hard/Soft Skills), Upload, Scan, Sign-off, and acronyms (PDF, CSV, BPJS,
+  2FA). Everything else is translated (e.g. Online → Daring, Resign → Mengundurkan diri).
+- **No explainer subtitles.** No count or structure lines under a heading ("3 BAGIAN · 6 FIELD", "7 OF 7 FIELDS",
+  "BAGIAN TETAP") and no paragraph that only describes the section. Keep WAJIB / Tidak wajib, instructions people
+  need to act, warnings and empty states.
+- **The activity log translates on display** (`App\Support\ActivityLabels`): stored descriptions and log names
+  stay as written, so old entries read in Indonesian too.
 - **PHPStan runs at level 7**, which means every Eloquent relation needs its generics:
   `@return BelongsTo<Company, $this>`. It is not optional and it has caught real bugs.
 - **Model attributes use PHP attributes**, matching the starter kit: `#[Fillable([...])]`,
@@ -1455,7 +1471,7 @@ table, the checklist and the screens.
 | Screen     | Name                     | f   | P1  | Status | Notes                                                                                                     |
 | ---------- | ------------------------ | --- | --- | ------ | --------------------------------------------------------------------------------------------------------- |
 | `DAS-MAI`  | Home                     | 5   | 3   | ⬜     | Cross-module KPIs — needs the modules to exist first                                                      |
-| `CORE-SRC` | Global search & settings | 4   | 3   | 🟡     | Global search is done (header box, Ctrl/⌘ K). The leave and holiday policy live in the admin panel and on the calendar; the Indonesian translation-file setup (004) is not done |
+| `CORE-SRC` | Global search & settings | 4   | 3   | 🟡     | Global search is done (header box, Ctrl/⌘ K). The leave and holiday policy live in the admin panel and on the calendar; for 004 the backend runs `APP_LOCALE=id` with `lang/id` (2026-11-05), while frontend text is still written in the components rather than in translation files |
 | —          | Employee app (PWA)       | —   | —   | 🟡     | **Feasibility build 2026-10-20:** manifest, icons, service worker (offline page, built assets only, never a page or data), install banner (Android prompt, iPhone hint). Not built: Web Push, the Sanctum API, saved drafts. See "PWA feasibility build" below |
 
 ### Phase 6b — Public entrance and access tiers (decided 2026-10-19; tier middleware built 2026-10-20)

@@ -138,10 +138,6 @@ function SignOffs({ item }: { item: OffboardingCase }) {
                     </li>
                 ))}
             </ul>
-            <p className="text-xs text-muted-foreground">
-                Setelah semua selesai dan HR menyetujui, kasus bisa lanjut ke
-                tahap Sign-off.
-            </p>
         </section>
     );
 }

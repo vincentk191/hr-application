@@ -101,7 +101,7 @@ export function LastDayDialog({
                                     </Button>
                                 </DialogClose>
                                 <Button type="submit" disabled={processing}>
-                                    OK
+                                    Simpan
                                 </Button>
                             </DialogFooter>
                         </>

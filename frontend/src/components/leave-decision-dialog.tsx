@@ -195,7 +195,7 @@ export function LeaveDecisionDialog({
                 ) : (
                     <p className="text-sm text-muted-foreground">
                         {request.waitingOn
-                            ? `Menunggu keputusan: ${request.waitingOn}. Anda bukan approver untuk langkah ini.`
+                            ? `Menunggu keputusan: ${request.waitingOn}. Anda bukan penyetuju untuk langkah ini.`
                             : 'Pengajuan ini sudah diputuskan.'}
                     </p>
                 )}

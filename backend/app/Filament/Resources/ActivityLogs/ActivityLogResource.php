@@ -5,6 +5,7 @@ namespace App\Filament\Resources\ActivityLogs;
 use App\Enums\AdminNavigationGroup;
 use App\Enums\Permission;
 use App\Filament\Resources\ActivityLogs\Pages\ListActivityLogs;
+use App\Support\ActivityLabels;
 use BackedEnum;
 use Filament\Actions\ViewAction;
 use Filament\Infolists\Components\TextEntry;
@@ -21,7 +22,7 @@ use UnitEnum;
 /**
  * A read-only view of the audit trail: dossier edits, role grants and permission changes.
  *
- * Nothing here can create, change or delete an entry â€” the log is only useful if it cannot be
+ * Nothing here can create, change or delete an entry — the log is only useful if it cannot be
  * edited by the people it records.
  */
 class ActivityLogResource extends Resource
@@ -62,13 +63,13 @@ class ActivityLogResource extends Resource
     {
         return $schema->components([
             TextEntry::make('created_at')->label('Waktu')->dateTime('d M Y H:i:s'),
-            TextEntry::make('log_name')->label('Jenis'),
-            TextEntry::make('description')->label('Keterangan'),
+            TextEntry::make('log_name')->label('Jenis')->formatStateUsing(fn (?string $state): string => ActivityLabels::logName($state)),
+            TextEntry::make('description')->label('Keterangan')->formatStateUsing(fn (?string $state): string => ActivityLabels::description($state)),
             TextEntry::make('causer.name')->label('Oleh')->placeholder('Sistem'),
             TextEntry::make('subject_type')
                 ->label('Objek')
                 ->formatStateUsing(fn (?string $state, Activity $record): string => $state === null
-                    ? 'â€”'
+                    ? '—'
                     : class_basename($state).' #'.$record->subject_id),
             TextEntry::make('properties')
                 ->label('Rincian')
@@ -91,9 +92,11 @@ class ActivityLogResource extends Resource
                     ->sortable(),
                 TextColumn::make('log_name')
                     ->label('Jenis')
+                    ->formatStateUsing(fn (?string $state): string => ActivityLabels::logName($state))
                     ->badge(),
                 TextColumn::make('description')
                     ->label('Keterangan')
+                    ->formatStateUsing(fn (?string $state): string => ActivityLabels::description($state))
                     ->searchable()
                     ->wrap(),
                 TextColumn::make('causer.name')
@@ -102,13 +105,13 @@ class ActivityLogResource extends Resource
                 TextColumn::make('subject_type')
                     ->label('Objek')
                     ->formatStateUsing(fn (?string $state, Activity $record): string => $state === null
-                        ? 'â€”'
+                        ? '—'
                         : class_basename($state).' #'.$record->subject_id),
             ])
             ->filters([
                 SelectFilter::make('log_name')
                     ->label('Jenis')
-                    ->options(fn (): array => Activity::query()->distinct()->orderBy('log_name')->pluck('log_name', 'log_name')->all()),
+                    ->options(fn (): array => ActivityLabels::logNameOptions()),
             ])
             ->recordActions([
                 ViewAction::make(),

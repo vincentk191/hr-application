@@ -356,15 +356,6 @@ export default function AttendanceIssues({
                     />
                 </div>
 
-                {canResolve &&
-                    selected.length === 0 &&
-                    selectable.length > 0 && (
-                        <p className="text-xs text-muted-foreground">
-                            Centang satu atau beberapa masalah untuk menandainya
-                            dimaklumi.
-                        </p>
-                    )}
-
                 {canResolve && selected.length > 0 && (
                     <div className="surface sticky bottom-20 z-30 flex flex-wrap items-start gap-2 bg-card p-3 shadow-lg md:static md:bg-muted/40 md:shadow-none">
                         <span className="self-center text-sm font-medium">
@@ -582,11 +573,7 @@ export default function AttendanceIssues({
 
                 <p className="text-xs text-muted-foreground">
                     {total} masalah
-                    {truncated ? ' (hanya 500 pertama yang ditampilkan)' : ''}.
-                    Masalah hilang sendiri setelah penyebabnya diperbaiki; yang
-                    dimaklumi tercatat beserta alasan dan siapa yang
-                    menandainya. Karyawan dan atasannya diberi tahu keesokan
-                    paginya.
+                    {truncated ? ' (hanya 500 pertama yang ditampilkan)' : ''}
                 </p>
             </div>
 

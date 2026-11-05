@@ -77,7 +77,7 @@ class DepartmentResource extends Resource
                     ->sortable(),
                 TextColumn::make('supervisor.full_name')
                     ->label('Kepala departemen')
-                    ->placeholder('â€”'),
+                    ->placeholder('—'),
                 TextColumn::make('employees_count')
                     ->label('Karyawan')
                     ->counts('employees'),

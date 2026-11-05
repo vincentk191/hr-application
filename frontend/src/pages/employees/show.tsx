@@ -52,7 +52,7 @@ type Props = {
 };
 
 const TABS = [
-    { key: 'overview', label: 'Overview' },
+    { key: 'overview', label: 'Ringkasan' },
     { key: 'attendance', label: 'Absensi' },
     { key: 'requests', label: 'Pengajuan' },
     { key: 'documents', label: 'Dokumen' },
@@ -707,9 +707,9 @@ export default function EmployeeShow({
                         )}
 
                         {employee.payroll ? (
-                            <Card title="Payroll">
+                            <Card title="Penggajian">
                                 <Field
-                                    label="Pay group"
+                                    label="Kelompok gaji"
                                     value={employee.payroll.pay_group}
                                 />
                                 <Field
@@ -732,7 +732,7 @@ export default function EmployeeShow({
                                 />
                             </Card>
                         ) : (
-                            <RestrictedCard title="Payroll" />
+                            <RestrictedCard title="Penggajian" />
                         )}
                     </div>
                 )}

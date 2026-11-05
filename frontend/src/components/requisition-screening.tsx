@@ -110,12 +110,7 @@ function Counts({ item }: { item: Requisition }) {
                         </>
                     )}
                 </Form>
-            ) : (
-                <p className="text-sm text-muted-foreground">
-                    Pelamar yang tidak masuk shortlist tidak disimpan di
-                    aplikasi; hanya jumlahnya.
-                </p>
-            )}
+            ) : null}
         </section>
     );
 }
@@ -570,10 +565,8 @@ export function AddCandidateDialog({
             >
                 <DialogHeader>
                     <DialogTitle>Tambah ke shortlist</DialogTitle>
-                    <DialogDescription>
-                        Masukkan kandidat yang lolos saring di platform. Setelah
-                        disimpan, formulir dikosongkan untuk kandidat
-                        berikutnya.
+                    <DialogDescription className="sr-only">
+                        Data kandidat yang lolos screening.
                     </DialogDescription>
                 </DialogHeader>
                 <QuickAdd item={item} />

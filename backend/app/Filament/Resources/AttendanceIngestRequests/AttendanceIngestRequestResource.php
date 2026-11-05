@@ -17,7 +17,7 @@ use UnitEnum;
 
 /**
  * The sync agent's request log (ATT-DEV-004): every request that reached the endpoint, with what
- * came of it. Read-only â€” a log that can be edited is not evidence of anything.
+ * came of it. Read-only — a log that can be edited is not evidence of anything.
  */
 class AttendanceIngestRequestResource extends Resource
 {
@@ -58,7 +58,7 @@ class AttendanceIngestRequestResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('created_at')->label('Waktu')->dateTime('d M Y H:i:s')->sortable(),
-                TextColumn::make('agent.name')->label('Agen')->placeholder('â€”'),
+                TextColumn::make('agent.name')->label('Agen')->placeholder('—'),
                 TextColumn::make('status')
                     ->label('Hasil')
                     ->badge()
@@ -68,7 +68,7 @@ class AttendanceIngestRequestResource extends Resource
                 TextColumn::make('accepted')->label('Baru'),
                 TextColumn::make('duplicates')->label('Duplikat'),
                 TextColumn::make('unmapped')->label('Menunggu'),
-                TextColumn::make('message')->label('Pesan')->wrap()->placeholder('â€”'),
+                TextColumn::make('message')->label('Pesan')->wrap()->placeholder('—'),
                 TextColumn::make('ip')->label('IP')->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([

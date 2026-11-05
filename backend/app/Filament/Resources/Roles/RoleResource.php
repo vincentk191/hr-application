@@ -20,7 +20,7 @@ use UnitEnum;
 /**
  * Which permissions each role holds, editable by the people who administer accounts.
  *
- * Roles themselves are fixed by the Role enum â€” code refers to them by name â€” so this screen
+ * Roles themselves are fixed by the Role enum — code refers to them by name — so this screen
  * edits what a role may do and never creates or removes one.
  */
 class RoleResource extends Resource

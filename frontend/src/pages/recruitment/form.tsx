@@ -134,19 +134,16 @@ function ChecklistSubtitle({
     );
 }
 
-function stateLabel(state: State, detail: string): string {
-    const name =
-        state === 'done'
-            ? 'DONE'
-            : state === 'progress'
-              ? 'IN PROGRESS'
-              : 'NOT STARTED';
-
-    return state === 'idle' ? name : `${name} · ${detail}`;
+function stateLabel(state: State): string {
+    return state === 'done'
+        ? 'SELESAI'
+        : state === 'progress'
+          ? 'SEDANG DIISI'
+          : 'BELUM DIMULAI';
 }
 
 /**
- * The requisition wizard (REC-WIZ): 1 The ask › 2 Details & Requirements › 3 Review. One form holds all three steps,
+ * The requisition wizard (REC-WIZ): 1 Permintaan › 2 Detail & Kualifikasi › 3 Review. One form holds all three steps,
  * so moving between them keeps what was typed (REC-WIZ-002); "Simpan Draft" keeps it for later at the step it was left
  * on (REC-WIZ-003/004), and "Ajukan untuk Persetujuan" saves and sends it (REC-WZ3-002). Step 2 follows the fixed
  * template: the job posting, then the candidate checklist. A requisition already sent but not decided yet is corrected
@@ -482,32 +479,23 @@ export default function RequisitionForm({
     const tabs: { step: Step; title: string; detail: string }[] = [
         {
             step: 1,
-            title: '1 · THE ASK',
-            detail: stateLabel(
-                requestState,
-                requestState === 'done'
-                    ? `${REQUIRED_REQUEST_FIELDS} FIELDS`
-                    : `${requestFilled} OF ${REQUIRED_REQUEST_FIELDS} FIELDS`,
-            ),
+            title: '1 · PERMINTAAN',
+            detail: stateLabel(requestState),
         },
         {
             step: 2,
-            title: '2 · DETAILS & REQUIREMENTS',
-            detail: stateLabel(
-                detailsState,
-                `3 POSTING SECTIONS · ${counts.all} CHECKLIST FIELDS`,
-            ),
+            title: '2 · DETAIL & KUALIFIKASI',
+            detail: stateLabel(detailsState),
         },
         {
             step: 3,
             title: '3 · REVIEW',
             detail:
                 step === 3
-                    ? stateLabel(
-                          'progress',
-                          complete ? 'SIAP DIKIRIM' : 'BELUM LENGKAP',
-                      )
-                    : 'NOT STARTED',
+                    ? complete
+                        ? 'SIAP DIAJUKAN'
+                        : 'BELUM LENGKAP'
+                    : 'BELUM DIMULAI',
         },
     ];
 
@@ -528,13 +516,15 @@ export default function RequisitionForm({
                     <div className="flex items-start justify-between gap-3">
                         <div>
                             <p className="label-mono">
-                                RECRUITMENT ›{' '}
-                                {existing ? existing.reference : 'NEW REQUEST'}
+                                REKRUTMEN ›{' '}
+                                {existing
+                                    ? existing.reference
+                                    : 'PERMINTAAN BARU'}
                             </p>
                             <h1 className="text-2xl font-extrabold tracking-tight">
                                 {sent
                                     ? `Ubah ${existing?.reference} · ${existing?.positionName}`
-                                    : 'Request for Opening'}
+                                    : 'Pengajuan Lowongan'}
                             </h1>
                             <p className="label-mono">
                                 {existing
@@ -544,11 +534,11 @@ export default function RequisitionForm({
                                     ? ` · ${positionName.toUpperCase()}`
                                     : ''}
                                 {author
-                                    ? ` · RAISED BY ${author.toUpperCase()}`
+                                    ? ` · DIBUAT OLEH ${author.toUpperCase()}`
                                     : ''}
                                 {sent
                                     ? ' · SUDAH DIAJUKAN'
-                                    : ' · NOT SUBMITTED'}
+                                    : ' · BELUM DIAJUKAN'}
                             </p>
                         </div>
                         <PhaseActions
@@ -616,13 +606,13 @@ export default function RequisitionForm({
                         className="surface flex flex-wrap items-center gap-x-6 gap-y-1 px-4 py-3 text-sm"
                         data-test="ask-summary"
                     >
-                        <span className="label-mono">THE ASK</span>
+                        <span className="label-mono">PERMINTAAN</span>
                         <span className="font-semibold">
                             {positionName || '—'}
                         </span>
                         <span className="font-semibold">
                             {department?.name ?? '—'}
-                            {quota !== '' ? ` · ${quota} seats` : ''}
+                            {quota !== '' ? ` · ${quota} orang` : ''}
                         </span>
                         <Button
                             type="button"
@@ -630,7 +620,7 @@ export default function RequisitionForm({
                             className="ml-auto h-auto p-0 font-bold"
                             onClick={() => goTo(1)}
                         >
-                            EDIT
+                            UBAH
                         </Button>
                     </div>
                 )}
@@ -658,16 +648,9 @@ export default function RequisitionForm({
                             <div
                                 className={step === 1 ? 'space-y-5' : 'hidden'}
                             >
-                                <div className="flex flex-wrap items-baseline gap-3">
-                                    <h2 className="text-2xl font-extrabold tracking-tight">
-                                        The ask
-                                    </h2>
-                                    <p className="text-sm text-muted-foreground">
-                                        Siapa yang dibutuhkan, di mana, dan
-                                        mengapa. Belum ada yang dipublikasikan:
-                                        ini yang pertama dibaca penyetuju.
-                                    </p>
-                                </div>
+                                <h2 className="text-2xl font-extrabold tracking-tight">
+                                    Permintaan
+                                </h2>
 
                                 <Section
                                     number="01"
@@ -920,8 +903,6 @@ export default function RequisitionForm({
                                         {missingRequest.length === 0
                                             ? 'Semua baris wajib sudah diisi'
                                             : `${missingRequest.length} baris wajib belum diisi: ${missingRequest.join(' dan ')}`}
-                                        {' — '}isi lowongan dan checklist diisi
-                                        di langkah 2
                                     </p>
                                     <Button
                                         type="button"
@@ -936,24 +917,11 @@ export default function RequisitionForm({
                             <div
                                 className={step === 2 ? 'space-y-5' : 'hidden'}
                             >
-                                <div className="flex flex-wrap items-baseline gap-3">
-                                    <h2 className="text-2xl font-extrabold tracking-tight">
-                                        Job posting details
-                                    </h2>
-                                    <p className="text-sm text-muted-foreground">
-                                        Tentang Posisi, Tanggung Jawab Utama dan
-                                        Benefit &amp; Fasilitas menggambarkan
-                                        pekerjaannya, bukan kandidatnya:
-                                        tercetak di lowongan dan tidak pernah
-                                        dinilai.
-                                    </p>
-                                </div>
+                                <h2 className="text-2xl font-extrabold tracking-tight">
+                                    Detail lowongan
+                                </h2>
 
-                                <Section
-                                    number="01"
-                                    title="Tentang Posisi"
-                                    note="SATU PARAGRAF · TERCETAK PERTAMA DI LOWONGAN"
-                                >
+                                <Section number="01" title="Tentang Posisi">
                                     <div className="space-y-1 p-4">
                                         <textarea
                                             id="about"
@@ -974,7 +942,6 @@ export default function RequisitionForm({
                                 <Section
                                     number="02"
                                     title="Tanggung Jawab Utama"
-                                    note="SUBTITLE BERBEDA TIAP POSISI"
                                 >
                                     <div className="divide-y">
                                         {responsibilities.map(
@@ -995,8 +962,8 @@ export default function RequisitionForm({
                                                         <Input
                                                             value={group.title}
                                                             maxLength={80}
-                                                            placeholder="Judul subtitle, mis. Administrasi & dokumentasi"
-                                                            aria-label={`Subtitle ${position + 1}`}
+                                                            placeholder="Subjudul, mis. Administrasi & dokumentasi"
+                                                            aria-label={`Subjudul ${position + 1}`}
                                                             className="font-semibold"
                                                             onChange={(event) =>
                                                                 setGroup(
@@ -1061,12 +1028,8 @@ export default function RequisitionForm({
                                                     ])
                                                 }
                                             >
-                                                + Tambah subtitle
+                                                + Tambah subjudul
                                             </Button>
-                                            <span className="label-mono">
-                                                Satu posisi bisa punya satu
-                                                subtitle atau beberapa
-                                            </span>
                                         </div>
                                         <InputError
                                             message={errors.responsibilities}
@@ -1078,7 +1041,6 @@ export default function RequisitionForm({
                                 <Section
                                     number="03"
                                     title="Benefit & Fasilitas"
-                                    note="BAGIAN TETAP"
                                 >
                                     <div className="p-4">
                                         <LineListEditor
@@ -1090,13 +1052,13 @@ export default function RequisitionForm({
                                 </Section>
 
                                 <h2 className="pt-2 text-2xl font-extrabold tracking-tight">
-                                    Candidate Checklist
+                                    Checklist Kandidat
                                 </h2>
 
                                 <Section
                                     number="01"
                                     title="Kualifikasi"
-                                    note="BAGIAN TETAP · WAJIB"
+                                    note="WAJIB"
                                 >
                                     <ChecklistSubtitle
                                         letter="a"
@@ -1123,7 +1085,7 @@ export default function RequisitionForm({
                                 <Section
                                     number="02"
                                     title="Skills"
-                                    note="BAGIAN TETAP · WAJIB"
+                                    note="WAJIB"
                                 >
                                     <ChecklistSubtitle
                                         letter="a"
@@ -1150,7 +1112,7 @@ export default function RequisitionForm({
                                 <Section
                                     number="03"
                                     title="Nilai Plus"
-                                    note="TIDAK WAJIB · MENAMBAH NILAI KANDIDAT"
+                                    note="TIDAK WAJIB"
                                 >
                                     <div className="p-4">
                                         <LineListEditor
@@ -1185,16 +1147,9 @@ export default function RequisitionForm({
                             <div
                                 className={step === 3 ? 'space-y-5' : 'hidden'}
                             >
-                                <div className="flex flex-wrap items-baseline gap-3">
-                                    <h2 className="text-2xl font-extrabold tracking-tight">
-                                        Review sebelum dikirim
-                                    </h2>
-                                    <p className="text-sm text-muted-foreground">
-                                        Satu halaman berisi semua yang sudah
-                                        diisi. Setiap bagian bisa dibuka kembali
-                                        tanpa kehilangan isian.
-                                    </p>
-                                </div>
+                                <h2 className="text-2xl font-extrabold tracking-tight">
+                                    Review sebelum diajukan
+                                </h2>
 
                                 <RequisitionSummary
                                     data={{

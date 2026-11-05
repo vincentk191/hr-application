@@ -818,16 +818,7 @@ export default function AttendanceRecap({
                 })}
 
                 <p className="text-xs text-muted-foreground">
-                    Angka dalam hari-orang. Alpa = hari tidak hadir; Izin dan
-                    Sakit = cuti yang disetujui menurut jenis pengajuannya;
-                    Telat = hari terlambat. Potongan = tarif Zona × (Alpa +
-                    Izin) + setengah tarif × Telat; Sakit tidak dipotong, dan
-                    Supervisor tidak dipotong. Cabang tanpa mesin dibaca dari
-                    rekapitulasi yang sudah dikonfirmasi dan seluruh periodenya
-                    ada di dalam rentang; rekapitulasi tidak ikut tampilan per
-                    periode. Jam kerja = scan pertama sampai terakhir pada hari
-                    yang punya lebih dari satu scan, tanpa memotong istirahat.
-                    Data sampai {dataThrough ?? '—'}.
+                    Angka dalam hari-orang. Data sampai {dataThrough ?? '—'}.
                 </p>
             </div>
 

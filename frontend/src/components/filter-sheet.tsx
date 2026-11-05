@@ -71,7 +71,7 @@ export function FilterSheet({
                         onClick={onReset}
                         className="text-sm font-semibold text-primary"
                     >
-                        Reset
+                        Atur ulang
                     </button>
                 </div>
                 <SheetDescription className="sr-only">

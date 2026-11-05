@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 
 /**
  * A list of single lines the requester adds to and removes from: each row is one input with a remove button, and a
- * dashed "+ Tambah field" below adds a blank one. Blank rows are dropped by the server, so an unused row costs
+ * dashed "+ Tambah baris" below adds a blank one. Blank rows are dropped by the server, so an unused row costs
  * nothing. Used for every list of the requisition's posting and checklist (REC-WZ2).
  */
 export function LineListEditor({
@@ -66,7 +66,7 @@ export function LineListEditor({
                 data-test={`add-line-${label}`}
                 onClick={() => onChange([...lines, ''])}
             >
-                + Tambah field
+                + Tambah baris
             </Button>
         </div>
     );

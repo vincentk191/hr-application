@@ -181,7 +181,7 @@ function InviteDialog({
                                     }
                                     className={selectClasses}
                                 >
-                                    <option value="online">Online</option>
+                                    <option value="online">Daring</option>
                                     <option value="onsite">Tatap muka</option>
                                 </select>
                                 <InputError message={errors.interview_mode} />
@@ -363,7 +363,7 @@ function shortName(name: string): string {
 }
 
 function modeLabel(mode: Candidate['interviewMode']): string {
-    return mode === 'online' ? 'Online' : 'Tatap muka';
+    return mode === 'online' ? 'Daring' : 'Tatap muka';
 }
 
 /**
@@ -912,7 +912,7 @@ function WeekCalendar({
                                             <p className="label-mono">
                                                 {entry.candidate
                                                     .interviewMode === 'online'
-                                                    ? 'ONLINE'
+                                                    ? 'DARING'
                                                     : 'TATAP MUKA'}
                                             </p>
                                         </button>

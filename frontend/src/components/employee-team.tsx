@@ -59,9 +59,6 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
  * supervisor beside, and this person's own direct reports below, followed by who is in today.
  */
 export function EmployeeTeamTab({ team, name, onOpen }: Props) {
-    const teamNoun =
-        team.basis === 'reports' ? 'bawahan langsung' : 'rekan tim';
-
     return (
         <div className="flex flex-col gap-4">
             <h3 className="text-sm font-medium tracking-wide uppercase">
@@ -111,7 +108,7 @@ export function EmployeeTeamTab({ team, name, onOpen }: Props) {
             </div>
 
             <dl>
-                <Row label="Supervisor" value={team.supervisor?.name ?? '—'} />
+                <Row label="Atasan" value={team.supervisor?.name ?? '—'} />
                 <Row label="Jumlah tim" value={`${team.size} orang`} />
                 {team.onLeaveToday !== null && (
                     <>
@@ -134,12 +131,6 @@ export function EmployeeTeamTab({ team, name, onOpen }: Props) {
                     </>
                 )}
             </dl>
-
-            <p className="text-xs text-muted-foreground">
-                Hanya potongan: satu level ke atas dan rekan di bawah supervisor
-                yang sama. Angka di atas menghitung {teamNoun}. Struktur lengkap
-                ada di tampilan Chart.
-            </p>
         </div>
     );
 }

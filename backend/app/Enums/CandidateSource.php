@@ -26,7 +26,7 @@ enum CandidateSource: string
             self::Indeed => 'Indeed',
             self::Kalibrr => 'Kalibrr',
             self::WalkIn => 'Walk-in',
-            self::Referral => 'Referral',
+            self::Referral => 'Rekomendasi karyawan',
             self::Other => 'Lainnya',
         };
     }

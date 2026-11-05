@@ -252,10 +252,8 @@ export default function AttendanceRekapShow({
                     <div className="p-4">
                         <h2 className="font-medium">Baris rekapitulasi</h2>
                         <p className="text-sm text-muted-foreground">
-                            Nama dicocokkan dengan karyawan cabang ini. Zona dan
-                            potongan dihitung ulang dari profil karyawan;
-                            selisih dengan berkas ditandai merah, dan angka
-                            aplikasi yang dipakai.
+                            Selisih dengan berkas ditandai merah; angka aplikasi
+                            yang dipakai.
                         </p>
                     </div>
                     {/* Phone: one card per line instead of a table to drag sideways. */}

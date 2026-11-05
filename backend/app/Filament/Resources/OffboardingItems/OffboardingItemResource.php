@@ -89,13 +89,13 @@ class OffboardingItemResource extends Resource
     }
 
     /**
-     * "Ivan Pratama Â· IT Support Â· IT Â· CMP-A": who, their job title and department, and company.
+     * "Ivan Pratama · IT Support · IT · CMP-A": who, their job title and department, and company.
      */
     private static function ownerLabel(Employee $employee): string
     {
         $employee->loadMissing(['position' => fn ($query) => $query->withoutGlobalScopes(), 'department' => fn ($query) => $query->withoutGlobalScopes(), 'company']);
 
-        return collect([$employee->full_name, $employee->position?->name, $employee->department?->name, $employee->company?->code])->filter()->implode(' Â· ');
+        return collect([$employee->full_name, $employee->position?->name, $employee->department?->name, $employee->company?->code])->filter()->implode(' · ');
     }
 
     public static function getPages(): array

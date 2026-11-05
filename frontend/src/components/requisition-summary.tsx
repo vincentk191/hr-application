@@ -67,29 +67,14 @@ export function shortDate(date: string | null): string {
 
 const LETTERS = 'abcdefghijklmnopqrstuvwxyz';
 
-/** The required fields of the request that have a value: what the review counts as "N FIELD" on Permintaan. */
-function requestFields(data: RequisitionSummaryData): number {
-    return [
-        data.positionName,
-        data.department,
-        data.quota,
-        data.contractLabel,
-        data.targetStartOn,
-        data.manager,
-        data.reason,
-    ].filter((value) => value !== null && `${value}`.trim() !== '').length;
-}
-
 function Block({
     number,
     title,
-    meta,
     onEdit,
     children,
 }: {
     number: string;
     title: string;
-    meta?: string;
     onEdit?: () => void;
     children: ReactNode;
 }) {
@@ -100,19 +85,16 @@ function Block({
                     <span className="label-mono">{number}</span>
                     {title}
                 </h2>
-                <div className="flex items-center gap-3">
-                    {meta && <span className="label-mono">{meta}</span>}
-                    {onEdit && (
-                        <Button
-                            type="button"
-                            variant="link"
-                            className="h-auto p-0 font-bold"
-                            onClick={onEdit}
-                        >
-                            UBAH
-                        </Button>
-                    )}
-                </div>
+                {onEdit && (
+                    <Button
+                        type="button"
+                        variant="link"
+                        className="h-auto p-0 font-bold"
+                        onClick={onEdit}
+                    >
+                        UBAH
+                    </Button>
+                )}
             </header>
             {children}
         </section>
@@ -146,24 +128,19 @@ function Lines({ lines }: { lines: string[] }) {
 function SubtitleHeading({
     letter,
     title,
-    count,
 }: {
     letter?: string;
     title: string;
-    count: number;
 }) {
     return (
-        <div className="mb-2 flex items-baseline justify-between gap-3">
-            <p className="font-bold">
-                {letter && <span className="label-mono mr-2">{letter} ·</span>}
-                {title}
-            </p>
-            <span className="label-mono">{count} FIELD</span>
-        </div>
+        <p className="mb-2 font-bold">
+            {letter && <span className="label-mono mr-2">{letter} ·</span>}
+            {title}
+        </p>
     );
 }
 
-/** Everything the requester asked for, in the review's own layout (REC-WZ3-001): Permintaan, Isi lowongan, Candidate checklist. */
+/** Everything the requester asked for, in the review's own layout (REC-WZ3-001): Permintaan, Isi lowongan, Checklist Kandidat. */
 export type RequisitionSummaryData = RequisitionContent & {
     positionName: string;
     department: string | null;
@@ -213,14 +190,12 @@ export function RequisitionSummary({
 }) {
     const groups = filledGroups(data.responsibilities);
     const posting = postingCounts(data);
-    const checklist = checklistCounts(data.checklist);
 
     return (
         <div className="space-y-5" data-test="requisition-review">
             <Block
                 number="01"
                 title="Permintaan"
-                meta={`${requestFields(data)} FIELD`}
                 onEdit={onEdit && (() => onEdit(1))}
             >
                 <dl className="grid sm:grid-cols-2 md:grid-cols-3">
@@ -256,29 +231,17 @@ export function RequisitionSummary({
                 <Block
                     number="02"
                     title="Isi lowongan"
-                    meta={`3 BAGIAN · ${posting.fields} FIELD`}
                     onEdit={onEdit && (() => onEdit(2))}
                 >
                     <div className="divide-y">
                         <div className="p-4">
-                            <div className="mb-2 flex items-baseline justify-between gap-3">
-                                <p className="font-bold">Tentang Posisi</p>
-                                <span className="label-mono">1 PARAGRAF</span>
-                            </div>
+                            <p className="mb-2 font-bold">Tentang Posisi</p>
                             <p className="text-sm whitespace-pre-line">
                                 {data.about.trim() || '—'}
                             </p>
                         </div>
                         <div className="space-y-4 p-4">
-                            <div className="flex items-baseline justify-between gap-3">
-                                <p className="font-bold">
-                                    Tanggung Jawab Utama
-                                </p>
-                                <span className="label-mono">
-                                    {posting.subtitles} SUBTITLE ·{' '}
-                                    {posting.responsibilityLines} FIELD
-                                </span>
-                            </div>
+                            <p className="font-bold">Tanggung Jawab Utama</p>
                             {groups.length === 0 ? (
                                 <p className="text-sm text-muted-foreground">
                                     —
@@ -291,7 +254,6 @@ export function RequisitionSummary({
                                             title={
                                                 group.title || '(tanpa judul)'
                                             }
-                                            count={lineCount(group.items)}
                                         />
                                         <Lines lines={group.items} />
                                     </div>
@@ -299,10 +261,7 @@ export function RequisitionSummary({
                             )}
                         </div>
                         <div className="p-4">
-                            <SubtitleHeading
-                                title="Benefit & Fasilitas"
-                                count={posting.benefitLines}
-                            />
+                            <SubtitleHeading title="Benefit & Fasilitas" />
                             {posting.benefitLines === 0 ? (
                                 <p className="text-sm text-muted-foreground">
                                     —
@@ -316,8 +275,7 @@ export function RequisitionSummary({
 
                 <Block
                     number="03"
-                    title="Candidate checklist"
-                    meta={`${checklist.all} FIELD`}
+                    title="Checklist Kandidat"
                     onEdit={onEdit && (() => onEdit(2))}
                 >
                     <div className="divide-y">
@@ -340,8 +298,7 @@ export function RequisitionSummary({
                                         <span className="label-mono">
                                             {group.required
                                                 ? 'WAJIB'
-                                                : 'TIDAK WAJIB'}{' '}
-                                            · {total} FIELD
+                                                : 'TIDAK WAJIB'}
                                         </span>
                                     </div>
                                     {group.keys.length === 1 ? (
@@ -367,9 +324,6 @@ export function RequisitionSummary({
                                                             LETTERS[position]
                                                         }
                                                         title={label}
-                                                        count={lineCount(
-                                                            data.checklist[key],
-                                                        )}
                                                     />
                                                     {lineCount(
                                                         data.checklist[key],
@@ -393,10 +347,6 @@ export function RequisitionSummary({
                                 </div>
                             );
                         })}
-                        <p className="label-mono bg-muted/40 p-4">
-                            Tidak ada bobot dan tingkat — kandidat menjawab ya /
-                            tidak per field
-                        </p>
                     </div>
                 </Block>
             </div>

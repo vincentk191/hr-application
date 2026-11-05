@@ -51,7 +51,7 @@ export function useNavSections(): NavSection[] {
     } = usePage().props;
 
     const main: NavItem[] = [
-        { title: 'Dashboard', href: dashboard(), icon: LayoutGrid },
+        { title: 'Beranda', href: dashboard(), icon: LayoutGrid },
         {
             title: 'Pengajuan',
             href: leaveRequestsIndex(),

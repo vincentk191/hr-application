@@ -61,8 +61,8 @@ class AttendanceAgentResource extends Resource
             ->columns([
                 TextColumn::make('name')->label('Nama')->searchable(),
                 TextColumn::make('last_seen_at')->label('Terakhir terhubung')->dateTime('d M Y H:i')->placeholder('Belum pernah'),
-                TextColumn::make('last_heartbeat_at')->label('Listener aktif terakhir')->dateTime('d M Y H:i')->placeholder('â€”'),
-                TextColumn::make('last_ip')->label('Alamat IP')->placeholder('â€”'),
+                TextColumn::make('last_heartbeat_at')->label('Terakhir aktif')->dateTime('d M Y H:i')->placeholder('—'),
+                TextColumn::make('last_ip')->label('Alamat IP')->placeholder('—'),
             ])
             ->recordActions([
                 Action::make('rotate')

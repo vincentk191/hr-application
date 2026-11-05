@@ -735,12 +735,12 @@ export function EmployeeForm({
                             </Section>
 
                             <Section
-                                title="Payroll"
+                                title="Penggajian"
                                 description="Nilai dalam rupiah penuh, tanpa desimal."
                             >
                                 <TextField
                                     name="pay_group"
-                                    label="Pay group"
+                                    label="Kelompok gaji"
                                     defaultValue={employee?.payroll?.pay_group}
                                     error={errors.pay_group}
                                 />

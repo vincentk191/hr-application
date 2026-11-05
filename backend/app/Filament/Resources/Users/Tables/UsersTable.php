@@ -70,7 +70,7 @@ class UsersTable
             ->recordActions([
                 EditAction::make(),
                 Action::make('resetPassword')
-                    ->label('Reset sandi')
+                    ->label('Atur ulang sandi')
                     ->icon(Heroicon::OutlinedKey)
                     ->requiresConfirmation()
                     ->modalDescription('Sandi sementara dibuat dan ditampilkan sekali. Pengguna wajib menggantinya saat masuk, dan semua sesinya dicabut.')
@@ -90,7 +90,7 @@ class UsersTable
                             ->send();
                     }),
                 Action::make('resetTwoFactor')
-                    ->label('Reset 2FA')
+                    ->label('Atur ulang 2FA')
                     ->icon(Heroicon::OutlinedShieldExclamation)
                     ->requiresConfirmation()
                     ->modalDescription('Untuk pengguna yang kehilangan perangkatnya. Autentikasi dua langkah dimatikan dan semua sesinya dicabut; akun yang wajib memakainya harus mengaktifkannya lagi saat masuk berikutnya.')

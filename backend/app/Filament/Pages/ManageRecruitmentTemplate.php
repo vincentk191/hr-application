@@ -45,10 +45,10 @@ class ManageRecruitmentTemplate extends Page
     /** The fields of the form: key => label, in the order the requisition shows them. */
     private const FIELDS = [
         'benefits' => 'Benefit & Fasilitas',
-        'education' => 'Kualifikasi Â· Pendidikan',
-        'experience' => 'Kualifikasi Â· Pengalaman',
-        'hard' => 'Skills Â· Hard Skills',
-        'soft' => 'Skills Â· Soft Skills',
+        'education' => 'Kualifikasi · Pendidikan',
+        'experience' => 'Kualifikasi · Pengalaman',
+        'hard' => 'Skills · Hard Skills',
+        'soft' => 'Skills · Soft Skills',
         'bonus' => 'Nilai Plus',
     ];
 

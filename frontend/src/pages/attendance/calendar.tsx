@@ -952,11 +952,6 @@ export default function AttendanceCalendar(props: Props) {
                                 </li>
                             ))}
                         </ul>
-                        <p className="text-xs text-muted-foreground">
-                            Pengajuan ditampilkan terpisah dari status
-                            kehadiran: keduanya dibandingkan, tetapi tidak
-                            saling menentukan.
-                        </p>
                     </div>
 
                     <aside className="flex flex-col gap-3">
@@ -969,8 +964,7 @@ export default function AttendanceCalendar(props: Props) {
                             {summary.rekapEmployees > 0 && (
                                 <p className="text-xs text-muted-foreground">
                                     +{summary.rekapEmployees} dari Cabang
-                                    Rekapitulasi, tidak dihitung di bawah ini
-                                    karena tidak punya data harian.
+                                    Rekapitulasi (tidak dihitung)
                                 </p>
                             )}
                             <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">

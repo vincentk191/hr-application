@@ -118,14 +118,7 @@ function CopySection({
 function CopyShortcuts({ item }: { item: Requisition }) {
     return (
         <section className="surface space-y-3 p-4" data-test="copy-shortcuts">
-            <div>
-                <h2 className="label-mono">Salin untuk platform</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                    Buka tiap bagian untuk melihat teks yang akan disalin, lalu
-                    tempel ke kolom yang sesuai di Glints, JobStreet dan
-                    lainnya. Catat postingnya di bawah.
-                </p>
-            </div>
+            <h2 className="label-mono">Salin untuk platform</h2>
             <div className="space-y-2">
                 <CopySection
                     label="Judul"

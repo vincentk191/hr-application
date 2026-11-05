@@ -328,11 +328,6 @@ function ExitDocuments({ item }: { item: OffboardingCase }) {
                     >
                         Unggah
                     </Button>
-                    <p className="basis-full text-xs text-muted-foreground">
-                        Surat pengunduran diri, catatan wawancara dan surat
-                        referensi disimpan juga ke dokumen karyawan (terbatas)
-                        saat kasus ditutup.
-                    </p>
                 </>
             )}
         </Form>

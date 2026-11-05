@@ -248,7 +248,7 @@ export default function RequisitionShow({
             ? [
                   {
                       key: 'edit',
-                      label: 'Edit',
+                      label: 'Ubah',
                       rank: 4,
                       render: (label: string, className?: string) => (
                           <Button

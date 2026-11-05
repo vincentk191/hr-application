@@ -266,7 +266,7 @@ it('opens the form from the personal link without signing in, showing only what 
         ->where('positionName', 'Staf Gudang')
         ->where('companyName', 'PT Maju Jaya')
         ->where('candidateName', 'Budi Santoso')
-        ->where('interview.mode', 'Online')
+        ->where('interview.mode', 'Daring')
         ->where('questions.0', ['key' => 'education_0', 'group' => 'Pendidikan', 'text' => 'Minimal SMA/SMK'])
         ->has('questions', 4)
         ->missing('phone')

@@ -619,11 +619,6 @@ function YearView({
                     </tfoot>
                 </table>
             </div>
-
-            <p className="text-xs text-muted-foreground">
-                Tingkat = hadir ÷ (hadir + tidak hadir); cuti tidak dihitung.
-                Klik sebuah bulan untuk melihat hari demi hari.
-            </p>
         </>
     );
 }
@@ -672,10 +667,8 @@ export function EmployeeAttendance({
                 className="surface p-6 text-sm text-muted-foreground"
                 data-test="attendance-via-rekap"
             >
-                Cabang karyawan ini mengirim absensi lewat rekapitulasi, jadi
-                tidak ada data harian atau scan yang ditampilkan di sini. Angka
-                per periode ada di halaman Rekap; pengajuan yang dibuat karyawan
-                ini ada di bagian Pengajuan pada profil.
+                Absensi cabang karyawan ini lewat rekapitulasi, jadi tidak ada
+                data harian.
             </p>
         );
     }
@@ -852,13 +845,6 @@ export function EmployeeAttendance({
                     />
                 ))}
             </ul>
-
-            <p className="text-xs text-muted-foreground">
-                Masuk = scan pertama, pulang = scan terakhir pada hari itu.
-                Durasi dihitung dari keduanya, tanpa memotong waktu istirahat.
-                {canCorrect &&
-                    ' Setiap koreksi wajib beralasan dan tercatat; scan asli tidak dihapus.'}
-            </p>
         </div>
     );
 }

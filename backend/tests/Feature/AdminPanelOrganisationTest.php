@@ -121,3 +121,14 @@ it('shows the audit log to a system admin only', function () {
 
     expect(Activity::count())->toBeGreaterThan(0);
 });
+
+it('shows the activity log in Indonesian, older English entries included', function () {
+    $admin = panelAdmin(Role::SystemAdmin);
+    activity('auth')->causedBy($admin)->log('Signed in');
+
+    $this->actingAs($admin)->get('/admin/activity-logs')
+        ->assertOk()
+        ->assertSee('Masuk & 2FA')
+        ->assertSee('Masuk')
+        ->assertDontSee('Signed in');
+});

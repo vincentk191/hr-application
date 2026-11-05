@@ -106,8 +106,6 @@ function StatusCard({ status }: { status: CaptureStatus }) {
             {status.state !== 'current' && (
                 <p className="mt-3 text-sm text-muted-foreground">
                     Laporan Absensi belum diunggah sampai hari kerja terakhir.
-                    Hari-hari setelah data terakhir bukan berarti karyawan tidak
-                    hadir; datanya hanya belum masuk.
                 </p>
             )}
         </section>
@@ -198,12 +196,6 @@ function UploadCard({
                 <>
                     <div className="sm:col-span-2">
                         <h2 className="font-medium">Unggah Laporan Absensi</h2>
-                        <p className="text-sm text-muted-foreground">
-                            Laporan Absensi harian dari Fingerspot (Excel), atau
-                            log scan per baris dalam Excel atau CSV. Mengunggah
-                            berkas yang sama atau tumpang tindih aman: scan yang
-                            sudah ada diabaikan.
-                        </p>
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="device_sn">
@@ -237,16 +229,8 @@ function UploadCard({
                         <InputError message={errors.file} />
                     </div>
                     <p className="text-xs text-muted-foreground sm:col-span-2">
-                        Laporan harian: yang dibaca hanya PIN, NIP, Tanggal,
-                        serta kolom Scan masuk, Scan istirahat 1/2, dan Scan
-                        pulang. Hari tanpa scan (tidak hadir, cuti, izin dinas)
-                        dilewati: status itu ditentukan dashboard dari data
-                        absensi dan pengajuan sendiri, bukan dari kolom
-                        Fingerspot. Log scan per baris: kolom PIN/ID dan
-                        tanggal-waktu scan (satu kolom, atau kolom tanggal dan
-                        jam terpisah); SN, verifikasi, dan I/O opsional. PIN
-                        yang belum dipetakan dipetakan otomatis bila NIP-nya
-                        sama dengan nomor karyawan. Tanggal dibaca hari-dulu
+                        Laporan Absensi harian Fingerspot, atau log scan per
+                        baris (PIN/ID dan waktu scan). Tanggal dibaca hari-dulu
                         (31/12/2026).
                     </p>
                     <div className="sm:col-span-2">
@@ -280,12 +264,6 @@ function RekapCard({
     return (
         <section className="surface p-4">
             <h2 className="font-medium">Unggah rekapitulasi cabang</h2>
-            <p className="text-sm text-muted-foreground">
-                Untuk cabang tanpa mesin absensi: berkas “Rekapitulasi absen
-                karyawan” (Excel) yang dikirim PIC cabang. Berkas dibuka dulu
-                sebagai draf untuk diperiksa, dan baru berlaku setelah
-                dikonfirmasi.
-            </p>
 
             {branches.length === 0 ? (
                 <p className="mt-3 text-sm text-muted-foreground">
@@ -718,12 +696,6 @@ export default function AttendanceDevice({
                                 <h2 className="font-medium">
                                     ID menunggu pemetaan ({waiting.length})
                                 </h2>
-                                <p className="text-sm text-muted-foreground">
-                                    Scan dari ID yang belum dipetakan ke
-                                    karyawan disimpan, tidak dibuang. Setelah
-                                    dipetakan, scan tersebut otomatis tercatat
-                                    sebagai absensi.
-                                </p>
                             </div>
                             {waiting.length === 0 ? (
                                 <p className="border-t p-4 text-sm text-muted-foreground">

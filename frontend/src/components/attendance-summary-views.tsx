@@ -173,9 +173,6 @@ export function WeekSummary({
                     },
                 ]}
             />
-            <p className="text-xs text-muted-foreground">
-                Klik sebuah hari untuk melihat daftar karyawannya.
-            </p>
         </section>
     );
 }
@@ -514,11 +511,6 @@ export function YearSummary({
                     </tfoot>
                 </table>
             </div>
-            <p className="text-xs text-muted-foreground">
-                Hari cuti, keterlambatan, dan tanpa keterangan dihitung dalam
-                orang-hari. Tingkat = hadir ÷ (hadir + tidak hadir); cuti tidak
-                dihitung.
-            </p>
         </section>
     );
 }

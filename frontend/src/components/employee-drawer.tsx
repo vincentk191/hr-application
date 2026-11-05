@@ -180,10 +180,6 @@ function DrawerBody({
 
     return (
         <>
-            <div className="label-mono flex items-center justify-between border-b px-4 py-3 pr-14">
-                <span>Dosir · dibuka dari daftar</span>
-                <span className="hidden sm:inline">Esc untuk menutup</span>
-            </div>
             <div className="flex items-start gap-4 border-b p-4 pr-12">
                 <EmployeeAvatar
                     name={employee.name}

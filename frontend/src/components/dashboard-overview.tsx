@@ -135,9 +135,7 @@ export function AttendanceToday({
                     <Badge tone={data.tone}>{data.statusLabel}</Badge>
                 </div>
                 <p className="mt-3 text-sm text-muted-foreground">
-                    Cabang Anda mengirim absensi lewat rekapitulasi, jadi tidak
-                    ada scan harian yang ditampilkan. Pengajuan Anda tetap
-                    tercatat.
+                    Absensi cabang Anda lewat rekapitulasi.
                 </p>
             </section>
         );
@@ -436,9 +434,6 @@ export function OpenRequests({ requests }: { requests: OpenRequest[] }) {
                             ))}
                         </tbody>
                     </table>
-                    <p className="hidden border-t px-6 py-4 text-sm text-muted-foreground md:block">
-                        Pengajuan yang sudah selesai ada di halaman Pengajuan.
-                    </p>
                 </>
             )}
         </section>

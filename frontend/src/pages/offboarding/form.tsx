@@ -172,11 +172,6 @@ export default function OffboardingForm({
                             }
                         />
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                        HR membuat kasus; Manajemen menyetujuinya; lalu
-                        supervisor tiap departemen menyusun dan menjalankan
-                        checklist.
-                    </p>
                     <div className="pill-tabs mt-3">
                         <button
                             type="button"

@@ -136,7 +136,7 @@ class ManageInvitationTemplate extends Page
     public function content(Schema $schema): Schema
     {
         $list = implode("\n", array_map(
-            fn (string $name, string $description): string => '{'.$name.'}  â€”  '.$description,
+            fn (string $name, string $description): string => '{'.$name.'}  —  '.$description,
             array_keys(InvitationTemplate::PLACEHOLDERS),
             InvitationTemplate::PLACEHOLDERS,
         ));

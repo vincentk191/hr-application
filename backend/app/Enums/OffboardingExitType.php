@@ -18,7 +18,7 @@ enum OffboardingExitType: string
     public function label(): string
     {
         return match ($this) {
-            self::Resign => 'Resign',
+            self::Resign => 'Mengundurkan diri',
             self::ContractEnd => 'Kontrak berakhir',
             self::Termination => 'PHK',
             self::Retirement => 'Pensiun',

@@ -20,11 +20,7 @@ export default function NotificationSettings({
             <h1 className="sr-only">Pengaturan notifikasi</h1>
 
             <div className="space-y-6">
-                <Heading
-                    variant="small"
-                    title="Notifikasi"
-                    description="Atur pemberitahuan di layar perangkat ini"
-                />
+                <Heading variant="small" title="Notifikasi" />
                 <PushNotificationsCard endpoints={pushEndpoints} />
             </div>
         </>

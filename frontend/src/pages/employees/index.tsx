@@ -56,9 +56,9 @@ const toggled = (list: string[], value: string) =>
         : [...list, value];
 
 const VIEWS = [
-    { value: 'list', label: 'List' },
-    { value: 'grid', label: 'Grid' },
-    { value: 'chart', label: 'Chart' },
+    { value: 'list', label: 'Daftar' },
+    { value: 'grid', label: 'Kartu' },
+    { value: 'chart', label: 'Bagan' },
 ] as const;
 
 /**

@@ -60,7 +60,7 @@ class CandidateFormController extends Controller
             ...$base,
             'interview' => $when === null ? null : [
                 'when' => InvitationMessage::whenLabel($when),
-                'mode' => $candidate->interview_mode === 'online' ? 'Online' : 'Tatap muka',
+                'mode' => $candidate->interview_mode === 'online' ? 'Daring' : 'Tatap muka',
                 'place' => $candidate->interview_place,
             ],
             'token' => $token,
