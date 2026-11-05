@@ -114,7 +114,12 @@ left uncommitted for review.
     a side list "Kandidat & jadwal" in three groups: **Terjadwal**, **Sudah lewat**, **Belum dijadwalkan**, each row with the
     schedule, place or Meet link, contacts, invitation state, the action ("+ Jadwalkan", "Ubah jadwal / kirim ulang") and
     the folded form answers. Clicking an empty future slot opens the invite form on that time (it asks which candidate when
-    several are unscheduled). The calendar shows from desktop width; on a phone the list alone is shown. Not in the view
+    several are unscheduled). The week grid shows from desktop width; below it (phone, PWA) the same calendar becomes a
+    day strip (Sen–Min with a dot on days that have interviews) over the chosen day's hours, with the same week
+    navigation, free slots ("+ Jadwalkan") and card pop-up. The pop-up also has **Batalkan kandidat** (after a confirm),
+    which is the shortlist's "Hapus" (`RemoveCandidate`): the row and CV are deleted and the invitation link stops
+    working; no cancelled record is kept. On a phone the stage card follows the stage tapped (name, "Tahap N dari 6",
+    status), not always the current one. Not in the view
     because the data does not exist yet: interview length (a slot shows its start time only), interviewers, evaluation
     status ("Review", "Recommended") and a clash check; "Sudah lewat" means the time has passed, not that it was evaluated.
     Times are laid out in the browser's own time zone, which is WIB for the office.

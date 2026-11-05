@@ -398,3 +398,36 @@ it('falls back to the address of the request when no public address is set', fun
 
     Mail::assertQueued(CandidateInvitation::class, fn (CandidateInvitation $mail): bool => (bool) preg_match('#https?://[^/\s]+/lamaran/\S{48}#', $mail->body));
 });
+
+// --- Cancelling a candidate ---
+
+it('lets HR cancel an invited candidate at the interview stage, and their form link stops working', function () {
+    $requisition = interviewRequisition();
+    $candidate = Candidate::factory()->for($requisition)->create(['email' => 'budi@example.com']);
+    $link = null;
+
+    invite($requisition, $candidate);
+    Mail::assertQueued(CandidateInvitation::class, function (CandidateInvitation $mail) use (&$link): bool {
+        preg_match('#/lamaran/(\S{48})#', $mail->body, $found);
+        $link = $found[1] ?? null;
+
+        return true;
+    });
+
+    $this->actingAs($this->hr)->delete(route('recruitment.candidates.destroy', [$requisition, $candidate]))->assertRedirect();
+
+    expect(Candidate::query()->whereKey($candidate->id)->exists())->toBeFalse();
+
+    $this->travelTo(CarbonImmutable::parse('2026-11-10 09:00', 'Asia/Jakarta'));
+    $this->get(route('candidate-form.show', $link))->assertInertia(fn (Assert $page) => $page->where('state', 'invalid'));
+});
+
+it('does not let anyone but HR cancel a candidate at the interview stage', function () {
+    $requisition = interviewRequisition();
+    $candidate = Candidate::factory()->for($requisition)->create();
+
+    $this->actingAs($this->requester)->delete(route('recruitment.candidates.destroy', [$requisition, $candidate]))->assertForbidden();
+    $this->actingAs($this->management)->delete(route('recruitment.candidates.destroy', [$requisition, $candidate]))->assertForbidden();
+
+    expect(Candidate::query()->whereKey($candidate->id)->exists())->toBeTrue();
+});

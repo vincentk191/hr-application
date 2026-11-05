@@ -20,20 +20,34 @@ export function RequisitionMobileStatus({
     const current = position === -1 ? null : item.tabs[position];
     const next = position === -1 ? undefined : item.tabs[position + 1];
 
+    // The card describes the stage being looked at, which is the current one only until another is tapped.
+    const viewedIndex = item.tabs.findIndex((tab) => tab.stage === active);
+    const viewed = viewedIndex === -1 ? null : item.tabs[viewedIndex];
+    const viewingCurrent = viewed === null || viewed.stage === current?.stage;
+
     return (
         <div className="space-y-3 md:hidden" data-test="mobile-status">
             <section className="surface space-y-4 rounded-3xl p-5">
                 <div className="flex items-baseline justify-between gap-3">
-                    <p className="label-mono tracking-[0.2em]">
-                        {current
-                            ? `TAHAP ${position + 1} DARI ${item.tabs.length}`
+                    <p
+                        className="label-mono tracking-[0.2em]"
+                        data-test="mobile-stage-counter"
+                    >
+                        {viewed
+                            ? `TAHAP ${viewedIndex + 1} DARI ${item.tabs.length}`
                             : 'TAHAP'}
                     </p>
-                    {next && (
-                        <p className="text-sm text-muted-foreground">
-                            Berikutnya: {next.label}
-                        </p>
-                    )}
+                    {viewingCurrent
+                        ? next && (
+                              <p className="text-sm text-muted-foreground">
+                                  Berikutnya: {next.label}
+                              </p>
+                          )
+                        : current && (
+                              <p className="text-sm text-muted-foreground">
+                                  Saat ini: {current.label}
+                              </p>
+                          )}
                 </div>
 
                 <ol
@@ -84,14 +98,21 @@ export function RequisitionMobileStatus({
                 </ol>
 
                 <div>
-                    <h2 className="text-3xl font-extrabold tracking-tight">
-                        {item.stageLabel}
+                    <h2
+                        className="text-3xl font-extrabold tracking-tight"
+                        data-test="mobile-stage-name"
+                    >
+                        {viewed?.label ?? item.stageLabel}
                     </h2>
                     <p
                         className="text-base text-muted-foreground"
                         data-test="status-label-mobile"
                     >
-                        {item.statusLabel}
+                        {viewingCurrent || viewed === null
+                            ? item.statusLabel
+                            : viewed.reachedAt
+                              ? `Selesai · ${shortDate(viewed.reachedAt)}`
+                              : 'Selesai'}
                     </p>
                 </div>
             </section>

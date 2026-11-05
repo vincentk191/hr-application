@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { invite } from '@/routes/recruitment/candidates';
+import { destroy, invite } from '@/routes/recruitment/candidates';
 import type { Candidate, Invitation, Requisition } from '@/types/recruitment';
 
 const rupiah = new Intl.NumberFormat('id-ID');
@@ -494,18 +494,26 @@ function CandidateRow({
  * invitation as sent and the form answers, which are too much to fit in a calendar cell.
  */
 function CandidateCard({
+    requisitionId,
     candidate,
     at,
     canManage,
+    canCancel,
     onInvite,
     onClose,
 }: {
+    requisitionId: number;
     candidate: Candidate;
     at: Date | null;
     canManage: boolean;
+    /** HR may take the candidate out of the process (the same right as removing from the shortlist). */
+    canCancel: boolean;
     onInvite: (candidate: Candidate) => void;
     onClose: () => void;
 }) {
+    const [confirming, setConfirming] = useState(false);
+    const [cancelling, setCancelling] = useState(false);
+
     return (
         <Dialog open onOpenChange={(open) => !open && onClose()}>
             <DialogContent
@@ -526,6 +534,71 @@ function CandidateCard({
                         onInvite={onInvite}
                     />
                 </ul>
+
+                {canCancel && (
+                    <div
+                        className="space-y-3 border-t p-4"
+                        data-test="cancel-candidate-section"
+                    >
+                        {confirming ? (
+                            <>
+                                <p className="text-sm">
+                                    Batalkan {candidate.name} dari proses
+                                    rekrutmen ini? Datanya dan CV-nya dihapus,
+                                    dan tautan formulir yang sudah dikirim tidak
+                                    bisa dibuka lagi. Ini tidak bisa diurungkan.
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="destructive"
+                                        disabled={cancelling}
+                                        onClick={() =>
+                                            router.delete(
+                                                destroy.url({
+                                                    requisition: requisitionId,
+                                                    candidate: candidate.id,
+                                                }),
+                                                {
+                                                    preserveScroll: true,
+                                                    onStart: () =>
+                                                        setCancelling(true),
+                                                    onFinish: () =>
+                                                        setCancelling(false),
+                                                    onSuccess: onClose,
+                                                },
+                                            )
+                                        }
+                                        data-test="confirm-cancel-candidate"
+                                    >
+                                        Ya, batalkan kandidat
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={cancelling}
+                                        onClick={() => setConfirming(false)}
+                                    >
+                                        Kembali
+                                    </Button>
+                                </div>
+                            </>
+                        ) : (
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="text-destructive"
+                                onClick={() => setConfirming(true)}
+                                data-test="cancel-candidate"
+                            >
+                                Batalkan kandidat
+                            </Button>
+                        )}
+                    </div>
+                )}
             </DialogContent>
         </Dialog>
     );
@@ -574,9 +647,9 @@ function WeekCalendar({
     const upcoming = entries
         .filter((entry) => entry.at >= now)
         .sort((a, b) => a.at.getTime() - b.at.getTime())[0];
-    const [weekStart, setWeekStart] = useState(() =>
-        startOfWeek(upcoming?.at ?? now),
-    );
+    // The day being looked at: the week is the one it falls in, and on a phone it is the day whose agenda is open.
+    const [anchor, setAnchor] = useState(() => upcoming?.at ?? now);
+    const weekStart = startOfWeek(anchor);
 
     const days = Array.from({ length: 7 }, (_, index) =>
         addDays(weekStart, index),
@@ -590,10 +663,7 @@ function WeekCalendar({
     const rows = Array.from({ length: last - first + 1 }, (_, i) => first + i);
 
     return (
-        <section
-            className="surface hidden overflow-hidden lg:block"
-            data-test="week-calendar"
-        >
+        <section className="surface overflow-hidden" data-test="week-calendar">
             <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
                 <div>
                     <h2 className="text-lg font-extrabold tracking-tight">
@@ -601,7 +671,7 @@ function WeekCalendar({
                     </h2>
                     <p className="text-sm text-muted-foreground">
                         {canSchedule
-                            ? 'Klik slot kosong untuk menjadwalkan kandidat yang belum punya jadwal.'
+                            ? 'Pilih slot kosong untuk menjadwalkan kandidat yang belum punya jadwal.'
                             : 'Jadwal interview kandidat minggu ini.'}
                     </p>
                 </div>
@@ -610,16 +680,17 @@ function WeekCalendar({
                         type="button"
                         size="sm"
                         variant="outline"
-                        onClick={() => setWeekStart(addDays(weekStart, -7))}
+                        aria-label="Minggu lalu"
+                        onClick={() => setAnchor(addDays(anchor, -7))}
                         data-test="week-prev"
                     >
-                        ‹ Minggu lalu
+                        ‹<span className="hidden sm:inline"> Minggu lalu</span>
                     </Button>
                     <Button
                         type="button"
                         size="sm"
                         variant="outline"
-                        onClick={() => setWeekStart(startOfWeek(now))}
+                        onClick={() => setAnchor(now)}
                     >
                         Hari ini
                     </Button>
@@ -627,16 +698,139 @@ function WeekCalendar({
                         type="button"
                         size="sm"
                         variant="outline"
-                        onClick={() => setWeekStart(addDays(weekStart, 7))}
+                        aria-label="Minggu depan"
+                        onClick={() => setAnchor(addDays(anchor, 7))}
                         data-test="week-next"
                     >
-                        Minggu depan ›
+                        <span className="hidden sm:inline">Minggu depan </span>›
                     </Button>
                 </div>
             </header>
 
+            <div className="lg:hidden" data-test="day-agenda">
+                <div className="grid grid-cols-7 gap-1 border-b p-2">
+                    {days.map((day) => {
+                        const count = inWeek.filter((entry) =>
+                            sameDay(entry.at, day),
+                        ).length;
+                        const selected = sameDay(day, anchor);
+
+                        return (
+                            <button
+                                type="button"
+                                key={day.toISOString()}
+                                aria-pressed={selected}
+                                aria-label={`${dayMonthFormat.format(day)}${count > 0 ? `, ${count} interview` : ''}`}
+                                onClick={() => setAnchor(day)}
+                                data-test="agenda-day"
+                                className={`flex min-w-0 flex-col items-center gap-0.5 rounded-xl border py-2 transition-colors ${
+                                    selected
+                                        ? 'border-primary bg-primary text-primary-foreground'
+                                        : sameDay(day, now)
+                                          ? 'border-primary/40 bg-primary/10'
+                                          : ''
+                                }`}
+                            >
+                                <span className="label-mono text-[10px] text-inherit">
+                                    {weekdayFormat.format(day)}
+                                </span>
+                                <span className="text-base font-extrabold">
+                                    {day.getDate()}
+                                </span>
+                                <span
+                                    aria-hidden
+                                    className={`size-1.5 rounded-full ${
+                                        count === 0
+                                            ? 'bg-transparent'
+                                            : selected
+                                              ? 'bg-primary-foreground'
+                                              : 'bg-primary'
+                                    }`}
+                                />
+                            </button>
+                        );
+                    })}
+                </div>
+
+                <p className="label-mono border-b px-4 py-2">
+                    {dayMonthFormat.format(anchor)}
+                </p>
+
+                <div className="divide-y">
+                    {rows.map((hour) => {
+                        const here = inWeek.filter(
+                            (entry) =>
+                                sameDay(entry.at, anchor) &&
+                                entry.at.getHours() === hour,
+                        );
+                        const free =
+                            canSchedule &&
+                            here.length === 0 &&
+                            new Date(
+                                anchor.getFullYear(),
+                                anchor.getMonth(),
+                                anchor.getDate(),
+                                hour + 1,
+                            ) > now;
+
+                        return (
+                            <div
+                                key={hour}
+                                className="flex min-h-14 items-stretch gap-3 px-4 py-1.5"
+                            >
+                                <span className="label-mono w-12 shrink-0 pt-2">
+                                    {String(hour).padStart(2, '0')}.00
+                                </span>
+                                <div className="min-w-0 flex-1 space-y-1">
+                                    {here.map((entry) => (
+                                        <button
+                                            type="button"
+                                            key={entry.candidate.id}
+                                            onClick={() =>
+                                                onOpenEntry(entry.candidate)
+                                            }
+                                            className={`block w-full rounded-xl border p-3 text-left text-sm transition-shadow focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
+                                                entry.at < now
+                                                    ? 'bg-muted text-muted-foreground'
+                                                    : 'border-primary/40 bg-primary/10'
+                                            }`}
+                                            data-test="agenda-entry"
+                                        >
+                                            <p className="font-bold">
+                                                {entry.candidate.name}
+                                            </p>
+                                            <p className="label-mono">
+                                                {clock(entry.at)} ·{' '}
+                                                {modeLabel(
+                                                    entry.candidate
+                                                        .interviewMode,
+                                                )}
+                                            </p>
+                                        </button>
+                                    ))}
+                                    {free && (
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                onPickSlot(
+                                                    slotValue(anchor, hour),
+                                                )
+                                            }
+                                            className="flex h-full min-h-11 w-full items-center rounded-xl border border-dashed px-3 text-sm text-muted-foreground transition-colors hover:bg-primary/10 focus-visible:bg-primary/10 focus-visible:outline-none"
+                                            data-test="agenda-free-slot"
+                                        >
+                                            + Jadwalkan
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
             <div
-                className="grid"
+                className="hidden lg:grid"
                 style={{
                     gridTemplateColumns: '4rem repeat(7, minmax(0, 1fr))',
                 }}
@@ -742,7 +936,7 @@ function WeekCalendar({
                     </span>
                 </span>
                 {canSchedule && (
-                    <span className="label-mono">Slot kosong bisa diklik</span>
+                    <span className="label-mono">Slot kosong bisa dipilih</span>
                 )}
             </footer>
         </section>
@@ -933,9 +1127,11 @@ export function InterviewTab({ item }: { item: Requisition }) {
 
             {viewing && (
                 <CandidateCard
+                    requisitionId={item.id}
                     candidate={viewing}
                     at={parseLocal(viewing.interviewAtInput)}
                     canManage={canManage}
+                    canCancel={item.canManageScreening}
                     onInvite={(chosen) => {
                         setViewingId(null);
                         setInviting({ candidate: chosen });
