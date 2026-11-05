@@ -240,6 +240,7 @@ class EmployeeController extends Controller
                     'startOn' => $leave->start_on->toDateString(),
                     'endOn' => $leave->end_on->toDateString(),
                     'days' => $leave->days,
+                    'stage' => $leave->workflow?->stage()->value,
                     'stageLabel' => $leave->workflow?->stage()->label(),
                     'reason' => $leave->reason,
                     'submittedAt' => $leave->created_at?->toDateString(),

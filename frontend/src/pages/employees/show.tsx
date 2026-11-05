@@ -14,6 +14,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { stageVariant } from '@/lib/leave-stage';
 import { edit, index as employeesIndex, reactivate } from '@/routes/employees';
 import { activate, reject } from '@/routes/employees/activation';
 import { create as requestChange } from '@/routes/employees/changes';
@@ -162,6 +163,52 @@ function RequestRow({ row }: { row: LeaveRow }) {
                 </tr>
             )}
         </>
+    );
+}
+
+/**
+ * One leave request on the profile as a card, for a phone, where the table's six columns do not fit: what it is and its
+ * status on top, the dates and days beneath, and the same detail (the requester's note and each reviewer's decision)
+ * unfolding underneath when it is tapped.
+ */
+function RequestCard({ row }: { row: LeaveRow }) {
+    const [open, setOpen] = useState(false);
+
+    return (
+        <article className="surface overflow-hidden" data-test="request-card">
+            <button
+                type="button"
+                aria-expanded={open}
+                onClick={() => setOpen((value) => !value)}
+                className="flex w-full flex-col gap-2 p-4 text-left"
+            >
+                <span className="flex items-start justify-between gap-3">
+                    <span className="min-w-0">
+                        <span className="block font-semibold">{row.type}</span>
+                        <span className="label-mono">{row.reference}</span>
+                    </span>
+                    <Badge variant={stageVariant(row.stage)}>
+                        {row.stageLabel}
+                    </Badge>
+                </span>
+                <span className="text-sm">
+                    {row.startOn} – {row.endOn} · {row.days} hari
+                </span>
+                {row.timeframe && (
+                    <span className="text-xs text-muted-foreground">
+                        {row.timeframe}
+                    </span>
+                )}
+                <span className="text-xs text-muted-foreground">
+                    {open ? 'Tutup detail' : 'Lihat detail'}
+                </span>
+            </button>
+            {open && (
+                <div className="border-t bg-muted/30 p-4">
+                    <LeaveRequestDetail row={row} />
+                </div>
+            )}
+        </article>
     );
 }
 
@@ -691,37 +738,63 @@ export default function EmployeeShow({
                 )}
 
                 {tab === 'requests' && (
-                    <div className="surface overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead className="bg-muted/50 text-left">
-                                <tr>
-                                    <th className="p-3 font-medium">
-                                        Pengajuan
-                                    </th>
-                                    <th className="p-3 font-medium">Jenis</th>
-                                    <th className="p-3 font-medium">Tanggal</th>
-                                    <th className="p-3 font-medium">Hari</th>
-                                    <th className="p-3 font-medium">Status</th>
-                                    <th className="p-3" />
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {requests.length === 0 && (
+                    <>
+                        {/* Phone: one card per request. */}
+                        <div
+                            className="flex flex-col gap-3 md:hidden"
+                            data-test="request-cards"
+                        >
+                            {requests.length === 0 && (
+                                <p className="surface p-6 text-center text-sm text-muted-foreground">
+                                    Belum ada pengajuan.
+                                </p>
+                            )}
+                            {requests.map((row) => (
+                                <RequestCard key={row.id} row={row} />
+                            ))}
+                        </div>
+
+                        {/* Tablet and up: the table. */}
+                        <div className="surface hidden overflow-x-auto md:block">
+                            <table className="w-full text-sm">
+                                <thead className="bg-muted/50 text-left">
                                     <tr>
-                                        <td
-                                            colSpan={6}
-                                            className="p-6 text-center text-muted-foreground"
-                                        >
-                                            Belum ada pengajuan.
-                                        </td>
+                                        <th className="p-3 font-medium">
+                                            Pengajuan
+                                        </th>
+                                        <th className="p-3 font-medium">
+                                            Jenis
+                                        </th>
+                                        <th className="p-3 font-medium">
+                                            Tanggal
+                                        </th>
+                                        <th className="p-3 font-medium">
+                                            Hari
+                                        </th>
+                                        <th className="p-3 font-medium">
+                                            Status
+                                        </th>
+                                        <th className="p-3" />
                                     </tr>
-                                )}
-                                {requests.map((row) => (
-                                    <RequestRow key={row.id} row={row} />
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody>
+                                    {requests.length === 0 && (
+                                        <tr>
+                                            <td
+                                                colSpan={6}
+                                                className="p-6 text-center text-muted-foreground"
+                                            >
+                                                Belum ada pengajuan.
+                                            </td>
+                                        </tr>
+                                    )}
+                                    {requests.map((row) => (
+                                        <RequestRow key={row.id} row={row} />
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </>
                 )}
 
                 {tab === 'attendance' && (

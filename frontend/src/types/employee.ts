@@ -188,6 +188,8 @@ export type LeaveRow = {
     startOn: string;
     endOn: string;
     days: number;
+    /** submitted, approved or rejected; what the status badge is coloured by. */
+    stage: string | null;
     stageLabel: string | null;
     reason: string | null;
     timeframe: string | null;

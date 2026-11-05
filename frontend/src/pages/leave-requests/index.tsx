@@ -10,6 +10,7 @@ import { LeaveDecisionDialog } from '@/components/leave-decision-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { stageVariant } from '@/lib/leave-stage';
 import { create, decision, exportMethod, index } from '@/routes/leave-requests';
 import type { BreadcrumbItem } from '@/types';
 import type { ValueOption } from '@/types/employee';
@@ -18,12 +19,6 @@ import type { LeaveRequestFilters, LeaveRequestRow } from '@/types/leave';
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Pengajuan', href: '/leave-requests' },
 ];
-
-function stageVariant(stage: LeaveRequestRow['stage']) {
-    if (stage === 'approved') return 'default' as const;
-    if (stage === 'rejected') return 'destructive' as const;
-    return 'secondary' as const;
-}
 
 const STATUSES: { value: LeaveRequestFilters['status']; label: string }[] = [
     { value: 'all', label: 'Semua' },

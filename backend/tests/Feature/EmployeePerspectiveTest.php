@@ -111,6 +111,8 @@ it('lets an employee read the reviewer\'s note on their own rejected request fro
     $this->actingAs($this->user)->get(route('employees.show', $this->mine))
         ->assertInertia(fn (Assert $page) => $page
             ->where('requests.0.reason', 'Keperluan keluarga')
+            // The stage code, which the card's status badge is coloured by.
+            ->where('requests.0.stage', 'rejected')
             ->where('requests.0.steps.0.status', 'rejected')
             ->where('requests.0.steps.0.note', 'Bertabrakan dengan audit akhir tahun')
             ->where('requests.0.steps.0.decidedBy', $hr->name));
