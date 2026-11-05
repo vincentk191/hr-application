@@ -553,6 +553,13 @@ left uncommitted for review.
   (phone layout, reopening a profile, adding an employee while viewing all companies); in short:
   - **Phone layout:** the directory, Pengajuan and Perubahan data become cards below `md`, with search and filters in a
     bottom sheet (`FilterSheet`) and a bottom tab bar (`MobileTabBar`, "Lainnya" for the rest) in place of the side menu.
+    **Menu categories (2026-11-05):** `useNavSections` groups the menu under headings (Utama, Karyawan, Siklus karyawan,
+    Absensi, Administrasi), used by the side menu and by "Lainnya"; a heading with nothing in it is not shown. When
+    everything a person can open fits beside the home button (an employee, and so every public-entrance session), the
+    bar carries all of it (Pengajuan, Profil saya, Notifikasi, Pengaturan) and there is no "Lainnya". The admin panel's
+    menu uses Filament navigation groups (`AdminNavigationGroup`: Organisasi, Akses, Alur kerja, Absensi, Sistem), which
+    its phone sheet also follows. **The "Menunggu Anda" count and the Pengajuan badge count leave only** (they used to
+    count every approval flow, so a requisition waiting on Management inflated a leave queue that did not list it).
     The **org chart** is a collapsible folder tree on a phone (one row per person, reports indented, the top level open),
     and stays the boxes-and-lines tree from tablet width. The profile and its Absensi tab were reworked for the width too.
   - **Profile changes** are reviewed in a dialog (`ProfileChangeDialog`) from the Perubahan data list.
