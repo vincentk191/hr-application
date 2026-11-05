@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Enums\AdminNavigationGroup;
 use App\Support\AppSettings;
 use App\Support\Attendance\WorkSchedule;
 use BackedEnum;
@@ -17,6 +18,7 @@ use Filament\Schemas\Components\Text;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Carbon;
+use UnitEnum;
 
 /**
  * Working hours for the attendance calendar: when work starts, when it ends, and how many minutes
@@ -34,7 +36,9 @@ class ManageWorkingHours extends Page
 
     protected static ?string $title = 'Jam kerja';
 
-    protected static ?int $navigationSort = 7;
+    protected static string|UnitEnum|null $navigationGroup = AdminNavigationGroup::Attendance;
+
+    protected static ?int $navigationSort = 1;
 
     /**
      * @var array<string, mixed>|null

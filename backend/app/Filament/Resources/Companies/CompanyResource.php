@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Companies;
 
+use App\Enums\AdminNavigationGroup;
 use App\Enums\Permission;
 use App\Filament\Resources\Companies\Pages\CreateCompany;
 use App\Filament\Resources\Companies\Pages\EditCompany;
@@ -14,6 +15,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use UnitEnum;
 
 class CompanyResource extends Resource
 {
@@ -24,6 +26,8 @@ class CompanyResource extends Resource
     protected static ?string $modelLabel = 'perusahaan';
 
     protected static ?string $pluralModelLabel = 'Perusahaan';
+
+    protected static string|UnitEnum|null $navigationGroup = AdminNavigationGroup::Organisation;
 
     protected static ?int $navigationSort = 1;
 

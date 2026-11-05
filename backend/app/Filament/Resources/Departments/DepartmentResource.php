@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Departments;
 
+use App\Enums\AdminNavigationGroup;
 use App\Filament\Resources\Departments\Pages\CreateDepartment;
 use App\Filament\Resources\Departments\Pages\EditDepartment;
 use App\Filament\Resources\Departments\Pages\ListDepartments;
@@ -21,6 +22,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\Rules\Unique;
+use UnitEnum;
 
 class DepartmentResource extends Resource
 {
@@ -32,7 +34,9 @@ class DepartmentResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Departemen';
 
-    protected static ?int $navigationSort = 4;
+    protected static string|UnitEnum|null $navigationGroup = AdminNavigationGroup::Organisation;
+
+    protected static ?int $navigationSort = 3;
 
     public static function form(Schema $schema): Schema
     {
@@ -73,7 +77,7 @@ class DepartmentResource extends Resource
                     ->sortable(),
                 TextColumn::make('supervisor.full_name')
                     ->label('Kepala departemen')
-                    ->placeholder('—'),
+                    ->placeholder('â€”'),
                 TextColumn::make('employees_count')
                     ->label('Karyawan')
                     ->counts('employees'),

@@ -7,6 +7,7 @@ use App\Enums\Role;
 use App\Http\Controllers\NotificationController;
 use App\Models\Company;
 use App\Models\Employee;
+use App\Models\LeaveRequest;
 use App\Models\OffboardingCase;
 use App\Models\ProfileChangeRequest;
 use App\Models\Requisition;
@@ -92,7 +93,7 @@ class HandleInertiaRequests extends Middleware
             'openOffboarding' => fn (): int => $request->user()?->can('viewAny', OffboardingCase::class)
                 ? OffboardingCase::openCountFor($request->user())
                 : 0,
-            'pendingForMe' => fn (): int => $request->user() === null ? 0 : WorkflowStep::waitingOn($request->user())->count(),
+            'pendingForMe' => fn (): int => $request->user() === null ? 0 : WorkflowStep::waitingOn($request->user(), LeaveRequest::class)->count(),
             'branding' => fn (): ?array => $request->user() === null ? null : app(Branding::class)->current(),
             // The header bell: how many are unread and the latest few. Lazy, so a request that does not
             // render a page (a redirect) never pays for it.

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Enums\AdminNavigationGroup;
 use App\Support\Backup\BackupSettings;
 use App\Support\Backup\BackupStatus;
 use BackedEnum;
@@ -18,6 +19,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Text;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use UnitEnum;
 
 /**
  * How backups are made (README, "Backups"): the key they are encrypted to, where the copy off the server goes, how
@@ -37,7 +39,9 @@ class ManageBackups extends Page
 
     protected static ?string $title = 'Cadangan data';
 
-    protected static ?int $navigationSort = 8;
+    protected static string|UnitEnum|null $navigationGroup = AdminNavigationGroup::System;
+
+    protected static ?int $navigationSort = 2;
 
     /**
      * Fortify's own "confirm your password" step, so this page asks the same way the security settings do.

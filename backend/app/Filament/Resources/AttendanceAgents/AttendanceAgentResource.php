@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\AttendanceAgents;
 
+use App\Enums\AdminNavigationGroup;
 use App\Filament\Resources\AttendanceAgents\Pages\ManageAttendanceAgents;
 use App\Models\AttendanceAgent;
 use App\Support\Features;
@@ -15,6 +16,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use UnitEnum;
 
 /**
  * The on-site sync agents and their API tokens (ATT-DEV-002, CORE-AUT-008).
@@ -32,7 +34,9 @@ class AttendanceAgentResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Agen sinkronisasi';
 
-    protected static ?int $navigationSort = 8;
+    protected static string|UnitEnum|null $navigationGroup = AdminNavigationGroup::Attendance;
+
+    protected static ?int $navigationSort = 2;
 
     public static function canAccess(): bool
     {
@@ -57,8 +61,8 @@ class AttendanceAgentResource extends Resource
             ->columns([
                 TextColumn::make('name')->label('Nama')->searchable(),
                 TextColumn::make('last_seen_at')->label('Terakhir terhubung')->dateTime('d M Y H:i')->placeholder('Belum pernah'),
-                TextColumn::make('last_heartbeat_at')->label('Listener aktif terakhir')->dateTime('d M Y H:i')->placeholder('—'),
-                TextColumn::make('last_ip')->label('Alamat IP')->placeholder('—'),
+                TextColumn::make('last_heartbeat_at')->label('Listener aktif terakhir')->dateTime('d M Y H:i')->placeholder('â€”'),
+                TextColumn::make('last_ip')->label('Alamat IP')->placeholder('â€”'),
             ])
             ->recordActions([
                 Action::make('rotate')

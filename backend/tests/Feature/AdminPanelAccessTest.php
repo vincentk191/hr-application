@@ -110,3 +110,24 @@ it('signs out of the whole application from the panel and lands on the login', f
     $this->assertGuest();
     $this->get('/admin')->assertRedirect(route('login'));
 });
+
+it('groups the panel\'s menu under headings, in order, showing each role only its own', function (Role $role, array $headings, array $absent) {
+    $html = (string) $this->actingAs(panelUser($role))->get('/admin')->assertOk()->getContent();
+
+    $seen = collect(['Organisasi', 'Akses', 'Alur kerja', 'Absensi', 'Sistem'])
+        ->mapWithKeys(fn (string $heading): array => [$heading => preg_match('#>\s*'.preg_quote($heading, '#').'\s*<#', $html, $found, PREG_OFFSET_CAPTURE) === 1 ? $found[0][1] : null]);
+
+    expect($seen->filter()->keys()->all())->toBe($headings)
+        // In the order of the groups, not the order of the pages.
+        ->and($seen->filter()->values()->all())->toBe($seen->filter()->sort()->values()->all())
+        ->and($seen->only($absent)->filter()->all())->toBe([]);
+})->with([
+    'HR Admin' => [Role::HrAdmin, ['Organisasi', 'Alur kerja', 'Absensi'], ['Akses', 'Sistem']],
+    'System Admin' => [Role::SystemAdmin, ['Organisasi', 'Akses', 'Alur kerja', 'Sistem'], ['Absensi']],
+]);
+
+it('opens the invitation template page from the panel, which was missing from it before', function () {
+    $html = (string) $this->actingAs(panelUser(Role::HrAdmin))->get('/admin/manage-invitation-template')->assertOk()->getContent();
+
+    expect($html)->toContain('Template undangan');
+});

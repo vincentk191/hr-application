@@ -58,7 +58,7 @@ class LeaveRequestController extends Controller
                 'departments' => OrganisationNames::departments($request->user()),
             ],
             // What is waiting on this person, and what was approved this month (REQ-DSH-001).
-            'waitingOnMe' => WorkflowStep::waitingOn($user)->count(),
+            'waitingOnMe' => WorkflowStep::waitingOn($user, LeaveRequest::class)->count(),
             'approvedThisMonth' => LeaveRequest::query()->visibleTo($user)
                 ->whereHas('workflow', fn (Builder $query) => $query->where('current_stage', 'approved')
                     ->where('completed_at', '>=', now()->startOfMonth()))

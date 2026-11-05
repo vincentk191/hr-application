@@ -130,15 +130,23 @@ class WorkflowStep extends Model
     /**
      * Steps waiting on a given person, for the queue and the nav badge (CORE-WFL-008).
      *
+     * Every flow on the engine (leave, requisitions, offboarding) has steps, so a count meant for one page, such as the
+     * leave queue, names the kind of subject it is about; otherwise it would count work the page does not list.
+     *
      * @param  Builder<static>  $query
+     * @param  class-string<Model>|null  $subjectType  only steps of workflows about this kind of record
      */
     #[Scope]
-    protected function waitingOn(Builder $query, User $user): void
+    protected function waitingOn(Builder $query, User $user, ?string $subjectType = null): void
     {
         if (app(Entrance::class)->isPublic()) {
             $query->whereRaw('1 = 0');
 
             return;
+        }
+
+        if ($subjectType !== null) {
+            $query->whereHas('instance', fn (Builder $instance) => $instance->where('subject_type', (new $subjectType)->getMorphClass()));
         }
 
         $query->where('status', WorkflowStepStatus::Pending)

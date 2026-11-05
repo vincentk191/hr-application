@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Enums\AdminNavigationGroup;
 use App\Support\Recruitment\RequisitionTemplate;
 use BackedEnum;
 use Closure;
@@ -15,6 +16,7 @@ use Filament\Schemas\Components\Form;
 use Filament\Schemas\Components\Text;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use UnitEnum;
 
 /**
  * The base template every requisition starts from (REC-TPL-001): the lines under Benefit & Fasilitas and under each
@@ -31,7 +33,9 @@ class ManageRecruitmentTemplate extends Page
 
     protected static ?string $title = 'Template rekrutmen';
 
-    protected static ?int $navigationSort = 8;
+    protected static string|UnitEnum|null $navigationGroup = AdminNavigationGroup::Workflow;
+
+    protected static ?int $navigationSort = 3;
 
     /**
      * @var array<string, mixed>|null
@@ -41,10 +45,10 @@ class ManageRecruitmentTemplate extends Page
     /** The fields of the form: key => label, in the order the requisition shows them. */
     private const FIELDS = [
         'benefits' => 'Benefit & Fasilitas',
-        'education' => 'Kualifikasi · Pendidikan',
-        'experience' => 'Kualifikasi · Pengalaman',
-        'hard' => 'Skills · Hard Skills',
-        'soft' => 'Skills · Soft Skills',
+        'education' => 'Kualifikasi Â· Pendidikan',
+        'experience' => 'Kualifikasi Â· Pengalaman',
+        'hard' => 'Skills Â· Hard Skills',
+        'soft' => 'Skills Â· Soft Skills',
         'bonus' => 'Nilai Plus',
     ];
 

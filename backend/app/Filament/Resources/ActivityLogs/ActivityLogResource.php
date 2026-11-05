@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ActivityLogs;
 
+use App\Enums\AdminNavigationGroup;
 use App\Enums\Permission;
 use App\Filament\Resources\ActivityLogs\Pages\ListActivityLogs;
 use BackedEnum;
@@ -15,11 +16,12 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
 use Spatie\Activitylog\Models\Activity;
+use UnitEnum;
 
 /**
  * A read-only view of the audit trail: dossier edits, role grants and permission changes.
  *
- * Nothing here can create, change or delete an entry — the log is only useful if it cannot be
+ * Nothing here can create, change or delete an entry â€” the log is only useful if it cannot be
  * edited by the people it records.
  */
 class ActivityLogResource extends Resource
@@ -32,7 +34,9 @@ class ActivityLogResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Catatan aktivitas';
 
-    protected static ?int $navigationSort = 6;
+    protected static string|UnitEnum|null $navigationGroup = AdminNavigationGroup::System;
+
+    protected static ?int $navigationSort = 1;
 
     public static function canViewAny(): bool
     {
@@ -64,7 +68,7 @@ class ActivityLogResource extends Resource
             TextEntry::make('subject_type')
                 ->label('Objek')
                 ->formatStateUsing(fn (?string $state, Activity $record): string => $state === null
-                    ? '—'
+                    ? 'â€”'
                     : class_basename($state).' #'.$record->subject_id),
             TextEntry::make('properties')
                 ->label('Rincian')
@@ -98,7 +102,7 @@ class ActivityLogResource extends Resource
                 TextColumn::make('subject_type')
                     ->label('Objek')
                     ->formatStateUsing(fn (?string $state, Activity $record): string => $state === null
-                        ? '—'
+                        ? 'â€”'
                         : class_basename($state).' #'.$record->subject_id),
             ])
             ->filters([

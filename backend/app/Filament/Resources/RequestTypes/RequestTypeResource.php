@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\RequestTypes;
 
 use App\Enums\AbsenceKind;
+use App\Enums\AdminNavigationGroup;
 use App\Enums\Permission;
 use App\Filament\Resources\RequestTypes\Pages\CreateRequestType;
 use App\Filament\Resources\RequestTypes\Pages\EditRequestType;
@@ -26,6 +27,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
 use Livewire\Component;
+use UnitEnum;
 
 /**
  * The kinds of request (jenis pengajuan) people can file: add one, rename it, give it a maximum
@@ -44,7 +46,9 @@ class RequestTypeResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Jenis pengajuan';
 
-    protected static ?int $navigationSort = 8;
+    protected static string|UnitEnum|null $navigationGroup = AdminNavigationGroup::Workflow;
+
+    protected static ?int $navigationSort = 1;
 
     public static function canViewAny(): bool
     {

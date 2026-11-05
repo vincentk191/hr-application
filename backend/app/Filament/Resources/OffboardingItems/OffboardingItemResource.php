@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\OffboardingItems;
 
+use App\Enums\AdminNavigationGroup;
 use App\Enums\OffboardingItemKind;
 use App\Filament\Resources\OffboardingItems\Pages\CreateOffboardingItem;
 use App\Filament\Resources\OffboardingItems\Pages\EditOffboardingItem;
@@ -21,6 +22,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use UnitEnum;
 
 /**
  * The master list of offboarding items (OFF-TPL): what is usually handed back or switched off. The list
@@ -39,7 +41,9 @@ class OffboardingItemResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Item offboarding';
 
-    protected static ?int $navigationSort = 9;
+    protected static string|UnitEnum|null $navigationGroup = AdminNavigationGroup::Workflow;
+
+    protected static ?int $navigationSort = 2;
 
     public static function form(Schema $schema): Schema
     {
@@ -85,13 +89,13 @@ class OffboardingItemResource extends Resource
     }
 
     /**
-     * "Ivan Pratama · IT Support · IT · CMP-A": who, their job title and department, and company.
+     * "Ivan Pratama Â· IT Support Â· IT Â· CMP-A": who, their job title and department, and company.
      */
     private static function ownerLabel(Employee $employee): string
     {
         $employee->loadMissing(['position' => fn ($query) => $query->withoutGlobalScopes(), 'department' => fn ($query) => $query->withoutGlobalScopes(), 'company']);
 
-        return collect([$employee->full_name, $employee->position?->name, $employee->department?->name, $employee->company?->code])->filter()->implode(' · ');
+        return collect([$employee->full_name, $employee->position?->name, $employee->department?->name, $employee->company?->code])->filter()->implode(' Â· ');
     }
 
     public static function getPages(): array

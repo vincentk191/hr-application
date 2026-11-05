@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Branches;
 
+use App\Enums\AdminNavigationGroup;
 use App\Enums\AttendanceSource;
 use App\Enums\Permission;
 use App\Filament\Resources\Branches\Pages\CreateBranch;
@@ -21,6 +22,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Validation\Rules\Unique;
+use UnitEnum;
 
 class BranchResource extends Resource
 {
@@ -32,7 +34,9 @@ class BranchResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Cabang';
 
-    protected static ?int $navigationSort = 3;
+    protected static string|UnitEnum|null $navigationGroup = AdminNavigationGroup::Organisation;
+
+    protected static ?int $navigationSort = 2;
 
     public static function form(Schema $schema): Schema
     {

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Enums\AdminNavigationGroup;
 use App\Support\Recruitment\InvitationMessage;
 use App\Support\Recruitment\InvitationTemplate;
 use BackedEnum;
@@ -17,6 +18,7 @@ use Filament\Schemas\Components\Form;
 use Filament\Schemas\Components\Text;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use UnitEnum;
 
 /**
  * The words of the interview invitation (REC-INT): the subject and the body, with `{placeholders}` filled in for each
@@ -33,7 +35,9 @@ class ManageInvitationTemplate extends Page
 
     protected static ?string $title = 'Template undangan interview';
 
-    protected static ?int $navigationSort = 9;
+    protected static string|UnitEnum|null $navigationGroup = AdminNavigationGroup::Workflow;
+
+    protected static ?int $navigationSort = 4;
 
     /**
      * @var array<string, mixed>|null
@@ -132,7 +136,7 @@ class ManageInvitationTemplate extends Page
     public function content(Schema $schema): Schema
     {
         $list = implode("\n", array_map(
-            fn (string $name, string $description): string => '{'.$name.'}  —  '.$description,
+            fn (string $name, string $description): string => '{'.$name.'}  â€”  '.$description,
             array_keys(InvitationTemplate::PLACEHOLDERS),
             InvitationTemplate::PLACEHOLDERS,
         ));

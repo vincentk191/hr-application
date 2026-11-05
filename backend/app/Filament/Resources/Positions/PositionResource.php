@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Positions;
 
+use App\Enums\AdminNavigationGroup;
 use App\Filament\Resources\Positions\Pages\CreatePosition;
 use App\Filament\Resources\Positions\Pages\EditPosition;
 use App\Filament\Resources\Positions\Pages\ListPositions;
@@ -21,6 +22,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Unique;
+use UnitEnum;
 
 class PositionResource extends Resource
 {
@@ -32,7 +34,9 @@ class PositionResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Posisi';
 
-    protected static ?int $navigationSort = 5;
+    protected static string|UnitEnum|null $navigationGroup = AdminNavigationGroup::Organisation;
+
+    protected static ?int $navigationSort = 4;
 
     public static function form(Schema $schema): Schema
     {

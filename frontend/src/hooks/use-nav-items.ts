@@ -26,45 +26,22 @@ import { index as profileChanges } from '@/routes/profile-changes';
 import { index as recruitmentIndex } from '@/routes/recruitment';
 import type { NavItem } from '@/types';
 
-const mainNavItems: NavItem[] = [
-    {
-        title: 'Dashboard',
-        href: dashboard(),
-        icon: LayoutGrid,
-    },
-    {
-        title: 'Pengajuan',
-        href: leaveRequestsIndex(),
-        icon: CalendarDays,
-    },
-];
+/** A heading in the menu and the places under it. */
+export type NavSection = {
+    title: string;
+    items: NavItem[];
+};
 
 /**
- * Folds pages under a parent tab. Nothing to show gives nothing, and a single page is returned as
- * itself rather than as a group of one.
- */
-function parentTab(
-    title: string,
-    icon: NavItem['icon'],
-    children: NavItem[],
-): NavItem[] {
-    if (children.length <= 1) {
-        return children;
-    }
-
-    return [{ title, href: children[0].href, icon, children }];
-}
-
-/**
- * The places this person may go, shared by the side menu and the phone's bottom bar so the two can never offer
- * different things.
+ * The places this person may go, in categories, shared by the side menu and the phone's bottom bar so the two can
+ * never offer different things.
  *
  * What is offered depends on who is signed in: the directory is for roles that may open it, and the admin panel
  * (outside the Inertia app, so a plain link) only appears for people who can open it. The server enforces each of
- * these; hiding the link is only courtesy. Related places sit under a parent tab, and a parent with a single page
- * left in it is shown as that page on its own.
+ * these; hiding the link is only courtesy. A category with nothing in it is left out, so someone who may only open
+ * their own pages sees one short list, and a public-entrance session never sees a category it cannot use.
  */
-export function useNavItems(): NavItem[] {
+export function useNavSections(): NavSection[] {
     const {
         auth,
         pendingForMe,
@@ -73,11 +50,34 @@ export function useNavItems(): NavItem[] {
         features,
     } = usePage().props;
 
-    const directory: NavItem[] = [
+    const main: NavItem[] = [
+        { title: 'Dashboard', href: dashboard(), icon: LayoutGrid },
+        {
+            title: 'Pengajuan',
+            href: leaveRequestsIndex(),
+            icon: CalendarDays,
+            badge: pendingForMe,
+        },
+    ];
+
+    const people: NavItem[] = [
         ...(auth.canViewEmployees
             ? [{ title: 'Direktori', href: employeesIndex(), icon: Users }]
             : []),
-        // "Karyawan › Rekrutmen" in the design (REC-DSH).
+        ...(auth.canReviewProfileChanges
+            ? [
+                  {
+                      title: 'Perubahan data',
+                      href: profileChanges(),
+                      icon: UserPen,
+                      badge: pendingProfileChanges,
+                  },
+              ]
+            : []),
+    ];
+
+    // Coming and going: hiring someone, and seeing them out (REC-DSH, OFF-DSH).
+    const lifecycle: NavItem[] = [
         ...(auth.canViewRecruitment
             ? [
                   {
@@ -94,16 +94,6 @@ export function useNavItems(): NavItem[] {
                       href: offboardingIndex(),
                       icon: UserMinus,
                       badge: openOffboarding,
-                  },
-              ]
-            : []),
-        ...(auth.canReviewProfileChanges
-            ? [
-                  {
-                      title: 'Perubahan data',
-                      href: profileChanges(),
-                      icon: UserPen,
-                      badge: pendingProfileChanges,
                   },
               ]
             : []),
@@ -145,22 +135,27 @@ export function useNavItems(): NavItem[] {
             : []),
     ];
 
+    const administration: NavItem[] = auth.canAccessAdminPanel
+        ? [
+              {
+                  title: 'Panel admin',
+                  href: '/admin',
+                  icon: ShieldCheck,
+                  external: true,
+              },
+          ]
+        : [];
+
     return [
-        mainNavItems[0],
-        ...mainNavItems
-            .slice(1)
-            .map((item) => ({ ...item, badge: pendingForMe })),
-        ...parentTab('Karyawan', Users, directory),
-        ...parentTab('Absensi', CalendarCheck, attendance),
-        ...(auth.canAccessAdminPanel
-            ? [
-                  {
-                      title: 'Panel admin',
-                      href: '/admin',
-                      icon: ShieldCheck,
-                      external: true,
-                  },
-              ]
-            : []),
-    ];
+        { title: 'Utama', items: main },
+        { title: 'Karyawan', items: people },
+        { title: 'Siklus karyawan', items: lifecycle },
+        { title: 'Absensi', items: attendance },
+        { title: 'Administrasi', items: administration },
+    ].filter((section) => section.items.length > 0);
+}
+
+/** Every place on offer as one flat list, for the parts of the app that do not draw the categories. */
+export function useNavItems(): NavItem[] {
+    return useNavSections().flatMap((section) => section.items);
 }

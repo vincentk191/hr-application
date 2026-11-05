@@ -15,6 +15,4 @@ export type NavItem = {
     external?: boolean;
     /** A count shown as a red pill next to the title; hidden at zero. */
     badge?: number;
-    /** Makes this a parent tab: the pages grouped under it. The parent itself goes nowhere. */
-    children?: NavItem[];
 };

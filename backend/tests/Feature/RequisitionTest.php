@@ -246,6 +246,19 @@ it('sends a requisition to the Management above the requester, then to HR', func
         ->and($this->hr->notifications()->count())->toBe(0);
 });
 
+it('does not count a requisition waiting on Management among the leave requests waiting on them', function () {
+    submittedRequisition($this->rudi->user, $this->gudang);
+
+    // It does wait on Mira, as a step of the engine...
+    expect(WorkflowStep::waitingOn($this->mira->user)->count())->toBe(1);
+
+    // ...but the Pengajuan page and its badge are about leave, and there is none, so they must not say otherwise.
+    $this->actingAs($this->mira->user)->get(route('leave-requests.index'))
+        ->assertInertia(fn (Assert $page) => $page->where('waitingOnMe', 0));
+    $this->actingAs($this->mira->user)->get(route('dashboard'))
+        ->assertInertia(fn (Assert $page) => $page->where('pendingForMe', 0));
+});
+
 it('falls back to any Management account when nobody above the requester holds the role', function () {
     $requisition = submittedRequisition($this->hr, $this->finance);
     $step = $requisition->workflow->steps()->orderBy('position')->first();

@@ -9,12 +9,12 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { useNavItems } from '@/hooks/use-nav-items';
+import { useNavSections } from '@/hooks/use-nav-items';
 import { edit as editSettings } from '@/routes/appearance';
 
 export function AppSidebar() {
     const { version } = usePage().props;
-    const navItems = useNavItems();
+    const sections = useNavSections();
 
     return (
         <Sidebar
@@ -23,7 +23,7 @@ export function AppSidebar() {
             className="top-(--topbar-h)! h-auto!"
         >
             <SidebarContent className="pt-4">
-                <NavMain items={navItems} />
+                <NavMain sections={sections} />
             </SidebarContent>
 
             <SidebarFooter className="border-t p-3">

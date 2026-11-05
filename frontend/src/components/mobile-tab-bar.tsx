@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { Home, Menu, Settings, User } from 'lucide-react';
+import { Bell, Home, Menu, Settings, User } from 'lucide-react';
 import { useState } from 'react';
 import {
     Sheet,
@@ -8,7 +8,7 @@ import {
     SheetTitle,
 } from '@/components/ui/sheet';
 import { useCurrentUrl } from '@/hooks/use-current-url';
-import { useNavItems } from '@/hooks/use-nav-items';
+import { useNavSections } from '@/hooks/use-nav-items';
 import { toUrl } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import { calendar as attendanceCalendar } from '@/routes/attendance';
@@ -17,17 +17,24 @@ import {
     index as employeesIndex,
 } from '@/routes/employees';
 import { index as leaveRequestsIndex } from '@/routes/leave-requests';
+import { index as notificationsIndex } from '@/routes/notifications';
 import { edit as editSettings } from '@/routes/appearance';
 import type { NavItem } from '@/types';
 
 const HOME_URL = toUrl(dashboard());
 
-/** The tabs beside the raised home button, in order: two on its left, then one on its right before "Lainnya". */
+/** The tabs beside the raised home button when not everything fits: two on its left, then one on its right before "Lainnya". */
 const SIDE_TAB_URLS = [
     toUrl(leaveRequestsIndex()),
     toUrl(employeesIndex()),
     toUrl(attendanceCalendar()),
 ];
+
+/** How many places fit on the bar beside the home button: two on its left and two on its right. */
+const SIDE_SLOTS = 4;
+
+/** Every settings page lives under this path; the "Pengaturan" tab stands for all of them. */
+const SETTINGS_PREFIX = '/settings';
 
 /** What the home tab is called on a phone. */
 const HOME_LABEL = 'Beranda';
@@ -41,53 +48,93 @@ function Count({ count }: { count?: number }) {
 }
 
 /**
- * The phone's navigation: a bar along the bottom with the main places this person may go (the same ones the side
- * menu offers, up to four), and "Lainnya" opening a sheet with everything else, so no screen is out of reach.
+ * The phone's navigation: a bar along the bottom with the places this person may go (the same ones the side menu
+ * offers), the home button raised in the middle.
+ *
+ * When everything this person can open fits in the four slots beside home (an employee on the public entrance, say,
+ * who has only their own pages), all of it goes on the bar, with the notifications to fill a free slot, and there is
+ * no "Lainnya". Otherwise it keeps the three most used places and "Lainnya" opens a sheet with the rest, under the
+ * same category headings as the side menu, so no screen is out of reach.
  * From tablet width up the side menu is used and this is hidden.
  */
 export function MobileTabBar() {
-    const { auth, version } = usePage().props;
+    const { auth, version, notifications } = usePage().props;
     const { isCurrentUrl } = useCurrentUrl();
     const [moreOpen, setMoreOpen] = useState(false);
-    const items = useNavItems();
+    const sections = useNavSections();
 
-    const flat = items.flatMap((item) => item.children ?? [item]);
+    const flat = sections.flatMap((section) => section.items);
     const home = flat.find((item) => toUrl(item.href) === HOME_URL);
-    const sideTabs = SIDE_TAB_URLS.map((url) =>
-        flat.find((item) => toUrl(item.href) === url),
-    ).filter((item): item is NavItem => item !== undefined);
+    const others = flat.filter((item) => item !== home);
+
+    // Notifications are not in the side menu (the bell in the top bar opens them), so they join the bar only to fill
+    // a free slot.
+    const bell: NavItem = {
+        title: 'Notifikasi',
+        href: notificationsIndex(),
+        icon: Bell,
+        badge: notifications?.unread,
+    };
+    const profile: NavItem[] = auth.employeeId
+        ? [
+              {
+                  title: 'Profil saya',
+                  href: employeeShow(auth.employeeId),
+                  icon: User,
+              },
+          ]
+        : [];
+    const settings: NavItem = {
+        title: 'Pengaturan',
+        href: editSettings(),
+        icon: Settings,
+    };
+    const extras: NavItem[] = [...profile, settings];
+
+    const compact = others.length + extras.length <= SIDE_SLOTS;
+    const sideTabs: NavItem[] = compact
+        ? [
+              ...others,
+              ...profile,
+              ...(others.length + extras.length < SIDE_SLOTS ? [bell] : []),
+              settings,
+          ]
+        : SIDE_TAB_URLS.map((url) =>
+              others.find((item) => toUrl(item.href) === url),
+          ).filter((item): item is NavItem => item !== undefined);
     const tabs = home ? [home, ...sideTabs] : sideTabs;
-    const more = flat.filter((item) => !tabs.includes(item));
+    const more = compact ? [] : others.filter((item) => !tabs.includes(item));
 
     // Home stays in the middle of five columns whatever this person may open: a missing tab leaves a gap.
+    const rightSlots = compact ? 2 : 1;
     const leftTabs = sideTabs.slice(0, 2);
-    const rightTabs = sideTabs.slice(2);
+    const rightTabs = sideTabs.slice(2, 2 + rightSlots);
     const leftCells: (NavItem | null)[] = [
         ...leftTabs,
         ...Array<null>(2 - leftTabs.length).fill(null),
     ];
     const rightCells: (NavItem | null)[] = [
         ...rightTabs,
-        ...Array<null>(1 - rightTabs.length).fill(null),
+        ...Array<null>(rightSlots - rightTabs.length).fill(null),
     ];
 
+    // The settings pages (security, appearance, notifications) all belong to the one "Pengaturan" tab.
     const isActive = (item: NavItem) =>
-        isCurrentUrl(item.href, undefined, toUrl(item.href) !== HOME_URL);
+        item === settings
+            ? isCurrentUrl(SETTINGS_PREFIX, undefined, true)
+            : isCurrentUrl(item.href, undefined, toUrl(item.href) !== HOME_URL);
 
-    // Notifications are not listed: the bell in the top bar already opens them on every page.
-    const extras: NavItem[] = [
-        ...(auth.employeeId
-            ? [
-                  {
-                      title: 'Profil saya',
-                      href: employeeShow(auth.employeeId),
-                      icon: User,
-                  },
-              ]
-            : []),
-        { title: 'Pengaturan', href: editSettings(), icon: Settings },
+    // What "Lainnya" opens: the rest of the places under their category headings, then the person's own account.
+    const sheetSections = [
+        ...sections
+            .map((section) => ({
+                title: section.title,
+                items: section.items.filter((item) => more.includes(item)),
+            }))
+            .filter((section) => section.items.length > 0),
+        { title: 'Akun', items: extras },
     ];
-    const sheetItems = [...more, ...extras];
+    const sheetItems = sheetSections.flatMap((section) => section.items);
     const moreCount = more.reduce((sum, item) => sum + (item.badge ?? 0), 0);
     const moreActive = sheetItems.some((item) => isActive(item));
 
@@ -163,24 +210,26 @@ export function MobileTabBar() {
                         <li aria-hidden="true" />
                     )}
                     {rightCells.map(renderTab)}
-                    <li>
-                        <button
-                            type="button"
-                            onClick={() => setMoreOpen(true)}
-                            className={`${tabClass(moreActive)} w-full`}
-                            data-test="open-more"
-                        >
-                            <span className={pillClass(moreActive)}>
-                                <Menu className="size-5" />
-                                <Count count={moreCount} />
-                            </span>
-                            Lainnya
-                        </button>
-                    </li>
+                    {!compact && (
+                        <li>
+                            <button
+                                type="button"
+                                onClick={() => setMoreOpen(true)}
+                                className={`${tabClass(moreActive)} w-full`}
+                                data-test="open-more"
+                            >
+                                <span className={pillClass(moreActive)}>
+                                    <Menu className="size-5" />
+                                    <Count count={moreCount} />
+                                </span>
+                                Lainnya
+                            </button>
+                        </li>
+                    )}
                 </ul>
             </nav>
 
-            <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
+            <Sheet open={moreOpen && !compact} onOpenChange={setMoreOpen}>
                 <SheetContent
                     side="bottom"
                     className="max-h-[85vh] gap-0 rounded-t-3xl md:hidden"
@@ -193,41 +242,55 @@ export function MobileTabBar() {
                             Semua halaman lain yang bisa Anda buka.
                         </SheetDescription>
                     </div>
-                    <ul className="flex flex-col overflow-y-auto px-2 pb-4">
-                        {sheetItems.map((item) => (
-                            <li key={toUrl(item.href)}>
-                                {item.external ? (
-                                    <a
-                                        href={toUrl(item.href)}
-                                        className="flex items-center gap-3 rounded-xl px-3 py-3 text-[15px] font-medium"
-                                    >
-                                        {item.icon && (
-                                            <item.icon className="size-5 text-muted-foreground" />
-                                        )}
-                                        {item.title}
-                                    </a>
-                                ) : (
-                                    <Link
-                                        href={item.href}
-                                        onClick={() => setMoreOpen(false)}
-                                        className={`flex items-center gap-3 rounded-xl px-3 py-3 text-[15px] font-medium ${isActive(item) ? 'bg-primary/10 text-primary' : ''}`}
-                                    >
-                                        {item.icon && (
-                                            <item.icon className="size-5 text-muted-foreground" />
-                                        )}
-                                        <span className="flex-1">
-                                            {item.title}
-                                        </span>
-                                        {item.badge ? (
-                                            <span className="rounded-full bg-foreground px-2 py-0.5 text-[11px] leading-none font-semibold text-background">
-                                                {item.badge}
-                                            </span>
-                                        ) : null}
-                                    </Link>
-                                )}
-                            </li>
+                    <div className="flex flex-col gap-2 overflow-y-auto px-2 pb-4">
+                        {sheetSections.map((section) => (
+                            <section
+                                key={section.title}
+                                data-test="more-section"
+                            >
+                                <h3 className="label-mono px-3 pt-2 pb-1 text-muted-foreground/70">
+                                    {section.title}
+                                </h3>
+                                <ul className="flex flex-col">
+                                    {section.items.map((item) => (
+                                        <li key={toUrl(item.href)}>
+                                            {item.external ? (
+                                                <a
+                                                    href={toUrl(item.href)}
+                                                    className="flex items-center gap-3 rounded-xl px-3 py-3 text-[15px] font-medium"
+                                                >
+                                                    {item.icon && (
+                                                        <item.icon className="size-5 text-muted-foreground" />
+                                                    )}
+                                                    {item.title}
+                                                </a>
+                                            ) : (
+                                                <Link
+                                                    href={item.href}
+                                                    onClick={() =>
+                                                        setMoreOpen(false)
+                                                    }
+                                                    className={`flex items-center gap-3 rounded-xl px-3 py-3 text-[15px] font-medium ${isActive(item) ? 'bg-primary/10 text-primary' : ''}`}
+                                                >
+                                                    {item.icon && (
+                                                        <item.icon className="size-5 text-muted-foreground" />
+                                                    )}
+                                                    <span className="flex-1">
+                                                        {item.title}
+                                                    </span>
+                                                    {item.badge ? (
+                                                        <span className="rounded-full bg-foreground px-2 py-0.5 text-[11px] leading-none font-semibold text-background">
+                                                            {item.badge}
+                                                        </span>
+                                                    ) : null}
+                                                </Link>
+                                            )}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </section>
                         ))}
-                    </ul>
+                    </div>
                     <p className="label-mono px-5 pb-4 text-muted-foreground/70">
                         v{version}
                     </p>
