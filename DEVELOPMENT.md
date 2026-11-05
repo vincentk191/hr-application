@@ -1569,6 +1569,13 @@ feel right on real phones before building on it.
   host has no PHP, which the build needs) and needs a secure origin: `localhost` works on a desktop, a phone needs
   HTTPS (the real public hostname, or a tunnel while testing). Stop the Vite dev server so `public/hot` is gone,
   otherwise Laravel serves the dev assets and no worker is registered.
+- **On-screen keyboard (2026-11-05).** The viewport tag has `interactive-widget=resizes-content` (Android Chrome
+  shrinks the page above the keyboard). iPhone Safari ignores that, so `use-keyboard-viewport.ts` watches
+  `visualViewport` and, only while a text field is focused and the keyboard is up, sets `data-keyboard="open"` and
+  `--vv-top` / `--vv-height` on `<html>`; `app.css` then fits sheets and dialogs into that visible area (so the comment
+  box sits above the keyboard and the page behind does not pan) and hides the fixed bottom bars (`data-hide-on-keyboard`).
+  Fields under 16px are raised to 16px on iOS (`@supports (-webkit-touch-callout: none)`), because Safari otherwise
+  zooms the page into them. Untested on real devices.
 - **Still open:** Web Push, saved drafts, the Sanctum API for approvals (which will be private-entrance only), iPhone
   testing of the home-screen install, and what "installed" should open at.
 

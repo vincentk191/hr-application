@@ -138,6 +138,7 @@ export function MobileTabBar() {
                 aria-label="Menu utama"
                 className="fixed inset-x-0 bottom-0 z-40 border-t bg-card pb-[env(safe-area-inset-bottom)] md:hidden"
                 data-test="mobile-tab-bar"
+                data-hide-on-keyboard
             >
                 <ul className="grid h-16 grid-cols-5">
                     {leftCells.map(renderTab)}

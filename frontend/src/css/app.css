@@ -342,6 +342,49 @@
 }
 
 /*
+ * The on-screen keyboard on a phone (see hooks/use-keyboard-viewport.ts). While a text field is focused and the
+ * keyboard is up, <html> carries data-keyboard="open" and --vv-top / --vv-height describe the part of the screen that
+ * is actually visible. Drawers and pop-ups are fitted into exactly that area, so the field being typed in stays above
+ * the keyboard and the page behind does not have to move to make room. None of this applies while the keyboard is
+ * closed.
+ */
+html[data-keyboard='open'] [data-slot='sheet-content'][data-side='right'],
+html[data-keyboard='open'] [data-slot='sheet-content'][data-side='left'] {
+    top: var(--vv-top);
+    bottom: auto;
+    height: var(--vv-height);
+}
+
+html[data-keyboard='open'] [data-slot='sheet-content'][data-side='bottom'] {
+    bottom: calc(100% - var(--vv-top) - var(--vv-height));
+    max-height: var(--vv-height);
+    overflow-y: auto;
+}
+
+html[data-keyboard='open'] [data-slot='dialog-content'] {
+    top: calc(var(--vv-top) + var(--vv-height) / 2);
+    max-height: calc(var(--vv-height) - 1rem);
+    overflow-y: auto;
+}
+
+/* The fixed bars along the bottom would otherwise ride up on top of the keyboard and take the room the field needs. */
+html[data-keyboard='open'] [data-hide-on-keyboard] {
+    display: none;
+}
+
+/*
+ * iPhone and iPad Safari zoom the whole page into any field set below 16px and leave it zoomed, which is what makes
+ * the app lurch sideways and downwards when one is tapped. 16px stops the zoom without disabling pinch-zoom.
+ */
+@supports (-webkit-touch-callout: none) {
+    input:not([type='checkbox']):not([type='radio']):not([type='file']),
+    select,
+    textarea {
+        font-size: 16px !important;
+    }
+}
+
+/*
  * Printing a report (the attendance calendar and recap use window.print() for "PDF"). Only the
  * report should come out: the navigation and the page header around it are hidden, and the page is
  * landscape because the month grid is wide.

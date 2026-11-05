@@ -72,6 +72,7 @@ export function PhaseActions({
         <div
             className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex items-center gap-2 border-t bg-card/95 px-4 py-3 backdrop-blur"
             data-test="phase-actions"
+            data-hide-on-keyboard
         >
             {inline.map((action) => (
                 <Fragment key={action.key}>
