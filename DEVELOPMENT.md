@@ -2032,10 +2032,16 @@ Progress Tracking analytics (Appendix C).
   It runs through the company scope like every other screen, matches case-insensitively, and treats
   `%` and `_` as ordinary characters. It is a plain database search, not an index: fine at this scale,
   and the place to change if it ever is not.
-- **Notifications are in-app only** (the database channel; a deliberate choice, nothing goes by email or
-  push). A bell in the header shows the unread count and the latest eight, `/notifications` lists them
+- **Notifications are in-app, plus Web Push to devices that turned it on** (nothing goes by email). A bell in the
+  header shows the unread count and the latest eight, `/notifications` lists them
   all (all / unread), and choosing one marks it read and goes where it points. They are only ever the
   signed-in person's own, and a stored link that is not a path inside the app is never followed.
+  - **Web Push** (`laravel-notification-channels/webpush`; keys from `php artisan webpush:vapid`, set in `.env`):
+    `InAppNotice` always writes the in-app copy at once and, for someone with a row in `push_subscriptions`, also
+    queues a push, so every notice `Notifier` sends reaches phones by that one path. A person turns it on per device
+    under **Pengaturan → Notifikasi** (`/settings/notifications`, on the public allowlist; **Aktifkan**, **Kirim
+    uji**, **Matikan**), not on the Notifikasi page. The endpoint must belong to a known push service
+    (`webpush.allowed_endpoint_hosts`); a deactivated account's subscriptions are deleted. Untested on real devices.
   - **Leave:** filing or resubmitting tells the Atasan the request is waiting on, and every HR Admin that it
     exists (information only; an HR Admin who is the approver is told once); the decision
     tells the requester (and whoever filed it for them), with the reason and a link to correct a rejection.

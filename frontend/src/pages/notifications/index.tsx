@@ -1,5 +1,4 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { PushNotificationsCard } from '@/components/push-notifications-card';
 import { Button } from '@/components/ui/button';
 import { relativeTime } from '@/lib/relative-time';
 import { index, readAll } from '@/routes/notifications';
@@ -12,8 +11,6 @@ type Props = {
         total: number;
     };
     filter: 'all' | 'unread';
-    /** The devices this person has turned push on for. */
-    pushEndpoints: string[];
 };
 
 const KIND_LABEL: Record<string, string> = {
@@ -26,20 +23,14 @@ const KIND_LABEL: Record<string, string> = {
 /**
  * Every notification, newest first. They are written when something needs the person's attention (a
  * request waiting, a decision, an attendance issue, a lapsing document), and a link opens the thing and
- * marks the notification read. This phone or browser can also be set to show them as they arrive.
+ * marks the notification read. Showing them on this phone or browser as they arrive is set under Pengaturan.
  */
-export default function NotificationsIndex({
-    list,
-    filter,
-    pushEndpoints,
-}: Props) {
+export default function NotificationsIndex({ list, filter }: Props) {
     return (
         <>
             <Head title="Notifikasi" />
 
             <div className="flex max-w-3xl flex-col gap-4 p-4">
-                <PushNotificationsCard endpoints={pushEndpoints} />
-
                 <div className="flex flex-wrap items-center gap-2">
                     <div className="seg">
                         {(

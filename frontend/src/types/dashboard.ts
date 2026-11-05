@@ -56,6 +56,11 @@ export type Overview = {
     } | null;
     /** Working days of approved leave this year. There is no entitlement in the app, so no maximum or balance. */
     leaveTaken: { days: number; year: number };
+    /**
+     * The working days of confirmed (approved) sick leave, this year and last, as `YYYY-MM-DD`, oldest first; `year`
+     * is this year and `thisYear` how many of the dates fall in it.
+     */
+    sickDays: { dates: string[]; year: number; thisYear: number };
     openRequests: OpenRequest[];
     quickActions: QuickAction[];
 };

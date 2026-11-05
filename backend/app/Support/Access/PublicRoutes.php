@@ -33,7 +33,7 @@ class PublicRoutes
         'leave-attachments.download',
         'employees.show', 'employees.edit', 'employees.update', 'employees.summary', 'employees.changes.create', 'employees.changes.store',
         'documents.download', 'profile-changes.destroy',
-        'user-password.update', 'security.edit', 'appearance.edit',
+        'user-password.update', 'security.edit', 'appearance.edit', 'notification-settings.edit',
     ];
 
     /** Route URIs (no name) served on the public entrance. */

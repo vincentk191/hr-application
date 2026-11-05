@@ -117,13 +117,13 @@ it('drops the subscriptions of an account that is deactivated', function () {
     expect(PushSubscription::query()->count())->toBe(0);
 });
 
-it('tells the notifications page which devices are subscribed, as the signed-in person only', function () {
+it('tells the notification settings page which devices are subscribed, as the signed-in person only', function () {
     $other = User::factory()->create(['company_id' => $this->company->id]);
     $other->updatePushSubscription('https://fcm.googleapis.com/fcm/send/theirs', 'key', 'auth');
     $this->user->updatePushSubscription('https://fcm.googleapis.com/fcm/send/mine', 'key', 'auth');
 
-    $this->actingAs($this->user)->get(route('notifications.index'))
-        ->assertInertia(fn ($page) => $page->where('pushEndpoints', ['https://fcm.googleapis.com/fcm/send/mine']));
+    $this->actingAs($this->user)->get(route('notification-settings.edit'))
+        ->assertInertia(fn ($page) => $page->component('settings/notifications')->where('pushEndpoints', ['https://fcm.googleapis.com/fcm/send/mine']));
 });
 
 it('hands the public key to the page only when push is set up', function () {

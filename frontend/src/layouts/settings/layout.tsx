@@ -5,6 +5,7 @@ import { Separator } from '@/components/ui/separator';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { cn, toUrl } from '@/lib/utils';
 import { edit as editAppearance } from '@/routes/appearance';
+import { edit as editNotifications } from '@/routes/notification-settings';
 import { edit as editSecurity } from '@/routes/security';
 import type { NavItem } from '@/types';
 
@@ -17,6 +18,11 @@ const sidebarNavItems: NavItem[] = [
     {
         title: 'Tampilan',
         href: editAppearance(),
+        icon: null,
+    },
+    {
+        title: 'Notifikasi',
+        href: editNotifications(),
         icon: null,
     },
 ];

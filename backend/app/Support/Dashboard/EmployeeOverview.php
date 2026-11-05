@@ -11,6 +11,7 @@ use App\Models\LeaveRequest;
 use App\Models\RequestType;
 use App\Models\WorkflowStep;
 use App\Support\Attendance\DailyAttendance;
+use App\Support\Attendance\WorkingDays;
 use App\Support\Attendance\WorkSchedule;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
@@ -46,7 +47,7 @@ class EmployeeOverview
         'no_data' => ['Belum ada data', 'muted'],
     ];
 
-    public function __construct(private DailyAttendance $attendance) {}
+    public function __construct(private DailyAttendance $attendance, private WorkingDays $workingDays) {}
 
     /**
      * @return array<string, mixed>
@@ -59,6 +60,7 @@ class EmployeeOverview
             'attendance' => $withAttendance ? $this->today($employee, $now) : null,
             'month' => $withAttendance ? $this->month($employee, $now) : null,
             'leaveTaken' => ['days' => $this->leaveTakenThisYear($employee, $now), 'year' => $now->year],
+            'sickDays' => $this->sickDays($employee, $now),
             'openRequests' => $this->openRequests($employee),
             'quickActions' => $this->quickActions(),
         ];
@@ -175,6 +177,47 @@ class EmployeeOverview
             ->whereYear('start_on', $now->year)
             ->whereHas('workflow', fn (Builder $query) => $query->where('current_stage', LeaveRequestStage::Approved->value))
             ->sum('days');
+    }
+
+    /**
+     * The days of confirmed sick leave, for the calendar: every working day covered by an approved request of a type
+     * that counts as sakit, this year and last (the calendar can step back into last year). A weekend or holiday in
+     * the middle of a range is not a sick day, so it is left out, as it is from the request's own day count.
+     *
+     * @return array{dates: list<string>, year: int, thisYear: int}
+     */
+    private function sickDays(Employee $employee, CarbonImmutable $now): array
+    {
+        $from = $now->subYear()->startOfYear();
+        $to = $now->endOfYear();
+        $dates = [];
+
+        LeaveRequest::query()
+            ->where('employee_id', $employee->id)
+            ->whereHas('type', fn (Builder $query) => $query->where('absence_kind', AbsenceKind::Sakit->value))
+            ->whereHas('workflow', fn (Builder $query) => $query->where('current_stage', LeaveRequestStage::Approved->value))
+            ->whereDate('start_on', '<=', $to->toDateString())
+            ->whereDate('end_on', '>=', $from->toDateString())
+            ->get(['id', 'employee_id', 'leave_type', 'start_on', 'end_on'])
+            ->each(function (LeaveRequest $leave) use (&$dates, $employee, $from, $to): void {
+                $first = CarbonImmutable::parse($leave->start_on->toDateString())->max($from);
+                $last = CarbonImmutable::parse($leave->end_on->toDateString())->min($to);
+
+                for ($day = $first; $day->lte($last); $day = $day->addDay()) {
+                    if ($this->workingDays->isWorkingDay($day, $employee->company_id, $employee->department_id, $employee->branch_id)) {
+                        $dates[$day->toDateString()] = true;
+                    }
+                }
+            });
+
+        $dates = array_keys($dates);
+        sort($dates);
+
+        return [
+            'dates' => $dates,
+            'year' => $now->year,
+            'thisYear' => count(array_filter($dates, fn (string $date): bool => str_starts_with($date, (string) $now->year))),
+        ];
     }
 
     /**

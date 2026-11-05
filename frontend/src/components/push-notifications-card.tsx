@@ -2,8 +2,8 @@ import { Button } from '@/components/ui/button';
 import { usePushNotifications } from '@/hooks/use-push-notifications';
 
 /**
- * Turning on notifications for this phone or browser (Web Push). Each device is turned on separately, from here;
- * the list below keeps every notification either way.
+ * Turning on notifications for this phone or browser (Web Push), in the person's settings. Each device is turned on
+ * separately; the Notifikasi page keeps every notification either way.
  */
 export function PushNotificationsCard({ endpoints }: { endpoints: string[] }) {
     const { state, busy, error, enable, disable, sendTest, testSent } =
@@ -22,13 +22,13 @@ export function PushNotificationsCard({ endpoints }: { endpoints: string[] }) {
         blocked:
             'Notifikasi diblokir untuk situs ini. Izinkan lagi lewat pengaturan situs di peramban, lalu muat ulang halaman ini.',
         off: 'Terima pemberitahuan di layar perangkat ini saat ada pengajuan atau keputusan, walau aplikasi sedang tidak dibuka.',
-        on: 'Notifikasi aktif di perangkat ini. Tiap pemberitahuan juga tetap tersimpan di daftar ini.',
+        on: 'Notifikasi aktif di perangkat ini. Tiap pemberitahuan juga tetap tersimpan di halaman Notifikasi.',
         checking: '',
     }[state];
 
     return (
         <div
-            className="surface flex flex-wrap items-center gap-3 p-3"
+            className="flex flex-wrap items-center gap-3 rounded-xl border p-4"
             data-test="push-card"
             data-state={state}
         >

@@ -1,6 +1,7 @@
 import { Link, router } from '@inertiajs/react';
-import { ArrowRight, Plus } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ArrowRight, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { MonthGrid } from '@/components/attendance-summary-views';
 import { Button } from '@/components/ui/button';
 import { create, index as leaveRequestsIndex } from '@/routes/leave-requests';
 import type {
@@ -500,6 +501,141 @@ export function MonthSummary({ overview }: { overview: Overview }) {
     );
 }
 
+const monthTitle = new Intl.DateTimeFormat('id-ID', {
+    month: 'long',
+    year: 'numeric',
+});
+
+const pad = (value: number) => String(value).padStart(2, '0');
+
+/** The days of one month (`month` counted from 0) as the shared month grid wants them. */
+function daysOfMonth(year: number, month: number) {
+    const count = new Date(year, month + 1, 0).getDate();
+
+    return Array.from({ length: count }, (_, index) => {
+        const day = index + 1;
+
+        return {
+            date: `${year}-${pad(month + 1)}-${pad(day)}`,
+            day,
+            weekend: [0, 6].includes(new Date(year, month, day).getDay()),
+        };
+    });
+}
+
+/**
+ * The person's confirmed sick days on a month calendar: the working days of approved sick leave, highlighted, so
+ * they can see at a glance which days HR has accepted as sick. A request still waiting or rejected does not show.
+ * It steps back a month at a time as far as the start of last year, and forward to the end of this one.
+ */
+export function SickCalendar({ sick }: { sick: Overview['sickDays'] }) {
+    const [shown, setShown] = useState(() => {
+        const now = new Date();
+
+        return { year: now.getFullYear(), month: now.getMonth() };
+    });
+    const sickDates = useMemo(() => new Set(sick.dates), [sick.dates]);
+    const today = new Date();
+    const todayKey = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+
+    const position = shown.year * 12 + shown.month;
+    const canGoBack = position > (sick.year - 1) * 12;
+    const canGoForward = position < sick.year * 12 + 11;
+    const step = (by: number) => {
+        const next = position + by;
+        setShown({ year: Math.floor(next / 12), month: next % 12 });
+    };
+
+    const days = daysOfMonth(shown.year, shown.month);
+    const inMonth = days.filter((day) => sickDates.has(day.date)).length;
+
+    return (
+        <section className="surface rounded-2xl" data-test="sick-calendar">
+            <header className="flex items-center justify-between gap-2 px-4 py-3 md:px-6 md:py-4">
+                <h2 className="font-semibold">Hari sakit</h2>
+                <div className="flex items-center gap-1">
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Bulan sebelumnya"
+                        disabled={!canGoBack}
+                        onClick={() => step(-1)}
+                    >
+                        <ChevronLeft />
+                    </Button>
+                    <span
+                        className="min-w-32 text-center text-sm font-medium capitalize"
+                        data-test="sick-calendar-month"
+                    >
+                        {monthTitle.format(new Date(shown.year, shown.month))}
+                    </span>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Bulan berikutnya"
+                        disabled={!canGoForward}
+                        onClick={() => step(1)}
+                    >
+                        <ChevronRight />
+                    </Button>
+                </div>
+            </header>
+
+            <div className="flex flex-col gap-3 border-t p-4 md:px-6">
+                <MonthGrid
+                    days={days}
+                    renderDay={(day) => {
+                        const isSick = sickDates.has(day.date);
+
+                        return (
+                            <div
+                                key={day.date}
+                                title={isSick ? 'Sakit (disetujui)' : undefined}
+                                aria-label={
+                                    isSick
+                                        ? `${day.day}, sakit disetujui`
+                                        : String(day.day)
+                                }
+                                data-sick={isSick}
+                                className={`flex aspect-square min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl border text-sm ${
+                                    isSick
+                                        ? 'border-rose-500/50 bg-rose-500/15 font-bold text-rose-700 dark:text-rose-300'
+                                        : day.weekend
+                                          ? 'bg-muted/40 text-muted-foreground'
+                                          : ''
+                                } ${day.date === todayKey ? 'ring-2 ring-foreground' : ''}`}
+                            >
+                                {day.day}
+                                {isSick && (
+                                    <span
+                                        aria-hidden
+                                        className="size-1.5 rounded-full bg-rose-500"
+                                    />
+                                )}
+                            </div>
+                        );
+                    }}
+                />
+
+                <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="size-3 rounded-sm border border-rose-500/50 bg-rose-500/15" />
+                    Hari sakit yang sudah disetujui
+                </p>
+                <p className="text-sm" data-test="sick-calendar-summary">
+                    {inMonth === 0
+                        ? 'Tidak ada hari sakit bulan ini.'
+                        : `${inMonth} hari sakit bulan ini.`}{' '}
+                    <span className="text-muted-foreground">
+                        {sick.thisYear} hari di tahun {sick.year}.
+                    </span>
+                </p>
+            </div>
+        </section>
+    );
+}
+
 /**
  * The person's own overview: today's attendance, shortcuts, open requests and the month. One column on a phone, in
  * the order they are most often wanted; two columns (wide left, narrow right) from tablet width.
@@ -537,6 +673,9 @@ export function EmployeeOverview({
                     )}
                     <div className="order-4 md:order-none">
                         <MonthSummary overview={overview} />
+                    </div>
+                    <div className="order-5 md:order-none">
+                        <SickCalendar sick={overview.sickDays} />
                     </div>
                 </div>
             </div>

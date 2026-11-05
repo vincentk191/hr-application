@@ -10,6 +10,7 @@ use App\Models\RequestType;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RoleSeeder;
+use Illuminate\Http\UploadedFile;
 use Inertia\Testing\AssertableInertia as Assert;
 
 /**
@@ -74,6 +75,8 @@ function overviewLeave(User $actor, Employee $employee, string $from, string $to
         'start_on' => $from,
         'end_on' => $to,
         'reason' => 'Acara keluarga',
+        // Sakit needs proof.
+        'attachments' => $type === 'sick' ? [UploadedFile::fake()->create('surat.pdf', 10, 'application/pdf')] : [],
     ])->assertRedirect();
 
     return LeaveRequest::query()->latest('id')->firstOrFail();
@@ -236,4 +239,47 @@ it('opens the new request form on the type a shortcut names, and ignores one tha
 
     $this->actingAs($user)->get(route('leave-requests.create', ['type' => 'nonsense']))
         ->assertInertia(fn (Assert $page) => $page->where('prefill.type', null));
+});
+
+/**
+ * An HR Admin of the employee's company: sick leave is decided by HR, not by the Atasan.
+ */
+function overviewHr(Employee $employee): User
+{
+    $hr = User::factory()->create(['company_id' => $employee->company_id]);
+    $hr->assignRole(Role::HrAdmin->value);
+
+    return $hr;
+}
+
+it('lists the working days of approved sick leave for the calendar, and nothing else', function () {
+    [$user, $employee, $supervisorUser] = overviewEmployee();
+    $hr = overviewHr($employee);
+    RequestType::query()->where('code', 'sick')->update(['max_back_days' => 30]);
+
+    // Friday to Monday: the weekend in between is not a sick day.
+    $sick = overviewLeave($user, $employee, '2026-10-16', '2026-10-19', 'sick');
+    $this->actingAs($hr)->put(route('leave-requests.decision', $sick), ['decision' => 'approve'])->assertRedirect();
+
+    // Still waiting, and approved leave that is not sick, do not show.
+    overviewLeave($user, $employee, '2026-10-13', '2026-10-13', 'sick');
+    $annual = overviewLeave($user, $employee, '2026-11-02', '2026-11-03');
+    $this->actingAs($supervisorUser)->put(route('leave-requests.decision', $annual), ['decision' => 'approve'])->assertRedirect();
+
+    $this->actingAs($user)->get(route('dashboard'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('overview.sickDays', ['dates' => ['2026-10-16', '2026-10-19'], 'year' => 2026, 'thisYear' => 2]));
+});
+
+it('does not show anyone else\'s sick days', function () {
+    [$user, $employee] = overviewEmployee();
+    $hr = overviewHr($employee);
+    RequestType::query()->where('code', 'sick')->update(['max_back_days' => 30]);
+
+    $colleague = Employee::factory()->forCompany($employee->company)->reportingTo($employee->manager)->create(['joined_on' => '2020-01-01']);
+    $sick = overviewLeave($hr, $colleague, '2026-10-19', '2026-10-19', 'sick');
+    $this->actingAs($hr)->put(route('leave-requests.decision', $sick), ['decision' => 'approve'])->assertRedirect();
+
+    $this->actingAs($user)->get(route('dashboard'))
+        ->assertInertia(fn (Assert $page) => $page->where('overview.sickDays.dates', []));
 });

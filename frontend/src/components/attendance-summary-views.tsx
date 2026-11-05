@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { CalendarDaySummary, CalendarMonth } from '@/types/attendance';
 
 /**
@@ -160,23 +161,26 @@ export function WeekSummary({
     );
 }
 
-export function MonthSummary({
+/**
+ * The frame of a month calendar, shared by every month view in the app: the weekday names, then the days of one
+ * month as a grid that starts on Monday, with blank tiles padding the first week. What a day looks like is up to
+ * `renderDay`, so the attendance summary and a person's own calendar draw their days differently on the same grid.
+ * `days` are the dates of one month, in order, as `YYYY-MM-DD`.
+ */
+export function MonthGrid<T extends { date: string }>({
     days,
-    today,
-    onOpen,
+    renderDay,
 }: {
-    days: CalendarDaySummary[];
-    today: string;
-    onOpen: (date: string) => void;
+    days: T[];
+    renderDay: (day: T) => ReactNode;
 }) {
-    // The grid starts on Monday: blank tiles pad the first week.
     const lead =
         days.length === 0
             ? 0
             : (new Date(`${days[0].date}T00:00:00`).getDay() + 6) % 7;
 
     return (
-        <section className="surface flex flex-col gap-3 p-4">
+        <>
             <div className="grid grid-cols-7 gap-1.5 text-center text-xs text-muted-foreground">
                 {['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'].map(
                     (name) => (
@@ -190,7 +194,26 @@ export function MonthSummary({
                     <span key={`lead-${index}`} />
                 ))}
 
-                {days.map((day) => {
+                {days.map(renderDay)}
+            </div>
+        </>
+    );
+}
+
+export function MonthSummary({
+    days,
+    today,
+    onOpen,
+}: {
+    days: CalendarDaySummary[];
+    today: string;
+    onOpen: (date: string) => void;
+}) {
+    return (
+        <section className="surface flex flex-col gap-3 p-4">
+            <MonthGrid
+                days={days}
+                renderDay={(day) => {
                     const counted = isCounted(day);
                     const expected = expectedOf(day);
                     const share = expected === 0 ? 0 : day.attended / expected;
@@ -257,8 +280,8 @@ export function MonthSummary({
                             )}
                         </button>
                     );
-                })}
-            </div>
+                }}
+            />
 
             <Legend
                 className="hidden sm:flex"
