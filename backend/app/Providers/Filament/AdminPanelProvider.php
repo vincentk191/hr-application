@@ -31,6 +31,7 @@ use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Table;
 use Filament\View\PanelsRenderHook;
 use Filament\Widgets\AccountWidget;
 use Filament\Widgets\FilamentInfoWidget;
@@ -93,6 +94,15 @@ class AdminPanelProvider extends PanelProvider
         ];
     }
 
+    /**
+     * On a phone every table in the panel shows its rows as cards, as the dashboard does (see
+     * filament/mobile-tab-bar and filament/mobile-styles). Set here so a new resource gets it too.
+     */
+    public function boot(): void
+    {
+        Table::configureUsing(fn (Table $table): Table => $table->stackedOnMobile());
+    }
+
     public function panel(Panel $panel): Panel
     {
         return $panel
@@ -133,6 +143,10 @@ class AdminPanelProvider extends PanelProvider
                     })();
                 </script>
                 HTML)
+            // The phone layout: the bottom bar with its "Lainnya" sheet replaces the drawer, and table rows become
+            // cards. The bar goes inside the layout, so it is not on the sign-in style pages.
+            ->renderHook(PanelsRenderHook::STYLES_AFTER, fn (): string => view('filament.mobile-styles')->render())
+            ->renderHook(PanelsRenderHook::LAYOUT_END, fn (): string => view('filament.mobile-tab-bar')->render())
             // Listed rather than discovered. Discovery scans these folders on every request, which
             // is slow on the Windows bind mount (about 1.4s of every page load here). A new
             // resource is one line below, in the same spirit as the workflow registry.

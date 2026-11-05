@@ -36,6 +36,20 @@ it('makes the panel follow the app\'s light or dark choice instead of the operat
         ->and($html)->toContain("localStorage.setItem('theme', appearance)");
 });
 
+it('gives the panel the phone layout: a bottom bar with a "Lainnya" sheet, and table rows that stack into cards', function () {
+    $admin = panelUser(Role::SystemAdmin);
+
+    $panel = (string) $this->actingAs($admin)->get('/admin')->assertOk()->getContent();
+    $list = (string) $this->actingAs($admin)->get('/admin/users')->assertOk()->getContent();
+
+    expect($panel)
+        ->toContain('data-test="admin-mobile-tab-bar"')
+        ->toContain('data-test="admin-open-more"')
+        // The way back to the dashboard is the raised middle button.
+        ->toContain('href="'.route('dashboard').'" class="fi-mobile-tab fi-mobile-tab-home"')
+        ->and($list)->toContain('fi-ta-table-stacked-on-mobile');
+});
+
 it('keeps a company-pinned admin out of the panel', function () {
     $this->actingAs(panelUser(Role::HrAdmin, Company::factory()->create()))
         ->get('/admin')
