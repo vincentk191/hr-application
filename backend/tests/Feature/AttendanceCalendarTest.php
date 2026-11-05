@@ -1,9 +1,11 @@
 <?php
 
 use App\Enums\AttendanceDayStatus;
+use App\Enums\AttendanceSource;
 use App\Enums\Role;
 use App\Models\AttendanceEnrolMap;
 use App\Models\AttendancePunch;
+use App\Models\Branch;
 use App\Models\CalendarEvent;
 use App\Models\Company;
 use App\Models\Department;
@@ -510,4 +512,115 @@ it('gives each month of the year a rate, working days and the people-day counts'
         ->where('months.9.rate', fn ($rate) => $rate > 0 && $rate <= 100)
         ->where('months.0.rate', null)
         ->where('months.0.workdays', 22));
+});
+
+// --- Cabang that send a rekapitulasi, and Pengajuan as a data point of its own ---
+
+/**
+ * Someone of a Cabang whose attendance comes as a rekapitulasi: no scanner, so no scanner ID.
+ */
+function rekapEmployee(string $name = 'Rina'): Employee
+{
+    $branch = Branch::factory()->forCompany(test()->company)->create(['name' => 'Tangerang', 'attendance_source' => AttendanceSource::Rekap]);
+
+    return Employee::factory()->inBranch($branch)->create(['full_name' => $name, 'joined_on' => '2020-01-01']);
+}
+
+function rowOf(TestResponse $response, Employee $employee): array
+{
+    return collect($response->viewData('page')['props']['rows'])->firstWhere('id', $employee->id);
+}
+
+it('does not judge someone of a rekapitulasi Cabang, nor warn about their missing scanner ID', function () {
+    $rina = rekapEmployee();
+    scan($this->budi, '2026-10-05 08:00:00');
+    scan($this->budi, '2026-10-06 08:00:00');
+
+    $page = calendar('?view=week&date=2026-10-05')->viewData('page')['props'];
+    $row = collect($page['rows'])->firstWhere('id', $rina->id);
+
+    expect($row['viaRekap'])->toBeTrue()
+        ->and($row['days'])->toBe([])
+        ->and(collect($page['rows'])->firstWhere('id', $this->budi->id)['viaRekap'])->toBeFalse()
+        // Counted apart: the attendance figures describe only the people who are judged day by day.
+        ->and($page['summary']['employees'])->toBe(1)
+        ->and($page['summary']['rekapEmployees'])->toBe(1)
+        // Budi's five days after the log (7th to 11th) are the only "no data": Rina adds none of hers.
+        ->and($page['summary']['counts']['no_data'])->toBe(5)
+        ->and($page['summary']['counts']['absent'])->toBe(0);
+});
+
+it('keeps a rekapitulasi Cabang\'s people out of the status filter and the daily headcount', function () {
+    $rina = rekapEmployee();
+    scan($this->budi, '2026-10-05 08:00:00');
+
+    calendar('?view=month&date=2026-10-05&statuses[]=present')
+        ->assertInertia(fn (Assert $page) => $page->has('rows', 1)->where('rows.0.id', $this->budi->id));
+
+    // Rina is on the calendar again without the filter.
+    expect(collect(calendar('?view=week&date=2026-10-05')->viewData('page')['props']['rows'])->pluck('id')->all())->toContain($rina->id);
+});
+
+it('shows the requests someone filed beside their attendance, without changing it', function () {
+    $other = Employee::factory()->forCompany($this->company)->create(['joined_on' => '2020-01-01']);
+    scan($other, '2026-10-06 08:00:00');
+    scan($other, '2026-10-07 08:00:00');
+    leaveFor($this->budi, '2026-10-06', decision: null);
+
+    $response = calendar('?view=week&date=2026-10-05');
+    $row = rowOf($response, $this->budi);
+
+    // Still waiting: it is a request, not yet a fact, so the day stays what the scanner says.
+    expect($row['requests'])->toHaveCount(1)
+        ->and($row['requests'][0]['status'])->toBe('submitted')
+        ->and($row['requests'][0]['from'])->toBe('2026-10-06')
+        ->and($row['days']['2026-10-06']['status'])->toBe('absent');
+});
+
+it('shows a rekapitulasi Cabang\'s requests as their only data on the calendar', function () {
+    $rina = rekapEmployee();
+    scan($this->budi, '2026-10-06 08:00:00');
+    leaveFor($rina, '2026-10-06', '2026-10-07');
+    leaveFor($rina, '2026-10-13', decision: null);
+
+    $row = rowOf(calendar('?view=month&date=2026-10-05'), $rina);
+
+    expect($row['days'])->toBe([])
+        ->and(collect($row['requests'])->pluck('status')->all())->toBe(['approved', 'submitted'])
+        ->and($row['requests'][0]['type'])->toBe('Cuti tahunan')
+        ->and($row['requests'][0]['to'])->toBe('2026-10-07');
+});
+
+it('leaves rejected requests and those outside the range off the calendar', function () {
+    leaveFor($this->budi, '2026-10-06', decision: 'reject');
+    leaveFor($this->budi, '2026-11-10');
+
+    expect(rowOf(calendar('?view=month&date=2026-10-05'), $this->budi)['requests'])->toBe([]);
+});
+
+it('counts each day\'s requests apart from the attendance counts', function () {
+    $rina = rekapEmployee();
+    scan($this->budi, '2026-10-06 08:00:00');
+    scan($this->budi, '2026-10-07 08:00:00');
+    leaveFor($rina, '2026-10-06');
+    leaveFor($this->budi, '2026-10-07', decision: null);
+
+    $days = collect(calendar('?view=week&date=2026-10-05')->viewData('page')['props']['daily'])->keyBy('date');
+
+    expect($days['2026-10-06']['requestsApproved'])->toBe(1)
+        ->and($days['2026-10-06']['requestsWaiting'])->toBe(0)
+        ->and($days['2026-10-07']['requestsWaiting'])->toBe(1)
+        // Rina's approved request does not turn into a Cuti in the headcount: she has no daily record.
+        ->and($days['2026-10-06']['leave'])->toBe(0)
+        ->and($days['2026-10-06']['attended'])->toBe(1);
+});
+
+it('puts a rekapitulasi Cabang\'s person in the CSV with their requests and no daily cells', function () {
+    $rina = rekapEmployee();
+    scan($this->budi, '2026-10-06 08:00:00');
+    leaveFor($rina, '2026-10-06');
+
+    $csv = $this->actingAs($this->hr)->get('/attendance/calendar/export?view=week&date=2026-10-05')->streamedContent();
+
+    expect($csv)->toContain('Rina')->and($csv)->toContain('Cuti tahunan 2026-10-06 (Disetujui)');
 });

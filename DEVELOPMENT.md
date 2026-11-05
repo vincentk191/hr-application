@@ -1129,6 +1129,19 @@ How the import behaves, so it is not surprised by:
   6. someone with **no scanner ID mapped** on that date is no data, not absent — nothing could
      have been recorded for them. Rows say "ID pemindai belum dipetakan".
   Only then is a workday with no scan an absence.
+- **Cabang whose Sumber absensi is Rekapitulasi (2026-11-05):** they have no machine, so the rules above are not
+  applied to their people at all. A row has `viaRekap: true` and an empty `days`; the Day view puts them in their
+  own tab "Rekapitulasi cabang" with a neutral "Rekapitulasi" badge instead of a status, and does **not** show
+  "ID pemindai belum dipetakan". They are counted in `summary.rekapEmployees`, not in `summary.employees` or any
+  status count, so they cannot inflate "belum ada data". (The employee profile's Absensi tab and the
+  dashboard's "today" badge still run the scanner rules for them; not changed yet.)
+- **Pengajuan on the calendar is its own data point:** every row carries `requests` (waiting and approved
+  requests touching the range; rejected ones are left out), read separately from `days` and never merged into a
+  status. The Day view has a "Pengajuan" column (approved solid, waiting dashed); week and month show
+  `requestsApproved` / `requestsWaiting` per day beside, not inside, the attendance counts; the CSV has a
+  Pengajuan column. How other Cabang count leave against absensi is not settled, so nothing blocks on a
+  mismatch between the two: HR compares them by eye. For scanner Cabang the existing rule still applies
+  (approved leave is the status "Cuti"), to be revisited once that is decided.
 - **The Day view is a list, not a grid:** one row per person with Jabatan, Atasan, Masuk (first scan),
   Pulang (last scan, blank for a single scan) and a Status column (Hadir / Terlambat / Cuti …; a
   holiday shows its name). The date is not repeated as a column; it is in the toolbar.

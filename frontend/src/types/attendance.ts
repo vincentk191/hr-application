@@ -143,6 +143,19 @@ export type DayRecord = {
     event: string | null;
 };
 
+/** A Pengajuan someone filed, shown beside their attendance and never folded into it. */
+export type CalendarRequest = {
+    id: number;
+    /** The request type's label, e.g. "Cuti tahunan". */
+    type: string;
+    from: string;
+    to: string;
+    /** "09:00–11:00" when the request names a time of day. */
+    timeframe: string | null;
+    status: 'submitted' | 'approved';
+    statusLabel: string;
+};
+
 export type CalendarRow = {
     id: number;
     name: string;
@@ -154,7 +167,11 @@ export type CalendarRow = {
     manager: string | null;
     /** False when no scanner ID is mapped to this person, so nothing can be recorded for them. */
     hasScannerId: boolean;
+    /** The Cabang sends a rekapitulasi, so there are no daily records and `days` is empty. */
+    viaRekap: boolean;
     days: Record<string, DayRecord>;
+    /** Their waiting and approved requests that touch the range. */
+    requests: CalendarRequest[];
 };
 
 export type CalendarDate = {
@@ -195,6 +212,10 @@ export type CalendarDaySummary = {
     earlyLeave: number;
     absent: number;
     leave: number;
+    /** People with a request covering this day that is still waiting; apart from the attendance counts. */
+    requestsWaiting: number;
+    /** People with an approved request covering this day; apart from the attendance counts. */
+    requestsApproved: number;
     /** Name of the holiday or event covering everyone, if any. */
     holiday: string | null;
 };

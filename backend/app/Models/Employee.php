@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Concerns\BelongsToCompany;
+use App\Enums\AttendanceSource;
 use App\Enums\EmploymentStatus;
 use App\Enums\EmploymentType;
 use App\Enums\Gender;
@@ -306,6 +307,15 @@ class Employee extends Model
     public function hasLogin(): bool
     {
         return $this->user_id !== null;
+    }
+
+    /**
+     * Whether this person's Cabang sends its attendance as a rekapitulasi. They have no scanner to
+     * record daily check-ins, so there is no per-day attendance to show for them.
+     */
+    public function attendsViaRekap(): bool
+    {
+        return $this->branch?->attendance_source === AttendanceSource::Rekap;
     }
 
     /**

@@ -101,7 +101,7 @@ class AttendanceRecap
 
     private function viaRekap(Employee $employee): bool
     {
-        return $employee->branch?->attendance_source === AttendanceSource::Rekap;
+        return $employee->attendsViaRekap();
     }
 
     /**

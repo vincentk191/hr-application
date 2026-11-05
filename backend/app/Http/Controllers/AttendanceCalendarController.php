@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\AttendanceDayStatus;
+use App\Enums\LeaveRequestStage;
 use App\Enums\Permission;
 use App\Models\AttendanceEnrolMap;
 use App\Models\Branch;
@@ -65,10 +66,14 @@ class AttendanceCalendarController extends Controller
             'rows' => $data['view'] === 'year' ? [] : array_slice($data['rows'], 0, self::MAX_ROWS),
             'truncated' => count($data['rows']) > self::MAX_ROWS,
             'daily' => in_array($data['view'], ['week', 'month'], true)
-                ? $this->daily($data['records'], $data['result']['dates'], $data['result']['dataThrough'], $schedule)
+                ? $this->daily($data['records'], $data['result']['dates'], $data['result']['dataThrough'], $schedule, $this->requestsPerDate($data['rows'], $data['result']['dates']))
                 : [],
             'months' => $data['view'] === 'year' ? $this->months($data['records'], $data['result']['dates'], $data['result']['dataThrough'], $schedule, $attendance) : [],
-            'summary' => $this->summary($attendance->tally($data['records'], $data['result']['dates']), count($data['rows'])),
+            'summary' => $this->summary(
+                $attendance->tally($data['records'], $data['result']['dates']),
+                count(array_filter($data['rows'], fn (array $row): bool => ! $row['viaRekap'])),
+                count(array_filter($data['rows'], fn (array $row): bool => $row['viaRekap'])),
+            ),
             'onLeave' => $this->onLeave($data['rows'], $data['from'], $data['to'], $data['filters']['leaveType']),
             'events' => $this->events($request, $data['from'], $data['to'], $data['filters']['branches']),
             'eventForm' => $this->eventForm($request),
@@ -123,7 +128,7 @@ class AttendanceCalendarController extends Controller
                 $lines[] = [$month['label'], $counts['present'], $counts['late'], $counts['early_leave'], $counts['absent'], $counts['leave'], $month['rate'], $month['workdays']];
             }
         } else {
-            $lines[] = ['Karyawan', 'ID', 'Cabang', 'Departemen', ...$data['result']['dates'], 'Hadir', 'Terlambat', 'Pulang cepat', 'Tidak hadir', 'Cuti'];
+            $lines[] = ['Karyawan', 'ID', 'Cabang', 'Departemen', ...$data['result']['dates'], 'Hadir', 'Terlambat', 'Pulang cepat', 'Tidak hadir', 'Cuti', 'Pengajuan'];
 
             foreach ($data['rows'] as $row) {
                 $counts = $attendance->tally([$row['id'] => $row['days']], $data['result']['dates']);
@@ -135,11 +140,13 @@ class AttendanceCalendarController extends Controller
                     $row['department'] ?? '',
                     ...array_map(fn (string $date): string => $this->cell($row['days'][$date] ?? null), $data['result']['dates']),
                     $counts['present'], $counts['late'], $counts['early_leave'], $counts['absent'], $counts['leave'],
+                    collect($row['requests'])->map(fn (array $request): string => "{$request['type']} {$request['from']}".($request['to'] !== $request['from'] ? " s/d {$request['to']}" : '')." ({$request['statusLabel']})")->implode('; '),
                 ];
             }
 
             $lines[] = [];
             $lines[] = ['Keterangan: H hadir, T terlambat, P pulang cepat, A tidak hadir, C cuti, · libur / tidak ada scan, ? belum ada data'];
+            $lines[] = ['Karyawan dari Cabang Rekapitulasi tidak punya data harian (kolom tanggal kosong); kolom Pengajuan berdiri sendiri dan tidak mengubah status kehadiran.'];
         }
 
         return CsvDownload::stream('kalender-'.$data['from']->toDateString().'-'.$data['to']->toDateString().'.csv', $lines);
@@ -201,9 +208,14 @@ class AttendanceCalendarController extends Controller
 
         $employees = $roster->between($from, $to, $filters['departments'], $filters['search'], $filters['team'], $filters['leaveType'], $request->user(), $filters['branches']);
 
-        $result = $attendance->forRange($from, $to, $roster->windows($employees));
+        // A Cabang that sends a rekapitulasi has no scanner, so there is no daily attendance to derive
+        // for its people: judging them would only mark every workday "no data". They stay on the
+        // calendar, with their Pengajuan, but outside the attendance figures.
+        $scanned = $employees->reject(fn (Employee $employee): bool => $employee->attendsViaRekap());
+
+        $result = $attendance->forRange($from, $to, $roster->windows($scanned));
         $withScannerId = AttendanceEnrolMap::acrossCompanies()->pluck('employee_id')->flip();
-        $rows = $this->rowsWithStatus($employees, $result['records'], $filters['statuses'], $withScannerId);
+        $rows = $this->rowsWithStatus($employees, $result['records'], $filters['statuses'], $withScannerId, $this->requestsByEmployee($employees, $from, $to, $filters['leaveType']));
 
         return [
             'view' => $view,
@@ -365,9 +377,10 @@ class AttendanceCalendarController extends Controller
      * @param  array<int, array<string, array{status: string, in: string|null, out: string|null, punches: int, minutes: int|null, duplicate: bool, event: string|null}>>  $records
      * @param  list<string>  $statuses
      * @param  Collection<int, int>  $withScannerId  employee ids that have any scanner ID mapped
+     * @param  array<int, list<array<string, mixed>>>  $requests  each person's filed Pengajuan, by employee id
      * @return list<array<string, mixed>>
      */
-    private function rowsWithStatus($employees, array $records, array $statuses, $withScannerId): array
+    private function rowsWithStatus($employees, array $records, array $statuses, $withScannerId, array $requests = []): array
     {
         $rows = [];
 
@@ -387,11 +400,84 @@ class AttendanceCalendarController extends Controller
                 'position' => $employee->position?->name,
                 'manager' => $employee->manager?->full_name,
                 'hasScannerId' => $withScannerId->has($employee->id),
+                // True for a Cabang whose attendance comes as a rekapitulasi: `days` is empty for them.
+                'viaRekap' => $employee->attendsViaRekap(),
                 'days' => $days,
+                // The Pengajuan the person filed, kept apart from `days`: the two are cross-checked by
+                // whoever reads them, and neither decides the other.
+                'requests' => $requests[$employee->id] ?? [],
             ];
         }
 
         return $rows;
+    }
+
+    /**
+     * The requests (Pengajuan) people filed that touch the range, still waiting or approved. A rejected
+     * one asks for nothing any more, so it is left out. They are read on their own, never folded into
+     * a day's attendance status, so the calendar can show both and let HR compare them.
+     *
+     * @param  Collection<int, Employee>  $employees
+     * @return array<int, list<array{id: int, type: string, from: string, to: string, timeframe: string|null, status: string, statusLabel: string}>>
+     */
+    private function requestsByEmployee(Collection $employees, CarbonImmutable $from, CarbonImmutable $to, ?string $leaveType): array
+    {
+        $byEmployee = [];
+
+        LeaveRequest::query()
+            ->with(['type', 'workflow'])
+            ->whereIn('employee_id', $employees->modelKeys())
+            ->when($leaveType !== null, fn (Builder $query) => $query->where('leave_type', $leaveType))
+            ->whereHas('workflow', fn (Builder $query) => $query->whereIn('current_stage', [LeaveRequestStage::Submitted->value, LeaveRequestStage::Approved->value]))
+            ->whereDate('start_on', '<=', $to->toDateString())
+            ->whereDate('end_on', '>=', $from->toDateString())
+            ->orderBy('start_on')
+            ->orderBy('id')
+            ->get()
+            ->each(function (LeaveRequest $leave) use (&$byEmployee): void {
+                $stage = LeaveRequestStage::from((string) $leave->workflow?->current_stage);
+
+                $byEmployee[$leave->employee_id][] = [
+                    'id' => $leave->id,
+                    'type' => $leave->typeLabel(),
+                    'from' => $leave->start_on->toDateString(),
+                    'to' => $leave->end_on->toDateString(),
+                    'timeframe' => $leave->timeframe(),
+                    'status' => $stage->value,
+                    'statusLabel' => $stage->label(),
+                ];
+            });
+
+        return $byEmployee;
+    }
+
+    /**
+     * For each date, how many of the people on screen have a request covering it, split into those
+     * still waiting and those approved. Counted from the rows, so it follows every filter.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @param  list<string>  $dates
+     * @return array<string, array{waiting: int, approved: int}>
+     */
+    private function requestsPerDate(array $rows, array $dates): array
+    {
+        $counts = array_fill_keys($dates, ['waiting' => 0, 'approved' => 0]);
+
+        foreach ($rows as $row) {
+            foreach ($dates as $date) {
+                $stages = collect($row['requests'])
+                    ->filter(fn (array $request): bool => $request['from'] <= $date && $request['to'] >= $date)
+                    ->pluck('status');
+
+                if ($stages->contains(LeaveRequestStage::Approved->value)) {
+                    $counts[$date]['approved']++;
+                } elseif ($stages->isNotEmpty()) {
+                    $counts[$date]['waiting']++;
+                }
+            }
+        }
+
+        return $counts;
     }
 
     /**
@@ -421,9 +507,10 @@ class AttendanceCalendarController extends Controller
      *
      * @param  array<int, array<string, array{status: string, in: string|null, out: string|null, punches: int, minutes: int|null, duplicate: bool, event: string|null}>>  $records
      * @param  list<string>  $dates
+     * @param  array<string, array{waiting: int, approved: int}>  $requests  filed requests per date, apart from attendance
      * @return list<array<string, mixed>>
      */
-    private function daily(array $records, array $dates, ?string $dataThrough, WorkSchedule $schedule): array
+    private function daily(array $records, array $dates, ?string $dataThrough, WorkSchedule $schedule, array $requests = []): array
     {
         $summaries = [];
 
@@ -459,6 +546,8 @@ class AttendanceCalendarController extends Controller
                 'earlyLeave' => $counts['early_leave'],
                 'absent' => $counts['absent'],
                 'leave' => $counts['leave'],
+                'requestsWaiting' => $requests[$date]['waiting'] ?? 0,
+                'requestsApproved' => $requests[$date]['approved'] ?? 0,
                 'holiday' => $people > 0 && $withEvent === $people ? $eventTitle : null,
             ];
         }
@@ -511,10 +600,13 @@ class AttendanceCalendarController extends Controller
     /**
      * The headcount summary (ATT-SID-001), from the same records as the grid.
      *
+     * `employees` counts the people whose attendance is judged day by day; `rekapEmployees` are those
+     * of a Cabang that sends a rekapitulasi, who have no daily attendance to count.
+     *
      * @param  array<string, int>  $counts
-     * @return array{counts: array<string, int>, attended: int, expected: int, employees: int}
+     * @return array{counts: array<string, int>, attended: int, expected: int, employees: int, rekapEmployees: int}
      */
-    private function summary(array $counts, int $employees): array
+    private function summary(array $counts, int $employees, int $rekapEmployees = 0): array
     {
         $attended = $counts['present'] + $counts['late'] + $counts['early_leave'];
 
@@ -523,6 +615,7 @@ class AttendanceCalendarController extends Controller
             'attended' => $attended,
             'expected' => $attended + $counts['absent'],
             'employees' => $employees,
+            'rekapEmployees' => $rekapEmployees,
         ];
     }
 

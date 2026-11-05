@@ -23,6 +23,19 @@ function expectedOf(day: CalendarDaySummary): number {
     return day.attended + day.absent;
 }
 
+/**
+ * The day's filed requests, as a line of its own: it is never added to the attendance counts, so the
+ * two can be compared. Empty when nobody filed one for the day.
+ */
+function requestsLine(day: CalendarDaySummary): string {
+    return [
+        day.requestsApproved > 0 ? `${day.requestsApproved} pengajuan` : null,
+        day.requestsWaiting > 0 ? `${day.requestsWaiting} menunggu` : null,
+    ]
+        .filter(Boolean)
+        .join(' · ');
+}
+
 /** A working day inside the data where someone was expected; the rest say nothing about attendance. */
 function isCounted(day: CalendarDaySummary): boolean {
     return (
@@ -135,6 +148,12 @@ export function WeekSummary({
                             <span className="min-h-4 text-[11px] text-muted-foreground">
                                 {day.holiday ??
                                     (day.leave > 0 ? `${day.leave} cuti` : '')}
+                            </span>
+                            <span
+                                data-test="week-requests"
+                                className="min-h-4 text-[11px] text-sky-700 dark:text-sky-300"
+                            >
+                                {requestsLine(day)}
                             </span>
                         </button>
                     );
@@ -262,7 +281,9 @@ export function MonthSummary({
                                               ? '—'
                                               : ''}
                                     </span>
-                                    {(day.leave > 0 || day.late > 0) && (
+                                    {(day.leave > 0 ||
+                                        day.late > 0 ||
+                                        requestsLine(day) !== '') && (
                                         <span className="hidden text-[10px] leading-tight text-muted-foreground sm:block">
                                             {[
                                                 day.leave > 0
@@ -271,6 +292,7 @@ export function MonthSummary({
                                                 day.late > 0
                                                     ? `${day.late} terlambat`
                                                     : null,
+                                                requestsLine(day) || null,
                                             ]
                                                 .filter(Boolean)
                                                 .join(' · ')}

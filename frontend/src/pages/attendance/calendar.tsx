@@ -48,6 +48,7 @@ import type {
     EventFormOptions,
     CalendarFilters,
     CalendarMonth,
+    CalendarRequest,
     CalendarRow,
     CalendarView,
     CaptureStatus,
@@ -72,6 +73,8 @@ type Props = {
         attended: number;
         expected: number;
         employees: number;
+        /** People of a Cabang that sends a rekapitulasi: on the calendar, but not in the figures. */
+        rekapEmployees: number;
     };
     events: CalendarEventRow[];
     eventForm: EventFormOptions | null;
@@ -107,14 +110,21 @@ const VIEWS: { value: CalendarView; label: string }[] = [
     { value: 'year', label: 'Tahun' },
 ];
 
-type DayTab = 'present' | 'away' | 'other';
+type DayTab = 'present' | 'away' | 'rekap' | 'other';
 
 /** Who counts as "Hadir": anyone who came, however late or early they left. */
 const PRESENT: DayStatus[] = ['present', 'late', 'early_leave'];
 /** "Tidak hadir": absent without a reason, or away on approved leave. */
 const AWAY: DayStatus[] = ['absent', 'leave'];
 
-function tabOf(status: DayStatus | undefined): DayTab {
+function tabOf(row: CalendarRow, date: string): DayTab {
+    // No daily records exist for a Cabang that sends a rekapitulasi, so they are neither here nor away.
+    if (row.viaRekap) {
+        return 'rekap';
+    }
+
+    const status = row.days[date]?.status;
+
     if (status !== undefined && PRESENT.includes(status)) {
         return 'present';
     }
@@ -122,10 +132,47 @@ function tabOf(status: DayStatus | undefined): DayTab {
     return status !== undefined && AWAY.includes(status) ? 'away' : 'other';
 }
 
+/** The requests that cover a date, as chips kept apart from the attendance status. */
+function RequestChips({
+    requests,
+    date,
+}: {
+    requests: CalendarRequest[];
+    date: string;
+}) {
+    const covering = requests.filter(
+        (request) => request.from <= date && request.to >= date,
+    );
+
+    if (covering.length === 0) {
+        return <span className="text-muted-foreground">—</span>;
+    }
+
+    return (
+        <div className="flex flex-col items-start gap-1">
+            {covering.map((request) => (
+                <span
+                    key={request.id}
+                    data-test="request-chip"
+                    title={request.timeframe ?? undefined}
+                    className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${
+                        request.status === 'approved'
+                            ? 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200'
+                            : 'border border-dashed border-amber-500/70 text-amber-800 dark:text-amber-200'
+                    }`}
+                >
+                    {request.type} · {request.statusLabel}
+                </span>
+            ))}
+        </div>
+    );
+}
+
 /**
  * The Day view, split into two tabs: Hadir (on time, Terlambat and Pulang cepat all stay here) and
  * Tidak hadir (Cuti and absent). A holiday, a weekend or a day the log has not reached is neither, so
- * those people sit in a third tab that only appears when there is someone in it.
+ * those people sit in another tab that only appears when there is someone in it. People of a Cabang
+ * that sends a rekapitulasi have their own tab: they have no daily attendance, only their Pengajuan.
  */
 function DayTable({
     date,
@@ -139,10 +186,11 @@ function DayTable({
     const byTab: Record<DayTab, CalendarRow[]> = {
         present: [],
         away: [],
+        rekap: [],
         other: [],
     };
 
-    rows.forEach((row) => byTab[tabOf(row.days[date]?.status)].push(row));
+    rows.forEach((row) => byTab[tabOf(row, date)].push(row));
 
     // Open on Hadir; if nobody came, open on whichever tab has people.
     const [tab, setTab] = useState<DayTab>(
@@ -152,7 +200,9 @@ function DayTable({
               ? 'away'
               : byTab.other.length > 0
                 ? 'other'
-                : 'present',
+                : byTab.rekap.length > 0
+                  ? 'rekap'
+                  : 'present',
     );
 
     const tabs: { value: DayTab; label: string }[] = [
@@ -160,6 +210,9 @@ function DayTable({
         { value: 'away', label: 'Tidak hadir' },
         ...(byTab.other.length > 0
             ? [{ value: 'other' as const, label: 'Libur / belum ada data' }]
+            : []),
+        ...(byTab.rekap.length > 0
+            ? [{ value: 'rekap' as const, label: 'Rekapitulasi cabang' }]
             : []),
     ];
 
@@ -237,6 +290,7 @@ function DayRows({
                         <th className="p-3 font-medium">Masuk</th>
                         <th className="p-3 font-medium">Pulang</th>
                         <th className="p-3 font-medium">Status</th>
+                        <th className="p-3 font-medium">Pengajuan</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -267,10 +321,16 @@ function DayRows({
                                             .filter(Boolean)
                                             .join(' · ')}
                                     </div>
-                                    {!row.hasScannerId && (
-                                        <div className="text-[11px] text-amber-700 dark:text-amber-300">
-                                            ID pemindai belum dipetakan
+                                    {row.viaRekap ? (
+                                        <div className="text-[11px] text-muted-foreground">
+                                            Absensi lewat rekapitulasi cabang
                                         </div>
+                                    ) : (
+                                        !row.hasScannerId && (
+                                            <div className="text-[11px] text-amber-700 dark:text-amber-300">
+                                                ID pemindai belum dipetakan
+                                            </div>
+                                        )
                                     )}
                                 </td>
                                 <td className="hidden p-3 md:table-cell">
@@ -286,6 +346,14 @@ function DayRows({
                                     {record?.out ?? '—'}
                                 </td>
                                 <td className="p-3">
+                                    {row.viaRekap && (
+                                        <span
+                                            data-test="rekap-badge"
+                                            className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${STATUS_STYLE.no_data}`}
+                                        >
+                                            Rekapitulasi
+                                        </span>
+                                    )}
                                     {record && (
                                         <span
                                             title={record.event ?? undefined}
@@ -297,6 +365,12 @@ function DayRows({
                                                 : labelOf[record.status]}
                                         </span>
                                     )}
+                                </td>
+                                <td className="p-3">
+                                    <RequestChips
+                                        requests={row.requests}
+                                        date={date}
+                                    />
                                 </td>
                             </tr>
                         );
@@ -878,6 +952,11 @@ export default function AttendanceCalendar(props: Props) {
                                 </li>
                             ))}
                         </ul>
+                        <p className="text-xs text-muted-foreground">
+                            Pengajuan ditampilkan terpisah dari status
+                            kehadiran: keduanya dibandingkan, tetapi tidak
+                            saling menentukan.
+                        </p>
                     </div>
 
                     <aside className="flex flex-col gap-3">
@@ -887,6 +966,13 @@ export default function AttendanceCalendar(props: Props) {
                                 {summary.employees} karyawan · rentang{' '}
                                 {nav.label}
                             </p>
+                            {summary.rekapEmployees > 0 && (
+                                <p className="text-xs text-muted-foreground">
+                                    +{summary.rekapEmployees} dari Cabang
+                                    Rekapitulasi, tidak dihitung di bawah ini
+                                    karena tidak punya data harian.
+                                </p>
+                            )}
                             <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
                                 {(
                                     [
