@@ -1,9 +1,11 @@
 <?php
 
+use App\Enums\AttendanceSource;
 use App\Enums\Role;
 use App\Models\AttendanceEnrolMap;
 use App\Models\AttendanceIssueResolution;
 use App\Models\AttendancePunch;
+use App\Models\Branch;
 use App\Models\Company;
 use App\Models\Department;
 use App\Models\Employee;
@@ -362,4 +364,18 @@ it('shows a pinned HR admin only their own company\'s issues', function () {
     $names = collect(issues('?from=2026-10-05&to=2026-10-05')->viewData('page')['props']['issues'])->pluck('name')->all();
 
     expect($names)->toContain('Budi')->not->toContain('Orang Lain');
+});
+
+it('raises nothing for someone of a rekapitulasi Cabang, even with a scan that would be an issue', function () {
+    foreach (['2026-10-05', '2026-10-06'] as $date) {
+        coverDay($this->company, $date);
+    }
+    $branch = Branch::factory()->forCompany($this->company)->create(['attendance_source' => AttendanceSource::Rekap]);
+    $rina = Employee::factory()->inBranch($branch)->create(['full_name' => 'Rina', 'joined_on' => '2020-01-01']);
+    // Late on the 5th, and never checked out on the 6th: both would be issues on a scanner Cabang.
+    issueScan($rina, '2026-10-05 09:30:00');
+    issueScan($rina, '2026-10-05 17:00:00');
+    issueScan($rina, '2026-10-06 08:00:00');
+
+    expect(issueTypesFor($rina))->toBe([]);
 });

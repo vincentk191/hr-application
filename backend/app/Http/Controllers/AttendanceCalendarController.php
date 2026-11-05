@@ -66,7 +66,7 @@ class AttendanceCalendarController extends Controller
             'rows' => $data['view'] === 'year' ? [] : array_slice($data['rows'], 0, self::MAX_ROWS),
             'truncated' => count($data['rows']) > self::MAX_ROWS,
             'daily' => in_array($data['view'], ['week', 'month'], true)
-                ? $this->daily($data['records'], $data['result']['dates'], $data['result']['dataThrough'], $schedule, $this->requestsPerDate($data['rows'], $data['result']['dates']))
+                ? $this->daily($data['records'], $data['result']['dates'], $data['result']['dataThrough'], $schedule, $this->requestsPerDate($data['requests'], $data['result']['dates']))
                 : [],
             'months' => $data['view'] === 'year' ? $this->months($data['records'], $data['result']['dates'], $data['result']['dataThrough'], $schedule, $attendance) : [],
             'summary' => $this->summary(
@@ -140,7 +140,10 @@ class AttendanceCalendarController extends Controller
                     $row['department'] ?? '',
                     ...array_map(fn (string $date): string => $this->cell($row['days'][$date] ?? null), $data['result']['dates']),
                     $counts['present'], $counts['late'], $counts['early_leave'], $counts['absent'], $counts['leave'],
-                    collect($row['requests'])->map(fn (array $request): string => "{$request['type']} {$request['from']}".($request['to'] !== $request['from'] ? " s/d {$request['to']}" : '')." ({$request['statusLabel']})")->implode('; '),
+                    implode('; ', array_map(
+                        fn (array $request): string => "{$request['type']} {$request['from']}".($request['to'] !== $request['from'] ? " s/d {$request['to']}" : '')." ({$request['statusLabel']})",
+                        $data['requests'][$row['id']] ?? [],
+                    )),
                 ];
             }
 
@@ -179,7 +182,8 @@ class AttendanceCalendarController extends Controller
      * @return array{
      *     view: string, timezone: string, anchor: CarbonImmutable, from: CarbonImmutable, to: CarbonImmutable,
      *     filters: array<string, mixed>, result: array<string, mixed>, rows: list<array<string, mixed>>,
-     *     records: array<int, array<string, array{status: string, in: string|null, out: string|null, punches: int, minutes: int|null, duplicate: bool, event: string|null}>>
+     *     records: array<int, array<string, array{status: string, in: string|null, out: string|null, punches: int, minutes: int|null, duplicate: bool, event: string|null}>>,
+     *     requests: array<int, list<array{id: int, type: string, from: string, to: string, timeframe: string|null, status: string, statusLabel: string}>>
      * }
      */
     private function gather(Request $request, DailyAttendance $attendance, EmployeeRoster $roster): array
@@ -212,7 +216,8 @@ class AttendanceCalendarController extends Controller
         // attendance to derive. They stay on the calendar, with their Pengajuan, outside its figures.
         $result = $attendance->forRange($from, $to, $roster->windows($employees));
         $withScannerId = AttendanceEnrolMap::acrossCompanies()->pluck('employee_id')->flip();
-        $rows = $this->rowsWithStatus($employees, $result['records'], $filters['statuses'], $withScannerId, $this->requestsByEmployee($employees, $from, $to, $filters['leaveType']));
+        $requests = $this->requestsByEmployee($employees, $from, $to, $filters['leaveType']);
+        $rows = $this->rowsWithStatus($employees, $result['records'], $filters['statuses'], $withScannerId, $requests);
 
         return [
             'view' => $view,
@@ -224,6 +229,8 @@ class AttendanceCalendarController extends Controller
             'result' => $result,
             'rows' => $rows,
             'records' => collect($rows)->mapWithKeys(fn (array $row): array => [$row['id'] => $row['days']])->all(),
+            // Only for the people the grid shows, so every filter narrows them too.
+            'requests' => array_intersect_key($requests, array_flip(array_column($rows, 'id'))),
         ];
     }
 
@@ -423,7 +430,7 @@ class AttendanceCalendarController extends Controller
 
         LeaveRequest::query()
             ->with(['type', 'workflow'])
-            ->whereIn('employee_id', $employees->modelKeys())
+            ->whereIn('employee_id', $employees->pluck('id')->all())
             ->when($leaveType !== null, fn (Builder $query) => $query->where('leave_type', $leaveType))
             ->whereHas('workflow', fn (Builder $query) => $query->whereIn('current_stage', [LeaveRequestStage::Submitted->value, LeaveRequestStage::Approved->value]))
             ->whereDate('start_on', '<=', $to->toDateString())
@@ -450,31 +457,38 @@ class AttendanceCalendarController extends Controller
 
     /**
      * For each date, how many of the people on screen have a request covering it, split into those
-     * still waiting and those approved. Counted from the rows, so it follows every filter.
+     * still waiting and those approved. Counted from the same requests as the rows, so it follows every
+     * filter.
      *
-     * @param  list<array<string, mixed>>  $rows
+     * @param  array<int, list<array{id: int, type: string, from: string, to: string, timeframe: string|null, status: string, statusLabel: string}>>  $requests  by employee id
      * @param  list<string>  $dates
      * @return array<string, array{waiting: int, approved: int}>
      */
-    private function requestsPerDate(array $rows, array $dates): array
+    private function requestsPerDate(array $requests, array $dates): array
     {
-        $counts = array_fill_keys($dates, ['waiting' => 0, 'approved' => 0]);
+        $waiting = array_fill_keys($dates, 0);
+        $approved = array_fill_keys($dates, 0);
 
-        foreach ($rows as $row) {
+        foreach ($requests as $filed) {
             foreach ($dates as $date) {
-                $stages = collect($row['requests'])
-                    ->filter(fn (array $request): bool => $request['from'] <= $date && $request['to'] >= $date)
-                    ->pluck('status');
+                $covering = array_filter($filed, fn (array $request): bool => $request['from'] <= $date && $request['to'] >= $date);
 
-                if ($stages->contains(LeaveRequestStage::Approved->value)) {
-                    $counts[$date]['approved']++;
-                } elseif ($stages->isNotEmpty()) {
-                    $counts[$date]['waiting']++;
+                if ($covering === []) {
+                    continue;
+                }
+
+                if (array_filter($covering, fn (array $request): bool => $request['status'] === LeaveRequestStage::Approved->value) !== []) {
+                    $approved[$date]++;
+                } else {
+                    $waiting[$date]++;
                 }
             }
         }
 
-        return $counts;
+        return array_map(
+            fn (string $date): array => ['waiting' => $waiting[$date], 'approved' => $approved[$date]],
+            array_combine($dates, $dates),
+        );
     }
 
     /**

@@ -294,6 +294,8 @@ export type Timesheet = {
     prev: string;
     next: string;
     dataThrough: string | null;
+    /** The Cabang sends a rekapitulasi, so there are no daily records and `days` is empty. */
+    viaRekap: boolean;
     days: TimesheetDay[];
     totals: {
         present: number;
@@ -313,6 +315,8 @@ export type YearTimesheet = {
     prev: number;
     next: number;
     dataThrough: string | null;
+    /** The Cabang sends a rekapitulasi, so there are no daily records and `months` is empty. */
+    viaRekap: boolean;
     months: {
         month: number;
         /** "YYYY-MM", to open that month. */

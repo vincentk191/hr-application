@@ -1,8 +1,10 @@
 <?php
 
+use App\Enums\AttendanceSource;
 use App\Enums\Role;
 use App\Models\AttendanceEnrolMap;
 use App\Models\AttendancePunch;
+use App\Models\Branch;
 use App\Models\Company;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
@@ -154,4 +156,13 @@ it('adds the team to the full profile page', function () {
         ->assertInertia(fn (Assert $page) => $page->component('employees/show')
             ->where('team.supervisor.name', 'Sari')
             ->where('team.size', 3));
+});
+
+it('does not count someone of a rekapitulasi Cabang as in today, whatever was scanned', function () {
+    $branch = Branch::factory()->forCompany($this->company)->create(['attendance_source' => AttendanceSource::Rekap]);
+    $this->agus->update(['branch_id' => $branch->id]);
+    teamScan($this->agus, '2026-10-20 07:55:00');
+    teamScan($this->hendra, '2026-10-20 08:30:00');
+
+    expect(teamOf($this->hr, $this->sari)['presentToday'])->toBe(1);
 });

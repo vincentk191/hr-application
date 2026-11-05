@@ -624,3 +624,12 @@ it('puts a rekapitulasi Cabang\'s person in the CSV with their requests and no d
 
     expect($csv)->toContain('Rina')->and($csv)->toContain('Cuti tahunan 2026-10-06 (Disetujui)');
 });
+
+it('reads the Cabang\'s source even when the Cabang was loaded for its name alone', function () {
+    $rina = rekapEmployee();
+
+    $partial = Employee::query()->with('branch:id,name')->findOrFail($rina->id);
+
+    expect($partial->attendsViaRekap())->toBeTrue()
+        ->and(Employee::query()->with('branch:id,name')->findOrFail($this->budi->id)->attendsViaRekap())->toBeFalse();
+});

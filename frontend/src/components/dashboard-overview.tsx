@@ -124,6 +124,25 @@ export function AttendanceToday({
     data: TodayAttendance;
     now: number;
 }) {
+    if (data.viaRekap) {
+        return (
+            <section
+                className="surface rounded-3xl p-5 md:rounded-2xl md:p-6"
+                data-test="attendance-today"
+            >
+                <div className="flex items-center justify-between gap-3">
+                    <h2 className="font-semibold">Absensi hari ini</h2>
+                    <Badge tone={data.tone}>{data.statusLabel}</Badge>
+                </div>
+                <p className="mt-3 text-sm text-muted-foreground">
+                    Cabang Anda mengirim absensi lewat rekapitulasi, jadi tidak
+                    ada scan harian yang ditampilkan. Pengajuan Anda tetap
+                    tercatat.
+                </p>
+            </section>
+        );
+    }
+
     const start = toMinutes(data.workStart);
     const end = toMinutes(data.workEnd);
     const arrived = data.in === null ? null : toMinutes(data.in);

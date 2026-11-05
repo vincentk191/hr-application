@@ -1,8 +1,10 @@
 <?php
 
+use App\Enums\AttendanceSource;
 use App\Enums\Role;
 use App\Models\AttendanceEnrolMap;
 use App\Models\AttendancePunch;
+use App\Models\Branch;
 use App\Models\Company;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
@@ -282,4 +284,17 @@ it('does not show anyone else\'s sick days', function () {
 
     $this->actingAs($user)->get(route('dashboard'))
         ->assertInertia(fn (Assert $page) => $page->where('overview.sickDays.dates', []));
+});
+
+it('shows no scans, and no rate, for someone of a rekapitulasi Cabang', function () {
+    [$user, $employee] = overviewEmployee();
+    $employee->update(['branch_id' => Branch::factory()->forCompany($employee->company)->create(['attendance_source' => AttendanceSource::Rekap])->id]);
+    overviewScan($employee, '2026-10-20 08:02:00');
+
+    $this->actingAs($user)->get(route('dashboard'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('overview.attendance.viaRekap', true)
+            ->where('overview.attendance.in', null)
+            ->where('overview.attendance.statusLabel', 'Rekapitulasi')
+            ->where('overview.month', null));
 });

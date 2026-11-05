@@ -315,7 +315,18 @@ class Employee extends Model
      */
     public function attendsViaRekap(): bool
     {
-        return $this->branch?->attendance_source === AttendanceSource::Rekap;
+        $branch = $this->branch;
+
+        if ($branch === null) {
+            return false;
+        }
+
+        // A Cabang loaded for its name alone has no source on it, which must not read as "scanner".
+        if (! array_key_exists('attendance_source', $branch->getAttributes())) {
+            $branch->setRawAttributes([...$branch->getAttributes(), 'attendance_source' => Branch::acrossCompanies()->whereKey($branch->getKey())->value('attendance_source')], true);
+        }
+
+        return $branch->attendance_source === AttendanceSource::Rekap;
     }
 
     /**

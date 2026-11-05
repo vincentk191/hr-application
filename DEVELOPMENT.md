@@ -1133,8 +1133,12 @@ How the import behaves, so it is not surprised by:
   applied to their people at all. A row has `viaRekap: true` and an empty `days`; the Day view puts them in their
   own tab "Rekapitulasi cabang" with a neutral "Rekapitulasi" badge instead of a status, and does **not** show
   "ID pemindai belum dipetakan". They are counted in `summary.rekapEmployees`, not in `summary.employees` or any
-  status count, so they cannot inflate "belum ada data". (The employee profile's Absensi tab and the
-  dashboard's "today" badge still run the scanner rules for them; not changed yet.)
+  status count, so they cannot inflate "belum ada data". The Cabang's setting decides for **every** screen:
+  `EmployeeRoster::windows()` leaves them out, so the calendar, Masalah absensi, the Rekap page and the profile's
+  "Tim" tab (`presentToday`) derive nothing for them, and any scanner punch recorded against them is ignored. The
+  profile's Absensi tab returns `viaRekap: true` with no days or scans (the tab says so), and the dashboard's
+  "Absensi hari ini" shows a "Rekapitulasi" badge with no rate. `Employee::attendsViaRekap()` is the single check;
+  it reads the source from the database when the Cabang was loaded without that column.
 - **Pengajuan on the calendar is its own data point:** every row carries `requests` (waiting and approved
   requests touching the range; rejected ones are left out), read separately from `days` and never merged into a
   status. The Day view has a "Pengajuan" column (approved solid, waiting dashed); week and month show

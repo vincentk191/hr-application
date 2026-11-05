@@ -168,7 +168,7 @@ class EmployeeController extends Controller
     {
         $this->authorize('view', $employee);
 
-        $employee->load(['branch:id,name', 'department:id,name', 'position:id,name', 'manager:id,full_name', 'company:id,code,name', 'user:id,is_active']);
+        $employee->load(['branch:id,name,attendance_source', 'department:id,name', 'position:id,name', 'manager:id,full_name', 'company:id,code,name', 'user:id,is_active']);
 
         $user = $request->user();
 
@@ -204,7 +204,7 @@ class EmployeeController extends Controller
     {
         $this->authorize('view', $employee);
 
-        $employee->load(['branch:id,name', 'department:id,name', 'position:id,name', 'manager:id,full_name', 'company:id,code,name', 'user:id,is_active']);
+        $employee->load(['branch:id,name,attendance_source', 'department:id,name', 'position:id,name', 'manager:id,full_name', 'company:id,code,name', 'user:id,is_active']);
 
         $user = $request->user();
 

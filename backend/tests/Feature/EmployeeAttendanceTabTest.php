@@ -1,8 +1,10 @@
 <?php
 
+use App\Enums\AttendanceSource;
 use App\Enums\Role;
 use App\Models\AttendanceEnrolMap;
 use App\Models\AttendancePunch;
+use App\Models\Branch;
 use App\Models\Company;
 use App\Models\Employee;
 use App\Models\User;
@@ -283,4 +285,23 @@ it('keeps the month timesheet as the default and marks it as one', function () {
     tabScan($this->budi, '2026-10-05 08:00:00');
 
     withTimesheet($this->hr, $this->budi, fn (Assert $attendance) => $attendance->where('period', 'month')->where('month', '2026-10'));
+});
+
+it('does not derive a timesheet for someone of a rekapitulasi Cabang, and ignores any scan recorded for them', function () {
+    $branch = Branch::factory()->forCompany($this->company)->create(['attendance_source' => AttendanceSource::Rekap]);
+    $rina = Employee::factory()->inBranch($branch)->create(['full_name' => 'Rina', 'joined_on' => '2020-01-01']);
+    tabScan($rina, '2026-10-05 07:55:00');
+    tabScan($this->budi, '2026-10-05 08:00:00');
+
+    withTimesheet($this->hr, $rina, fn (Assert $attendance) => $attendance
+        ->where('viaRekap', true)
+        ->where('days', [])
+        ->where('totals.present', 0)
+        ->etc());
+
+    $this->actingAs($this->hr)->get(route('employees.show', $rina).'?period=year&year=2026')
+        ->assertInertia(fn (Assert $page) => $page->reloadOnly('attendance', fn (Assert $reload) => $reload
+            ->where('attendance.viaRekap', true)
+            ->where('attendance.months', [])
+            ->etc()));
 });

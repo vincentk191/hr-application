@@ -30,6 +30,8 @@ export type QuickAction = {
 };
 
 export type TodayAttendance = {
+    /** The Cabang sends a rekapitulasi: no scanner, so no scans to show. */
+    viaRekap: boolean;
     status: string;
     statusLabel: string;
     tone: Tone;
