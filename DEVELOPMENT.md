@@ -74,7 +74,10 @@ left uncommitted for review.
   2FA, confirm-password and verify-email pages, and leftovers (Overview → Ringkasan, List/Grid/Chart →
   Daftar/Kartu/Bagan, Payroll → Penggajian, Online → Daring, Resign → Mengundurkan diri, Referral → Rekomendasi
   karyawan). Backend switched to `APP_LOCALE=id` with `lang/id`. Fixed double-encoded characters ("â€”", "Â·")
-  in eight Filament files that a PowerShell edit had saved in the wrong encoding.
+  in eight Filament files that a PowerShell edit had saved in the wrong encoding. On a phone the request form's
+  three steps (Permintaan › Detail & Kualifikasi › Review) now use the pipeline's stage-card look
+  (`RequisitionWizardSteps`: "LANGKAH n DARI 3", numbered circles with a check when done, large step name); the three
+  desktop cards are hidden below tablet width.
 - **2026-11-04 (recruitment stage 04, Interview: invitation and candidate form; branch `feature/recruitement`).**
   Migration `add_interview_invitation_to_candidates_table` (hash of the link's token, `invited_at`, expiry, who invited,
   `interview_at` (UTC), `interview_mode`, `interview_place`, `form_submitted_at`, `form_data` JSON). Mailable

@@ -18,6 +18,7 @@ import {
     filledGroups,
     lineCount,
 } from '@/components/requisition-summary';
+import { RequisitionWizardSteps } from '@/components/requisition-wizard-steps';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -132,6 +133,14 @@ function ChecklistSubtitle({
             <LineListEditor lines={lines} onChange={onChange} label={label} />
         </div>
     );
+}
+
+function stateCaption(state: State): string {
+    return state === 'done'
+        ? 'Selesai'
+        : state === 'progress'
+          ? 'Sedang diisi'
+          : 'Belum dimulai';
 }
 
 function stateLabel(state: State): string {
@@ -526,7 +535,7 @@ export default function RequisitionForm({
                                     ? `Ubah ${existing?.reference} · ${existing?.positionName}`
                                     : 'Pengajuan Lowongan'}
                             </h1>
-                            <p className="label-mono">
+                            <p className="label-mono max-md:hidden">
                                 {existing
                                     ? `${existing.isDraft ? 'DRAFT ' : ''}${existing.reference}`
                                     : 'DRAFT'}
@@ -567,8 +576,39 @@ export default function RequisitionForm({
                             penyetuju.
                         </p>
                     )}
+                    <div className="mt-3">
+                        <RequisitionWizardSteps
+                            steps={[
+                                {
+                                    step: 1,
+                                    label: 'Permintaan',
+                                    caption: stateCaption(requestState),
+                                    done: requestState === 'done',
+                                },
+                                {
+                                    step: 2,
+                                    label: 'Detail & Kualifikasi',
+                                    caption: stateCaption(detailsState),
+                                    done: detailsState === 'done',
+                                },
+                                {
+                                    step: 3,
+                                    label: 'Review',
+                                    caption:
+                                        step === 3
+                                            ? complete
+                                                ? 'Siap diajukan'
+                                                : 'Belum lengkap'
+                                            : 'Belum dimulai',
+                                    done: false,
+                                },
+                            ]}
+                            active={step}
+                            onPick={goTo}
+                        />
+                    </div>
                     <ol
-                        className="mt-3 grid gap-2 md:grid-cols-3"
+                        className="mt-3 grid gap-2 max-md:hidden md:grid-cols-3"
                         data-test="wizard-stepper"
                     >
                         {tabs.map((tab) => (
