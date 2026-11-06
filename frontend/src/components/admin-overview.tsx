@@ -323,14 +323,21 @@ export function RecruitmentCard({ data }: { data: RecruitmentOverview }) {
 
             <ul className="grid grid-cols-5 gap-1 text-center">
                 {data.stages.map((stage) => (
-                    <li
-                        key={stage.stage}
-                        className={`rounded-lg border p-2 ${stage.count === 0 ? 'text-muted-foreground' : ''}`}
-                    >
-                        <p className="text-lg font-extrabold tabular-nums">
-                            {stage.count}
-                        </p>
-                        <p className="truncate text-[10px]">{stage.label}</p>
+                    <li key={stage.stage}>
+                        <Link
+                            href={recruitmentIndex({
+                                query: { status: stage.stage },
+                            })}
+                            className={`block rounded-lg border p-2 transition-colors hover:bg-muted/60 ${stage.count === 0 ? 'text-muted-foreground' : ''}`}
+                            data-test={`recruitment-stage-${stage.stage}`}
+                        >
+                            <p className="text-lg font-extrabold tabular-nums">
+                                {stage.count}
+                            </p>
+                            <p className="truncate text-[10px]">
+                                {stage.label}
+                            </p>
+                        </Link>
                     </li>
                 ))}
             </ul>

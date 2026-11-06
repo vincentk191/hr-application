@@ -1,8 +1,9 @@
-import { Link, router } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { ArrowRight, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { MonthGrid } from '@/components/attendance-summary-views';
 import { Button } from '@/components/ui/button';
+import { show as employeeShow } from '@/routes/employees';
 import { create, index as leaveRequestsIndex } from '@/routes/leave-requests';
 import type {
     Intro,
@@ -114,6 +115,25 @@ export function OverviewHeader({
 }
 
 /**
+ * Where a stat on the dashboard leads: a tab of the signed-in person's own profile, where the same figures are listed
+ * in full. `month` ("YYYY-MM") opens the attendance tab on that month.
+ */
+function useOwnProfileLink() {
+    const { auth } = usePage().props;
+
+    return (tab: 'attendance' | 'requests', month?: string): string =>
+        auth.employeeId === null
+            ? '#'
+            : `${employeeShow(auth.employeeId).url}?tab=${tab}${month ? `&month=${month}` : ''}`;
+}
+
+function thisMonth(): string {
+    const now = new Date();
+
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
+
+/**
  * Today's attendance: first scan, last scan, how long they have been at work, and how far through the working day it
  * is. The second scan of the day is the departure, so "Pulang" stays empty until then.
  */
@@ -124,10 +144,14 @@ export function AttendanceToday({
     data: TodayAttendance;
     now: number;
 }) {
+    const profileLink = useOwnProfileLink();
+    const attendanceHref = profileLink('attendance', thisMonth());
+
     if (data.viaRekap) {
         return (
-            <section
-                className="surface rounded-3xl p-5 md:rounded-2xl md:p-6"
+            <Link
+                href={attendanceHref}
+                className="surface block rounded-3xl p-5 transition-colors hover:bg-muted/40 md:rounded-2xl md:p-6"
                 data-test="attendance-today"
             >
                 <div className="flex items-center justify-between gap-3">
@@ -137,7 +161,7 @@ export function AttendanceToday({
                 <p className="mt-3 text-sm text-muted-foreground">
                     Absensi cabang Anda lewat rekapitulasi.
                 </p>
-            </section>
+            </Link>
         );
     }
 
@@ -159,8 +183,9 @@ export function AttendanceToday({
     const middle = `${Math.floor((start + end) / 2 / 60)}:00`;
 
     return (
-        <section
-            className="surface rounded-3xl p-5 md:rounded-2xl md:p-0"
+        <Link
+            href={attendanceHref}
+            className="surface block rounded-3xl p-5 transition-colors hover:bg-muted/40 md:rounded-2xl md:p-0"
             data-test="attendance-today"
         >
             <div className="flex items-center justify-between gap-3 md:border-b md:px-6 md:py-4">
@@ -236,7 +261,7 @@ export function AttendanceToday({
                     </span>
                 </div>
             </div>
-        </section>
+        </Link>
     );
 }
 
@@ -446,6 +471,9 @@ export function OpenRequests({ requests }: { requests: OpenRequest[] }) {
  */
 export function MonthSummary({ overview }: { overview: Overview }) {
     const { month, leaveTaken } = overview;
+    const profileLink = useOwnProfileLink();
+    const attendanceHref = profileLink('attendance', thisMonth());
+    const requestsHref = profileLink('requests');
     const rate = month?.rate == null ? '—' : `${month.rate}%`;
 
     return (
@@ -458,14 +486,22 @@ export function MonthSummary({ overview }: { overview: Overview }) {
 
             <div className="grid grid-cols-2 gap-3 md:hidden">
                 {month && (
-                    <div className="surface rounded-2xl p-4">
+                    <Link
+                        href={attendanceHref}
+                        className="surface rounded-2xl p-4 transition-colors hover:bg-muted/40"
+                        data-test="stat-attendance"
+                    >
                         <p className="text-3xl font-extrabold">{rate}</p>
                         <p className="text-sm text-muted-foreground">
                             Kehadiran
                         </p>
-                    </div>
+                    </Link>
                 )}
-                <div className="surface rounded-2xl p-4">
+                <Link
+                    href={requestsHref}
+                    className="surface rounded-2xl p-4 transition-colors hover:bg-muted/40"
+                    data-test="stat-leave-taken"
+                >
                     <p className="text-3xl font-extrabold">
                         {leaveTaken.days}
                         <span className="text-base font-medium text-muted-foreground">
@@ -476,7 +512,7 @@ export function MonthSummary({ overview }: { overview: Overview }) {
                     <p className="text-sm text-muted-foreground">
                         Cuti terpakai
                     </p>
-                </div>
+                </Link>
             </div>
 
             <div className="surface hidden divide-y rounded-2xl md:block">
@@ -484,7 +520,11 @@ export function MonthSummary({ overview }: { overview: Overview }) {
                     {month?.label ?? 'Bulan ini'}
                 </h2>
                 {month && (
-                    <div className="p-6">
+                    <Link
+                        href={attendanceHref}
+                        className="block p-6 transition-colors hover:bg-muted/40"
+                        data-test="stat-attendance"
+                    >
                         <p className="label-mono">Kehadiran</p>
                         <p className="mt-2 flex items-baseline gap-3">
                             <span className="text-5xl font-extrabold">
@@ -497,9 +537,13 @@ export function MonthSummary({ overview }: { overview: Overview }) {
                                 </span>
                             )}
                         </p>
-                    </div>
+                    </Link>
                 )}
-                <div className="p-6">
+                <Link
+                    href={requestsHref}
+                    className="block p-6 transition-colors hover:bg-muted/40"
+                    data-test="stat-leave-taken"
+                >
                     <p className="label-mono">Cuti terpakai</p>
                     <p className="mt-2 flex items-baseline gap-3">
                         <span className="text-5xl font-extrabold">
@@ -509,7 +553,7 @@ export function MonthSummary({ overview }: { overview: Overview }) {
                             hari kerja di {leaveTaken.year}
                         </span>
                     </p>
-                </div>
+                </Link>
             </div>
         </section>
     );

@@ -1431,6 +1431,12 @@ Screening now happens inside the platforms, and the app only meets the people HR
   or an ordinary `gmail.com` one.
   - **Phase 0 · Find out (no code, first):** ask whoever runs CMP's Google account whether they can sign in to
     admin.google.com and whether company email addresses are hosted on Google. The answer picks the path below.
+  - **Phase 0 result (2026-11-06): almost certainly no Workspace.** Signing in to admin.google.com with CMP's Google
+    account answers that it needs an administrator account of a managed service (Workspace or Cloud Identity), and the
+    mail for `cmp.id` is hosted at Niagahoster, not Google (its MX record). So Path B below applies. The 7-day problem
+    is not a dead end: publishing the OAuth app to **In production** (unverified, one user, with Google's warning
+    screen) is documented to drop the Testing-status expiry; it still has to be **proved with a short spike** that a
+    token lasts, before Phase 1.
   - **Path A · Workspace:** an **Internal** OAuth app (members of the organisation only), or a service account with
     domain-wide delegation authorised by a Workspace super admin, acting as one recruiting user whose calendar owns the
     meetings. Stable, no re-consent. *Not confirmed in the docs read: whether Internal apps avoid the Testing-status
