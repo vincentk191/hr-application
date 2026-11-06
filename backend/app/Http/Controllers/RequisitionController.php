@@ -397,6 +397,32 @@ class RequisitionController extends Controller
     }
 
     /**
+     * A candidate's own page: their details, the form they filled in, the CV and the interview, in one place. Reached from
+     * the shortlist and the interview list, and HR's only (the same right as seeing the shortlist).
+     */
+    public function showCandidate(Request $request, Requisition $requisition, Candidate $candidate): Response
+    {
+        $this->authorize('viewCandidates', $requisition);
+
+        $requisition->loadMissing(['department:id,name', 'branch:id,name']);
+
+        return Inertia::render('recruitment/candidate', [
+            'requisition' => [
+                'id' => $requisition->id,
+                'reference' => $requisition->reference(),
+                'positionName' => $requisition->position_name,
+                'department' => $requisition->department?->name,
+                'branch' => $requisition->branch?->name,
+                'stage' => $requisition->stage()->value,
+                'stageLabel' => $requisition->stage()->label(),
+                'canManageScreening' => $request->user()->can('manageScreening', $requisition),
+                'canManageInterview' => $request->user()->can('manageInterview', $requisition),
+            ],
+            'candidate' => $this->presenter->candidate($requisition, $candidate),
+        ]);
+    }
+
+    /**
      * A candidate's CV, from the private disk. A picture can be looked at in the page with `?inline=1`.
      */
     public function candidateCv(Request $request, Requisition $requisition, Candidate $candidate): StreamedResponse

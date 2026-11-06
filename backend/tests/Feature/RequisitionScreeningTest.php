@@ -291,3 +291,59 @@ it('keeps "Lanjut ke Interview" shut until someone is shortlisted, and lets only
 
     expect($requisition->refresh()->workflow->current_stage)->toBe('interview');
 });
+
+// --- A candidate's own page ---
+
+it('gives HR one page per candidate with the contact, the CV and the form answers', function () {
+    $requisition = screeningRequisition();
+    shortlist($requisition, ['note' => 'Pernah di gudang']);
+    $candidate = Candidate::query()->firstOrFail();
+    $candidate->forceFill([
+        'cv_path' => 'candidate-cvs/budi.pdf', 'cv_name' => 'budi.pdf', 'cv_size' => 2048,
+        'form_submitted_at' => now(),
+        'form_data' => ['answers' => [['group' => 'Pendidikan', 'text' => 'Minimal SMA/SMK', 'answer' => true]], 'expected_salary' => 4500000, 'available_from' => null, 'message' => null],
+    ])->save();
+
+    $this->actingAs($this->hr)->get(route('recruitment.candidates.show', [$requisition, $candidate]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('recruitment/candidate')
+            ->where('requisition.id', $requisition->id)
+            ->where('requisition.canManageScreening', true)
+            ->where('candidate.name', 'Budi Santoso')
+            ->where('candidate.note', 'Pernah di gudang')
+            ->where('candidate.cvName', 'budi.pdf')
+            ->where('candidate.form.yes', 1)
+            ->where('candidate.form.expectedSalary', 4500000));
+});
+
+it('keeps a candidate\'s page to HR, and to the requisition they were shortlisted for', function () {
+    $requisition = screeningRequisition();
+    shortlist($requisition);
+    $candidate = Candidate::query()->firstOrFail();
+    $other = screeningRequisition();
+
+    foreach ([$this->requester, $this->management] as $user) {
+        $this->actingAs($user)->get(route('recruitment.candidates.show', [$requisition, $candidate]))->assertForbidden();
+    }
+
+    $this->actingAs($this->hr)->get(route('recruitment.candidates.show', [$other, $candidate]))->assertNotFound();
+});
+
+it('shows the interview on the candidate page: the day, and where the form link stands', function () {
+    $requisition = screeningRequisition(RequisitionStage::Interview);
+    shortlist($requisition);
+    $candidate = Candidate::query()->firstOrFail();
+    $candidate->forceFill([
+        'invited_at' => now(), 'invite_expires_at' => now()->addDay(),
+        'interview_at' => now()->addDay(), 'interview_mode' => 'online', 'interview_place' => 'https://meet.google.com/abc',
+    ])->save();
+
+    $this->actingAs($this->hr)->get(route('recruitment.candidates.show', [$requisition, $candidate]))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('requisition.canManageInterview', true)
+            ->where('candidate.inviteState', 'invited')
+            ->where('candidate.interviewMode', 'online')
+            ->where('candidate.interviewPlace', 'https://meet.google.com/abc')
+            ->whereNot('candidate.interviewAtLabel', null));
+});

@@ -1,4 +1,4 @@
-import { Form, router } from '@inertiajs/react';
+import { Form, Link, router } from '@inertiajs/react';
 import { Mail, Phone } from 'lucide-react';
 import { Fragment, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { destroy, invite } from '@/routes/recruitment/candidates';
+import { destroy, invite, show } from '@/routes/recruitment/candidates';
 import type { Candidate, Invitation, Requisition } from '@/types/recruitment';
 
 const rupiah = new Intl.NumberFormat('id-ID');
@@ -24,7 +24,7 @@ const rupiah = new Intl.NumberFormat('id-ID');
 const selectClasses =
     'border-input bg-card h-10 rounded-xl border px-3 text-sm';
 
-const STATE: Record<
+export const INVITE_STATE: Record<
     Candidate['inviteState'],
     {
         label: string;
@@ -41,7 +41,7 @@ const STATE: Record<
  * What HR is handed right after inviting: whether the email went, the personal link, and the same text to paste into
  * WhatsApp or a platform's chat. The link is shown only now (only its hash is kept), so this is where to copy it.
  */
-function InvitationResult({
+export function InvitationResult({
     invitation,
     onClose,
 }: {
@@ -102,13 +102,13 @@ function InvitationResult({
 }
 
 /** The invite form: when, online or in person, where, and an optional word to the candidate. */
-function InviteDialog({
+export function InviteDialog({
     item,
     candidate,
     defaultAt,
     onClose,
 }: {
-    item: Requisition;
+    item: Pick<Requisition, 'id'>;
     candidate: Candidate;
     /** A datetime-local value to start from, when the dialog was opened from a slot of the calendar. */
     defaultAt?: string;
@@ -362,7 +362,7 @@ function shortName(name: string): string {
     return rest.length === 0 ? first : `${first} ${rest[0][0].toUpperCase()}.`;
 }
 
-function modeLabel(mode: Candidate['interviewMode']): string {
+export function modeLabel(mode: Candidate['interviewMode']): string {
     return mode === 'online' ? 'Daring' : 'Tatap muka';
 }
 
@@ -370,7 +370,7 @@ function modeLabel(mode: Candidate['interviewMode']): string {
  * The invitation as it was sent, folded under one line: the subject, whether it went by email, and the text (with the
  * personal link left out, since that is shown only when the invitation is made).
  */
-function InvitationPreview({ candidate }: { candidate: Candidate }) {
+export function InvitationPreview({ candidate }: { candidate: Candidate }) {
     const sent = candidate.invitation;
 
     if (sent === null) {
@@ -397,7 +397,43 @@ function InvitationPreview({ candidate }: { candidate: Candidate }) {
     );
 }
 
-/** One candidate in the side list: who, when and where, where the invitation stands, and what HR can do next. */
+/**
+ * One candidate in the side list, kept to what is needed to scan it: the name, and when and where. Clicking the row opens
+ * the candidate's card with everything else.
+ */
+function CandidateSummaryRow({
+    candidate,
+    at,
+    onOpen,
+}: {
+    candidate: Candidate;
+    at: Date | null;
+    onOpen: (candidate: Candidate) => void;
+}) {
+    return (
+        <li data-test="interview-candidate">
+            <button
+                type="button"
+                onClick={() => onOpen(candidate)}
+                className="block w-full space-y-0.5 px-4 py-3 text-left hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
+            >
+                <span className="block font-semibold">{candidate.name}</span>
+                <span className="label-mono block">
+                    {at
+                        ? `${dayMonthFormat.format(at)} · ${clock(at)} · ${modeLabel(candidate.interviewMode)}`
+                        : 'Belum ada jadwal'}
+                </span>
+                {candidate.interviewPlace && (
+                    <span className="block text-sm break-words text-muted-foreground">
+                        {candidate.interviewPlace}
+                    </span>
+                )}
+            </button>
+        </li>
+    );
+}
+
+/** One candidate in full: who, when and where, where the invitation stands, and what HR can do next. */
 function CandidateRow({
     candidate,
     at,
@@ -423,8 +459,12 @@ function CandidateRow({
                 <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="font-semibold">{candidate.name}</p>
-                        <Badge variant={STATE[candidate.inviteState].variant}>
-                            {STATE[candidate.inviteState].label}
+                        <Badge
+                            variant={
+                                INVITE_STATE[candidate.inviteState].variant
+                            }
+                        >
+                            {INVITE_STATE[candidate.inviteState].label}
                         </Badge>
                     </div>
                     <p className="label-mono pr-6">
@@ -534,6 +574,20 @@ function CandidateCard({
                         onInvite={onInvite}
                     />
                 </ul>
+
+                <div className="border-t p-4">
+                    <Button asChild size="sm" variant="outline">
+                        <Link
+                            href={show.url({
+                                requisition: requisitionId,
+                                candidate: candidate.id,
+                            })}
+                            data-test="open-candidate-page"
+                        >
+                            Buka halaman kandidat
+                        </Link>
+                    </Button>
+                </div>
 
                 {canCancel && (
                     <div
@@ -1044,12 +1098,11 @@ export function InterviewTab({ item }: { item: Requisition }) {
         item.shortlist.find((candidate) => candidate.id === viewingId) ?? null;
 
     const row = (candidate: Candidate, at: Date | null) => (
-        <CandidateRow
+        <CandidateSummaryRow
             key={candidate.id}
             candidate={candidate}
             at={at}
-            canManage={canManage}
-            onInvite={(chosen) => setInviting({ candidate: chosen })}
+            onOpen={(chosen) => setViewingId(chosen.id)}
         />
     );
 

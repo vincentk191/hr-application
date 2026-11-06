@@ -210,26 +210,36 @@ class RequisitionPresenter
     {
         $requisition->loadMissing('candidates.addedBy:id,name');
 
-        return array_values($requisition->candidates->map(function (Candidate $candidate) use ($requisition): array {
-            $cvUrl = $candidate->cv_path === null ? null : route('recruitment.candidates.cv', [$requisition, $candidate]);
+        return array_values($requisition->candidates->map(fn (Candidate $candidate): array => $this->candidate($requisition, $candidate))->all());
+    }
 
-            return [
-                'id' => $candidate->id,
-                'name' => $candidate->name,
-                'phone' => $candidate->phone,
-                'email' => $candidate->email,
-                'source' => $candidate->source->value,
-                'sourceLabel' => $candidate->sourceLabel(),
-                'note' => $candidate->note,
-                'addedOn' => $candidate->created_at?->toDateString(),
-                'addedBy' => $candidate->addedBy?->name,
-                'cvName' => $candidate->cv_name,
-                'cvSize' => $candidate->cv_size,
-                'cvUrl' => $cvUrl,
-                'cvPreviewUrl' => $cvUrl === null ? null : InlineImage::previewUrl($cvUrl, (string) $candidate->cv_name),
-                ...$this->interviewFields($candidate),
-            ];
-        })->all());
+    /**
+     * One shortlisted candidate: who they are, their CV, where the interview stands and what they answered. The shortlist
+     * and the candidate's own page are drawn from the same array, so they cannot disagree.
+     *
+     * @return array<string, mixed>
+     */
+    public function candidate(Requisition $requisition, Candidate $candidate): array
+    {
+        $candidate->loadMissing('addedBy:id,name');
+        $cvUrl = $candidate->cv_path === null ? null : route('recruitment.candidates.cv', [$requisition, $candidate]);
+
+        return [
+            'id' => $candidate->id,
+            'name' => $candidate->name,
+            'phone' => $candidate->phone,
+            'email' => $candidate->email,
+            'source' => $candidate->source->value,
+            'sourceLabel' => $candidate->sourceLabel(),
+            'note' => $candidate->note,
+            'addedOn' => $candidate->created_at?->toDateString(),
+            'addedBy' => $candidate->addedBy?->name,
+            'cvName' => $candidate->cv_name,
+            'cvSize' => $candidate->cv_size,
+            'cvUrl' => $cvUrl,
+            'cvPreviewUrl' => $cvUrl === null ? null : InlineImage::previewUrl($cvUrl, (string) $candidate->cv_name),
+            ...$this->interviewFields($candidate),
+        ];
     }
 
     /**

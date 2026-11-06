@@ -6,6 +6,7 @@ import { EmployeeAvatar } from '@/components/employee-avatar';
 import { EmployeeDocuments } from '@/components/employee-documents';
 import { EmployeeTeamTab } from '@/components/employee-team';
 import { LeaveRequestDetail } from '@/components/leave-request-detail';
+import { Card, Field } from '@/components/profile-parts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -72,18 +73,6 @@ function rupiah(value: number | null): string {
           }).format(value);
 }
 
-function Field({ label, value }: { label: string; value: unknown }) {
-    const display =
-        value === null || value === undefined || value === '' ? '—' : value;
-
-    return (
-        <div className="grid grid-cols-2 gap-2 py-1.5 text-sm">
-            <dt className="label-mono pt-0.5">{label}</dt>
-            <dd className="font-medium">{display as string}</dd>
-        </div>
-    );
-}
-
 /** Shown in place of a sensitive card the viewer may not read (EMP-DET-006). */
 function RestrictedCard({ title }: { title: string }) {
     return (
@@ -94,23 +83,6 @@ function RestrictedCard({ title }: { title: string }) {
             <p className="text-sm text-muted-foreground">
                 Data ini dibatasi dan tidak dapat Anda lihat.
             </p>
-        </section>
-    );
-}
-
-function Card({
-    title,
-    children,
-}: {
-    title: string;
-    children: React.ReactNode;
-}) {
-    return (
-        <section className="surface p-4">
-            <h3 className="mb-2 text-base font-extrabold tracking-tight">
-                {title}
-            </h3>
-            <dl className="divide-y">{children}</dl>
         </section>
     );
 }
