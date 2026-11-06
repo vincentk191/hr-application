@@ -1,11 +1,11 @@
-import { Form, Link, router } from '@inertiajs/react';
-import { Mail, Phone } from 'lucide-react';
+import { Form, router } from '@inertiajs/react';
 import { Fragment, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
+import { CandidateDrawer } from '@/components/candidate-drawer';
+import type { CandidateTab } from '@/components/candidate-drawer';
+import { modeLabel } from '@/components/candidate-invitation';
 import InputError from '@/components/input-error';
 import { CopyButton } from '@/components/requisition-posting';
-import { shortDate } from '@/components/requisition-summary';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -16,26 +16,11 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { destroy, invite, show } from '@/routes/recruitment/candidates';
+import { invite } from '@/routes/recruitment/candidates';
 import type { Candidate, Invitation, Requisition } from '@/types/recruitment';
-
-const rupiah = new Intl.NumberFormat('id-ID');
 
 const selectClasses =
     'border-input bg-card h-10 rounded-xl border px-3 text-sm';
-
-export const INVITE_STATE: Record<
-    Candidate['inviteState'],
-    {
-        label: string;
-        variant: 'secondary' | 'default' | 'outline' | 'destructive';
-    }
-> = {
-    none: { label: 'Belum diundang', variant: 'secondary' },
-    invited: { label: 'Diundang · menunggu formulir', variant: 'outline' },
-    expired: { label: 'Tautan kedaluwarsa', variant: 'destructive' },
-    submitted: { label: 'Formulir terkirim', variant: 'default' },
-};
 
 /**
  * What HR is handed right after inviting: whether the email went, the personal link, and the same text to paste into
@@ -238,57 +223,6 @@ export function InviteDialog({
     );
 }
 
-/** What the candidate answered, folded under one line so a long list does not push the others away. */
-function FormAnswers({ candidate }: { candidate: Candidate }) {
-    const form = candidate.form;
-
-    if (form === null) {
-        return null;
-    }
-
-    return (
-        <details
-            className="rounded-xl border p-3 text-sm"
-            data-test="form-answers"
-        >
-            <summary className="cursor-pointer font-medium">
-                Jawaban formulir · {form.yes} dari {form.answers.length} Ya
-                {candidate.formSubmittedOn
-                    ? ` · dikirim ${shortDate(candidate.formSubmittedOn)}`
-                    : ''}
-            </summary>
-            <ul className="mt-2 space-y-1">
-                {form.answers.map((answer, position) => (
-                    <li key={position} className="flex gap-3">
-                        <span
-                            className={`w-12 shrink-0 font-mono text-xs ${answer.answer ? 'text-emerald-600' : 'text-muted-foreground'}`}
-                        >
-                            {answer.answer ? 'YA' : 'TIDAK'}
-                        </span>
-                        <span>
-                            <span className="text-muted-foreground">
-                                {answer.group}:{' '}
-                            </span>
-                            {answer.text}
-                        </span>
-                    </li>
-                ))}
-            </ul>
-            <p className="mt-3 text-muted-foreground">
-                Gaji diharapkan:{' '}
-                {form.expectedSalary === null
-                    ? '—'
-                    : `Rp ${rupiah.format(form.expectedSalary)}`}{' '}
-                · Bisa mulai:{' '}
-                {form.availableFrom ? shortDate(form.availableFrom) : '—'}
-            </p>
-            {form.message && (
-                <p className="mt-1 whitespace-pre-line">“{form.message}”</p>
-            )}
-        </details>
-    );
-}
-
 type Scheduled = { candidate: Candidate; at: Date };
 
 /** "2026-11-10T10:00" as a date in the browser's own time, which is how the schedule is laid out. */
@@ -346,55 +280,11 @@ function weekTitle(start: Date): string {
         : `${start.getDate()} ${monthFormat.format(start)} – ${end.getDate()} ${monthFormat.format(end)}`;
 }
 
-function initials(name: string): string {
-    return name
-        .split(/\s+/)
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((part) => part[0]?.toUpperCase())
-        .join('');
-}
-
 /** "Agus P." for a slot too narrow for a whole name. */
 function shortName(name: string): string {
     const [first, ...rest] = name.split(/\s+/).filter(Boolean);
 
     return rest.length === 0 ? first : `${first} ${rest[0][0].toUpperCase()}.`;
-}
-
-export function modeLabel(mode: Candidate['interviewMode']): string {
-    return mode === 'online' ? 'Daring' : 'Tatap muka';
-}
-
-/**
- * The invitation as it was sent, folded under one line: the subject, whether it went by email, and the text (with the
- * personal link left out, since that is shown only when the invitation is made).
- */
-export function InvitationPreview({ candidate }: { candidate: Candidate }) {
-    const sent = candidate.invitation;
-
-    if (sent === null) {
-        return null;
-    }
-
-    return (
-        <details
-            className="rounded-xl border p-3 text-sm"
-            data-test="invitation-preview"
-        >
-            <summary className="cursor-pointer font-medium">
-                Undangan terkirim
-                {sent.sentOn ? ` · ${shortDate(sent.sentOn)}` : ''} ·{' '}
-                {sent.emailed ? 'lewat email' : 'disalin untuk WhatsApp'}
-            </summary>
-            {sent.subject && (
-                <p className="mt-2 font-semibold">{sent.subject}</p>
-            )}
-            <pre className="mt-2 font-sans text-sm whitespace-pre-wrap text-muted-foreground">
-                {sent.message}
-            </pre>
-        </details>
-    );
 }
 
 /**
@@ -430,231 +320,6 @@ function CandidateSummaryRow({
                 )}
             </button>
         </li>
-    );
-}
-
-/** One candidate in full: who, when and where, where the invitation stands, and what HR can do next. */
-function CandidateRow({
-    candidate,
-    at,
-    canManage,
-    onInvite,
-}: {
-    candidate: Candidate;
-    at: Date | null;
-    canManage: boolean;
-    onInvite: (candidate: Candidate) => void;
-}) {
-    const unscheduled = candidate.inviteState === 'none';
-
-    return (
-        <li className="space-y-3 p-4" data-test="interview-candidate">
-            <div className="flex items-start gap-3">
-                <span
-                    className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-sm font-bold"
-                    aria-hidden
-                >
-                    {initials(candidate.name)}
-                </span>
-                <div className="min-w-0 flex-1 space-y-1">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="font-semibold">{candidate.name}</p>
-                        <Badge
-                            variant={
-                                INVITE_STATE[candidate.inviteState].variant
-                            }
-                        >
-                            {INVITE_STATE[candidate.inviteState].label}
-                        </Badge>
-                    </div>
-                    <p className="label-mono pr-6">
-                        {at
-                            ? `${dayMonthFormat.format(at)} · ${clock(at)} · ${modeLabel(candidate.interviewMode)}`
-                            : 'Belum ada jadwal'}
-                    </p>
-                    {candidate.interviewPlace && (
-                        <p className="text-sm break-words text-muted-foreground">
-                            {candidate.interviewPlace}
-                        </p>
-                    )}
-                    <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-                        {candidate.phone && (
-                            <a
-                                href={`tel:${candidate.phone.replace(/[^\d+]/g, '')}`}
-                                className="inline-flex items-center gap-1 underline-offset-4 hover:underline"
-                            >
-                                <Phone className="size-3.5" />
-                                {candidate.phone}
-                            </a>
-                        )}
-                        {candidate.email && (
-                            <a
-                                href={`mailto:${candidate.email}`}
-                                className="inline-flex items-center gap-1 underline-offset-4 hover:underline"
-                            >
-                                <Mail className="size-3.5" />
-                                {candidate.email}
-                            </a>
-                        )}
-                    </p>
-                    {candidate.inviteState === 'invited' &&
-                        candidate.inviteExpiresOn && (
-                            <p className="label-mono">
-                                Tautan hanya berlaku pada{' '}
-                                {shortDate(candidate.inviteExpiresOn)}
-                            </p>
-                        )}
-                </div>
-            </div>
-
-            {canManage && (
-                <Button
-                    type="button"
-                    size="sm"
-                    variant={unscheduled ? 'default' : 'outline'}
-                    onClick={() => onInvite(candidate)}
-                    data-test="invite-candidate"
-                >
-                    {unscheduled
-                        ? '+ Jadwalkan'
-                        : candidate.inviteState === 'expired'
-                          ? 'Buat tautan baru'
-                          : 'Ubah jadwal / kirim ulang'}
-                </Button>
-            )}
-
-            <InvitationPreview candidate={candidate} />
-            <FormAnswers candidate={candidate} />
-        </li>
-    );
-}
-
-/**
- * A candidate's whole card in a pop-up, opened by clicking their slot in the calendar: schedule, contacts, the
- * invitation as sent and the form answers, which are too much to fit in a calendar cell.
- */
-function CandidateCard({
-    requisitionId,
-    candidate,
-    at,
-    canManage,
-    canCancel,
-    onInvite,
-    onClose,
-}: {
-    requisitionId: number;
-    candidate: Candidate;
-    at: Date | null;
-    canManage: boolean;
-    /** HR may take the candidate out of the process (the same right as removing from the shortlist). */
-    canCancel: boolean;
-    onInvite: (candidate: Candidate) => void;
-    onClose: () => void;
-}) {
-    const [confirming, setConfirming] = useState(false);
-    const [cancelling, setCancelling] = useState(false);
-
-    return (
-        <Dialog open onOpenChange={(open) => !open && onClose()}>
-            <DialogContent
-                className="max-h-[85vh] gap-0 overflow-y-auto p-0 sm:max-w-xl"
-                data-test="candidate-card"
-            >
-                <DialogHeader className="sr-only">
-                    <DialogTitle>{candidate.name}</DialogTitle>
-                    <DialogDescription>
-                        Jadwal interview, undangan dan jawaban formulir
-                    </DialogDescription>
-                </DialogHeader>
-                <ul>
-                    <CandidateRow
-                        candidate={candidate}
-                        at={at}
-                        canManage={canManage}
-                        onInvite={onInvite}
-                    />
-                </ul>
-
-                <div className="border-t p-4">
-                    <Button asChild size="sm" variant="outline">
-                        <Link
-                            href={show.url({
-                                requisition: requisitionId,
-                                candidate: candidate.id,
-                            })}
-                            data-test="open-candidate-page"
-                        >
-                            Buka halaman kandidat
-                        </Link>
-                    </Button>
-                </div>
-
-                {canCancel && (
-                    <div
-                        className="space-y-3 border-t p-4"
-                        data-test="cancel-candidate-section"
-                    >
-                        {confirming ? (
-                            <>
-                                <p className="text-sm">
-                                    Batalkan {candidate.name} dari proses
-                                    rekrutmen ini? Datanya dan CV-nya dihapus,
-                                    dan tautan formulir yang sudah dikirim tidak
-                                    bisa dibuka lagi. Ini tidak bisa diurungkan.
-                                </p>
-                                <div className="flex flex-wrap gap-2">
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="destructive"
-                                        disabled={cancelling}
-                                        onClick={() =>
-                                            router.delete(
-                                                destroy.url({
-                                                    requisition: requisitionId,
-                                                    candidate: candidate.id,
-                                                }),
-                                                {
-                                                    preserveScroll: true,
-                                                    onStart: () =>
-                                                        setCancelling(true),
-                                                    onFinish: () =>
-                                                        setCancelling(false),
-                                                    onSuccess: onClose,
-                                                },
-                                            )
-                                        }
-                                        data-test="confirm-cancel-candidate"
-                                    >
-                                        Ya, batalkan kandidat
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="outline"
-                                        disabled={cancelling}
-                                        onClick={() => setConfirming(false)}
-                                    >
-                                        Kembali
-                                    </Button>
-                                </div>
-                            </>
-                        ) : (
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                className="text-destructive"
-                                onClick={() => setConfirming(true)}
-                                data-test="cancel-candidate"
-                            >
-                                Batalkan kandidat
-                            </Button>
-                        )}
-                    </div>
-                )}
-            </DialogContent>
-        </Dialog>
     );
 }
 
@@ -1051,8 +716,9 @@ export function InterviewTab({ item }: { item: Requisition }) {
         at?: string;
     } | null>(null);
     const [slot, setSlot] = useState<string | null>(null);
-    // The candidate whose card is open, by id so it follows the page's data after a re-invite.
+    // The candidate whose drawer is open, by id so it follows the page's data after a re-invite; always on Interview.
     const [viewingId, setViewingId] = useState<number | null>(null);
+    const [drawerTab, setDrawerTab] = useState<CandidateTab>('interview');
     const [invitation, setInvitation] = useState<Invitation | null>(null);
 
     // The invitation (with its link) comes back once, as flash data on the redirect after sending it.
@@ -1097,12 +763,17 @@ export function InterviewTab({ item }: { item: Requisition }) {
     const viewing =
         item.shortlist.find((candidate) => candidate.id === viewingId) ?? null;
 
+    const openDrawer = (id: number) => {
+        setDrawerTab('interview');
+        setViewingId(id);
+    };
+
     const row = (candidate: Candidate, at: Date | null) => (
         <CandidateSummaryRow
             key={candidate.id}
             candidate={candidate}
             at={at}
-            onOpen={(chosen) => setViewingId(chosen.id)}
+            onOpen={(chosen) => openDrawer(chosen.id)}
         />
     );
 
@@ -1125,7 +796,7 @@ export function InterviewTab({ item }: { item: Requisition }) {
                     entries={entries}
                     now={now}
                     canSchedule={canManage && unscheduled.length > 0}
-                    onOpenEntry={(candidate) => setViewingId(candidate.id)}
+                    onOpenEntry={(candidate) => openDrawer(candidate.id)}
                     onPickSlot={(value) => {
                         if (unscheduled.length === 1) {
                             setInviting({
@@ -1178,20 +849,17 @@ export function InterviewTab({ item }: { item: Requisition }) {
                 </aside>
             </div>
 
-            {viewing && (
-                <CandidateCard
-                    requisitionId={item.id}
-                    candidate={viewing}
-                    at={parseLocal(viewing.interviewAtInput)}
-                    canManage={canManage}
-                    canCancel={item.canManageScreening}
-                    onInvite={(chosen) => {
-                        setViewingId(null);
-                        setInviting({ candidate: chosen });
-                    }}
-                    onClose={() => setViewingId(null)}
-                />
-            )}
+            <CandidateDrawer
+                item={item}
+                candidate={viewing}
+                tab={drawerTab}
+                onTab={setDrawerTab}
+                onClose={() => setViewingId(null)}
+                onInvite={(chosen) => {
+                    setViewingId(null);
+                    setInviting({ candidate: chosen });
+                }}
+            />
             {slot !== null && (
                 <PickCandidate
                     candidates={unscheduled}

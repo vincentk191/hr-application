@@ -1,11 +1,11 @@
-import { Form, Link, router } from '@inertiajs/react';
-import { ChevronRight, Mail, Phone, Wand2 } from 'lucide-react';
+import { Form, router } from '@inertiajs/react';
+import { Wand2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { FileLink, useFilePreview } from '@/components/file-preview';
+import { CandidateDrawer } from '@/components/candidate-drawer';
+import type { CandidateTab } from '@/components/candidate-drawer';
 import InputError from '@/components/input-error';
 import LimitedFileInput from '@/components/limited-file-input';
-import { shortDate } from '@/components/requisition-summary';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,21 +20,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { parseApplicantText } from '@/lib/applicant-paste';
 import { update as updateApplicants } from '@/routes/recruitment/applicants';
-import { destroy, show, store } from '@/routes/recruitment/candidates';
+import { destroy, store } from '@/routes/recruitment/candidates';
 import type { Candidate, Requisition } from '@/types/recruitment';
 
 const selectClasses =
     'border-input bg-card h-10 rounded-xl border px-3 text-sm';
-
-function size(bytes: number | null): string {
-    if (bytes === null) {
-        return '';
-    }
-
-    return bytes >= 1024 * 1024
-        ? `${(bytes / 1024 / 1024).toFixed(1)} MB`
-        : `${Math.max(1, Math.round(bytes / 1024))} KB`;
-}
 
 /** The applicant total and how many were shortlisted: the only numbers kept about people who were not. */
 function Counts({ item }: { item: Requisition }) {
@@ -116,148 +106,69 @@ function Counts({ item }: { item: Requisition }) {
 }
 
 /**
- * One shortlisted candidate: the name, the platform they came from and, for HR, "Hapus". Clicking the row opens the rest
- * (how to reach them, the note, the CV) beneath it, and a link to their own page.
+ * One shortlisted candidate: the name, the platform they came from and, for HR, "Hapus". Clicking the row opens the
+ * candidate's drawer, which holds everything else about them.
  */
 function ShortlistRow({
     item,
     candidate,
-    openFile,
+    onOpen,
 }: {
     item: Requisition;
     candidate: Candidate;
-    openFile: ReturnType<typeof useFilePreview>['open'];
+    onOpen: (candidate: Candidate) => void;
 }) {
-    const [expanded, setExpanded] = useState(false);
-
     return (
-        <li data-test="candidate-row">
-            <div className="flex items-center justify-between gap-3 px-4 py-3">
-                <button
+        <li
+            className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted/40"
+            data-test="candidate-row"
+        >
+            <button
+                type="button"
+                onClick={() => onOpen(candidate)}
+                className="flex min-w-0 flex-1 items-center gap-2 text-left focus-visible:outline-none"
+                data-test="candidate-open"
+            >
+                <span className="truncate font-semibold">{candidate.name}</span>
+                <Badge variant="secondary" className="shrink-0">
+                    {candidate.sourceLabel}
+                </Badge>
+            </button>
+            {item.canManageScreening && (
+                <Button
                     type="button"
-                    aria-expanded={expanded}
-                    onClick={() => setExpanded((value) => !value)}
-                    className="flex min-w-0 flex-1 items-center gap-2 text-left"
-                    data-test="candidate-toggle"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                        if (
+                            window.confirm(
+                                `Hapus ${candidate.name} dari shortlist? CV-nya ikut dihapus.`,
+                            )
+                        ) {
+                            router.delete(
+                                destroy.url({
+                                    requisition: item.id,
+                                    candidate: candidate.id,
+                                }),
+                                { preserveScroll: true },
+                            );
+                        }
+                    }}
+                    data-test="candidate-remove"
                 >
-                    <ChevronRight
-                        aria-hidden
-                        className={`size-4 shrink-0 text-muted-foreground transition-transform ${expanded ? 'rotate-90' : ''}`}
-                    />
-                    <span className="truncate font-semibold">
-                        {candidate.name}
-                    </span>
-                    <Badge variant="secondary" className="shrink-0">
-                        {candidate.sourceLabel}
-                    </Badge>
-                </button>
-                {item.canManageScreening && (
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                            if (
-                                window.confirm(
-                                    `Hapus ${candidate.name} dari shortlist? CV-nya ikut dihapus.`,
-                                )
-                            ) {
-                                router.delete(
-                                    destroy.url({
-                                        requisition: item.id,
-                                        candidate: candidate.id,
-                                    }),
-                                    { preserveScroll: true },
-                                );
-                            }
-                        }}
-                        data-test="candidate-remove"
-                    >
-                        Hapus
-                    </Button>
-                )}
-            </div>
-
-            {expanded && (
-                <div
-                    className="space-y-1 border-t bg-muted/20 px-4 py-3 pl-10"
-                    data-test="candidate-details"
-                >
-                    <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-                        {candidate.phone && (
-                            <a
-                                href={`tel:${candidate.phone.replace(/[^\d+]/g, '')}`}
-                                className="inline-flex items-center gap-1 underline-offset-4 hover:underline"
-                            >
-                                <Phone className="size-3.5" />
-                                {candidate.phone}
-                            </a>
-                        )}
-                        {candidate.email && (
-                            <a
-                                href={`mailto:${candidate.email}`}
-                                className="inline-flex items-center gap-1 underline-offset-4 hover:underline"
-                            >
-                                <Mail className="size-3.5" />
-                                {candidate.email}
-                            </a>
-                        )}
-                    </p>
-                    {candidate.note && (
-                        <p className="text-sm whitespace-pre-line text-muted-foreground">
-                            {candidate.note}
-                        </p>
-                    )}
-                    {candidate.cvUrl && (
-                        <p className="text-sm">
-                            CV:{' '}
-                            <FileLink
-                                file={{
-                                    name: candidate.cvName ?? 'CV',
-                                    downloadUrl: candidate.cvUrl,
-                                    previewUrl: candidate.cvPreviewUrl,
-                                }}
-                                open={openFile}
-                            />{' '}
-                            <span className="text-xs text-muted-foreground">
-                                {size(candidate.cvSize)}
-                            </span>
-                        </p>
-                    )}
-                    <p className="label-mono">
-                        Ditambahkan {shortDate(candidate.addedOn)}
-                        {candidate.addedBy ? ` · ${candidate.addedBy}` : ''}
-                    </p>
-                    <Link
-                        href={show.url({
-                            requisition: item.id,
-                            candidate: candidate.id,
-                        })}
-                        className="inline-block text-sm font-medium underline underline-offset-4"
-                        data-test="open-candidate-page"
-                    >
-                        Buka halaman kandidat
-                    </Link>
-                </div>
+                    Hapus
+                </Button>
             )}
         </li>
     );
 }
 
-/** The shortlist: a row per candidate, opened for the details; HR can take someone off. */
+/** The shortlist: a row per candidate, opened in a drawer for the details; HR can take someone off. */
 function Shortlist({ item, list }: { item: Requisition; list: Candidate[] }) {
-    const files = list.flatMap((candidate) =>
-        candidate.cvUrl === null
-            ? []
-            : [
-                  {
-                      name: candidate.cvName ?? 'CV',
-                      downloadUrl: candidate.cvUrl,
-                      previewUrl: candidate.cvPreviewUrl,
-                  },
-              ],
-    );
-    const { open, dialog } = useFilePreview(files);
+    const [viewingId, setViewingId] = useState<number | null>(null);
+    const [tab, setTab] = useState<CandidateTab>('overview');
+    const viewing =
+        list.find((candidate) => candidate.id === viewingId) ?? null;
 
     return (
         <section className="surface overflow-hidden" data-test="shortlist">
@@ -284,12 +195,22 @@ function Shortlist({ item, list }: { item: Requisition; list: Candidate[] }) {
                             key={candidate.id}
                             item={item}
                             candidate={candidate}
-                            openFile={open}
+                            onOpen={(chosen) => {
+                                setTab('overview');
+                                setViewingId(chosen.id);
+                            }}
                         />
                     ))}
                 </ul>
             )}
-            {dialog}
+
+            <CandidateDrawer
+                item={item}
+                candidate={viewing}
+                tab={tab}
+                onTab={setTab}
+                onClose={() => setViewingId(null)}
+            />
         </section>
     );
 }

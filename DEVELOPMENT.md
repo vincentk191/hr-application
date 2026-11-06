@@ -69,14 +69,14 @@ left uncommitted for review.
 
 ## Change log (latest first)
 
-- **2026-11-06 (candidate page).** `GET recruitment/{requisition}/candidates/{candidate}` (`recruitment.candidates.show`,
-  HR only, same right as the shortlist) renders `recruitment/candidate`, laid out like the employee profile with the
-  shared `Card`/`Field` (`components/profile-parts.tsx`): Ringkasan (contact, applicant facts, then the filled
-  questionnaire), Dokumen (the CV) and Interview (the day, where the form link stands, the invitation as sent, and
-  re-scheduling). `RequisitionPresenter::candidate()` feeds both the shortlist and this page. Screening's shortlist
-  rows are now name, platform pill and Hapus, and expand on click; Interview's "Kandidat & jadwal" rows are name plus
-  time and place, and open the candidate card (with a link to the page). Only one interview is stored per candidate
-  (a re-invite replaces it), so the page lists that one day.
+- **2026-11-06 (candidate drawer).** A shortlisted candidate is one side drawer (`components/candidate-drawer.tsx`), in the
+  shape of the employee drawer, and there is no separate candidate page. Tabs: Ringkasan (contact, applicant facts, then
+  the filled questionnaire), Dokumen (the CV) and Interview (the day, where the form link stands, the invitation as sent,
+  and scheduling), with a "Hapus kandidat" footer for HR. It reads the shortlist the requisition page already carries
+  (`RequisitionPresenter::candidate()`), so it needs no request of its own. Screening's shortlist rows are name,
+  platform pill and Hapus, and open it on Ringkasan; Interview's "Kandidat & jadwal" rows are name plus time and place,
+  and open it on Interview. Only one interview is stored per candidate (a re-invite replaces it), so the tab lists that
+  one day.
 - **2026-11-05 (UI language sweep).** Every page checked for English and for explainer subtitles: the recruitment
   wizard (Permintaan › Detail & Kualifikasi › Review, no FIELD/BAGIAN counts), the review summary, Settings,
   2FA, confirm-password and verify-email pages, and leftovers (Overview → Ringkasan, List/Grid/Chart →
