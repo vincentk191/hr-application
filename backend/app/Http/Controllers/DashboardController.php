@@ -8,6 +8,7 @@ use App\Models\EmployeeDocument;
 use App\Models\LeaveRequest;
 use App\Support\Attendance\AgentStatus;
 use App\Support\Attendance\CaptureStatus;
+use App\Support\Dashboard\AdminOverview;
 use App\Support\Dashboard\EmployeeOverview;
 use App\Support\Features;
 use Illuminate\Http\Request;
@@ -21,7 +22,7 @@ class DashboardController extends Controller
      */
     private const EXPIRY_LIST_LIMIT = 8;
 
-    public function __invoke(Request $request, CaptureStatus $status, AgentStatus $agents, EmployeeOverview $overview): Response
+    public function __invoke(Request $request, CaptureStatus $status, AgentStatus $agents, EmployeeOverview $overview, AdminOverview $admin): Response
     {
         $user = $request->user();
 
@@ -45,6 +46,13 @@ class DashboardController extends Controller
             'intro' => $overview->intro($own?->full_name ?? $user->name),
             'overview' => $own === null ? null : $overview->for($own, withAttendance: Features::attendance()),
             'canCreateRequest' => $user->can('create', LeaveRequest::class),
+            // The cards for the people who run HR. Each is null for everyone else, who sees no card.
+            'waiting' => fn (): ?array => $admin->waiting($user),
+            // A closure, so moving the month reloads only the calendar (`?calendar=YYYY-MM`).
+            'adminCalendar' => fn (): ?array => AdminOverview::seesCalendar($user)
+                ? $admin->calendar($user, $request->string('calendar')->toString() ?: null)
+                : null,
+            'recruitment' => fn (): ?array => $admin->recruitment($user),
             // Only for the people who capture the scanner log; everyone else gets no card.
             'attendanceStatus' => $user->can('manage-attendance-device')
                 ? [...$status->resolve(), 'agentStale' => Features::attendanceAgents() && $agents->anyStale()]

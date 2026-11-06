@@ -76,3 +76,58 @@ export type Intro = {
     /** Minutes after midnight, scanner time, when the page was built; the page counts on from there. */
     nowMinutes: number;
 };
+
+/** What waits on this person's decision, by kind (HR and Management, or anyone with something waiting). */
+export type AdminWaiting = {
+    total: number;
+    items: {
+        key: 'leave' | 'requisition' | 'offboarding' | 'profile';
+        label: string;
+        count: number;
+    }[];
+};
+
+/** One person, or one event, on one date of the admin calendar. */
+export type AdminCalendarEntry = {
+    date: string;
+    kind: 'leave' | 'interview' | 'holiday' | 'event';
+    title: string;
+    detail: string;
+    /** "10:00" for an interview. */
+    time: string | null;
+    /** For leave: still waiting, or approved. */
+    status: 'submitted' | 'approved' | null;
+    href: string | null;
+};
+
+/** A month of leave, interviews and holidays, for the people who run HR. */
+export type AdminCalendar = {
+    /** "YYYY-MM". */
+    month: string;
+    label: string;
+    prev: string;
+    next: string;
+    entries: AdminCalendarEntry[];
+};
+
+/** How recruitment is going: running requisitions by stage, interviews ahead, and links that lapsed unfilled. */
+export type RecruitmentOverview = {
+    open: number;
+    stages: { stage: string; label: string; count: number }[];
+    interviewsThisWeek: number;
+    upcoming: {
+        id: number;
+        name: string;
+        when: string | null;
+        requisitionId: number;
+        positionName: string | null;
+    }[];
+    lapsedLinks: number;
+    lapsed: {
+        id: number;
+        name: string;
+        expiredOn: string | null;
+        requisitionId: number;
+        positionName: string | null;
+    }[];
+};

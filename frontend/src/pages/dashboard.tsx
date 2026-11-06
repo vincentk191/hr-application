@@ -1,5 +1,10 @@
 import { Head, Link } from '@inertiajs/react';
 import {
+    AdminCalendarCard,
+    RecruitmentCard,
+    WaitingCard,
+} from '@/components/admin-overview';
+import {
     EmployeeOverview,
     OverviewHeader,
     useScannerMinutes,
@@ -9,7 +14,13 @@ import { dashboard } from '@/routes';
 import { device } from '@/routes/attendance';
 import { show } from '@/routes/employees';
 import type { CaptureStatus } from '@/types/attendance';
-import type { Intro, Overview } from '@/types/dashboard';
+import type {
+    AdminCalendar,
+    AdminWaiting,
+    Intro,
+    Overview,
+    RecruitmentOverview,
+} from '@/types/dashboard';
 
 type ExpiringDocuments = {
     total: number;
@@ -135,6 +146,9 @@ export default function Dashboard({
     canCreateRequest,
     expiringDocuments,
     attendanceStatus,
+    waiting,
+    adminCalendar,
+    recruitment,
 }: {
     intro: Intro;
     /** Null for an account with no employee record, which has no personal overview. */
@@ -142,6 +156,10 @@ export default function Dashboard({
     canCreateRequest: boolean;
     expiringDocuments: ExpiringDocuments | null;
     attendanceStatus: (CaptureStatus & { agentStale: boolean }) | null;
+    /** The cards for the people who run HR; each is null for everyone else. */
+    waiting: AdminWaiting | null;
+    adminCalendar: AdminCalendar | null;
+    recruitment: RecruitmentOverview | null;
 }) {
     const now = useScannerMinutes(intro.nowMinutes);
 
@@ -158,6 +176,13 @@ export default function Dashboard({
                 {attendanceStatus && (
                     <AttendanceStatusCard status={attendanceStatus} />
                 )}
+                {(waiting || recruitment) && (
+                    <div className="grid items-start gap-4 md:grid-cols-2 md:gap-6">
+                        {waiting && <WaitingCard data={waiting} />}
+                        {recruitment && <RecruitmentCard data={recruitment} />}
+                    </div>
+                )}
+                {adminCalendar && <AdminCalendarCard data={adminCalendar} />}
                 {expiringDocuments && (
                     <ExpiringDocumentsCard data={expiringDocuments} />
                 )}

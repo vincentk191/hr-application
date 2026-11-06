@@ -523,7 +523,7 @@ const monthTitle = new Intl.DateTimeFormat('id-ID', {
 const pad = (value: number) => String(value).padStart(2, '0');
 
 /** The days of one month (`month` counted from 0) as the shared month grid wants them. */
-function daysOfMonth(year: number, month: number) {
+export function daysOfMonth(year: number, month: number) {
     const count = new Date(year, month + 1, 0).getDate();
 
     return Array.from({ length: count }, (_, index) => {

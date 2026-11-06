@@ -69,6 +69,15 @@ left uncommitted for review.
 
 ## Change log (latest first)
 
+- **2026-11-06 (HR cards on Beranda).** `App\Support\Dashboard\AdminOverview` adds three props to the dashboard, each null
+  for anyone it is not for. `waiting` (Menunggu keputusan): leave, requisitions and offboarding waiting on this person
+  (`WorkflowStep::waitingOn`, the same as the approval queues) and profile changes (as the menu badge counts them); shown
+  to HR and Management even when empty, to others only when something waits. `adminCalendar` (HR and Management, not
+  System Admin): a month of leave (waiting and approved, on working days, through `LeaveRequest::visibleTo`), interviews
+  (HR only, cancelled requisitions left out) and holidays/events (the attendance calendar's visibility rule);
+  `?calendar=YYYY-MM` moves the month as a partial reload. `recruitment` (HR): running requisitions by stage, upcoming
+  interviews with this week's count, and invitation links that lapsed unfilled, each opening its requisition.
+  Frontend: `components/admin-overview.tsx`, on the shared `MonthGrid`. Tests: `AdminDashboardTest`.
 - **2026-11-06 (candidate drawer).** A shortlisted candidate is one side drawer (`components/candidate-drawer.tsx`), in the
   shape of the employee drawer, and there is no separate candidate page. Tabs: Ringkasan (contact, applicant facts, then
   the filled questionnaire), Dokumen (the CV) and Interview (the day, where the form link stands, the invitation as sent,
