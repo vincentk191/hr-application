@@ -431,6 +431,23 @@ it('lists what each person may see, with the summary and the menu entry', functi
         ->assertInertia(fn (Assert $page) => $page->where('auth.canViewRecruitment', false));
 });
 
+it('flags on the dashboard which requisitions have comments the person has not read, with how many', function () {
+    $requisition = submittedRequisition();
+    $this->actingAs($this->hr)->post(route('recruitment.comments.store', $requisition), ['body' => 'Mohon cek kuota'])->assertRedirect();
+    $this->actingAs($this->hr)->post(route('recruitment.comments.store', $requisition), ['body' => 'Dan departemennya'])->assertRedirect();
+
+    $unreadOnList = fn (User $user): int => collect($this->actingAs($user)->get(route('recruitment.index'))->viewData('page')['props']['requisitions'])
+        ->firstWhere('id', $requisition->id)['unreadComments'];
+
+    // The author wrote them; Management has not read them yet.
+    expect($unreadOnList($this->hr))->toBe(0)
+        ->and($unreadOnList($this->mira->user))->toBe(2);
+
+    $this->actingAs($this->mira->user)->post(route('recruitment.comments.read', $requisition))->assertRedirect();
+
+    expect($unreadOnList($this->mira->user))->toBe(0);
+});
+
 // --- Fast-track: "Mendesak" (REC-WIZ-006) ---
 
 it('marks a requisition urgent with a reason, tells its approvers, and lists it first', function () {

@@ -1,41 +1,41 @@
-import { Form, router } from "@inertiajs/react";
-import { Check, ChevronDown, Copy, ExternalLink } from "lucide-react";
-import { useState } from "react";
-import InputError from "@/components/input-error";
-import { shortDate } from "@/components/requisition-summary";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { copyText } from "@/lib/clipboard";
+import { Form, router } from '@inertiajs/react';
+import { Check, ChevronDown, Copy, ExternalLink } from 'lucide-react';
+import { useState } from 'react';
+import InputError from '@/components/input-error';
+import { shortDate } from '@/components/requisition-summary';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { copyText } from '@/lib/clipboard';
 import {
     postingAll,
     postingDescription,
     postingRequirements,
     postingTitle,
-} from "@/lib/posting-text";
-import { destroy, store, update } from "@/routes/recruitment/postings";
-import type { Requisition, RequisitionPosting } from "@/types/recruitment";
+} from '@/lib/posting-text';
+import { destroy, store, update } from '@/routes/recruitment/postings';
+import type { Requisition, RequisitionPosting } from '@/types/recruitment';
 
 const selectClasses =
-    "border-input bg-card h-10 rounded-xl border px-3 text-sm";
+    'border-input bg-card h-10 rounded-xl border px-3 text-sm';
 
 /** A copy button: puts the text on the clipboard and says so for a moment. */
 export function CopyButton({
     label,
     text,
     testId,
-    variant = "outline",
+    variant = 'outline',
 }: {
     label: string;
     text: string;
     testId: string;
-    variant?: "outline" | "ghost";
+    variant?: 'outline' | 'ghost';
 }) {
-    const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
+    const [state, setState] = useState<'idle' | 'copied' | 'failed'>('idle');
 
     const copy = async () => {
-        setState((await copyText(text)) ? "copied" : "failed");
-        window.setTimeout(() => setState("idle"), 2000);
+        setState((await copyText(text)) ? 'copied' : 'failed');
+        window.setTimeout(() => setState('idle'), 2000);
     };
 
     return (
@@ -43,19 +43,19 @@ export function CopyButton({
             type="button"
             variant={variant}
             size="sm"
-            disabled={text.trim() === ""}
+            disabled={text.trim() === ''}
             onClick={copy}
             data-test={testId}
         >
-            {state === "copied" ? (
+            {state === 'copied' ? (
                 <Check className="size-4" />
             ) : (
                 <Copy className="size-4" />
             )}
-            {state === "copied"
-                ? "Tersalin"
-                : state === "failed"
-                  ? "Gagal menyalin"
+            {state === 'copied'
+                ? 'Tersalin'
+                : state === 'failed'
+                  ? 'Gagal menyalin'
                   : label}
         </Button>
     );
@@ -76,7 +76,7 @@ function CopySection({
     defaultOpen: boolean;
 }) {
     const [open, setOpen] = useState(defaultOpen);
-    const lines = text.trim() === "" ? 0 : text.split("\n").length;
+    const lines = text.trim() === '' ? 0 : text.split('\n').length;
 
     return (
         <div className="overflow-hidden rounded-xl border" data-test={testId}>
@@ -89,12 +89,12 @@ function CopySection({
                     data-test={`${testId}-toggle`}
                 >
                     <ChevronDown
-                        className={`size-4 shrink-0 transition-transform ${open ? "" : "-rotate-90"}`}
+                        className={`size-4 shrink-0 transition-transform ${open ? '' : '-rotate-90'}`}
                     />
                     <span className="min-w-0">
                         <span className="block font-semibold">{label}</span>
                         <span className="label-mono block">
-                            {hint ? `${hint} · ` : ""}
+                            {hint ? `${hint} · ` : ''}
                             {lines} BARIS
                         </span>
                     </span>
@@ -110,7 +110,7 @@ function CopySection({
                     className="max-h-72 overflow-auto border-t bg-muted/30 p-3 font-sans text-sm whitespace-pre-wrap"
                     data-test={`${testId}-preview`}
                 >
-                    {text.trim() === "" ? "Belum ada isi." : text}
+                    {text.trim() === '' ? 'Belum ada isi.' : text}
                 </pre>
             )}
         </div>
@@ -167,7 +167,7 @@ function PostingFields({
     errors: Record<string, string>;
     idPrefix: string;
 }) {
-    const [platform, setPlatform] = useState(posting?.platform ?? "");
+    const [platform, setPlatform] = useState(posting?.platform ?? '');
 
     return (
         <div className="grid gap-3 sm:grid-cols-2">
@@ -191,7 +191,7 @@ function PostingFields({
                 <InputError message={errors.platform} />
             </div>
 
-            {platform === "other" && (
+            {platform === 'other' && (
                 <div className="grid gap-1">
                     <Label htmlFor={`${idPrefix}-platform-name`}>
                         Nama platform
@@ -200,7 +200,7 @@ function PostingFields({
                         id={`${idPrefix}-platform-name`}
                         name="platform_name"
                         maxLength={60}
-                        defaultValue={posting?.customName ?? ""}
+                        defaultValue={posting?.customName ?? ''}
                         required
                     />
                     <InputError message={errors.platform_name} />
@@ -233,7 +233,7 @@ function PostingFields({
                     inputMode="url"
                     placeholder="https://"
                     maxLength={500}
-                    defaultValue={posting?.url ?? ""}
+                    defaultValue={posting?.url ?? ''}
                 />
                 <InputError message={errors.url} />
             </div>
@@ -305,7 +305,7 @@ function PostingRow({
                 <p className="font-semibold">{posting.label}</p>
                 <p className="label-mono">
                     {shortDate(posting.postedOn)}
-                    {posting.postedBy ? ` · oleh ${posting.postedBy}` : ""}
+                    {posting.postedBy ? ` · oleh ${posting.postedBy}` : ''}
                 </p>
                 {posting.url && (
                     <a
@@ -368,7 +368,7 @@ export function PostingTab({ item }: { item: Requisition }) {
     const [formKey, setFormKey] = useState(0);
     const recorded = new Set(item.postings.map((posting) => posting.platform));
     const notYet = item.platformOptions.filter(
-        (option) => option.value !== "other" && !recorded.has(option.value),
+        (option) => option.value !== 'other' && !recorded.has(option.value),
     );
 
     return (
@@ -392,8 +392,8 @@ export function PostingTab({ item }: { item: Requisition }) {
                     >
                         Belum ada catatan posting.
                         {item.canManagePostings
-                            ? " Posting lowongan di platform, lalu catat di sini."
-                            : " HR akan mencatatnya setelah lowongan diposting."}
+                            ? ' Posting lowongan di platform, lalu catat di sini.'
+                            : ' HR akan mencatatnya setelah lowongan diposting.'}
                     </p>
                 ) : (
                     <ul className="divide-y">
@@ -409,8 +409,8 @@ export function PostingTab({ item }: { item: Requisition }) {
 
                 {notYet.length > 0 && item.postings.length > 0 && (
                     <p className="border-t px-4 py-3 text-sm text-muted-foreground">
-                        Belum dicatat di:{" "}
-                        {notYet.map((option) => option.label).join(", ")}
+                        Belum dicatat di:{' '}
+                        {notYet.map((option) => option.label).join(', ')}
                     </p>
                 )}
             </section>

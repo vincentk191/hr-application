@@ -65,11 +65,13 @@ class OffboardingCaseController extends Controller
         $owned = $this->narrowed(OffboardingCase::query()->acrossCompanies()->ownedBy($user), $filters)->latest('id')->get()
             ->reject(fn (OffboardingCase $case): bool => $cases->contains('id', $case->id));
 
+        $unread = app(WorkflowDiscussion::class)->unreadCounts($cases->pluck('workflow.id'), $user);
+
         $open = $visible()->with('workflow')->open()->get();
         $oldest = $open->filter(fn (OffboardingCase $case): bool => $case->created_at !== null)->map(fn (OffboardingCase $case): int => (int) $case->created_at->diffInDays(now()))->max();
 
         return Inertia::render('offboarding/index', [
-            'cases' => $cases->map(fn (OffboardingCase $case): array => $this->presenter->row($case))
+            'cases' => $cases->map(fn (OffboardingCase $case): array => $this->presenter->row($case, $unread[$case->workflow?->id] ?? 0))
                 ->concat($owned->map(fn (OffboardingCase $case): array => $this->presenter->limitedRow($case)))
                 ->sortByDesc('id')->values(),
             'filters' => $filters,

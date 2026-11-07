@@ -1,42 +1,42 @@
-import { useState } from "react";
-import { CopyButton } from "@/components/requisition-posting";
-import { shortDate } from "@/components/requisition-summary";
-import type { Candidate } from "@/types/recruitment";
+import { useState } from 'react';
+import { CopyButton } from '@/components/requisition-posting';
+import { shortDate } from '@/components/requisition-summary';
+import type { Candidate } from '@/types/recruitment';
 
 /** Where a candidate's invitation stands, in words and in the badge's colour. */
 export const INVITE_STATE: Record<
-    Candidate["inviteState"],
+    Candidate['inviteState'],
     {
         label: string;
         /** The same in a few words, for a badge with room for little. */
         shortLabel: string;
-        variant: "secondary" | "default" | "outline" | "destructive";
+        variant: 'secondary' | 'default' | 'outline' | 'destructive';
     }
 > = {
     none: {
-        label: "Belum diundang",
-        shortLabel: "Belum diundang",
-        variant: "secondary",
+        label: 'Belum diundang',
+        shortLabel: 'Belum diundang',
+        variant: 'secondary',
     },
     invited: {
-        label: "Diundang · menunggu formulir",
-        shortLabel: "Menunggu formulir",
-        variant: "outline",
+        label: 'Diundang · menunggu formulir',
+        shortLabel: 'Menunggu formulir',
+        variant: 'outline',
     },
     expired: {
-        label: "Tautan kedaluwarsa",
-        shortLabel: "Tautan kedaluwarsa",
-        variant: "destructive",
+        label: 'Tautan kedaluwarsa',
+        shortLabel: 'Tautan kedaluwarsa',
+        variant: 'destructive',
     },
     submitted: {
-        label: "Formulir terkirim",
-        shortLabel: "Formulir terkirim",
-        variant: "default",
+        label: 'Formulir terkirim',
+        shortLabel: 'Formulir terkirim',
+        variant: 'default',
     },
 };
 
-export function modeLabel(mode: Candidate["interviewMode"]): string {
-    return mode === "online" ? "Daring" : "Tatap muka";
+export function modeLabel(mode: Candidate['interviewMode']): string {
+    return mode === 'online' ? 'Daring' : 'Tatap muka';
 }
 
 /** "2026-11-06T09:02" (the company's time) as "6 Nov 2026, 09:02 WIB". */
@@ -63,16 +63,16 @@ export function InvitationEmail({ candidate }: { candidate: Candidate }) {
 
     const rows: { label: string; value: string; strong?: boolean }[] = [
         ...(sent.emailed && candidate.email
-            ? [{ label: "Kepada", value: candidate.email }]
+            ? [{ label: 'Kepada', value: candidate.email }]
             : []),
         {
-            label: "Dikirim",
+            label: 'Dikirim',
             value: `${sentLabel(sent.sentAt, sent.sentOn)} · ${
-                sent.emailed ? "lewat email" : "disalin untuk WhatsApp"
+                sent.emailed ? 'lewat email' : 'disalin untuk WhatsApp'
             }`,
         },
         ...(sent.subject
-            ? [{ label: "Subjek", value: sent.subject, strong: true }]
+            ? [{ label: 'Subjek', value: sent.subject, strong: true }]
             : []),
     ];
 
@@ -80,7 +80,7 @@ export function InvitationEmail({ candidate }: { candidate: Candidate }) {
         <section className="space-y-2" data-test="invitation-preview">
             <header className="flex items-center justify-between gap-3">
                 <h3 className="label-mono">
-                    {sent.emailed ? "Email undangan" : "Pesan undangan"}
+                    {sent.emailed ? 'Email undangan' : 'Pesan undangan'}
                 </h3>
                 <CopyButton
                     variant="ghost"
@@ -98,7 +98,7 @@ export function InvitationEmail({ candidate }: { candidate: Candidate }) {
                                 {row.label}
                             </dt>
                             <dd
-                                className={`break-words ${row.strong ? "font-semibold" : "font-medium"}`}
+                                className={`break-words ${row.strong ? 'font-semibold' : 'font-medium'}`}
                             >
                                 {row.value}
                             </dd>
@@ -107,7 +107,7 @@ export function InvitationEmail({ candidate }: { candidate: Candidate }) {
                 </dl>
 
                 <div
-                    className={`relative border-t px-4 py-4 ${expanded ? "" : "max-h-44 overflow-hidden"}`}
+                    className={`relative border-t px-4 py-4 ${expanded ? '' : 'max-h-44 overflow-hidden'}`}
                 >
                     <pre className="font-sans text-sm leading-relaxed whitespace-pre-wrap">
                         {sent.message}
@@ -127,7 +127,7 @@ export function InvitationEmail({ candidate }: { candidate: Candidate }) {
                     className="w-full border-t px-4 py-3 text-left text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:bg-muted/40 focus-visible:outline-none"
                     data-test="toggle-invitation-email"
                 >
-                    {expanded ? "Sembunyikan email" : "Tampilkan email lengkap"}
+                    {expanded ? 'Sembunyikan email' : 'Tampilkan email lengkap'}
                 </button>
             </div>
         </section>

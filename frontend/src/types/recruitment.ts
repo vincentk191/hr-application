@@ -33,6 +33,8 @@ export type RequisitionRow = {
     isUrgent: boolean;
     urgentReason: string | null;
     createdBy: string | null;
+    /** Comments on its thread that the person looking has not read yet. */
+    unreadComments: number;
     /** The date the latest stage was reached; null for a draft (REC-DSH-004). */
     lastUpdate: string | null;
 };

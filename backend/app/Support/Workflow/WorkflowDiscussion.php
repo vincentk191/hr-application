@@ -61,6 +61,35 @@ class WorkflowDiscussion
     }
 
     /**
+     * How many comments are new to the viewer in each of several threads, in one query, for a list to flag the cases
+     * that have something to read. A thread with nothing new is left out.
+     *
+     * @param  iterable<int|null>  $instanceIds
+     * @return array<int, int> workflow instance id => new comments
+     */
+    public function unreadCounts(iterable $instanceIds, User $viewer): array
+    {
+        $ids = collect($instanceIds)->filter()->unique()->values();
+
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        return DB::table('workflow_comments as comments')
+            ->leftJoin('workflow_comment_reads as reads', fn ($join) => $join
+                ->on('reads.workflow_instance_id', '=', 'comments.workflow_instance_id')
+                ->where('reads.user_id', '=', $viewer->id))
+            ->whereIn('comments.workflow_instance_id', $ids)
+            ->where('comments.user_id', '!=', $viewer->id)
+            ->whereRaw('comments.id > COALESCE(reads.last_read_comment_id, 0)')
+            ->groupBy('comments.workflow_instance_id')
+            ->selectRaw('comments.workflow_instance_id as instance_id, count(*) as unread')
+            ->pluck('unread', 'instance_id')
+            ->map(fn (mixed $count): int => (int) $count)
+            ->all();
+    }
+
+    /**
      * The viewer has now seen everything written so far.
      */
     public function markRead(WorkflowInstance $instance, User $viewer): void

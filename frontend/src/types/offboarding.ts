@@ -24,6 +24,8 @@ export type OffboardingRow = {
     statusLabel: string;
     isDraft: boolean;
     createdBy: string | null;
+    /** Comments on its thread that the person looking has not read yet. */
+    unreadComments: number;
     daysOpen: number | null;
     /** A case listed for someone who only owns part of its checklist: no reason, type or requester. */
     limited?: boolean;

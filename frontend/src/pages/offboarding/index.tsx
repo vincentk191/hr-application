@@ -1,6 +1,7 @@
 import { Head, Link, router, setLayoutProps } from '@inertiajs/react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { UnreadComments } from '@/components/unread-comments';
 import { create, index, show } from '@/routes/offboarding';
 import type { BreadcrumbItem } from '@/types';
 import type {
@@ -219,7 +220,10 @@ export default function OffboardingIndex({
                                                 className="font-medium hover:underline"
                                             >
                                                 {row.employee.name}
-                                            </Link>
+                                            </Link>{' '}
+                                            <UnreadComments
+                                                count={row.unreadComments}
+                                            />
                                             <div className="label-mono">
                                                 {row.reference} ·{' '}
                                                 {row.exitType ?? '—'}

@@ -79,11 +79,12 @@ class RequisitionController extends Controller
         $visible = fn (): Builder => Requisition::query()->visibleTo($user);
 
         $requisitions = $this->listed($user, $filters);
+        $unread = app(WorkflowDiscussion::class)->unreadCounts($requisitions->pluck('workflow.id'), $user);
 
         $open = $visible()->with('workflow')->open()->get();
 
         return Inertia::render('recruitment/index', [
-            'requisitions' => $requisitions->map(fn (Requisition $requisition): array => $this->presenter->row($requisition))->values(),
+            'requisitions' => $requisitions->map(fn (Requisition $requisition): array => $this->presenter->row($requisition, $unread[$requisition->workflow?->id] ?? 0))->values(),
             'filters' => $filters,
             'summary' => [
                 'open' => $open->count(),

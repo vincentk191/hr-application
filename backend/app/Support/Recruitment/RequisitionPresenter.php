@@ -27,9 +27,10 @@ class RequisitionPresenter
     public function __construct(private WorkflowEngine $engine) {}
 
     /**
+     * @param  int  $unreadComments  comments on the requisition's thread that are new to the person looking
      * @return array<string, mixed>
      */
-    public function row(Requisition $requisition): array
+    public function row(Requisition $requisition, int $unreadComments = 0): array
     {
         $stage = $requisition->stage();
 
@@ -51,6 +52,7 @@ class RequisitionPresenter
             'isUrgent' => $requisition->is_urgent,
             'urgentReason' => $requisition->is_urgent ? $requisition->urgent_reason : null,
             'createdBy' => $requisition->creator?->name,
+            'unreadComments' => $unreadComments,
             // The date the latest stage was reached; a draft has none ("Belum diajukan", REC-DSH-004).
             'lastUpdate' => $stage === RequisitionStage::Draft ? null : $requisition->workflow?->stage_entered_at->toDateString(),
         ];

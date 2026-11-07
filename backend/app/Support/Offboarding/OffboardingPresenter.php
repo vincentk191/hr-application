@@ -33,9 +33,10 @@ class OffboardingPresenter
     ];
 
     /**
+     * @param  int  $unreadComments  comments on the case's thread that are new to the person looking
      * @return array<string, mixed>
      */
-    public function row(OffboardingCase $case): array
+    public function row(OffboardingCase $case, int $unreadComments = 0): array
     {
         $stage = $case->stage();
 
@@ -57,6 +58,7 @@ class OffboardingPresenter
             'statusLabel' => $this->statusLabel($case, $stage),
             'isDraft' => $stage === OffboardingCaseStage::Draft,
             'createdBy' => $case->creator?->name,
+            'unreadComments' => $unreadComments,
             'daysOpen' => $stage === OffboardingCaseStage::Closed || $case->created_at === null
                 ? null
                 : (int) $case->created_at->diffInDays(now()),
@@ -379,6 +381,7 @@ class OffboardingPresenter
             'statusLabel' => $this->statusLabel($case, $stage),
             'isDraft' => false,
             'createdBy' => null,
+            'unreadComments' => 0,
             'daysOpen' => null,
             'limited' => true,
         ];

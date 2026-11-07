@@ -1,6 +1,7 @@
 import { Head, Link, router, setLayoutProps } from '@inertiajs/react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { UnreadComments } from '@/components/unread-comments';
 import { create, exportMethod, index, show } from '@/routes/recruitment';
 import type { BreadcrumbItem } from '@/types';
 import type {
@@ -202,7 +203,12 @@ export default function RecruitmentIndex({
                                             <div className="min-w-0">
                                                 <p className="font-medium">
                                                     {row.positionName}{' '}
-                                                    <UrgentTag row={row} />
+                                                    <UrgentTag row={row} />{' '}
+                                                    <UnreadComments
+                                                        count={
+                                                            row.unreadComments
+                                                        }
+                                                    />
                                                 </p>
                                                 <p className="label-mono">
                                                     {row.reference} ·{' '}
@@ -270,7 +276,12 @@ export default function RecruitmentIndex({
                                                     }
                                                 >
                                                     {row.positionName}{' '}
-                                                    <UrgentTag row={row} />
+                                                    <UrgentTag row={row} />{' '}
+                                                    <UnreadComments
+                                                        count={
+                                                            row.unreadComments
+                                                        }
+                                                    />
                                                 </Link>
                                                 <div className="label-mono">
                                                     {row.reference}

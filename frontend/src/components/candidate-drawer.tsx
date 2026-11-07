@@ -1,39 +1,39 @@
-import { router } from "@inertiajs/react";
-import { CalendarDays, Clock, Mail, MapPin, Phone, Send } from "lucide-react";
-import { useState } from "react";
-import { Evaluations } from "@/components/candidate-evaluations";
-import { EmployeeAvatar } from "@/components/employee-avatar";
-import { FileLink, useFilePreview } from "@/components/file-preview";
+import { router } from '@inertiajs/react';
+import { CalendarDays, Clock, Mail, MapPin, Phone, Send } from 'lucide-react';
+import { useState } from 'react';
+import { Evaluations } from '@/components/candidate-evaluations';
+import { EmployeeAvatar } from '@/components/employee-avatar';
+import { FileLink, useFilePreview } from '@/components/file-preview';
 import {
     INVITE_STATE,
     InvitationEmail,
     modeLabel,
-} from "@/components/candidate-invitation";
-import { shortDate } from "@/components/requisition-summary";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+} from '@/components/candidate-invitation';
+import { shortDate } from '@/components/requisition-summary';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
     Sheet,
     SheetContent,
     SheetDescription,
     SheetTitle,
-} from "@/components/ui/sheet";
-import { destroy, invite } from "@/routes/recruitment/candidates";
-import type { Candidate, Requisition } from "@/types/recruitment";
+} from '@/components/ui/sheet';
+import { destroy, invite } from '@/routes/recruitment/candidates';
+import type { Candidate, Requisition } from '@/types/recruitment';
 
-export type CandidateTab = "overview" | "documents" | "interview";
+export type CandidateTab = 'overview' | 'documents' | 'interview';
 
 const TABS: { key: CandidateTab; label: string }[] = [
-    { key: "overview", label: "Ringkasan" },
-    { key: "documents", label: "Dokumen" },
-    { key: "interview", label: "Interview" },
+    { key: 'overview', label: 'Ringkasan' },
+    { key: 'documents', label: 'Dokumen' },
+    { key: 'interview', label: 'Interview' },
 ];
 
-const rupiah = new Intl.NumberFormat("id-ID");
+const rupiah = new Intl.NumberFormat('id-ID');
 
 function size(bytes: number | null): string {
     if (bytes === null) {
-        return "";
+        return '';
     }
 
     return bytes >= 1024 * 1024
@@ -43,7 +43,7 @@ function size(bytes: number | null): string {
 
 function Field({ label, value }: { label: string; value: unknown }) {
     const display =
-        value === null || value === undefined || value === "" ? "—" : value;
+        value === null || value === undefined || value === '' ? '—' : value;
 
     return (
         <div className="grid grid-cols-[9rem_1fr] gap-2 border-t py-2 text-sm">
@@ -143,7 +143,7 @@ function DrawerBody({
                     <p className="text-sm text-muted-foreground">
                         {[item.positionName, item.department]
                             .filter(Boolean)
-                            .join(" · ")}
+                            .join(' · ')}
                     </p>
                 </div>
             </div>
@@ -162,9 +162,9 @@ function DrawerBody({
             </nav>
 
             <div className="flex-1 overflow-y-auto p-4">
-                {tab === "overview" && <OverviewTab candidate={candidate} />}
-                {tab === "documents" && <DocumentsTab candidate={candidate} />}
-                {tab === "interview" && (
+                {tab === 'overview' && <OverviewTab candidate={candidate} />}
+                {tab === 'documents' && <DocumentsTab candidate={candidate} />}
+                {tab === 'interview' && (
                     <InterviewSection
                         item={item}
                         candidate={candidate}
@@ -230,7 +230,7 @@ function OverviewTab({ candidate }: { candidate: Candidate }) {
                 <div className="p-3">
                     <p className="label-mono">Interview</p>
                     <p className="mt-1 font-medium">
-                        {candidate.interviewAtLabel ?? "Belum dijadwalkan"}
+                        {candidate.interviewAtLabel ?? 'Belum dijadwalkan'}
                     </p>
                 </div>
             </div>
@@ -241,7 +241,7 @@ function OverviewTab({ candidate }: { candidate: Candidate }) {
                     value={
                         candidate.phone ? (
                             <a
-                                href={`tel:${candidate.phone.replace(/[^\d+]/g, "")}`}
+                                href={`tel:${candidate.phone.replace(/[^\d+]/g, '')}`}
                                 className="inline-flex items-center gap-1 underline-offset-4 hover:underline"
                             >
                                 <Phone className="size-3.5" />
@@ -268,7 +268,7 @@ function OverviewTab({ candidate }: { candidate: Candidate }) {
                     label="Ditambahkan"
                     value={
                         candidate.addedOn
-                            ? `${shortDate(candidate.addedOn)}${candidate.addedBy ? ` · ${candidate.addedBy}` : ""}`
+                            ? `${shortDate(candidate.addedOn)}${candidate.addedBy ? ` · ${candidate.addedBy}` : ''}`
                             : null
                     }
                 />
@@ -294,11 +294,11 @@ function Questionnaire({ candidate }: { candidate: Candidate }) {
                     Formulir kandidat
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                    {candidate.inviteState === "none"
-                        ? "Belum diundang interview, jadi belum ada formulir."
-                        : candidate.inviteState === "expired"
-                          ? "Tautan formulir sudah kedaluwarsa sebelum diisi. Buat tautan baru di tab Interview."
-                          : `Belum diisi. Tautan berlaku pada ${candidate.inviteExpiresOn ? shortDate(candidate.inviteExpiresOn) : "hari interview"}.`}
+                    {candidate.inviteState === 'none'
+                        ? 'Belum diundang interview, jadi belum ada formulir.'
+                        : candidate.inviteState === 'expired'
+                          ? 'Tautan formulir sudah kedaluwarsa sebelum diisi. Buat tautan baru di tab Interview.'
+                          : `Belum diisi. Tautan berlaku pada ${candidate.inviteExpiresOn ? shortDate(candidate.inviteExpiresOn) : 'hari interview'}.`}
                 </p>
             </section>
         );
@@ -319,7 +319,7 @@ function Questionnaire({ candidate }: { candidate: Candidate }) {
                     {form.yes} dari {form.answers.length} YA
                     {candidate.formSubmittedOn
                         ? ` · dikirim ${shortDate(candidate.formSubmittedOn)}`
-                        : ""}
+                        : ''}
                 </p>
             </div>
 
@@ -335,9 +335,9 @@ function Questionnaire({ candidate }: { candidate: Candidate }) {
                                     className="flex gap-3 py-1.5"
                                 >
                                     <span
-                                        className={`w-12 shrink-0 font-mono text-xs ${answer.answer ? "text-emerald-600" : "text-muted-foreground"}`}
+                                        className={`w-12 shrink-0 font-mono text-xs ${answer.answer ? 'text-emerald-600' : 'text-muted-foreground'}`}
                                     >
-                                        {answer.answer ? "YA" : "TIDAK"}
+                                        {answer.answer ? 'YA' : 'TIDAK'}
                                     </span>
                                     <span>{answer.text}</span>
                                 </li>
@@ -377,7 +377,7 @@ function DocumentsTab({ candidate }: { candidate: Candidate }) {
         candidate.cvUrl === null
             ? null
             : {
-                  name: candidate.cvName ?? "CV",
+                  name: candidate.cvName ?? 'CV',
                   downloadUrl: candidate.cvUrl,
                   previewUrl: candidate.cvPreviewUrl,
               };
@@ -393,7 +393,7 @@ function DocumentsTab({ candidate }: { candidate: Candidate }) {
                         label="CV"
                         value={
                             <>
-                                <FileLink file={file} open={open} />{" "}
+                                <FileLink file={file} open={open} />{' '}
                                 <span className="text-xs font-normal text-muted-foreground">
                                     {size(candidate.cvSize)}
                                 </span>
@@ -415,11 +415,11 @@ function DocumentsTab({ candidate }: { candidate: Candidate }) {
     );
 }
 
-const longDay = new Intl.DateTimeFormat("id-ID", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
+const longDay = new Intl.DateTimeFormat('id-ID', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
 });
 
 /** "2026-11-06T15:14" (the company's time) as a moment, or null when there is none. */
@@ -433,9 +433,9 @@ function interviewMoment(value: string | null): Date | null {
 
 /** "2026-11-06" as "6 Nov", the year being already on the interview day above. */
 function dayMonth(date: string): string {
-    return new Date(`${date}T00:00:00`).toLocaleDateString("id-ID", {
-        day: "numeric",
-        month: "short",
+    return new Date(`${date}T00:00:00`).toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'short',
     });
 }
 
@@ -446,14 +446,14 @@ function Milestone({ label, date }: { label: string; date: string | null }) {
             <p className="label-mono flex items-center gap-2">
                 <span
                     aria-hidden
-                    className={`size-2 shrink-0 rounded-full border ${date ? "border-foreground bg-foreground" : "border-muted-foreground"}`}
+                    className={`size-2 shrink-0 rounded-full border ${date ? 'border-foreground bg-foreground' : 'border-muted-foreground'}`}
                 />
                 {label}
             </p>
             <p
-                className={`text-base font-bold ${date ? "" : "text-muted-foreground/70"}`}
+                className={`text-base font-bold ${date ? '' : 'text-muted-foreground/70'}`}
             >
-                {date ? dayMonth(date) : "Belum"}
+                {date ? dayMonth(date) : 'Belum'}
             </p>
         </div>
     );
@@ -481,8 +481,8 @@ function InterviewSection({
         canManage &&
         at !== null &&
         at > new Date() &&
-        (candidate.inviteState === "invited" ||
-            candidate.inviteState === "expired");
+        (candidate.inviteState === 'invited' ||
+            candidate.inviteState === 'expired');
 
     const resend = () => {
         if (candidate.interviewAtInput === null) {
@@ -493,8 +493,8 @@ function InterviewSection({
             invite.url({ requisition: item.id, candidate: candidate.id }),
             {
                 interview_at: candidate.interviewAtInput,
-                interview_mode: candidate.interviewMode ?? "online",
-                interview_place: candidate.interviewPlace ?? "",
+                interview_mode: candidate.interviewMode ?? 'online',
+                interview_place: candidate.interviewPlace ?? '',
             },
             {
                 preserveScroll: true,
@@ -527,8 +527,8 @@ function InterviewSection({
                             <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
                                 <span className="inline-flex items-center gap-1.5">
                                     <Clock className="size-4 text-muted-foreground" />
-                                    {String(at.getHours()).padStart(2, "0")}:
-                                    {String(at.getMinutes()).padStart(2, "0")}{" "}
+                                    {String(at.getHours()).padStart(2, '0')}:
+                                    {String(at.getMinutes()).padStart(2, '0')}{' '}
                                     WIB
                                 </span>
                                 <span className="inline-flex min-w-0 items-center gap-1.5">
@@ -537,7 +537,7 @@ function InterviewSection({
                                         {modeLabel(candidate.interviewMode)}
                                         {candidate.interviewPlace
                                             ? ` · ${candidate.interviewPlace}`
-                                            : ""}
+                                            : ''}
                                     </span>
                                 </span>
                             </p>
@@ -545,7 +545,7 @@ function InterviewSection({
                     )}
                 </div>
 
-                {candidate.inviteState !== "none" && (
+                {candidate.inviteState !== 'none' && (
                     <div className="grid grid-cols-3 divide-x border-t">
                         <Milestone
                             label="Diundang"
@@ -553,9 +553,9 @@ function InterviewSection({
                         />
                         <Milestone
                             label={
-                                candidate.inviteState === "expired"
-                                    ? "Kedaluwarsa"
-                                    : "Tautan aktif"
+                                candidate.inviteState === 'expired'
+                                    ? 'Kedaluwarsa'
+                                    : 'Tautan aktif'
                             }
                             date={candidate.inviteExpiresOn}
                         />
@@ -575,7 +575,7 @@ function InterviewSection({
                             data-test="invite-candidate"
                         >
                             <CalendarDays className="size-4" />
-                            {at === null ? "Jadwalkan" : "Jadwalkan ulang"}
+                            {at === null ? 'Jadwalkan' : 'Jadwalkan ulang'}
                         </Button>
                         {canResend && (
                             <Button

@@ -501,6 +501,23 @@ it('counts what is new to each person, by stage, and clears it when they open th
     expect(discussionFor($this->mira->user, $case)['unread'])->toBe(1);
 });
 
+it('flags on the list which cases have comments the person has not read, with how many', function () {
+    $case = submittedCase($this->sinta);
+    $this->actingAs($this->hr)->post(route('offboarding.comments.store', $case), ['body' => 'Satu'])->assertRedirect();
+    $this->actingAs($this->hr)->post(route('offboarding.comments.store', $case), ['body' => 'Dua'])->assertRedirect();
+
+    $unreadOnList = fn (User $user): int => collect(test()->actingAs($user)->get(route('offboarding.index', ['status' => 'all']))->viewData('page')['props']['cases'])
+        ->firstWhere('id', $case->id)['unreadComments'];
+
+    // The author wrote them; Management has not read them yet.
+    expect($unreadOnList($this->hr))->toBe(0)
+        ->and($unreadOnList($this->mira->user))->toBe(2);
+
+    $this->actingAs($this->mira->user)->post(route('offboarding.comments.read', $case))->assertRedirect();
+
+    expect($unreadOnList($this->mira->user))->toBe(0);
+});
+
 it('shows the note of a rejection in the thread at once, once, and keeps it after resending', function () {
     $case = submittedCase($this->sinta);
 
