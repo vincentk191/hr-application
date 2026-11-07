@@ -172,6 +172,8 @@ export type SentInvitation = {
     /** It went out by email; otherwise HR copied it for WhatsApp. */
     emailed: boolean;
     sentOn: string | null;
+    /** The same moment as a datetime-local value in the company's time, to show the hour. */
+    sentAt: string | null;
 };
 
 export type CandidateForm = {

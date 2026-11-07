@@ -315,6 +315,7 @@ class RequisitionPresenter
                 'message' => $candidate->invitation_message,
                 'emailed' => $candidate->invitation_emailed,
                 'sentOn' => $candidate->invited_at?->copy()->setTimezone($timezone)->toDateString(),
+                'sentAt' => $candidate->invited_at?->copy()->setTimezone($timezone)->format('Y-m-d\TH:i'),
             ],
             'formSubmittedOn' => $candidate->form_submitted_at?->copy()->setTimezone($timezone)->toDateString(),
             'form' => $candidate->form_submitted_at === null ? null : [

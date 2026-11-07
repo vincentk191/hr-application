@@ -1,39 +1,39 @@
-import { router } from '@inertiajs/react';
-import { Mail, Phone } from 'lucide-react';
-import { useState } from 'react';
-import { Evaluations } from '@/components/candidate-evaluations';
-import { EmployeeAvatar } from '@/components/employee-avatar';
-import { FileLink, useFilePreview } from '@/components/file-preview';
+import { router } from "@inertiajs/react";
+import { CalendarDays, Clock, Mail, MapPin, Phone, Send } from "lucide-react";
+import { useState } from "react";
+import { Evaluations } from "@/components/candidate-evaluations";
+import { EmployeeAvatar } from "@/components/employee-avatar";
+import { FileLink, useFilePreview } from "@/components/file-preview";
 import {
     INVITE_STATE,
-    InvitationPreview,
+    InvitationEmail,
     modeLabel,
-} from '@/components/candidate-invitation';
-import { shortDate } from '@/components/requisition-summary';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+} from "@/components/candidate-invitation";
+import { shortDate } from "@/components/requisition-summary";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
     Sheet,
     SheetContent,
     SheetDescription,
     SheetTitle,
-} from '@/components/ui/sheet';
-import { destroy } from '@/routes/recruitment/candidates';
-import type { Candidate, Requisition } from '@/types/recruitment';
+} from "@/components/ui/sheet";
+import { destroy, invite } from "@/routes/recruitment/candidates";
+import type { Candidate, Requisition } from "@/types/recruitment";
 
-export type CandidateTab = 'overview' | 'documents' | 'interview';
+export type CandidateTab = "overview" | "documents" | "interview";
 
 const TABS: { key: CandidateTab; label: string }[] = [
-    { key: 'overview', label: 'Ringkasan' },
-    { key: 'documents', label: 'Dokumen' },
-    { key: 'interview', label: 'Interview' },
+    { key: "overview", label: "Ringkasan" },
+    { key: "documents", label: "Dokumen" },
+    { key: "interview", label: "Interview" },
 ];
 
-const rupiah = new Intl.NumberFormat('id-ID');
+const rupiah = new Intl.NumberFormat("id-ID");
 
 function size(bytes: number | null): string {
     if (bytes === null) {
-        return '';
+        return "";
     }
 
     return bytes >= 1024 * 1024
@@ -43,7 +43,7 @@ function size(bytes: number | null): string {
 
 function Field({ label, value }: { label: string; value: unknown }) {
     const display =
-        value === null || value === undefined || value === '' ? '—' : value;
+        value === null || value === undefined || value === "" ? "—" : value;
 
     return (
         <div className="grid grid-cols-[9rem_1fr] gap-2 border-t py-2 text-sm">
@@ -143,7 +143,7 @@ function DrawerBody({
                     <p className="text-sm text-muted-foreground">
                         {[item.positionName, item.department]
                             .filter(Boolean)
-                            .join(' · ')}
+                            .join(" · ")}
                     </p>
                 </div>
             </div>
@@ -162,9 +162,9 @@ function DrawerBody({
             </nav>
 
             <div className="flex-1 overflow-y-auto p-4">
-                {tab === 'overview' && <OverviewTab candidate={candidate} />}
-                {tab === 'documents' && <DocumentsTab candidate={candidate} />}
-                {tab === 'interview' && (
+                {tab === "overview" && <OverviewTab candidate={candidate} />}
+                {tab === "documents" && <DocumentsTab candidate={candidate} />}
+                {tab === "interview" && (
                     <InterviewSection
                         item={item}
                         candidate={candidate}
@@ -230,7 +230,7 @@ function OverviewTab({ candidate }: { candidate: Candidate }) {
                 <div className="p-3">
                     <p className="label-mono">Interview</p>
                     <p className="mt-1 font-medium">
-                        {candidate.interviewAtLabel ?? 'Belum dijadwalkan'}
+                        {candidate.interviewAtLabel ?? "Belum dijadwalkan"}
                     </p>
                 </div>
             </div>
@@ -241,7 +241,7 @@ function OverviewTab({ candidate }: { candidate: Candidate }) {
                     value={
                         candidate.phone ? (
                             <a
-                                href={`tel:${candidate.phone.replace(/[^\d+]/g, '')}`}
+                                href={`tel:${candidate.phone.replace(/[^\d+]/g, "")}`}
                                 className="inline-flex items-center gap-1 underline-offset-4 hover:underline"
                             >
                                 <Phone className="size-3.5" />
@@ -268,7 +268,7 @@ function OverviewTab({ candidate }: { candidate: Candidate }) {
                     label="Ditambahkan"
                     value={
                         candidate.addedOn
-                            ? `${shortDate(candidate.addedOn)}${candidate.addedBy ? ` · ${candidate.addedBy}` : ''}`
+                            ? `${shortDate(candidate.addedOn)}${candidate.addedBy ? ` · ${candidate.addedBy}` : ""}`
                             : null
                     }
                 />
@@ -294,11 +294,11 @@ function Questionnaire({ candidate }: { candidate: Candidate }) {
                     Formulir kandidat
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                    {candidate.inviteState === 'none'
-                        ? 'Belum diundang interview, jadi belum ada formulir.'
-                        : candidate.inviteState === 'expired'
-                          ? 'Tautan formulir sudah kedaluwarsa sebelum diisi. Buat tautan baru di tab Interview.'
-                          : `Belum diisi. Tautan berlaku pada ${candidate.inviteExpiresOn ? shortDate(candidate.inviteExpiresOn) : 'hari interview'}.`}
+                    {candidate.inviteState === "none"
+                        ? "Belum diundang interview, jadi belum ada formulir."
+                        : candidate.inviteState === "expired"
+                          ? "Tautan formulir sudah kedaluwarsa sebelum diisi. Buat tautan baru di tab Interview."
+                          : `Belum diisi. Tautan berlaku pada ${candidate.inviteExpiresOn ? shortDate(candidate.inviteExpiresOn) : "hari interview"}.`}
                 </p>
             </section>
         );
@@ -319,7 +319,7 @@ function Questionnaire({ candidate }: { candidate: Candidate }) {
                     {form.yes} dari {form.answers.length} YA
                     {candidate.formSubmittedOn
                         ? ` · dikirim ${shortDate(candidate.formSubmittedOn)}`
-                        : ''}
+                        : ""}
                 </p>
             </div>
 
@@ -335,9 +335,9 @@ function Questionnaire({ candidate }: { candidate: Candidate }) {
                                     className="flex gap-3 py-1.5"
                                 >
                                     <span
-                                        className={`w-12 shrink-0 font-mono text-xs ${answer.answer ? 'text-emerald-600' : 'text-muted-foreground'}`}
+                                        className={`w-12 shrink-0 font-mono text-xs ${answer.answer ? "text-emerald-600" : "text-muted-foreground"}`}
                                     >
-                                        {answer.answer ? 'YA' : 'TIDAK'}
+                                        {answer.answer ? "YA" : "TIDAK"}
                                     </span>
                                     <span>{answer.text}</span>
                                 </li>
@@ -377,7 +377,7 @@ function DocumentsTab({ candidate }: { candidate: Candidate }) {
         candidate.cvUrl === null
             ? null
             : {
-                  name: candidate.cvName ?? 'CV',
+                  name: candidate.cvName ?? "CV",
                   downloadUrl: candidate.cvUrl,
                   previewUrl: candidate.cvPreviewUrl,
               };
@@ -393,7 +393,7 @@ function DocumentsTab({ candidate }: { candidate: Candidate }) {
                         label="CV"
                         value={
                             <>
-                                <FileLink file={file} open={open} />{' '}
+                                <FileLink file={file} open={open} />{" "}
                                 <span className="text-xs font-normal text-muted-foreground">
                                     {size(candidate.cvSize)}
                                 </span>
@@ -415,7 +415,54 @@ function DocumentsTab({ candidate }: { candidate: Candidate }) {
     );
 }
 
-/** The interview: the day and place, where the form link stands, the invitation as sent, and the way to (re)schedule. */
+const longDay = new Intl.DateTimeFormat("id-ID", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+});
+
+/** "2026-11-06T15:14" (the company's time) as a moment, or null when there is none. */
+function interviewMoment(value: string | null): Date | null {
+    const found = value?.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+
+    return found
+        ? new Date(+found[1], +found[2] - 1, +found[3], +found[4], +found[5])
+        : null;
+}
+
+/** "2026-11-06" as "6 Nov", the year being already on the interview day above. */
+function dayMonth(date: string): string {
+    return new Date(`${date}T00:00:00`).toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "short",
+    });
+}
+
+/** One step of the invitation: a dot that is filled once it has happened, and the day it did. */
+function Milestone({ label, date }: { label: string; date: string | null }) {
+    return (
+        <div className="min-w-0 space-y-1.5 p-4">
+            <p className="label-mono flex items-center gap-2">
+                <span
+                    aria-hidden
+                    className={`size-2 shrink-0 rounded-full border ${date ? "border-foreground bg-foreground" : "border-muted-foreground"}`}
+                />
+                {label}
+            </p>
+            <p
+                className={`text-base font-bold ${date ? "" : "text-muted-foreground/70"}`}
+            >
+                {date ? dayMonth(date) : "Belum"}
+            </p>
+        </div>
+    );
+}
+
+/**
+ * The interview: the day, time and place with where the invitation stands and the two things HR does with it (change the
+ * schedule, or send the same invitation again), then the invitation as it went out and the evaluations.
+ */
 function InterviewSection({
     item,
     candidate,
@@ -426,90 +473,130 @@ function InterviewSection({
     onInvite?: (candidate: Candidate) => void;
 }) {
     const state = INVITE_STATE[candidate.inviteState];
+    const at = interviewMoment(candidate.interviewAtInput);
+    const [resending, setResending] = useState(false);
+    const canManage = onInvite !== undefined && item.canManageInterview;
+    // The invitation is only valid for a time still ahead, and worth sending again only while the form is unfilled.
+    const canResend =
+        canManage &&
+        at !== null &&
+        at > new Date() &&
+        (candidate.inviteState === "invited" ||
+            candidate.inviteState === "expired");
+
+    const resend = () => {
+        if (candidate.interviewAtInput === null) {
+            return;
+        }
+
+        router.post(
+            invite.url({ requisition: item.id, candidate: candidate.id }),
+            {
+                interview_at: candidate.interviewAtInput,
+                interview_mode: candidate.interviewMode ?? "online",
+                interview_place: candidate.interviewPlace ?? "",
+            },
+            {
+                preserveScroll: true,
+                onStart: () => setResending(true),
+                onFinish: () => setResending(false),
+            },
+        );
+    };
 
     return (
-        <div className="flex flex-col gap-4" data-test="candidate-interview">
-            <section>
-                <h3 className="label-mono mb-1">Hari interview</h3>
-                {candidate.interviewAtLabel === null ? (
-                    <p className="text-sm text-muted-foreground">
-                        Belum dijadwalkan.
-                    </p>
-                ) : (
-                    <ul className="text-sm" data-test="interview-days">
-                        <li className="rounded-xl border p-3">
-                            <p className="font-semibold">
-                                {candidate.interviewAtLabel}
+        <div className="flex flex-col gap-5" data-test="candidate-interview">
+            <section className="overflow-hidden rounded-2xl border">
+                <div className="space-y-3 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                        <h3 className="label-mono">Jadwal interview</h3>
+                        <Badge variant={state.variant} className="rounded-full">
+                            {state.shortLabel}
+                        </Badge>
+                    </div>
+
+                    {at === null ? (
+                        <p className="text-sm text-muted-foreground">
+                            Belum dijadwalkan.
+                        </p>
+                    ) : (
+                        <div data-test="interview-days">
+                            <p className="text-2xl font-extrabold tracking-tight">
+                                {longDay.format(at)}
                             </p>
-                            <p className="text-muted-foreground">
-                                {modeLabel(candidate.interviewMode)}
-                                {candidate.interviewPlace
-                                    ? ` · ${candidate.interviewPlace}`
-                                    : ''}
+                            <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                                <span className="inline-flex items-center gap-1.5">
+                                    <Clock className="size-4 text-muted-foreground" />
+                                    {String(at.getHours()).padStart(2, "0")}:
+                                    {String(at.getMinutes()).padStart(2, "0")}{" "}
+                                    WIB
+                                </span>
+                                <span className="inline-flex min-w-0 items-center gap-1.5">
+                                    <MapPin className="size-4 shrink-0 text-muted-foreground" />
+                                    <span className="break-words">
+                                        {modeLabel(candidate.interviewMode)}
+                                        {candidate.interviewPlace
+                                            ? ` · ${candidate.interviewPlace}`
+                                            : ""}
+                                    </span>
+                                </span>
                             </p>
-                        </li>
-                    </ul>
+                        </div>
+                    )}
+                </div>
+
+                {candidate.inviteState !== "none" && (
+                    <div className="grid grid-cols-3 divide-x border-t">
+                        <Milestone
+                            label="Diundang"
+                            date={candidate.invitedOn}
+                        />
+                        <Milestone
+                            label={
+                                candidate.inviteState === "expired"
+                                    ? "Kedaluwarsa"
+                                    : "Tautan aktif"
+                            }
+                            date={candidate.inviteExpiresOn}
+                        />
+                        <Milestone
+                            label="Formulir diisi"
+                            date={candidate.formSubmittedOn}
+                        />
+                    </div>
+                )}
+
+                {canManage && (
+                    <div className="flex flex-wrap gap-2 border-t p-4">
+                        <Button
+                            type="button"
+                            className="rounded-full"
+                            onClick={() => onInvite(candidate)}
+                            data-test="invite-candidate"
+                        >
+                            <CalendarDays className="size-4" />
+                            {at === null ? "Jadwalkan" : "Jadwalkan ulang"}
+                        </Button>
+                        {canResend && (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="rounded-full"
+                                disabled={resending}
+                                onClick={resend}
+                                data-test="resend-invitation"
+                            >
+                                <Send className="size-4" />
+                                Kirim ulang undangan
+                            </Button>
+                        )}
+                    </div>
                 )}
             </section>
 
-            <dl>
-                <div className="grid grid-cols-[9rem_1fr] gap-2 border-t py-2 text-sm">
-                    <dt className="label-mono pt-0.5">Tautan formulir</dt>
-                    <dd>
-                        <Badge variant={state.variant}>{state.label}</Badge>
-                    </dd>
-                </div>
-                <Field
-                    label="Diundang"
-                    value={
-                        candidate.invitedOn
-                            ? shortDate(candidate.invitedOn)
-                            : null
-                    }
-                />
-                <Field
-                    label={
-                        candidate.inviteState === 'expired'
-                            ? 'Kedaluwarsa'
-                            : 'Berlaku pada'
-                    }
-                    value={
-                        candidate.inviteExpiresOn
-                            ? shortDate(candidate.inviteExpiresOn)
-                            : null
-                    }
-                />
-                <Field
-                    label="Formulir diisi"
-                    value={
-                        candidate.formSubmittedOn
-                            ? shortDate(candidate.formSubmittedOn)
-                            : null
-                    }
-                />
-            </dl>
-
-            <InvitationPreview candidate={candidate} />
+            <InvitationEmail candidate={candidate} />
 
             <Evaluations item={item} candidate={candidate} />
-
-            {onInvite && item.canManageInterview && (
-                <Button
-                    type="button"
-                    variant={
-                        candidate.inviteState === 'none' ? 'default' : 'outline'
-                    }
-                    className="self-start"
-                    onClick={() => onInvite(candidate)}
-                    data-test="invite-candidate"
-                >
-                    {candidate.inviteState === 'none'
-                        ? '+ Jadwalkan'
-                        : candidate.inviteState === 'expired'
-                          ? 'Buat tautan baru'
-                          : 'Ubah jadwal / kirim ulang'}
-                </Button>
-            )}
         </div>
     );
 }

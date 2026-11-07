@@ -150,6 +150,7 @@ it('builds the invitations from the template HR saved, and keeps what was sent',
             ->where('requisition.shortlist.0.invitation.subject', 'Undangan Staf Gudang - PT Maju Jaya')
             ->where('requisition.shortlist.0.invitation.emailed', true)
             ->where('requisition.shortlist.0.invitation.sentOn', '2026-11-04')
+            ->where('requisition.shortlist.0.invitation.sentAt', '2026-11-04T12:00')
             ->where('requisition.shortlist.0.invitation.message', fn (string $message): bool => str_contains($message, 'Yth. Budi'))
         );
 });
