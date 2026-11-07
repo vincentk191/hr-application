@@ -5,6 +5,8 @@ namespace App\Policies;
 use App\Enums\Permission;
 use App\Enums\RequisitionStage;
 use App\Enums\Role;
+use App\Models\Candidate;
+use App\Models\Employee;
 use App\Models\Requisition;
 use App\Models\User;
 use App\Models\WorkflowStep;
@@ -28,7 +30,8 @@ class RequisitionPolicy
         return $user->can(Permission::ManageRecruitment->value)
             || $user->isA(Role::Management)
             || app(RequisitionDepartments::class)->for($user)->isNotEmpty()
-            || Requisition::query()->where('created_by_user_id', $user->id)->exists();
+            || Requisition::query()->where('created_by_user_id', $user->id)->exists()
+            || Requisition::query()->visibleTo($user)->exists();
     }
 
     public function view(User $user, Requisition $requisition): bool
@@ -144,6 +147,31 @@ class RequisitionPolicy
     {
         return in_array($requisition->stage(), [RequisitionStage::Interview, RequisitionStage::Offer], true)
             && $this->viewCandidates($user, $requisition);
+    }
+
+    /**
+     * The new hire's direct superior (Atasan langsung) is an interviewer, and sees the candidates who were invited, and
+     * only those, once the requisition reaches Interview. No phone, email or note: they need to prepare, not to contact.
+     */
+    public function viewInterviewees(User $user, Requisition $requisition): bool
+    {
+        return in_array($requisition->stage(), [RequisitionStage::Interview, RequisitionStage::Offer], true)
+            && $user->canAccessCompany($requisition->company_id)
+            && $requisition->manager_employee_id !== null
+            && Employee::acrossCompanies()->whereKey($requisition->manager_employee_id)->where('user_id', $user->id)->exists();
+    }
+
+    /**
+     * Giving feedback after an interview: HR and the direct superior, for a candidate who was invited and whose
+     * interview time has passed, while the requisition is at Interview or Offer (REC-INT).
+     */
+    public function evaluate(User $user, Requisition $requisition, Candidate $candidate): bool
+    {
+        return in_array($requisition->stage(), [RequisitionStage::Interview, RequisitionStage::Offer], true)
+            && $candidate->requisition_id === $requisition->id
+            && $candidate->interview_at !== null
+            && $candidate->interview_at->isPast()
+            && ($this->viewCandidates($user, $requisition) || $this->viewInterviewees($user, $requisition));
     }
 
     /**

@@ -29,6 +29,9 @@ export type RequisitionRow = {
     /** Where in the stage it is, e.g. "Menunggu persetujuan HR" (REC-PIP-006). */
     statusLabel: string;
     isDraft: boolean;
+    /** Marked "Mendesak" by the requester (REC-WIZ-006). */
+    isUrgent: boolean;
+    urgentReason: string | null;
     createdBy: string | null;
     /** The date the latest stage was reached; null for a draft (REC-DSH-004). */
     lastUpdate: string | null;
@@ -142,8 +145,25 @@ export type Candidate = {
     formSubmittedOn: string | null;
     /** The invitation as sent, without its personal link; null if never invited. */
     invitation: SentInvitation | null;
+    /** What the interviewers wrote after the interview (REC-INT), oldest first. */
+    evaluations: CandidateEvaluation[];
+    /** This person may add or change their evaluation now. */
+    canEvaluate: boolean;
     /** What the candidate answered on their form; null until they send it. */
     form: CandidateForm | null;
+};
+
+/** One interviewer's evaluation of a candidate: a 1 to 5 rating, a recommendation and a note. */
+export type CandidateEvaluation = {
+    id: number;
+    author: string | null;
+    rating: number;
+    recommendation: 'continue' | 'consider' | 'reject';
+    recommendationLabel: string;
+    note: string | null;
+    writtenOn: string | null;
+    /** Written by the person looking at it, so it can be changed. */
+    isMine: boolean;
 };
 
 export type SentInvitation = {

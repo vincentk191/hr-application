@@ -84,6 +84,31 @@ class InvitationMessage
     }
 
     /**
+     * The day-before reminder: when and where, nothing else. The form's link is not repeated, because it opens only on the
+     * interview day and the invitation already carries it.
+     */
+    public static function reminder(Candidate $candidate, Requisition $requisition): string
+    {
+        $when = $candidate->interview_at;
+        $online = $candidate->interview_mode === 'online';
+
+        return implode("\n", [
+            "Halo {$candidate->name},",
+            '',
+            "Mengingatkan interview untuk posisi {$requisition->position_name} di {$requisition->company->name} besok:",
+            '',
+            'Hari/tanggal : '.($when === null ? '-' : self::dayLabel($when)),
+            'Jam          : '.($when === null ? '-' : self::local($when)->format('H:i')).' WIB',
+            'Format       : '.($online ? 'Online' : 'Tatap muka'),
+            str_pad($online ? 'Tautan' : 'Tempat', 12).' : '.($candidate->interview_place ?? '-'),
+            '',
+            'Jika berhalangan, mohon kabari kami dengan membalas pesan ini. Terima kasih.',
+            '',
+            "HR {$requisition->company->name}",
+        ]);
+    }
+
+    /**
      * Example values for the admin page's preview: a candidate invited to an online interview on a future date.
      *
      * @return array<string, string>

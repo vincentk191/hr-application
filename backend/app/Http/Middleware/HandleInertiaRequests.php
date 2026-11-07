@@ -17,6 +17,7 @@ use App\Support\Access\Entrance;
 use App\Support\Branding;
 use App\Support\CompanyContext;
 use App\Support\Features;
+use App\Support\Recruitment\RecruitmentTodo;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -92,6 +93,10 @@ class HandleInertiaRequests extends Middleware
             // Open offboarding cases this person may see: the badge on "Offboarding" (OFF-DSH-010).
             'openOffboarding' => fn (): int => $request->user()?->can('viewAny', OffboardingCase::class)
                 ? OffboardingCase::openCountFor($request->user())
+                : 0,
+            // What in Rekrutmen waits on this person: the badge on "Rekrutmen" (REC-DSH-008).
+            'recruitmentTodo' => fn (): int => $request->user()?->can('viewAny', Requisition::class)
+                ? app(RecruitmentTodo::class)->countFor($request->user())
                 : 0,
             'pendingForMe' => fn (): int => $request->user() === null ? 0 : WorkflowStep::waitingOn($request->user(), LeaveRequest::class)->count(),
             'branding' => fn (): ?array => $request->user() === null ? null : app(Branding::class)->current(),

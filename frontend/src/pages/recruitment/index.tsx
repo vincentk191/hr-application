@@ -1,7 +1,7 @@
 import { Head, Link, router, setLayoutProps } from '@inertiajs/react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { create, index, show } from '@/routes/recruitment';
+import { create, exportMethod, index, show } from '@/routes/recruitment';
 import type { BreadcrumbItem } from '@/types';
 import type {
     RequisitionFilters,
@@ -29,6 +29,20 @@ function quota(row: RequisitionRow): string {
 
 function lastUpdate(row: RequisitionRow): string {
     return row.lastUpdate ?? 'Belum diajukan';
+}
+
+/** The "Mendesak" tag, with the requester's reason on hover. */
+function UrgentTag({ row }: { row: RequisitionRow }) {
+    return row.isUrgent ? (
+        <Badge
+            variant="destructive"
+            className="ml-1 align-middle"
+            title={row.urgentReason ?? undefined}
+            data-test="urgent-tag"
+        >
+            Mendesak
+        </Badge>
+    ) : null;
 }
 
 function StatusBadge({ row }: { row: RequisitionRow }) {
@@ -98,11 +112,36 @@ export default function RecruitmentIndex({
                             disetujui Manajemen lalu HR.
                         </p>
                     </div>
-                    {canCreate && (
-                        <Button asChild data-test="new-requisition">
-                            <Link href={create().url}>+ Ajukan Lowongan</Link>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                            asChild
+                            variant="outline"
+                            data-test="export-csv"
+                        >
+                            <a
+                                href={`${exportMethod().url}?${new URLSearchParams(
+                                    Object.fromEntries(
+                                        Object.entries({
+                                            status: filters.status,
+                                            department: filters.department,
+                                        }).filter(
+                                            ([, value]) =>
+                                                value !== null && value !== '',
+                                        ),
+                                    ) as Record<string, string>,
+                                ).toString()}`}
+                            >
+                                Ekspor CSV
+                            </a>
                         </Button>
-                    )}
+                        {canCreate && (
+                            <Button asChild data-test="new-requisition">
+                                <Link href={create().url}>
+                                    + Ajukan Lowongan
+                                </Link>
+                            </Button>
+                        )}
+                    </div>
                 </header>
 
                 <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -162,7 +201,8 @@ export default function RecruitmentIndex({
                                         <div className="flex items-start justify-between gap-2">
                                             <div className="min-w-0">
                                                 <p className="font-medium">
-                                                    {row.positionName}
+                                                    {row.positionName}{' '}
+                                                    <UrgentTag row={row} />
                                                 </p>
                                                 <p className="label-mono">
                                                     {row.reference} ·{' '}
@@ -229,7 +269,8 @@ export default function RecruitmentIndex({
                                                         event.stopPropagation()
                                                     }
                                                 >
-                                                    {row.positionName}
+                                                    {row.positionName}{' '}
+                                                    <UrgentTag row={row} />
                                                 </Link>
                                                 <div className="label-mono">
                                                     {row.reference}

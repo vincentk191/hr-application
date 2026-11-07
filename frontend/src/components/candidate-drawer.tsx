@@ -1,6 +1,7 @@
 import { router } from '@inertiajs/react';
 import { Mail, Phone } from 'lucide-react';
 import { useState } from 'react';
+import { Evaluations } from '@/components/candidate-evaluations';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import { FileLink, useFilePreview } from '@/components/file-preview';
 import {
@@ -489,6 +490,8 @@ function InterviewSection({
             </dl>
 
             <InvitationPreview candidate={candidate} />
+
+            <Evaluations item={item} candidate={candidate} />
 
             {onInvite && item.canManageInterview && (
                 <Button

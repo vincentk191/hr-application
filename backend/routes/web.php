@@ -92,6 +92,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Recruitment: a supervisor or HR raises a requisition, Management and then HR approve it (REC-*).
     Route::get('recruitment', [RequisitionController::class, 'index'])->name('recruitment.index');
+    Route::get('recruitment/export', [RequisitionController::class, 'export'])->name('recruitment.export');
     Route::get('recruitment/create', [RequisitionController::class, 'create'])->name('recruitment.create');
     Route::post('recruitment', [RequisitionController::class, 'store'])->name('recruitment.store');
     Route::get('recruitment/{requisition}', [RequisitionController::class, 'show'])->name('recruitment.show');
@@ -110,6 +111,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('recruitment/{requisition}/candidates/{candidate}', [RequisitionController::class, 'destroyCandidate'])->scopeBindings()->name('recruitment.candidates.destroy');
     Route::get('recruitment/{requisition}/candidates/{candidate}/cv', [RequisitionController::class, 'candidateCv'])->scopeBindings()->name('recruitment.candidates.cv');
     Route::post('recruitment/{requisition}/candidates/{candidate}/invitation', [RequisitionController::class, 'inviteCandidate'])->scopeBindings()->name('recruitment.candidates.invite');
+    Route::put('recruitment/{requisition}/candidates/{candidate}/evaluation', [RequisitionController::class, 'saveEvaluation'])->scopeBindings()->name('recruitment.candidates.evaluation');
     Route::post('recruitment/{requisition}/interview', [RequisitionController::class, 'advanceToInterview'])->name('recruitment.interview');
     Route::post('recruitment/{requisition}/cancel', [RequisitionController::class, 'cancel'])->name('recruitment.cancel');
     Route::post('recruitment/{requisition}/comments', [RequisitionController::class, 'comment'])->name('recruitment.comments.store');

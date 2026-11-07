@@ -110,6 +110,8 @@ class SaveRequisitionRequest extends FormRequest
             'benefits.*' => $line,
             'checklist' => ['nullable', 'array'],
             'draft_step' => ['nullable', 'integer', 'in:1,2,3'],
+            'is_urgent' => ['nullable', 'boolean'],
+            'urgent_reason' => ['nullable', 'string', 'max:300'],
             'send' => ['nullable', 'boolean'],
         ];
 
@@ -258,6 +260,8 @@ class SaveRequisitionRequest extends FormRequest
             'benefits' => $this->input('benefits', []),
             'checklist' => $checklist,
             'draft_step' => $this->integer('draft_step', 1),
+            'is_urgent' => $this->boolean('is_urgent'),
+            'urgent_reason' => $this->boolean('is_urgent') && filled($this->input('urgent_reason')) ? trim((string) $this->input('urgent_reason')) : null,
         ];
     }
 }

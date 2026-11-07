@@ -298,6 +298,10 @@ it('exports the filtered directory in the sheet\'s columns, without payroll', fu
 });
 
 it('exports a file the importer can read back', function () {
+    // Names the file is renamed by below: a generated name with a comma in it would split the CSV cell it is put into.
+    $this->company->update(['name' => 'Perusahaan Asal']);
+    $this->other->update(['name' => 'Perusahaan Tujuan']);
+
     $boss = Employee::factory()->inDepartment($this->warehouse)->create(['employee_number' => 'BOSS', 'full_name' => 'Bos', 'joined_on' => '2020-03-04']);
     Employee::factory()->inDepartment($this->warehouse)->create(['employee_number' => 'K-1', 'full_name' => 'Budi', 'manager_id' => $boss->id, 'joined_on' => '2022-01-02']);
 

@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Models\WorkflowComment;
 use App\Models\WorkflowStep;
 use App\Notifications\InAppNotice;
+use App\Support\Recruitment\InvitationMessage;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -291,12 +292,14 @@ class Notifier
             return;
         }
 
+        $urgent = $requisition->is_urgent ? 'MENDESAK · ' : '';
+
         $notice = new InAppNotice(
             'recruitment',
-            $resubmitted
+            $urgent.($resubmitted
                 ? "{$requisition->reference()} diajukan ulang: {$requisition->position_name}"
-                : "{$requisition->reference()}: lowongan {$requisition->position_name} menunggu persetujuan {$step->label}",
-            "{$requisition->department?->name} · kuota {$requisition->quota}",
+                : "{$requisition->reference()}: lowongan {$requisition->position_name} menunggu persetujuan {$step->label}"),
+            "{$requisition->department?->name} · kuota {$requisition->quota}".($requisition->is_urgent ? " · {$requisition->urgent_reason}" : ''),
             route('recruitment.show', $requisition, absolute: false),
         );
 
@@ -363,6 +366,34 @@ class Notifier
         foreach ($this->hrAdmins($requisition->company_id) as $hr) {
             $hr->notify($notice);
         }
+    }
+
+    /**
+     * Interviews held today for a requisition (REC-INT): tell HR and the new hire's direct superior, once, with the
+     * candidates and their times.
+     *
+     * @param  Collection<int, Candidate>  $candidates
+     */
+    public function interviewsToday(Requisition $requisition, Collection $candidates): void
+    {
+        $times = $candidates
+            ->sortBy('interview_at')
+            ->map(fn (Candidate $candidate): string => $candidate->name.' '.InvitationMessage::local($candidate->interview_at)->format('H:i'))
+            ->implode(', ');
+
+        $notice = new InAppNotice(
+            'recruitment',
+            "Interview hari ini: {$requisition->position_name} ({$candidates->count()} kandidat)",
+            "{$requisition->reference()} · {$times}",
+            route('recruitment.show', $requisition, absolute: false),
+        );
+
+        $superior = Employee::acrossCompanies()->whereKey($requisition->manager_employee_id)->first()?->user;
+
+        $this->hrAdmins($requisition->company_id)
+            ->when($superior instanceof User && $superior->is_active, fn (Collection $users) => $users->push($superior))
+            ->unique('id')
+            ->each(fn (User $user) => $user->notify($notice));
     }
 
     /**

@@ -9,6 +9,7 @@ use App\Enums\RequisitionStage;
 use App\Enums\Role;
 use App\Http\Requests\SaveRequisitionRequest;
 use App\Models\Candidate;
+use App\Models\CandidateEvaluation;
 use App\Models\Requisition;
 use App\Models\RequisitionPosting;
 use App\Models\User;
@@ -47,6 +48,8 @@ class RequisitionPresenter
             'step' => $this->stepNumber($stage),
             'statusLabel' => $this->statusLabel($requisition, $stage),
             'isDraft' => $stage === RequisitionStage::Draft,
+            'isUrgent' => $requisition->is_urgent,
+            'urgentReason' => $requisition->is_urgent ? $requisition->urgent_reason : null,
             'createdBy' => $requisition->creator?->name,
             // The date the latest stage was reached; a draft has none ("Belum diajukan", REC-DSH-004).
             'lastUpdate' => $stage === RequisitionStage::Draft ? null : $requisition->workflow?->stage_entered_at->toDateString(),
@@ -118,7 +121,7 @@ class RequisitionPresenter
             'applicantsCount' => $requisition->applicants_count,
             'shortlistedCount' => $requisition->candidates->count(),
             // Personal data: only HR sees who was shortlisted; everyone else sees the counts.
-            'shortlist' => $viewer->can('viewCandidates', $requisition) ? $this->candidates($requisition) : null,
+            'shortlist' => $this->shortlist($requisition, $viewer),
             'sourceOptions' => array_map(fn (CandidateSource $source): array => ['value' => $source->value, 'label' => $source->label()], CandidateSource::cases()),
             'interviewBlockers' => $stage === RequisitionStage::Screening
                 ? $this->engine->blockingReasons($requisition->workflow, RequisitionStage::Interview)
@@ -206,11 +209,31 @@ class RequisitionPresenter
      *
      * @return list<array<string, mixed>>
      */
-    private function candidates(Requisition $requisition): array
+    private function candidates(Requisition $requisition, User $viewer, bool $intervieweesOnly = false): array
     {
-        $requisition->loadMissing('candidates.addedBy:id,name');
+        $requisition->loadMissing('candidates.addedBy:id,name', 'candidates.evaluations.author:id,name');
 
-        return array_values($requisition->candidates->map(fn (Candidate $candidate): array => $this->candidate($requisition, $candidate))->all());
+        return array_values($requisition->candidates
+            ->filter(fn (Candidate $candidate): bool => ! $intervieweesOnly || $candidate->inviteState() !== 'none')
+            ->map(fn (Candidate $candidate): array => $intervieweesOnly
+                ? [...$this->candidate($requisition, $candidate, $viewer), 'phone' => null, 'email' => null, 'note' => null]
+                : $this->candidate($requisition, $candidate, $viewer))
+            ->all());
+    }
+
+    /**
+     * The shortlist as this person may see it: all of it for HR; for the new hire's direct superior only those invited
+     * to interview, without phone, email or note; nothing for anyone else.
+     *
+     * @return list<array<string, mixed>>|null
+     */
+    private function shortlist(Requisition $requisition, User $viewer): ?array
+    {
+        return match (true) {
+            $viewer->can('viewCandidates', $requisition) => $this->candidates($requisition, $viewer),
+            $viewer->can('viewInterviewees', $requisition) => $this->candidates($requisition, $viewer, intervieweesOnly: true),
+            default => null,
+        };
     }
 
     /**
@@ -219,9 +242,9 @@ class RequisitionPresenter
      *
      * @return array<string, mixed>
      */
-    public function candidate(Requisition $requisition, Candidate $candidate): array
+    public function candidate(Requisition $requisition, Candidate $candidate, ?User $viewer = null): array
     {
-        $candidate->loadMissing('addedBy:id,name');
+        $candidate->loadMissing('addedBy:id,name', 'evaluations.author:id,name');
         $cvUrl = $candidate->cv_path === null ? null : route('recruitment.candidates.cv', [$requisition, $candidate]);
 
         return [
@@ -239,6 +262,31 @@ class RequisitionPresenter
             'cvUrl' => $cvUrl,
             'cvPreviewUrl' => $cvUrl === null ? null : InlineImage::previewUrl($cvUrl, (string) $candidate->cv_name),
             ...$this->interviewFields($candidate),
+            ...$this->evaluationFields($requisition, $candidate, $viewer),
+        ];
+    }
+
+    /**
+     * What the interviewers wrote after the interview, and whether this person may add theirs.
+     *
+     * @return array<string, mixed>
+     */
+    private function evaluationFields(Requisition $requisition, Candidate $candidate, ?User $viewer): array
+    {
+        $timezone = (string) config('attendance.device_timezone');
+
+        return [
+            'evaluations' => $candidate->evaluations->map(fn (CandidateEvaluation $evaluation): array => [
+                'id' => $evaluation->id,
+                'author' => $evaluation->author?->name,
+                'rating' => $evaluation->rating,
+                'recommendation' => $evaluation->recommendation->value,
+                'recommendationLabel' => $evaluation->recommendation->label(),
+                'note' => $evaluation->note,
+                'writtenOn' => $evaluation->updated_at?->copy()->setTimezone($timezone)->toDateString(),
+                'isMine' => $viewer !== null && $evaluation->user_id === $viewer->id,
+            ])->values()->all(),
+            'canEvaluate' => $viewer !== null && $viewer->can('evaluate', [$requisition, $candidate]),
         ];
     }
 

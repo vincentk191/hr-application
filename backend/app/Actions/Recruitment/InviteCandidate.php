@@ -53,6 +53,9 @@ class InviteCandidate
             'interview_at' => $interviewAt->utc(),
             'interview_mode' => $fields['interview_mode'],
             'interview_place' => trim($fields['interview_place']),
+            // A new time is a new day to remind.
+            'candidate_reminded_at' => null,
+            'interviewers_reminded_at' => null,
         ])->save();
 
         $link = $formOpen ? $this->publicLink($token) : null;

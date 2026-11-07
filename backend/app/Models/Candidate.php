@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -40,6 +41,8 @@ use Illuminate\Support\Carbon;
  * @property string|null $invitation_subject
  * @property string|null $invitation_message
  * @property bool $invitation_emailed
+ * @property Carbon|null $candidate_reminded_at
+ * @property Carbon|null $interviewers_reminded_at
  * @property Carbon|null $form_submitted_at
  * @property array<string, mixed>|null $form_data
  * @property Carbon|null $created_at
@@ -69,6 +72,8 @@ use Illuminate\Support\Carbon;
     'invitation_subject',
     'invitation_message',
     'invitation_emailed',
+    'candidate_reminded_at',
+    'interviewers_reminded_at',
     'form_submitted_at',
     'form_data',
 ])]
@@ -95,6 +100,8 @@ class Candidate extends Model
             'interview_at' => 'datetime',
             'form_submitted_at' => 'datetime',
             'invitation_emailed' => 'boolean',
+            'candidate_reminded_at' => 'datetime',
+            'interviewers_reminded_at' => 'datetime',
             'form_data' => 'array',
         ];
     }
@@ -139,6 +146,16 @@ class Candidate extends Model
     public function requisition(): BelongsTo
     {
         return $this->belongsTo(Requisition::class);
+    }
+
+    /**
+     * What the interviewers wrote after the interview (REC-INT), oldest first.
+     *
+     * @return HasMany<CandidateEvaluation, $this>
+     */
+    public function evaluations(): HasMany
+    {
+        return $this->hasMany(CandidateEvaluation::class)->orderBy('id');
     }
 
     /**

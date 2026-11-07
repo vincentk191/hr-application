@@ -93,6 +93,10 @@ class SubmitRequisition
             $problems['reason'] = 'Isi alasan permintaan.';
         }
 
+        if ($requisition->is_urgent && trim((string) $requisition->urgent_reason) === '') {
+            $problems['urgent_reason'] = 'Isi alasan mendesak.';
+        }
+
         if (trim((string) $requisition->about) === '') {
             $problems['about'] = 'Isi Tentang Posisi.';
         }

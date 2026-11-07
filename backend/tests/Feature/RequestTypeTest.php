@@ -9,6 +9,7 @@ use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\RequestType;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -20,6 +21,8 @@ use Spatie\Activitylog\Models\Activity;
  * timeframe on a request.
  */
 beforeEach(function () {
+    // The requests below are for the first days of November 2026, which must still be ahead of "today".
+    $this->travelTo(CarbonImmutable::parse('2026-11-02 12:00', 'Asia/Jakarta'));
     $this->seed(RoleSeeder::class);
     $this->company = Company::factory()->create();
     $this->hr = typesUser(Role::HrAdmin, null);

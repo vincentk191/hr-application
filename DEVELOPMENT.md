@@ -69,6 +69,45 @@ left uncommitted for review.
 
 ## Change log (latest first)
 
+- **2026-11-06 (recruitment: the rest of stage 04, and the first-slice gaps; decided with the user).** Migrations
+  `add_urgent_to_requisitions_table`, `create_candidate_evaluations_table`, `add_reminders_to_candidates_table`.
+  - **Rescheduling by the candidate: not built, by decision.** The candidate replies to the email or WhatsApp and HR changes
+    the time in the app (re-inviting already makes a new link and message and moves the form's day).
+  - **Interview feedback (REC-INT).** `candidate_evaluations`: one row per person per candidate (a 1 to 5 rating, a
+    recommendation Lanjut / Pertimbangkan / Tidak lanjut, a note), changed by saving again. **Who:** HR (`manage-recruitment`)
+    and the requisition's **direct superior (Atasan langsung)**, once the interview's time has passed, for a candidate who
+    was invited, at Interview or Offer (`RequisitionPolicy::evaluate`). **The superior's view:** they now see a requisition
+    once it is sent (`Requisition::visibleTo`, and the Rekrutmen menu), and in it only the candidates **invited** to
+    interview, with phone, email and note left out (`viewInterviewees`), and may open those candidates' CVs; they cannot
+    add, invite or remove. Everyone who sees a candidate sees all evaluations of them. UI: a **Penilaian** section on the
+    candidate drawer's Interview tab (the list, the average, and the form for someone allowed to give one); the Interview
+    list's "Sudah lewat" became **Menunggu penilaian** and **Sudah dinilai**, with the average on the row. Route
+    `recruitment.candidates.evaluation`; `SaveEvaluation`, `SaveEvaluationRequest`.
+  - **Interview reminders.** `php artisan recruitment:interview-reminders`, scheduled **08:00 company time** daily: a
+    candidate with an email gets a plain-text reminder (when and where; not the form link) the day before, and on the day HR
+    and the direct superior get one in-app notice per requisition listing the candidates and times. Each once
+    (`candidate_reminded_at`, `interviewers_reminded_at`), cleared by a re-invite so a new time is reminded too; cancelled,
+    filled and not-yet-Interview requisitions are skipped; "tomorrow" is judged in company time. Needs the scheduler and the
+    queue worker running (both are services in the compose stack). The reminder text is fixed (not in the admin template).
+  - **Fast-track "Mendesak" (REC-WIZ-006), a marker only.** A checkbox and a reason on the request form (the reason is required
+    to send); an urgent tag on the dashboard, the requisition header and the list sorts urgent first; its approvers' notice
+    starts with "MENDESAK ·" and carries the reason. **The approval chain is unchanged.**
+  - **CSV export (REC-DSH-007).** "Ekspor CSV" on the dashboard (`recruitment.export`): the rows as filtered (status and
+    department), urgent first; reference, position, department, Cabang, quota, filled, shortlist, stage, status, urgent,
+    updated, PIC, plus the salary range **only** for HR and Management.
+  - **Badge on "Rekrutmen" (REC-DSH-008): what waits on this person** (`Support/Recruitment/RecruitmentTodo`, shared as
+    `recruitmentTodo`): an approval waiting on them; for HR, an approved requisition ready for "Lanjut ke Posting" and one at
+    Posting with nothing recorded; and, for HR and the direct superior, an interview held that they have not evaluated.
+    Zero on the public entrance.
+  - **Candidate page: not built, by decision**; the candidate drawer (below) is the candidate view.
+  - **Checked:** new `RequisitionEvaluationTest` (11), `InterviewRemindersTest` (7), more cases in `RequisitionTest`; Pint,
+    PHPStan on the touched files, TypeScript and the formatter clean. A whole-suite run found 9 failures, none a bug: eight
+    date-dependent cases in `RequestTypeTest` (fixed with `travelTo`, as the leave tests were) and one fixture in
+    `RequisitionTest` that now correctly shows the direct superior a requisition (given a different superior). A tenth, in
+    `EmployeeImportTest` (the export read back), failed about one run in four: the random company name it renamed the file
+    to could contain a comma and split a CSV cell; the two names are now fixed in that test. **Run on the
+    host with `php -d memory_limit=2G vendor/bin/pest`:** `artisan test` ran out of the default 128 MB there.
+
 - **2026-11-06 (HR cards on Beranda).** `App\Support\Dashboard\AdminOverview` adds three props to the dashboard, each null
   for anyone it is not for. `waiting` (Menunggu keputusan): leave, requisitions and offboarding waiting on this person
   (`WorkflowStep::waitingOn`, the same as the approval queues) and profile changes (as the menu badge counts them); shown
@@ -1460,15 +1499,15 @@ Screening now happens inside the platforms, and the app only meets the people HR
 
 | Screen                            | Name                        | f   | P1  | Status | Notes                                                       |
 | --------------------------------- | --------------------------- | --- | --- | ------ | ----------------------------------------------------------- |
-| `REC-DSH`                         | Recruitment dashboard       | 9   | 6   | 🟡     | Built 10-28: tiles (open, waiting approval, quota open, my drafts: candidates and interviews wait on stages 03/04), table (Jabatan + ID, Departemen, Kuota filled/quota, Kand., Update Terakhir or "Belum diajukan", Status, PIC), status and department filters, row routing (a draft opens the wizard), "+ Ajukan Lowongan", company switcher. Not yet: CSV export (007), nav badge (008, rule TBD) |
-| `REC-WIZ`                         | Requisition wizard shell    | 6   | 4   | 🟡     | Built 10-28: stepper, Sebelumnya/Selanjutnya keeping the values, Simpan Draft at any step (back to the dashboard), resume at the saved step, edit while sent and undecided (005). Not yet: fast-track flag (006) |
+| `REC-DSH`                         | Recruitment dashboard       | 9   | 6   | ✅     | Built 11-06 as well: CSV export (007), the "what waits on me" badge (008), the "Mendesak" tag. Built 10-28: tiles (open, waiting approval, quota open, my drafts: candidates and interviews wait on stages 03/04), table (Jabatan + ID, Departemen, Kuota filled/quota, Kand., Update Terakhir or "Belum diajukan", Status, PIC), status and department filters, row routing (a draft opens the wizard), "+ Ajukan Lowongan", company switcher. Not yet: CSV export (007), nav badge (008, rule TBD) |
+| `REC-WIZ`                         | Requisition wizard shell    | 6   | 4   | ✅     | Built 10-28: stepper, Sebelumnya/Selanjutnya keeping the values, Simpan Draft at any step (back to the dashboard), resume at the saved step, edit while sent and undecided (005). Built 11-06: the "Mendesak" marker with a reason (006), a marker only |
 | `REC-WZ1` · `REC-WZ2` · `REC-WZ3` | Wizard steps 01–03          | 8   | 7   | ✅     | Built 10-28, reworked the same day to the design's fixed template (see the Phase 4 notes). Step 1 "The ask": Posisi, Departemen, Cabang (optional, added), Jumlah kuota (whole, ≥ 1), Tipe kontrak (+ months for Kontrak/Magang), Atasan langsung, Target mulai kerja (never in the past), Alasan permintaan. Step 2: the job posting (Tentang Posisi, Tanggung Jawab Utama with the requester's own subtitles, Benefit & Fasilitas) and the candidate checklist (Kualifikasi, Skills, Nilai Plus). Step 3: one review page, then "Ajukan untuk Persetujuan" builds the chain. `REC-WZ2-002`'s requirement list is now the checklist; its base is the admin template (`REC-TPL-001`) |
 | `REC-TPL`                         | Templates (admin)           | 1   | 0   | 🟡     | Built 10-28: admin page **Template rekrutmen** (parent-wide HR Admin) holds the base lines for Benefit & Fasilitas and for each fixed checklist subtitle (Pendidikan, Pengalaman, Hard Skills, Soft Skills, Nilai Plus); a new requisition copies them. The sections and subtitles themselves are fixed in code |
 | `REC-PIP`                         | Requisition pipeline        | 6   | 4   | 🟡     | Built 10-28: header and breadcrumb, 6-stage tracker with the date each was reached, locked future stages, forward-only (`RequisitionWorkflow`), opens on the current stage, status line (006). Stages 02, 03 and 04 (invitation) are built (11-04); stages 05-06 show a placeholder. A cancelled requisition keeps the stages it reached open |
 | `REC-APR`                         | Stage 01 Approval           | 9   | 5   | ✅     | Built 10-28: chain Manajemen → HR (decided 2026-10-28, see Phase 4 notes), "Setujui sebagai …", reject with a reason back to a draft, "Lanjut ke Posting" gated on every approval, Edit, "Diajukan <date> oleh <requester>", Ekspektasi Gaji required for Management's approval with "Simpan" before it (007/008), comment thread (009) |
 | `REC-PST`                         | Stage 02 Posting            | 7   | 4   | ✅     | Built 11-04 (revised plan: manual, no cmp-api push): copy buttons (Judul, Deskripsi, Persyaratan, Semua), "Tandai sudah diposting" per platform with date and optional link, correct/remove, "Lanjut ke Screening" once one is recorded, "Batalkan lowongan" with a reason (PST-004) |
 | `REC-SCR`                         | Stage 03 Screening          | 8   | 4   | ✅     | Built 11-04 (revised plan): total-applicants count, quick-add of shortlisted candidates (duplicate warning, paste-to-autofill, optional CV), shortlist list, "Lanjut ke Interview". No ranking. Candidate list is HR-only |
-| `REC-INT`                         | Stage 04 Interview          | 8   | 3   | 🟡     | Built 11-04 (revised plan): invitation (time, online/in person, Meet link or address) by email with the same text for WhatsApp, single-use link, open only on the interview day, to the public in-app candidate form (Ya/Tidak on the checklist, salary, start date), answers shown to HR. Not yet: candidate reschedule, Google Meet creation, feedback/scoring, reminders |
+| `REC-INT`                         | Stage 04 Interview          | 8   | 3   | ✅     | Built 11-04 (revised plan): invitation (time, online/in person, Meet link or address) by email with the same text for WhatsApp, single-use link, open only on the interview day, to the public in-app candidate form (Ya/Tidak on the checklist, salary, start date), answers shown to HR. Built 11-06: feedback by HR and the direct superior, reminders (candidate the day before, HR and superior on the day). Candidate rescheduling stays with HR by decision. Google Meet creation waits on the account test |
 | `REC-OFS`                         | Stage 05 Offer              | 9   | 8   | ⬜     | Management final approval + offer letter                    |
 | `REC-FIL`                         | Stage 06 Filled             | 7   | 6   | ⬜     | Convert-to-employee (L). Creates the profile the hire then registers against (`CORE-REG`); until this exists HR creates profiles by hand or CSV |
 | `REC-CAN` · `REC-CDT` · `REC-CRV` | Candidate detail + tabs     | 11  | 8   | ⬜     |                                                             |

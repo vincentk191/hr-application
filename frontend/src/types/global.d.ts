@@ -24,6 +24,8 @@ declare module '@inertiajs/core' {
             pendingForMe: number;
             /** Open offboarding cases this person may see: the badge on "Offboarding". */
             openOffboarding: number;
+            /** What in Rekrutmen waits on the signed-in person: the badge on "Rekrutmen". */
+            recruitmentTodo: number;
             /** Profile change requests HR has to decide: the badge on "Perubahan data". */
             pendingProfileChanges: number;
             /** The modules switched on for this release; the menus and tabs follow it. */

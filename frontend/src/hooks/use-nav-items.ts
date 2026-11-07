@@ -47,6 +47,7 @@ export function useNavSections(): NavSection[] {
         pendingForMe,
         pendingProfileChanges,
         openOffboarding,
+        recruitmentTodo,
         features,
     } = usePage().props;
 
@@ -84,6 +85,7 @@ export function useNavSections(): NavSection[] {
                       title: 'Rekrutmen',
                       href: recruitmentIndex(),
                       icon: UserPlus,
+                      badge: recruitmentTodo,
                   },
               ]
             : []),

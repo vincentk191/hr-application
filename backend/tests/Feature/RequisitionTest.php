@@ -408,7 +408,8 @@ it('keeps "Lanjut ke Posting" shut until every approval is in, and lets only HR 
 it('lists what each person may see, with the summary and the menu entry', function () {
     $sent = submittedRequisition();
     draftRequisition($this->rudi->user, $this->gudang)->assertRedirect();
-    submittedRequisition($this->hr, $this->finance);
+    // HR's own, for Finance and with Mira as the new hire's superior: nothing in it concerns Rudi.
+    draftRequisition($this->hr, $this->finance, ['manager_employee_id' => $this->mira->id, 'send' => 1])->assertRedirect();
 
     $this->actingAs($this->rudi->user)->get(route('recruitment.index'))
         ->assertInertia(fn (Assert $page) => $page
@@ -428,4 +429,116 @@ it('lists what each person may see, with the summary and the menu entry', functi
     $this->actingAs($this->lukas->user)->get(route('recruitment.index'))->assertForbidden();
     $this->actingAs($this->lukas->user)->get(route('dashboard'))
         ->assertInertia(fn (Assert $page) => $page->where('auth.canViewRecruitment', false));
+});
+
+// --- Fast-track: "Mendesak" (REC-WIZ-006) ---
+
+it('marks a requisition urgent with a reason, tells its approvers, and lists it first', function () {
+    $normal = submittedRequisition();
+    draftRequisition($this->rudi->user, $this->gudang, ['is_urgent' => 1, 'urgent_reason' => 'Pegawai keluar mendadak', 'send' => 1])->assertRedirect();
+    $urgent = latestRequisition()->refresh();
+
+    expect($urgent->is_urgent)->toBeTrue()->and($urgent->urgent_reason)->toBe('Pegawai keluar mendadak')
+        ->and($normal->refresh()->is_urgent)->toBeFalse();
+
+    $urgentNotices = $this->mira->user->notifications()->get()->filter(fn ($notice): bool => str_starts_with((string) $notice->data['title'], 'MENDESAK · '));
+
+    expect($urgentNotices)->toHaveCount(1)->and(json_encode($urgentNotices->first()->data))->toContain('Pegawai keluar mendadak');
+
+    $this->actingAs($this->hr)->get(route('recruitment.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('requisitions.0.id', $urgent->id)
+            ->where('requisitions.0.isUrgent', true)
+            ->where('requisitions.0.urgentReason', 'Pegawai keluar mendadak')
+            ->where('requisitions.1.isUrgent', false));
+});
+
+it('will not send an urgent requisition without saying why', function () {
+    draftRequisition($this->rudi->user, $this->gudang, ['is_urgent' => 1, 'urgent_reason' => '  ', 'send' => 1])->assertSessionHasErrors('urgent_reason');
+
+    expect(stageOfRequisition(latestRequisition()))->toBe('draft');
+});
+
+it('keeps no reason on a requisition that is not urgent', function () {
+    draftRequisition($this->rudi->user, $this->gudang, ['is_urgent' => 0, 'urgent_reason' => 'Lupa dihapus'])->assertRedirect();
+
+    expect(latestRequisition()->urgent_reason)->toBeNull();
+});
+
+// --- CSV export (REC-DSH-007) ---
+
+it('exports the dashboard rows as filtered, with the salary only for those who see it', function () {
+    $sent = submittedRequisition();
+    draftRequisition($this->rudi->user, $this->gudang)->assertRedirect();
+    $sent->update(['salary_min' => 4000000, 'salary_max' => 6000000]);
+
+    $hr = $this->actingAs($this->hr)->get(route('recruitment.export'))->assertOk();
+    $lines = array_values(array_filter(explode("\n", $hr->streamedContent())));
+
+    expect($lines)->toHaveCount(2)
+        ->and($lines[0])->toContain('Referensi')->toContain('Gaji minimal')
+        ->and($lines[1])->toContain($sent->reference())->toContain('4000000');
+
+    $mine = $this->actingAs($this->rudi->user)->get(route('recruitment.export', ['status' => 'all']))->assertOk();
+    $mineLines = array_values(array_filter(explode("\n", $mine->streamedContent())));
+
+    expect($mineLines)->toHaveCount(3)->and($mineLines[0])->not->toContain('Gaji')->and($mine->streamedContent())->not->toContain('4000000');
+
+    $draftsOnly = $this->actingAs($this->rudi->user)->get(route('recruitment.export', ['status' => 'draft']))->streamedContent();
+    expect(array_values(array_filter(explode("\n", $draftsOnly))))->toHaveCount(2);
+});
+
+it('exports nothing to someone with no business in Rekrutmen', function () {
+    $this->actingAs($this->lukas->user)->get(route('recruitment.export'))->assertForbidden();
+});
+
+// --- The badge on "Rekrutmen": what waits on this person (REC-DSH-008) ---
+
+function recruitmentTodo(User $user): int
+{
+    $count = null;
+
+    test()->actingAs($user)->get(route('dashboard'))->assertInertia(function (Assert $page) use (&$count): void {
+        $count = $page->toArray()['props']['recruitmentTodo'];
+    });
+
+    return $count;
+}
+
+it('counts what waits on each person along the way, and nothing for anyone else', function () {
+    expect(recruitmentTodo($this->mira->user))->toBe(0)->and(recruitmentTodo($this->hr))->toBe(0);
+
+    $requisition = submittedRequisition();
+
+    // Management's approval is open; HR's is not yet.
+    expect(recruitmentTodo($this->mira->user))->toBe(1)
+        ->and(recruitmentTodo($this->hr))->toBe(0)
+        ->and(recruitmentTodo($this->rudi->user))->toBe(0)
+        ->and(recruitmentTodo($this->lukas->user))->toBe(0);
+
+    $this->actingAs($this->mira->user)->put(route('recruitment.decide', $requisition), ['decision' => 'approve', 'salary_min' => 1, 'salary_max' => 2]);
+    expect(recruitmentTodo($this->mira->user))->toBe(0)->and(recruitmentTodo($this->hr))->toBe(1)->and(recruitmentTodo($this->hr2))->toBe(1);
+
+    // Both approvals in: HR's step is done, and the requisition is ready to move on.
+    $this->actingAs($this->hr)->put(route('recruitment.decide', $requisition), ['decision' => 'approve']);
+    expect(recruitmentTodo($this->hr))->toBe(1);
+
+    // At Posting with nothing recorded, until HR records a platform.
+    $this->actingAs($this->hr)->post(route('recruitment.advance', $requisition));
+    expect(recruitmentTodo($this->hr))->toBe(1);
+
+    $this->actingAs($this->hr)->post(route('recruitment.postings.store', $requisition), ['platform' => 'glints', 'posted_on' => now()->toDateString()]);
+    expect(recruitmentTodo($this->hr))->toBe(0);
+});
+
+it('shows no badge on the public entrance', function () {
+    submittedRequisition();
+
+    $count = null;
+    $this->withServerVariables(['ENTRANCE' => 'public'])->actingAs($this->mira->user)->get(route('dashboard'))
+        ->assertInertia(function (Assert $page) use (&$count): void {
+            $count = $page->toArray()['props']['recruitmentTodo'];
+        });
+
+    expect($count)->toBe(0);
 });

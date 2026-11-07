@@ -41,6 +41,8 @@ use Illuminate\Support\Carbon;
  * @property list<string>|null $benefits
  * @property array<string, list<string>>|null $checklist
  * @property int $draft_step
+ * @property bool $is_urgent
+ * @property string|null $urgent_reason
  * @property int|null $salary_min
  * @property int|null $salary_max
  * @property int|null $salary_set_by_user_id
@@ -67,6 +69,8 @@ use Illuminate\Support\Carbon;
     'benefits',
     'checklist',
     'draft_step',
+    'is_urgent',
+    'urgent_reason',
     'salary_min',
     'salary_max',
     'salary_set_by_user_id',
@@ -93,6 +97,7 @@ class Requisition extends Model
             'benefits' => 'array',
             'checklist' => 'array',
             'draft_step' => 'integer',
+            'is_urgent' => 'boolean',
             'applicants_count' => 'integer',
             'salary_min' => 'integer',
             'salary_max' => 'integer',
@@ -224,7 +229,8 @@ class Requisition extends Model
     /**
      * The requisitions this person may see (CORE-RBA-004). A draft is its requester's alone. Once sent: HR sees
      * every one in the company, Management every one too (they approve them), and a department's head those for
-     * their department. The requester always sees their own.
+     * their department. The requester always sees their own, and the new hire's direct superior (Atasan langsung) sees
+     * the one they will interview for, once it is sent.
      *
      * @param  Builder<static>  $query
      */
@@ -236,13 +242,18 @@ class Requisition extends Model
         $headed = $own === null ? [] : Department::query()->where('supervisor_employee_id', $own)->pluck('id')->all();
         $seesEverySent = $user->can(Permission::ManageRecruitment->value) || $user->isA(Role::Management);
 
-        $query->where(function (Builder $inner) use ($user, $sent, $headed, $seesEverySent): void {
+        $query->where(function (Builder $inner) use ($user, $sent, $headed, $seesEverySent, $own): void {
             $inner->where('created_by_user_id', $user->id);
 
             if ($seesEverySent) {
                 $inner->orWhere(fn (Builder $all) => $sent($all));
             } elseif ($headed !== []) {
                 $inner->orWhere(fn (Builder $mine) => $sent($mine->whereIn('department_id', $headed)));
+            }
+
+            // The direct superior of the new hire sees the requisition once sent: they interview for it.
+            if ($own !== null && ! $seesEverySent) {
+                $inner->orWhere(fn (Builder $mine) => $sent($mine->where('manager_employee_id', $own)));
             }
         });
     }

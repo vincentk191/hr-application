@@ -31,3 +31,9 @@ Schedule::command('offboarding:apply-exits')
 Schedule::command('notifications:document-expiry')
     ->dailyAt('08:00')
     ->timezone((string) config('attendance.device_timezone'));
+
+// Interview reminders (REC-INT): candidates are emailed the day before, HR and the direct superior told the morning of.
+// Each is sent once, so running it again changes nothing.
+Schedule::command('recruitment:interview-reminders')
+    ->dailyAt('08:00')
+    ->timezone((string) config('attendance.device_timezone'));

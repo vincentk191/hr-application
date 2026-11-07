@@ -12,17 +12,20 @@ use App\Actions\Recruitment\InviteCandidate;
 use App\Actions\Recruitment\RemoveCandidate;
 use App\Actions\Recruitment\RemovePosting;
 use App\Actions\Recruitment\SaveApplicantCount;
+use App\Actions\Recruitment\SaveEvaluation;
 use App\Actions\Recruitment\SavePosting;
 use App\Actions\Recruitment\SaveRequisitionDraft;
 use App\Actions\Recruitment\SaveSalaryExpectation;
 use App\Actions\Recruitment\SubmitRequisition;
 use App\Enums\EmploymentStatus;
 use App\Enums\EmploymentType;
+use App\Enums\Permission;
 use App\Enums\RequisitionStage;
 use App\Enums\Role;
 use App\Http\Requests\AddCandidateRequest;
 use App\Http\Requests\DecideRequisitionRequest;
 use App\Http\Requests\InviteCandidateRequest;
+use App\Http\Requests\SaveEvaluationRequest;
 use App\Http\Requests\SavePostingRequest;
 use App\Http\Requests\SaveRequisitionRequest;
 use App\Models\Branch;
@@ -32,6 +35,7 @@ use App\Models\Employee;
 use App\Models\Requisition;
 use App\Models\RequisitionPosting;
 use App\Models\User;
+use App\Support\CsvDownload;
 use App\Support\Files\InlineImage;
 use App\Support\Notifications\Notifier;
 use App\Support\Recruitment\InvitationMessage;
@@ -42,6 +46,7 @@ use App\Support\Workflow\WorkflowDiscussion;
 use App\Workflows\Exceptions\TransitionBlocked;
 use App\Workflows\WorkflowEngine;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -73,13 +78,7 @@ class RequisitionController extends Controller
         $filters = $this->filters($request);
         $visible = fn (): Builder => Requisition::query()->visibleTo($user);
 
-        $requisitions = $visible()
-            ->with(['department:id,name', 'branch:id,name', 'creator:id,name', 'workflow.steps', 'postings', 'candidates:id,requisition_id'])
-            ->when($filters['status'] === 'open', fn (Builder $query) => $query->open())
-            ->when(! in_array($filters['status'], ['open', 'all'], true), fn (Builder $query) => $query->whereHas('workflow', fn (Builder $workflow) => $workflow->where('current_stage', $filters['status'])))
-            ->when($filters['department'] !== null, fn (Builder $query) => $query->whereHas('department', fn (Builder $department) => $department->where('name', $filters['department'])))
-            ->latest('id')
-            ->get();
+        $requisitions = $this->listed($user, $filters);
 
         $open = $visible()->with('workflow')->open()->get();
 
@@ -96,6 +95,62 @@ class RequisitionController extends Controller
             ],
             'departments' => Department::query()->whereIn('id', $visible()->select('department_id'))->orderBy('name')->pluck('name')->values(),
             'canCreate' => $user->can('create', Requisition::class),
+        ]);
+    }
+
+    /**
+     * The dashboard's requisitions as the filters narrow them, urgent ones first: what the table shows and what the
+     * CSV export carries.
+     *
+     * @param  array{status: string, department: string|null}  $filters
+     * @return Collection<int, Requisition>
+     */
+    private function listed(User $user, array $filters): Collection
+    {
+        return Requisition::query()->visibleTo($user)
+            ->with(['department:id,name', 'branch:id,name', 'creator:id,name', 'workflow.steps', 'postings', 'candidates:id,requisition_id'])
+            ->when($filters['status'] === 'open', fn (Builder $query) => $query->open())
+            ->when(! in_array($filters['status'], ['open', 'all'], true), fn (Builder $query) => $query->whereHas('workflow', fn (Builder $workflow) => $workflow->where('current_stage', $filters['status'])))
+            ->when($filters['department'] !== null, fn (Builder $query) => $query->whereHas('department', fn (Builder $department) => $department->where('name', $filters['department'])))
+            ->orderByDesc('is_urgent')
+            ->latest('id')
+            ->get();
+    }
+
+    /**
+     * The dashboard as a CSV (REC-DSH-007): the same rows as on screen, with the same filters. The salary expectation
+     * is added only for Management and HR, who are the only ones shown it.
+     */
+    public function export(Request $request): StreamedResponse
+    {
+        $this->authorize('viewAny', Requisition::class);
+
+        $user = $request->user();
+        $withSalary = $user->can(Permission::ManageRecruitment->value) || $user->isA(Role::Management);
+
+        $rows = $this->listed($user, $this->filters($request))->map(function (Requisition $requisition) use ($withSalary): array {
+            $row = $this->presenter->row($requisition);
+
+            return [
+                $row['reference'],
+                $row['positionName'],
+                $row['department'],
+                $row['branch'],
+                $row['quota'],
+                $row['filled'],
+                $row['candidates'],
+                $row['stageLabel'],
+                $row['statusLabel'],
+                $row['isUrgent'] ? 'Ya' : '',
+                $row['lastUpdate'],
+                $row['createdBy'],
+                ...($withSalary ? [$requisition->salary_min, $requisition->salary_max] : []),
+            ];
+        });
+
+        return CsvDownload::stream('rekrutmen-'.now()->format('Y-m-d').'.csv', [
+            ['Referensi', 'Posisi', 'Departemen', 'Cabang', 'Kuota', 'Terisi', 'Shortlist', 'Tahap', 'Status', 'Mendesak', 'Diperbarui', 'PIC', ...($withSalary ? ['Gaji minimal', 'Gaji maksimal'] : [])],
+            ...$rows,
         ]);
     }
 
@@ -397,11 +452,30 @@ class RequisitionController extends Controller
     }
 
     /**
+     * "Nilai": an interviewer's rating, recommendation and note about a candidate, after the interview (REC-INT). Saving
+     * again replaces their own.
+     */
+    public function saveEvaluation(SaveEvaluationRequest $request, Requisition $requisition, Candidate $candidate, SaveEvaluation $save): RedirectResponse
+    {
+        $save->handle($candidate, $request->user(), $request->evaluationFields());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Penilaian disimpan.']);
+
+        return back();
+    }
+
+    /**
      * A candidate's CV, from the private disk. A picture can be looked at in the page with `?inline=1`.
      */
     public function candidateCv(Request $request, Requisition $requisition, Candidate $candidate): StreamedResponse
     {
-        $this->authorize('viewCandidates', $requisition);
+        $user = $request->user();
+
+        // HR opens any CV; the direct superior only that of a candidate who was invited to interview.
+        abort_unless(
+            $user->can('viewCandidates', $requisition) || ($user->can('viewInterviewees', $requisition) && $candidate->inviteState() !== 'none'),
+            403,
+        );
 
         abort_unless($candidate->cv_path !== null && Storage::disk(Candidate::CV_DISK)->exists($candidate->cv_path), 404);
 

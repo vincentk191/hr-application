@@ -231,6 +231,10 @@ export default function RequisitionForm({
         existing?.targetStartOn ?? '',
     );
     const [reason, setReason] = useState(existing?.reason ?? '');
+    const [urgent, setUrgent] = useState(existing?.isUrgent ?? false);
+    const [urgentReason, setUrgentReason] = useState(
+        existing?.urgentReason ?? '',
+    );
     const [about, setAbout] = useState(existing?.about ?? template.about);
     const [responsibilities, setResponsibilities] = useState<
         ResponsibilityGroup[]
@@ -674,6 +678,8 @@ export default function RequisitionForm({
                         responsibilities,
                         benefits,
                         checklist,
+                        is_urgent: urgent ? 1 : 0,
+                        urgent_reason: urgent ? urgentReason : '',
                     })}
                     className="space-y-5"
                 >
@@ -932,6 +938,42 @@ export default function RequisitionForm({
                                             }
                                             className={textareaClasses}
                                         />
+                                    </FieldRow>
+                                    <FieldRow
+                                        label="Mendesak"
+                                        htmlFor="urgent-reason"
+                                        error={errors.urgent_reason}
+                                    >
+                                        <div className="space-y-2">
+                                            <label className="flex items-center gap-2 text-sm">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={urgent}
+                                                    onChange={(event) =>
+                                                        setUrgent(
+                                                            event.target
+                                                                .checked,
+                                                        )
+                                                    }
+                                                    data-test="urgent-toggle"
+                                                />
+                                                Tandai lowongan ini mendesak
+                                            </label>
+                                            {urgent && (
+                                                <Input
+                                                    id="urgent-reason"
+                                                    value={urgentReason}
+                                                    onChange={(event) =>
+                                                        setUrgentReason(
+                                                            event.target.value,
+                                                        )
+                                                    }
+                                                    maxLength={300}
+                                                    placeholder="Alasan mendesak"
+                                                    data-test="urgent-reason"
+                                                />
+                                            )}
+                                        </div>
                                     </FieldRow>
                                 </Section>
 

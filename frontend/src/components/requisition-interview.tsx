@@ -1,6 +1,7 @@
 import { Form, router } from '@inertiajs/react';
 import { Fragment, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
+import { averageRating } from '@/components/candidate-evaluations';
 import { CandidateDrawer } from '@/components/candidate-drawer';
 import type { CandidateTab } from '@/components/candidate-drawer';
 import { modeLabel } from '@/components/candidate-invitation';
@@ -300,6 +301,8 @@ function CandidateSummaryRow({
     at: Date | null;
     onOpen: (candidate: Candidate) => void;
 }) {
+    const average = averageRating(candidate.evaluations);
+
     return (
         <li data-test="interview-candidate">
             <button
@@ -316,6 +319,12 @@ function CandidateSummaryRow({
                 {candidate.interviewPlace && (
                     <span className="block text-sm break-words text-muted-foreground">
                         {candidate.interviewPlace}
+                    </span>
+                )}
+                {average && (
+                    <span className="label-mono block">
+                        NILAI {average} / 5 · {candidate.evaluations.length}{' '}
+                        PENILAI
                     </span>
                 )}
             </button>
@@ -756,6 +765,13 @@ export function InterviewTab({ item }: { item: Requisition }) {
     const past = entries
         .filter((entry) => entry.at < now)
         .sort((a, b) => b.at.getTime() - a.at.getTime());
+    // An interview that has been held either waits for its first evaluation or has one.
+    const awaiting = past.filter(
+        (entry) => entry.candidate.evaluations.length === 0,
+    );
+    const evaluated = past.filter(
+        (entry) => entry.candidate.evaluations.length > 0,
+    );
     const thisWeek = upcoming.filter(
         (entry) => entry.at < addDays(startOfWeek(now), 7),
     ).length;
@@ -785,7 +801,7 @@ export function InterviewTab({ item }: { item: Requisition }) {
             >
                 {item.shortlist.length} kandidat di tahap interview ·{' '}
                 {upcoming.length} terjadwal ({thisWeek} minggu ini) ·{' '}
-                {past.length} sudah lewat.
+                {awaiting.length} menunggu penilaian.
                 {unscheduled.length > 0
                     ? ` ${unscheduled.length} kandidat belum punya jadwal.`
                     : ''}
@@ -831,8 +847,19 @@ export function InterviewTab({ item }: { item: Requisition }) {
                                     row(entry.candidate, entry.at),
                                 )}
                             </Group>
-                            <Group title="Sudah lewat" count={past.length}>
-                                {past.map((entry) =>
+                            <Group
+                                title="Menunggu penilaian"
+                                count={awaiting.length}
+                            >
+                                {awaiting.map((entry) =>
+                                    row(entry.candidate, entry.at),
+                                )}
+                            </Group>
+                            <Group
+                                title="Sudah dinilai"
+                                count={evaluated.length}
+                            >
+                                {evaluated.map((entry) =>
                                     row(entry.candidate, entry.at),
                                 )}
                             </Group>
