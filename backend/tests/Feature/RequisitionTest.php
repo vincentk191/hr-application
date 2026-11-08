@@ -243,7 +243,40 @@ it('sends a requisition to the Management above the requester, then to HR', func
         ->and($chain[1]->approver_role)->toBe(Role::HrAdmin->value)
         ->and($chain[1]->status->value)->toBe('locked')
         ->and($this->mira->user->notifications()->count())->toBe(1)
-        ->and($this->hr->notifications()->count())->toBe(0);
+        ->and($this->hr->notifications()->count())->toBe(1)
+        ->and($this->hr2->notifications()->count())->toBe(1);
+});
+
+it('tells every HR Admin of a new request, whoever it is assigned to', function () {
+    submittedRequisition();
+
+    $notice = $this->hr->notifications()->firstOrFail()->data;
+
+    expect($notice['title'])->toContain('diajukan')->and($notice['body'])->toContain('menunggu Manajemen')
+        // Mira decides it and is told as its approver, once. Rudi sent it and is told nothing.
+        ->and($this->mira->user->notifications()->count())->toBe(1)
+        ->and($this->rudi->user->notifications()->count())->toBe(0)
+        ->and($this->lukas->user->notifications()->count())->toBe(0);
+});
+
+it('does not tell an HR Admin of a request they sent themselves', function () {
+    submittedRequisition($this->hr, $this->finance);
+
+    expect($this->hr->notifications()->count())->toBe(0)->and($this->hr2->notifications()->count())->toBe(1);
+});
+
+it('tells HR when every approval is in, except the one who gave the last', function () {
+    $requisition = submittedRequisition();
+
+    $this->actingAs($this->mira->user)->put(route('recruitment.decide', $requisition), ['decision' => 'approve', 'salary_min' => 1, 'salary_max' => 2]);
+    $this->actingAs($this->hr)->put(route('recruitment.decide', $requisition), ['decision' => 'approve'])->assertRedirect();
+
+    $titles = fn (User $user): array => $user->notifications()->get()->pluck('data.title')->all();
+
+    // Submitted, then waiting on HR, then approved.
+    expect($this->hr2->notifications()->count())->toBe(3)
+        ->and(collect($titles($this->hr2))->filter(fn (string $title): bool => str_contains($title, 'disetujui')))->toHaveCount(1)
+        ->and(collect($titles($this->hr))->filter(fn (string $title): bool => str_contains($title, 'disetujui')))->toHaveCount(0);
 });
 
 it('does not count a requisition waiting on Management among the leave requests waiting on them', function () {
@@ -292,8 +325,9 @@ it('needs Management to set the salary expectation before approving', function (
         ->and($requisition->salary_max)->toBe(4500000)
         ->and($requisition->salary_set_by_user_id)->toBe($this->mira->user_id)
         ->and(openStepOf($requisition)->label)->toBe('HR')
-        ->and($this->hr->notifications()->count())->toBe(1)
-        ->and($this->hr2->notifications()->count())->toBe(1);
+        // Told it exists when it was sent, and again that it now waits on them.
+        ->and($this->hr->notifications()->count())->toBe(2)
+        ->and($this->hr2->notifications()->count())->toBe(2);
 });
 
 it('lets Management save the salary first and approve later', function () {
@@ -522,7 +556,7 @@ function recruitmentTodo(User $user): int
     return $count;
 }
 
-it('counts what waits on each person along the way, and nothing for anyone else', function () {
+it('counts only the approvals assigned to each person, as the dashboard card does', function () {
     expect(recruitmentTodo($this->mira->user))->toBe(0)->and(recruitmentTodo($this->hr))->toBe(0);
 
     $requisition = submittedRequisition();
@@ -536,16 +570,25 @@ it('counts what waits on each person along the way, and nothing for anyone else'
     $this->actingAs($this->mira->user)->put(route('recruitment.decide', $requisition), ['decision' => 'approve', 'salary_min' => 1, 'salary_max' => 2]);
     expect(recruitmentTodo($this->mira->user))->toBe(0)->and(recruitmentTodo($this->hr))->toBe(1)->and(recruitmentTodo($this->hr2))->toBe(1);
 
-    // Both approvals in: HR's step is done, and the requisition is ready to move on.
+    // Both approvals in. Nothing is assigned to anyone now: HR is told it can go to Posting, not counted.
     $this->actingAs($this->hr)->put(route('recruitment.decide', $requisition), ['decision' => 'approve']);
-    expect(recruitmentTodo($this->hr))->toBe(1);
+    expect(recruitmentTodo($this->hr))->toBe(0)->and(recruitmentTodo($this->hr2))->toBe(0);
 
-    // At Posting with nothing recorded, until HR records a platform.
     $this->actingAs($this->hr)->post(route('recruitment.advance', $requisition));
-    expect(recruitmentTodo($this->hr))->toBe(1);
-
-    $this->actingAs($this->hr)->post(route('recruitment.postings.store', $requisition), ['platform' => 'glints', 'posted_on' => now()->toDateString()]);
     expect(recruitmentTodo($this->hr))->toBe(0);
+});
+
+it('matches the requisition line of the dashboard card for the same person', function () {
+    submittedRequisition();
+
+    foreach ([$this->mira->user, $this->hr, $this->rudi->user] as $user) {
+        $card = null;
+        $this->actingAs($user)->get(route('dashboard'))->assertInertia(function (Assert $page) use (&$card): void {
+            $card = collect($page->toArray()['props']['waiting']['items'] ?? [])->firstWhere('key', 'requisition')['count'] ?? 0;
+        });
+
+        expect(recruitmentTodo($user))->toBe($card);
+    }
 });
 
 it('shows no badge on the public entrance', function () {

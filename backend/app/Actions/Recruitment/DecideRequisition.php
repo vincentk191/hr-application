@@ -52,6 +52,7 @@ class DecideRequisition
 
         if ($this->engine->chainIsApproved($instance->refresh())) {
             $notifier->requisitionDecided($requisition->refresh(), true, $note, $by);
+            $notifier->requisitionReadyToPost($requisition, $by);
         } else {
             $notifier->requisitionAwaiting($requisition->refresh(), $by);
         }

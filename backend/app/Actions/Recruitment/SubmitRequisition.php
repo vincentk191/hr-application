@@ -45,7 +45,7 @@ class SubmitRequisition
 
         $requisition->update(['submitted_at' => now()]);
 
-        app(Notifier::class)->requisitionAwaiting($requisition->refresh(), $by, resubmitted: $wasRejected);
+        app(Notifier::class)->requisitionSubmitted($requisition->refresh(), $by, resubmitted: $wasRejected);
 
         return $requisition;
     }

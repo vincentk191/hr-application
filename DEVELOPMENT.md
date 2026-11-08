@@ -96,9 +96,11 @@ left uncommitted for review.
     department), urgent first; reference, position, department, Cabang, quota, filled, shortlist, stage, status, urgent,
     updated, PIC, plus the salary range **only** for HR and Management.
   - **Badge on "Rekrutmen" (REC-DSH-008): what waits on this person** (`Support/Recruitment/RecruitmentTodo`, shared as
-    `recruitmentTodo`): an approval waiting on them; for HR, an approved requisition ready for "Lanjut ke Posting" and one at
-    Posting with nothing recorded; and, for HR and the direct superior, an interview held that they have not evaluated.
-    Zero on the public entrance.
+    `recruitmentTodo`): **only an approval assigned to them**, by name or by the role they hold, which is the requisition
+    line of the dashboard's "Menunggu keputusan" card. Zero on the public entrance. What HR should merely know of is a
+    notification, whoever it is assigned to: a requisition sent or sent again (`Notifier::requisitionSubmitted`, to everyone
+    holding `manage-recruitment` except the sender, the requester and its approvers, who are told as approvers), every
+    approval in and ready for Posting (`requisitionReadyToPost`), an interview today and a candidate's form.
   - **Candidate page: not built, by decision**; the candidate drawer (below) is the candidate view.
   - **Checked:** new `RequisitionEvaluationTest` (11), `InterviewRemindersTest` (7), more cases in `RequisitionTest`; Pint,
     PHPStan on the touched files, TypeScript and the formatter clean. A whole-suite run found 9 failures, none a bug: eight

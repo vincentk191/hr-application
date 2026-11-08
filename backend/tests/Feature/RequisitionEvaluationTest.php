@@ -196,7 +196,7 @@ it('keeps the direct superior out until the requisition is sent', function () {
 
 // --- The badge on "Rekrutmen" ---
 
-it('counts the interviews held that a person has not yet evaluated', function () {
+it('does not count held interviews on the badge: those are for HR and the superior to hear of, not to be assigned', function () {
     $todo = function (User $user): int {
         $count = null;
         test()->actingAs($user)->get(route('dashboard'))->assertInertia(function (Assert $page) use (&$count): void {
@@ -206,12 +206,6 @@ it('counts the interviews held that a person has not yet evaluated', function ()
         return $count;
     };
 
-    // Budi's interview has been held; Ani's has not.
-    expect($todo($this->boss))->toBe(1)->and($todo($this->hr))->toBe(1)->and($todo($this->stranger))->toBe(0);
-
-    evaluate($this->budi, $this->boss);
-    expect($todo($this->boss))->toBe(0)->and($todo($this->hr))->toBe(1);
-
-    evaluate($this->budi, $this->hr);
-    expect($todo($this->hr))->toBe(0);
+    // Budi's interview has been held and nobody has evaluated it, yet no approval waits on anyone.
+    expect($todo($this->boss))->toBe(0)->and($todo($this->hr))->toBe(0)->and($todo($this->stranger))->toBe(0);
 });

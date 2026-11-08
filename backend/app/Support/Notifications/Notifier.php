@@ -311,6 +311,57 @@ class Notifier
     }
 
     /**
+     * A requisition was sent (or sent again after a rejection): tell whoever decides the open step, and tell everyone who
+     * runs recruitment that it exists, whoever it is assigned to. They do not all decide it, but HR should know of every
+     * request. Someone who is both an approver and in HR is told once; the sender and the requester are not told at all.
+     */
+    public function requisitionSubmitted(Requisition $requisition, User $actor, bool $resubmitted = false): void
+    {
+        $this->requisitionAwaiting($requisition, $actor, $resubmitted);
+
+        $requisition->loadMissing('department', 'workflow.steps');
+        $step = $requisition->workflow?->steps->firstWhere('status', 'pending');
+        $approvers = $step instanceof WorkflowStep ? $this->approversOf($step, $requisition->company_id) : new Collection;
+
+        $waitingOn = $step instanceof WorkflowStep ? $step->label : '—';
+
+        $notice = new InAppNotice(
+            'recruitment',
+            ($requisition->is_urgent ? 'MENDESAK · ' : '').($resubmitted
+                ? "{$requisition->reference()} diajukan ulang: {$requisition->position_name}"
+                : "{$requisition->reference()}: lowongan {$requisition->position_name} diajukan"),
+            "{$requisition->department?->name} · kuota {$requisition->quota} · menunggu {$waitingOn}".($requisition->is_urgent ? " · {$requisition->urgent_reason}" : ''),
+            route('recruitment.show', $requisition, absolute: false),
+        );
+
+        foreach ($this->recruitmentManagers($requisition->company_id) as $user) {
+            if ($user->isNot($actor) && $user->id !== $requisition->created_by_user_id && ! $approvers->contains('id', $user->id)) {
+                $user->notify($notice);
+            }
+        }
+    }
+
+    /**
+     * Every approval is in: tell those who run recruitment that it can go to Posting. The requester hears of the approval
+     * separately (requisitionDecided), and whoever pressed the last approval needs no telling.
+     */
+    public function requisitionReadyToPost(Requisition $requisition, User $actor): void
+    {
+        $notice = new InAppNotice(
+            'recruitment',
+            "{$requisition->reference()} disetujui: {$requisition->position_name}",
+            'Semua persetujuan lengkap. Lanjutkan ke Posting lalu catat platformnya.',
+            route('recruitment.show', $requisition, absolute: false),
+        );
+
+        foreach ($this->recruitmentManagers($requisition->company_id) as $user) {
+            if ($user->isNot($actor) && $user->id !== $requisition->created_by_user_id) {
+                $user->notify($notice);
+            }
+        }
+    }
+
+    /**
      * A requisition was decided at stage 01: tell its requester. A rejection carries the reason; an approval that
      * completes the chain says it is ready to be posted (REC-APR-006).
      */
@@ -590,6 +641,20 @@ class Notifier
         return User::role('hr-admin')->where('is_active', true)->get()
             ->filter(fn (User $user): bool => $user->canAccessCompany($companyId))
             ->values();
+    }
+
+    /**
+     * Whoever holds the permission to run recruitment (HR Admin by default), chosen in the database.
+     *
+     * @return Collection<int, User>
+     */
+    private function recruitmentManagers(int $companyId): Collection
+    {
+        return User::query()
+            ->where('is_active', true)
+            ->permission(Permission::ManageRecruitment->value)
+            ->accessingCompany($companyId)
+            ->get();
     }
 
     /**
