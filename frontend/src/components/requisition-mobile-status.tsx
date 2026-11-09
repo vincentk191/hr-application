@@ -51,18 +51,18 @@ export function RequisitionMobileStatus({
                 </div>
 
                 <ol
-                    className="flex items-center"
+                    className="flex w-full items-center"
                     role="tablist"
                     data-test="mobile-stage-steps"
                 >
                     {item.tabs.map((tab, index) => (
                         <li
                             key={tab.stage}
-                            className="flex items-center first:flex-none"
+                            className="flex min-w-0 flex-1 items-center first:flex-none"
                         >
                             {index > 0 && (
                                 <span
-                                    className="mx-1 h-1 w-2 rounded-full bg-border"
+                                    className="mx-1 h-1 min-w-0 flex-1 rounded-full bg-border"
                                     aria-hidden
                                 />
                             )}
@@ -74,7 +74,7 @@ export function RequisitionMobileStatus({
                                 disabled={tab.state === 'locked'}
                                 onClick={() => onPick(tab.stage)}
                                 data-state={tab.state}
-                                className={`flex size-10 shrink-0 items-center justify-center rounded-full border-2 text-sm font-bold transition-colors disabled:cursor-not-allowed ${
+                                className={`flex size-8 shrink-0 items-center justify-center rounded-full border-2 text-sm font-bold transition-colors disabled:cursor-not-allowed min-[400px]:size-10 ${
                                     tab.state === 'current'
                                         ? 'border-primary bg-primary text-primary-foreground ring-4 ring-primary/20'
                                         : tab.state === 'done'
