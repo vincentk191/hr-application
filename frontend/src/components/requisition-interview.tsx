@@ -1,4 +1,5 @@
 import { Form, router } from '@inertiajs/react';
+import { Download } from 'lucide-react';
 import { Fragment, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { averageRating } from '@/components/candidate-evaluations';
@@ -17,7 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { invite } from '@/routes/recruitment/candidates';
+import { exportMethod, invite } from '@/routes/recruitment/candidates';
 import type { Candidate, Invitation, Requisition } from '@/types/recruitment';
 
 const selectClasses =
@@ -776,6 +777,9 @@ export function InterviewTab({ item }: { item: Requisition }) {
         (entry) => entry.at < addDays(startOfWeek(now), 7),
     ).length;
     const canManage = item.canManageInterview;
+    const mailable = item.shortlist.filter(
+        (candidate) => candidate.email && candidate.interviewAtInput,
+    ).length;
     const viewing =
         item.shortlist.find((candidate) => candidate.id === viewingId) ?? null;
 
@@ -835,6 +839,24 @@ export function InterviewTab({ item }: { item: Requisition }) {
                             {item.shortlist.length} ORANG
                         </span>
                     </header>
+
+                    {canManage && mailable > 0 && (
+                        <Button
+                            asChild
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                            data-test="export-invitations"
+                        >
+                            <a
+                                href={exportMethod(item.id).url}
+                                title="Satu baris per kandidat dengan subjek dan pesannya, untuk mail merge"
+                            >
+                                <Download className="size-4" />
+                                Unduh CSV email massal ({mailable})
+                            </a>
+                        </Button>
+                    )}
 
                     {item.shortlist.length === 0 ? (
                         <p className="text-sm text-muted-foreground">

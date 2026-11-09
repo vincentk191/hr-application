@@ -431,3 +431,69 @@ it('does not let anyone but HR cancel a candidate at the interview stage', funct
 
     expect(Candidate::query()->whereKey($candidate->id)->exists())->toBeTrue();
 });
+
+// --- The mail-merge file ---
+
+/**
+ * @return list<array<int, string|null>>
+ */
+function csvRows(string $content): array
+{
+    $stream = fopen('php://memory', 'r+');
+    fwrite($stream, ltrim($content, "\xEF\xBB\xBF"));
+    rewind($stream);
+
+    $rows = [];
+
+    while (($row = fgetcsv($stream, escape: '')) !== false) {
+        $rows[] = $row;
+    }
+
+    return $rows;
+}
+
+it('gives HR a file with one message per invited candidate, to send from their own mailbox', function () {
+    $requisition = interviewRequisition();
+    $budi = Candidate::factory()->for($requisition)->create(['name' => 'Budi Santoso', 'email' => 'budi@example.com']);
+    $ani = Candidate::factory()->for($requisition)->create(['name' => 'Ani Lestari', 'email' => 'ani@example.com']);
+    Candidate::factory()->for($requisition)->create(['name' => 'Belum Diundang', 'email' => 'belum@example.com']);
+    $noEmail = Candidate::factory()->for($requisition)->create(['name' => 'Tanpa Email', 'email' => null]);
+
+    invite($requisition, $budi);
+    invite($requisition, $ani, ['interview_at' => '2026-11-11T14:30', 'interview_mode' => 'onsite', 'interview_place' => 'Kantor pusat']);
+    invite($requisition, $noEmail);
+
+    $response = $this->actingAs($this->hr)->get(route('recruitment.candidates.export', $requisition))->assertOk();
+    $rows = csvRows($response->streamedContent());
+
+    expect($response->headers->get('content-disposition'))->toContain($requisition->reference())
+        ->and($rows[0])->toBe(['Nama', 'Email', 'Posisi', 'Hari dan tanggal', 'Jam (WIB)', 'Format', 'Tempat atau tautan', 'Subjek', 'Pesan', 'Sudah diemail aplikasi'])
+        ->and($rows)->toHaveCount(3)
+        ->and($rows[1][0])->toBe('Budi Santoso')
+        ->and($rows[1][1])->toBe('budi@example.com')
+        ->and($rows[1][3])->toBe('Selasa, 10 November 2026')
+        ->and($rows[1][4])->toBe('10:00')
+        ->and($rows[1][5])->toBe('Daring')
+        ->and($rows[1][7])->toContain('Staf Gudang')
+        ->and($rows[1][8])->toContain('Budi Santoso')->toContain('https://meet.google.com/abc-defg-hij')
+        ->and($rows[1][9])->toBe('Ya')
+        ->and($rows[2][0])->toBe('Ani Lestari')
+        ->and($rows[2][5])->toBe('Tatap muka');
+});
+
+it('leaves the personal form link out of the file, since it cannot be shown again', function () {
+    $requisition = interviewRequisition();
+    $candidate = Candidate::factory()->for($requisition)->create(['email' => 'budi@example.com']);
+    invite($requisition, $candidate);
+
+    $content = $this->actingAs($this->hr)->get(route('recruitment.candidates.export', $requisition))->streamedContent();
+
+    expect($content)->not->toContain('/lamaran/');
+});
+
+it('gives the file to HR only', function () {
+    $requisition = interviewRequisition();
+
+    $this->actingAs($this->requester)->get(route('recruitment.candidates.export', $requisition))->assertForbidden();
+    $this->actingAs($this->management)->get(route('recruitment.candidates.export', $requisition))->assertForbidden();
+});

@@ -156,6 +156,44 @@ class RequisitionController extends Controller
     }
 
     /**
+     * A file for sending the interview invitations from HR's own mailbox with a mail merge: one row per invited candidate
+     * who has an email, with the subject and the text already written for that person, so each gets their own message
+     * and nobody is in CC. The personal link to the candidate form is left out, since it is shown only when the
+     * invitation is made, so the text is the invitation without the form paragraph.
+     */
+    public function exportInterviewees(Request $request, Requisition $requisition): StreamedResponse
+    {
+        $this->authorize('viewCandidates', $requisition);
+
+        $requisition->loadMissing('company');
+        $subject = InvitationMessage::subject($requisition);
+
+        $rows = $requisition->candidates()
+            ->whereNotNull('interview_at')
+            ->whereNotNull('email')
+            ->where('email', '!=', '')
+            ->orderBy('interview_at')
+            ->get()
+            ->map(fn (Candidate $candidate): array => [
+                $candidate->name,
+                $candidate->email,
+                $requisition->position_name,
+                InvitationMessage::dayLabel($candidate->interview_at),
+                InvitationMessage::local($candidate->interview_at)->format('H:i'),
+                $candidate->interview_mode === 'online' ? 'Daring' : 'Tatap muka',
+                $candidate->interview_place,
+                $subject,
+                InvitationMessage::text($candidate, $requisition, null),
+                $candidate->invitation_emailed ? 'Ya' : 'Tidak',
+            ]);
+
+        return CsvDownload::stream('undangan-interview-'.$requisition->reference().'-'.now()->format('Y-m-d').'.csv', [
+            ['Nama', 'Email', 'Posisi', 'Hari dan tanggal', 'Jam (WIB)', 'Format', 'Tempat atau tautan', 'Subjek', 'Pesan', 'Sudah diemail aplikasi'],
+            ...$rows,
+        ]);
+    }
+
+    /**
      * @return array{status: string, department: string|null}
      */
     private function filters(Request $request): array
