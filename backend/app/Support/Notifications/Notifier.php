@@ -383,23 +383,32 @@ class Notifier
     }
 
     /**
-     * HR called a requisition off (REC-PST-004): tell its requester, with the reason.
+     * HR called a requisition off (REC-PST-004): tell its requester, with the reason. The direct superior is told too
+     * when interviews were still ahead, since they were expecting to sit in on them.
      */
     public function requisitionCancelled(Requisition $requisition, string $reason, User $actor): void
     {
         $requisition->loadMissing('creator');
-        $requester = $requisition->creator;
 
-        if ($requester === null || ! $requester->is_active || $requester->is($actor)) {
-            return;
-        }
+        $interviewsAhead = Candidate::acrossCompanies()
+            ->where('requisition_id', $requisition->id)
+            ->where('interview_at', '>', now())
+            ->exists();
 
-        $requester->notify(new InAppNotice(
+        $notice = new InAppNotice(
             'recruitment',
             "{$requisition->reference()} dibatalkan: {$requisition->position_name}",
             "Alasan: {$reason}",
             route('recruitment.show', $requisition, absolute: false),
-        ));
+        );
+
+        $recipients = [$requisition->creator, $interviewsAhead ? $this->directSuperiorOf($requisition) : null];
+
+        collect($recipients)
+            ->filter()
+            ->unique('id')
+            ->reject(fn (User $user): bool => $user->is($actor) || ! $user->is_active)
+            ->each(fn (User $user) => $user->notify($notice));
     }
 
     /**
@@ -439,12 +448,50 @@ class Notifier
             route('recruitment.show', $requisition, absolute: false),
         );
 
-        $superior = Employee::acrossCompanies()->whereKey($requisition->manager_employee_id)->first()?->user;
+        $this->interviewersOf($requisition)->each(fn (User $user) => $user->notify($notice));
+    }
 
-        $this->hrAdmins($requisition->company_id)
+    /**
+     * Interviews that were held and still have no evaluation (REC-INT): tell HR and the direct superior, once, who is
+     * waiting. Nobody else is chased; evaluating is theirs and is not an approval, so it has no place on the dashboard's
+     * to-do list.
+     *
+     * @param  Collection<int, Candidate>  $candidates
+     */
+    public function evaluationsDue(Requisition $requisition, Collection $candidates): void
+    {
+        $names = $candidates->sortBy('interview_at')->pluck('name')->implode(', ');
+
+        $notice = new InAppNotice(
+            'recruitment',
+            "Menunggu penilaian: {$requisition->position_name} ({$candidates->count()} kandidat)",
+            "{$requisition->reference()} · {$names}",
+            route('recruitment.show', $requisition, absolute: false),
+        );
+
+        $this->interviewersOf($requisition)->each(fn (User $user) => $user->notify($notice));
+    }
+
+    /**
+     * HR and the new hire's direct superior: the people who hold and evaluate the interviews.
+     *
+     * @return Collection<int, User>
+     */
+    private function interviewersOf(Requisition $requisition): Collection
+    {
+        $superior = $this->directSuperiorOf($requisition);
+
+        return $this->hrAdmins($requisition->company_id)
             ->when($superior instanceof User && $superior->is_active, fn (Collection $users) => $users->push($superior))
-            ->unique('id')
-            ->each(fn (User $user) => $user->notify($notice));
+            ->unique('id');
+    }
+
+    /**
+     * The new hire's direct superior (Atasan langsung), when the requisition names one who has an account.
+     */
+    private function directSuperiorOf(Requisition $requisition): ?User
+    {
+        return Employee::acrossCompanies()->whereKey($requisition->manager_employee_id)->first()?->user;
     }
 
     /**

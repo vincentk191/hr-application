@@ -228,7 +228,7 @@ export function InviteDialog({
 type Scheduled = { candidate: Candidate; at: Date };
 
 /** "2026-11-10T10:00" as a date in the browser's own time, which is how the schedule is laid out. */
-function parseLocal(value: string | null): Date | null {
+export function parseLocal(value: string | null): Date | null {
     const found = value?.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
 
     return found

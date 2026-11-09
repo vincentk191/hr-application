@@ -159,7 +159,8 @@ class RequisitionController extends Controller
      * A file for sending the interview invitations from HR's own mailbox with a mail merge: one row per invited candidate
      * who has an email, with the subject and the text already written for that person, so each gets their own message
      * and nobody is in CC. The personal link to the candidate form is left out, since it is shown only when the
-     * invitation is made, so the text is the invitation without the form paragraph.
+     * invitation is made, so the text is the invitation without the form paragraph. The note HR wrote is kept with
+     * the candidate and goes in. The file holds candidates' emails, so each download is written to the audit trail.
      */
     public function exportInterviewees(Request $request, Requisition $requisition): StreamedResponse
     {
@@ -168,12 +169,20 @@ class RequisitionController extends Controller
         $requisition->loadMissing('company');
         $subject = InvitationMessage::subject($requisition);
 
-        $rows = $requisition->candidates()
+        $candidates = $requisition->candidates()
             ->whereNotNull('interview_at')
             ->whereNotNull('email')
             ->where('email', '!=', '')
             ->orderBy('interview_at')
-            ->get()
+            ->get();
+
+        activity('recruitment')
+            ->performedOn($requisition)
+            ->causedBy($request->user())
+            ->withProperties(['candidates' => $candidates->count()])
+            ->log('Berkas undangan interview diunduh');
+
+        $rows = $candidates
             ->map(fn (Candidate $candidate): array => [
                 $candidate->name,
                 $candidate->email,
@@ -183,7 +192,7 @@ class RequisitionController extends Controller
                 $candidate->interview_mode === 'online' ? 'Daring' : 'Tatap muka',
                 $candidate->interview_place,
                 $subject,
-                InvitationMessage::text($candidate, $requisition, null),
+                InvitationMessage::text($candidate, $requisition, null, $candidate->invitation_note),
                 $candidate->invitation_emailed ? 'Ya' : 'Tidak',
             ]);
 
@@ -548,9 +557,13 @@ class RequisitionController extends Controller
 
         $validated = $request->validate(['note' => ['required', 'string', 'max:2000']], ['note.required' => 'Tulis alasan pembatalan.']);
 
+        $scheduled = $requisition->candidates()->where('interview_at', '>', now())->count();
+
         $cancel->handle($requisition, $request->user(), $validated['note']);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => "{$requisition->reference()} dibatalkan."]);
+        // Candidates are outside the app, so nothing tells them: HR has to.
+        Inertia::flash('toast', ['type' => 'success', 'message' => "{$requisition->reference()} dibatalkan."
+            .($scheduled > 0 ? " {$scheduled} kandidat sudah dijadwalkan interview, kabari mereka." : '')]);
 
         return back();
     }

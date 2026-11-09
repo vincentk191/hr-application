@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { WorkflowDiscussion } from '@/components/workflow-discussion';
-import { InterviewTab } from '@/components/requisition-interview';
+import { InterviewTab, parseLocal } from '@/components/requisition-interview';
 import { PostingTab } from '@/components/requisition-posting';
 import {
     AddCandidateDialog,
@@ -243,6 +243,13 @@ export default function RequisitionShow({
         'submitted';
     const [tab, setTab] = useState<string>(current);
 
+    // Candidates are outside the app, so cancelling tells none of them: HR has to.
+    const scheduledInterviews = (item.shortlist ?? []).filter((candidate) => {
+        const at = parseLocal(candidate.interviewAtInput);
+
+        return at !== null && at > new Date();
+    }).length;
+
     const phaseActions: PhaseAction[] = [
         ...(item.canEdit
             ? [
@@ -459,7 +466,11 @@ export default function RequisitionShow({
                               title={`Batalkan lowongan — ${item.positionName}`}
                               subtitle={`${item.reference} · pembatalan tidak bisa diurungkan`}
                               fieldLabel="Alasan pembatalan"
-                              hint="Wajib diisi · terkirim ke pemohon lewat notifikasi"
+                              hint={`Wajib diisi · terkirim ke pemohon lewat notifikasi${
+                                  scheduledInterviews > 0
+                                      ? ` · ${scheduledInterviews} kandidat sudah dijadwalkan interview dan harus Anda kabari sendiri`
+                                      : ''
+                              }`}
                               required
                               confirmLabel="Batalkan lowongan"
                               footnote="Lowongan ditutup"

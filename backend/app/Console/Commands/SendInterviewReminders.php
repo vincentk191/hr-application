@@ -17,12 +17,13 @@ use Illuminate\Support\Facades\Mail;
 
 /**
  * The interview reminders (REC-INT), run every morning. A candidate with an email is emailed the day before; on the
- * day itself HR and the new hire's direct superior get a notice listing the interviews. Each is sent once: running the
+ * day itself HR and the new hire's direct superior get a notice listing the interviews; the morning after, and until it
+ * is done, the same two are told which interviews are still waiting for an evaluation. Each is sent once: running the
  * command again changes nothing, and a re-invite with a new time clears them. Requisitions that are cancelled or filled
  * are left alone.
  */
 #[Signature('recruitment:interview-reminders')]
-#[Description('Remind candidates of tomorrow\'s interviews and HR of today\'s')]
+#[Description('Remind candidates of tomorrow\'s interviews, HR of today\'s, and ask for the evaluations still missing')]
 class SendInterviewReminders extends Command
 {
     public function handle(Notifier $notifier): int
@@ -32,8 +33,9 @@ class SendInterviewReminders extends Command
 
         $emailed = $this->remindCandidates($today->addDay(), $zone);
         $noticed = $this->remindInterviewers($today, $notifier);
+        $chased = $this->askForEvaluations($today, $notifier);
 
-        $this->info("{$emailed} candidate(s) emailed, {$noticed} interview(s) announced.");
+        $this->info("{$emailed} candidate(s) emailed, {$noticed} interview(s) announced, {$chased} awaiting an evaluation.");
 
         return self::SUCCESS;
     }
@@ -82,14 +84,50 @@ class SendInterviewReminders extends Command
     }
 
     /**
+     * Interviews from before today that nobody has evaluated yet, announced once per requisition to HR and the direct
+     * superior. The same test as the tab's "Menunggu penilaian": held, and no evaluation written.
+     */
+    private function askForEvaluations(CarbonImmutable $today, Notifier $notifier): int
+    {
+        $due = $this->live()
+            ->where('interview_at', '<', $today->startOfDay()->utc())
+            ->whereNull('evaluation_prompted_at')
+            ->whereDoesntHave('evaluations')
+            ->with('requisition.company')
+            ->get();
+        $count = 0;
+
+        foreach ($due->groupBy('requisition_id') as $candidates) {
+            $notifier->evaluationsDue($candidates->first()->requisition, $candidates);
+
+            foreach ($candidates as $candidate) {
+                $candidate->forceFill(['evaluation_prompted_at' => now()])->save();
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
+    /**
      * Candidates of live requisitions (at Interview or Offer) whose interview falls on the given company day.
      *
      * @return Builder<Candidate>
      */
     private function on(CarbonImmutable $day): Builder
     {
+        return $this->live()->whereBetween('interview_at', [$day->startOfDay()->utc(), $day->endOfDay()->utc()]);
+    }
+
+    /**
+     * Candidates with an interview time, on requisitions that are at Interview or Offer.
+     *
+     * @return Builder<Candidate>
+     */
+    private function live(): Builder
+    {
         return Candidate::query()->acrossCompanies()
-            ->whereBetween('interview_at', [$day->startOfDay()->utc(), $day->endOfDay()->utc()])
+            ->whereNotNull('interview_at')
             ->whereHas('requisition', fn (Builder $requisition) => $requisition->withoutGlobalScopes()
                 ->whereHas('workflow', fn (Builder $workflow) => $workflow->withoutGlobalScopes()
                     ->whereIn('current_stage', [RequisitionStage::Interview->value, RequisitionStage::Offer->value])));

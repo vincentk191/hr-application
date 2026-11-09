@@ -56,6 +56,7 @@ class InviteCandidate
             // A new time is a new day to remind.
             'candidate_reminded_at' => null,
             'interviewers_reminded_at' => null,
+            'evaluation_prompted_at' => null,
         ])->save();
 
         $link = $formOpen ? $this->publicLink($token) : null;
@@ -73,6 +74,7 @@ class InviteCandidate
         $candidate->forceFill([
             'invitation_subject' => $subject,
             'invitation_message' => $link === null ? $message : InvitationMessage::text($candidate, $requisition, self::MASKED_LINK, $fields['note']),
+            'invitation_note' => filled($fields['note']) ? trim((string) $fields['note']) : null,
             'invitation_emailed' => $emailed,
         ])->save();
 

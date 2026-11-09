@@ -6,6 +6,7 @@ use App\Mail\CandidateInvitation;
 use App\Models\Candidate;
 use App\Models\Company;
 use App\Models\Department;
+use App\Models\Employee;
 use App\Models\Requisition;
 use App\Models\User;
 use App\Workflows\Definitions\RequisitionWorkflow;
@@ -14,6 +15,7 @@ use Carbon\CarbonImmutable;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Testing\AssertableInertia as Assert;
+use Spatie\Activitylog\Models\Activity;
 
 /**
  * Recruitment stage 04, Interview (REC-INT): HR invites a shortlisted candidate with the time and place, by email and
@@ -489,6 +491,64 @@ it('leaves the personal form link out of the file, since it cannot be shown agai
     $content = $this->actingAs($this->hr)->get(route('recruitment.candidates.export', $requisition))->streamedContent();
 
     expect($content)->not->toContain('/lamaran/');
+});
+
+it('puts the note HR wrote into the file, and keeps it when the invitation is made again without one', function () {
+    $requisition = interviewRequisition();
+    $withNote = Candidate::factory()->for($requisition)->create(['email' => 'a@example.com']);
+    $without = Candidate::factory()->for($requisition)->create(['email' => 'b@example.com']);
+
+    invite($requisition, $withNote, ['note' => 'Bawa KTP asli.']);
+    invite($requisition, $without, ['note' => '']);
+
+    expect($withNote->refresh()->invitation_note)->toBe('Bawa KTP asli.')
+        ->and($without->refresh()->invitation_note)->toBeNull();
+
+    $rows = csvRows($this->actingAs($this->hr)->get(route('recruitment.candidates.export', $requisition))->streamedContent());
+
+    expect($rows[1][8])->toContain('Bawa KTP asli.')
+        ->and($rows[2][8])->not->toContain('Bawa KTP asli.');
+});
+
+it('writes each download of the file to the audit trail', function () {
+    $requisition = interviewRequisition();
+    invite($requisition, Candidate::factory()->for($requisition)->create(['email' => 'budi@example.com']));
+
+    $this->actingAs($this->hr)->get(route('recruitment.candidates.export', $requisition))->assertOk()->streamedContent();
+
+    $entry = Activity::query()->where('description', 'Berkas undangan interview diunduh')->sole();
+
+    expect($entry->causer_id)->toBe($this->hr->id)
+        ->and($entry->subject_id)->toBe($requisition->id)
+        ->and($entry->properties['candidates'])->toBe(1);
+});
+
+it('tells the direct superior when a requisition is cancelled with interviews still ahead, and not otherwise', function () {
+    $boss = interviewUser(Role::Supervisor, $this->company);
+    $bossEmployee = Employee::factory()->forCompany($this->company)->create(['user_id' => $boss->id]);
+
+    $ahead = interviewRequisition();
+    $ahead->update(['manager_employee_id' => $bossEmployee->id]);
+    invite($ahead, Candidate::factory()->for($ahead)->create(['email' => 'budi@example.com']));
+
+    $over = interviewRequisition();
+    $over->update(['manager_employee_id' => $bossEmployee->id]);
+    Candidate::factory()->for($over)->create(['email' => 'ani@example.com', 'interview_at' => now()->subHours(3)]);
+
+    $this->actingAs($this->hr)->post(route('recruitment.cancel', $over), ['note' => 'Tidak jadi'])
+        ->assertRedirect()
+        ->assertInertiaFlash('toast', ['type' => 'success', 'message' => "{$over->reference()} dibatalkan."]);
+    expect($boss->notifications()->count())->toBe(0);
+
+    $this->actingAs($this->hr)->post(route('recruitment.cancel', $ahead), ['note' => 'Posisi diisi dari internal.'])
+        ->assertRedirect()
+        ->assertInertiaFlash('toast', [
+            'type' => 'success',
+            'message' => "{$ahead->reference()} dibatalkan. 1 kandidat sudah dijadwalkan interview, kabari mereka.",
+        ]);
+
+    expect($boss->notifications()->sole()->data['title'])->toContain('dibatalkan')
+        ->and($this->requester->notifications()->where('data->title', 'like', '%dibatalkan%')->count())->toBe(2);
 });
 
 it('gives the file to HR only', function () {

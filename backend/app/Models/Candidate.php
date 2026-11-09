@@ -40,9 +40,11 @@ use Illuminate\Support\Carbon;
  * @property string|null $interview_place
  * @property string|null $invitation_subject
  * @property string|null $invitation_message
+ * @property string|null $invitation_note
  * @property bool $invitation_emailed
  * @property Carbon|null $candidate_reminded_at
  * @property Carbon|null $interviewers_reminded_at
+ * @property Carbon|null $evaluation_prompted_at
  * @property Carbon|null $form_submitted_at
  * @property array<string, mixed>|null $form_data
  * @property Carbon|null $created_at
@@ -71,9 +73,11 @@ use Illuminate\Support\Carbon;
     'interview_place',
     'invitation_subject',
     'invitation_message',
+    'invitation_note',
     'invitation_emailed',
     'candidate_reminded_at',
     'interviewers_reminded_at',
+    'evaluation_prompted_at',
     'form_submitted_at',
     'form_data',
 ])]
@@ -102,6 +106,7 @@ class Candidate extends Model
             'invitation_emailed' => 'boolean',
             'candidate_reminded_at' => 'datetime',
             'interviewers_reminded_at' => 'datetime',
+            'evaluation_prompted_at' => 'datetime',
             'form_data' => 'array',
         ];
     }

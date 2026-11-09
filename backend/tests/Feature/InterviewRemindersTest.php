@@ -4,6 +4,7 @@ use App\Enums\RequisitionStage;
 use App\Enums\Role;
 use App\Mail\CandidateReminder;
 use App\Models\Candidate;
+use App\Models\CandidateEvaluation;
 use App\Models\Company;
 use App\Models\Department;
 use App\Models\Employee;
@@ -158,6 +159,47 @@ it('leaves requisitions that are cancelled, filled or not yet at Interview alone
 
     Mail::assertNothingQueued();
     expect($this->hr->notifications()->count())->toBe(0);
+});
+
+it('asks HR and the direct superior, once, for the evaluations of interviews already held', function () {
+    interviewAt($this->requisition, '2026-11-06 10:00', ['name' => 'Budi']);
+    interviewAt($this->requisition, '2026-11-08 15:00', ['name' => 'Ani']);
+    $evaluated = interviewAt($this->requisition, '2026-11-07 10:00', ['name' => 'Sudah Dinilai']);
+    CandidateEvaluation::factory()->create(['candidate_id' => $evaluated->id, 'user_id' => $this->hr->id]);
+    // Today's interview is not yet "held", and tomorrow's has not happened.
+    interviewAt($this->requisition, '2026-11-09 14:00', ['name' => 'Hari Ini']);
+    interviewAt($this->requisition, '2026-11-10 10:00', ['name' => 'Besok']);
+
+    $this->artisan('recruitment:interview-reminders')->assertSuccessful();
+
+    foreach ([$this->hr, $this->boss] as $person) {
+        $notice = $person->notifications()->where('data->title', 'like', 'Menunggu penilaian%')->sole();
+
+        expect($notice->data['title'])->toBe('Menunggu penilaian: Staf Gudang (2 kandidat)')
+            ->and(json_encode($notice->data))->toContain('Budi, Ani')->not->toContain('Sudah Dinilai')->not->toContain('Hari Ini')->not->toContain('Besok');
+    }
+
+    $this->artisan('recruitment:interview-reminders')->assertSuccessful();
+    expect($this->hr->notifications()->where('data->title', 'like', 'Menunggu penilaian%')->count())->toBe(1);
+});
+
+it('asks again after an interview is moved, and not at all for requisitions that are over', function () {
+    $budi = interviewAt($this->requisition, '2026-11-06 10:00', ['name' => 'Budi', 'email' => 'budi@example.com']);
+    $this->artisan('recruitment:interview-reminders');
+    expect($budi->refresh()->evaluation_prompted_at)->not->toBeNull();
+
+    $this->actingAs($this->hr)->post(route('recruitment.candidates.invite', [$this->requisition, $budi]), [
+        'interview_at' => '2026-11-10T10:00', 'interview_mode' => 'online', 'interview_place' => 'https://meet.google.com/new',
+    ])->assertSessionDoesntHaveErrors();
+    expect($budi->refresh()->evaluation_prompted_at)->toBeNull();
+
+    $cancelled = reminderRequisition(null, RequisitionStage::Cancelled);
+    interviewAt($cancelled, '2026-11-06 10:00');
+    $this->hr->notifications()->delete();
+
+    $this->artisan('recruitment:interview-reminders');
+
+    expect($this->hr->notifications()->where('data->title', 'like', 'Menunggu penilaian%')->count())->toBe(0);
 });
 
 it('is on the schedule every morning at 08:00 company time', function () {
