@@ -69,6 +69,31 @@ left uncommitted for review.
 
 ## Change log (latest first)
 
+- **2026-11-10 (recruitment: position list, rupiah fields, moving on, availability on the interview calendar).**
+  - **Posisi is chosen, not typed.** The request form's Posisi is a dropdown of the org chart's positions (grouped by
+    department; once a department is chosen, only its own). Choosing one fills in its department; changing the department
+    drops a position that is not in it. Server side (`SaveRequisitionRequest`): the name must be a position of that
+    department (case ignored, stored as the org chart spells it), else "Pilih posisi dari daftar posisi departemen ini."
+    A requisition made before this with a name not on the list keeps it, shown as "(belum ada di daftar)", until the name or
+    department is changed. The wizard is offered only the positions of the departments the person may ask for. A department
+    with no positions has an empty list: add them in the admin panel first.
+  - **Rupiah fields write the dots.** `components/rupiah-input.tsx`: shows "4.500.000" as it is typed (digits only, up to
+    twelve) and sends plain digits. Used for the salary expectation (approval dialog and panel), the candidate form's expected
+    salary and the employee form's Gaji pokok, Tunjangan and Tarif lembur.
+  - **"Lanjut ke …" goes to the next stage's screen.** After Lanjut ke Posting, Screening, Interview or Penawaran succeeds the
+    page opens that stage's tab from the top; approving (which changes no stage) leaves the person where they are.
+  - **Availability on the Interview calendar.** `Support/Recruitment/InterviewAvailability`, sent as `requisition.availability`
+    at Interview and Offer to those who see the candidates (HR, and the direct superior): the company's **holidays** (group-wide
+    or the company's; not those for one department or another Cabang; events are left out) and the **leave** (waiting or
+    approved, working days only, through the leave queue's own visibility) of the **PIC** (who raised the requisition), the
+    **Atasan langsung** (shown on their own when it is someone else) and **HR** (every active HR Admin of the company with an
+    employee record); someone holding several roles shows once with all of them. Window: four weeks back, sixteen ahead. On
+    the calendar a holiday tints its column and is named in the day's header, and each absence is a chip with the person and
+    role (dashed while the leave is still waiting); on a phone the open day's agenda lists them in full. The invite form warns
+    under the time when the chosen day is a holiday or one of them is away; it does not stop the invitation.
+  - **Checked:** `InterviewAvailabilityTest` (6), position cases added to `RequisitionTest`; the whole suite passes
+    (1,158 tests); TypeScript, the formatter and Pint clean.
+
 - **2026-11-10 (recruitment: the direct superior's choice, and Interview to Penawaran; Phase 2 of the Offer plan, branch `feature/recruitement`).**
   Migration `add_selection_to_candidates_table` (`selected_at`, `selected_by_user_id`). **Decided with the user:** the direct
   superior is also the PIC who raised the requisition, so they always have an account; **HR never chooses on their

@@ -44,6 +44,7 @@ import type {
     Candidate,
     CandidateEvaluation,
     FormLink,
+    InterviewAvailability,
     Invitation,
     Requisition,
 } from '@/types/recruitment';
@@ -175,14 +176,20 @@ export function InviteDialog({
     item,
     candidate,
     defaultAt,
+    availability,
     onClose,
 }: {
     item: Pick<Requisition, 'id'>;
     candidate: Candidate;
     /** A datetime-local value to start from, when the dialog was opened from a slot of the calendar. */
     defaultAt?: string;
+    /** Holidays and leave, to warn when the chosen day is one. */
+    availability?: InterviewAvailability | null;
     onClose: () => void;
 }) {
+    const [when, setWhen] = useState(
+        candidate.interviewAtInput ?? defaultAt ?? '',
+    );
     const [mode, setMode] = useState<string>(
         candidate.interviewMode ?? 'online',
     );
@@ -235,9 +242,16 @@ export function InviteDialog({
                                         defaultAt ??
                                         ''
                                     }
+                                    onChange={(event) =>
+                                        setWhen(event.target.value)
+                                    }
                                     required
                                 />
                                 <InputError message={errors.interview_at} />
+                                <AvailabilityWarning
+                                    availability={availability}
+                                    when={when}
+                                />
                             </div>
                             <div className="grid gap-1">
                                 <Label htmlFor="interview-mode">Format</Label>
@@ -344,6 +358,114 @@ function slotValue(day: Date, hour: number): string {
     const pad = (value: number) => String(value).padStart(2, '0');
 
     return `${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}T${pad(hour)}:00`;
+}
+
+/** A day as "2026-11-10", the way the availability data names it. */
+function dateKey(day: Date): string {
+    const pad = (value: number) => String(value).padStart(2, '0');
+
+    return `${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`;
+}
+
+/** What the data says about one day: its holidays, and who is on leave and in what capacity. */
+function onDay(availability: InterviewAvailability | null, key: string) {
+    return {
+        holidays: (availability?.holidays ?? []).filter(
+            (entry) => entry.date === key,
+        ),
+        absences: (availability?.absences ?? []).filter(
+            (entry) => entry.date === key,
+        ),
+    };
+}
+
+/** "Made (Atasan)", with a note while the leave is still waiting for approval. */
+function absenceLabel(entry: InterviewAvailability['absences'][number]) {
+    return `${entry.person} (${entry.roles.join(', ')})${entry.status === 'approved' ? '' : ' · menunggu'}`;
+}
+
+/**
+ * A day's holidays and leave, compact (a few short lines in a column header) or in full (the phone's agenda). Leave
+ * that is still waiting for approval is drawn dashed.
+ */
+function DayNotes({
+    availability,
+    day,
+    compact,
+}: {
+    availability: InterviewAvailability | null;
+    day: Date;
+    compact?: boolean;
+}) {
+    const { holidays, absences } = onDay(availability, dateKey(day));
+    const shown = compact ? absences.slice(0, 2) : absences;
+
+    if (holidays.length === 0 && absences.length === 0) {
+        return null;
+    }
+
+    return (
+        <ul
+            className="mt-1 space-y-0.5 text-[11px] leading-tight"
+            data-test="day-notes"
+        >
+            {holidays.map((entry) => (
+                <li
+                    key={entry.title}
+                    className="font-semibold text-destructive"
+                >
+                    Libur · {entry.title}
+                </li>
+            ))}
+            {shown.map((entry) => (
+                <li
+                    key={`${entry.person}-${entry.detail}`}
+                    className={`rounded border px-1 py-0.5 ${entry.status === 'approved' ? 'bg-muted' : 'border-dashed'}`}
+                    title={`${absenceLabel(entry)} · ${entry.detail}`}
+                >
+                    {compact ? entry.person.split(' ')[0] : absenceLabel(entry)}
+                    <span className="text-muted-foreground">
+                        {' '}
+                        · {entry.detail}
+                    </span>
+                </li>
+            ))}
+            {compact && absences.length > shown.length && (
+                <li className="text-muted-foreground">
+                    +{absences.length - shown.length} lainnya
+                </li>
+            )}
+        </ul>
+    );
+}
+
+/** A warning under the interview time when the chosen day is a holiday or someone it depends on is on leave. */
+function AvailabilityWarning({
+    availability,
+    when,
+}: {
+    availability: InterviewAvailability | null | undefined;
+    when: string;
+}) {
+    const { holidays, absences } = onDay(
+        availability ?? null,
+        when.slice(0, 10),
+    );
+
+    if (holidays.length === 0 && absences.length === 0) {
+        return null;
+    }
+
+    return (
+        <p
+            className="rounded-xl border border-amber-500/50 bg-amber-500/10 p-3 text-sm"
+            data-test="availability-warning"
+        >
+            {holidays.map((entry) => `Hari libur: ${entry.title}. `)}
+            {absences.length > 0 &&
+                `Sedang cuti: ${absences.map(absenceLabel).join(', ')}.`}
+        </p>
+    );
 }
 
 const weekdayFormat = new Intl.DateTimeFormat('id-ID', { weekday: 'short' });
@@ -699,12 +821,14 @@ function WeekCalendar({
     entries,
     now,
     canSchedule,
+    availability,
     onPickSlot,
     onOpenEntry,
 }: {
     entries: Scheduled[];
     now: Date;
     canSchedule: boolean;
+    availability: InterviewAvailability | null;
     onPickSlot: (value: string) => void;
     /** A scheduled interview was clicked: show that candidate's card. */
     onOpenEntry: (candidate: Candidate) => void;
@@ -817,9 +941,12 @@ function WeekCalendar({
                     })}
                 </div>
 
-                <p className="label-mono border-b px-4 py-2">
-                    {dayMonthFormat.format(anchor)}
-                </p>
+                <div className="border-b px-4 py-2">
+                    <p className="label-mono">
+                        {dayMonthFormat.format(anchor)}
+                    </p>
+                    <DayNotes availability={availability} day={anchor} />
+                </div>
 
                 <div className="divide-y">
                     {rows.map((hour) => {
@@ -916,6 +1043,11 @@ function WeekCalendar({
                         <p className="text-lg font-extrabold">
                             {day.getDate()}
                         </p>
+                        <DayNotes
+                            availability={availability}
+                            day={day}
+                            compact
+                        />
                     </div>
                 ))}
 
@@ -943,7 +1075,12 @@ function WeekCalendar({
                             return (
                                 <div
                                     key={day.toISOString()}
-                                    className="relative min-h-16 space-y-1 border-b border-l p-1"
+                                    className={`relative min-h-16 space-y-1 border-b border-l p-1 ${
+                                        onDay(availability, dateKey(day))
+                                            .holidays.length > 0
+                                            ? 'bg-destructive/5'
+                                            : ''
+                                    }`}
                                 >
                                     {free && (
                                         <button
@@ -1003,6 +1140,22 @@ function WeekCalendar({
                         <span className="size-3 rounded-sm border bg-muted" />
                         Sudah lewat
                     </span>
+                    {availability && (
+                        <>
+                            <span className="flex items-center gap-1.5">
+                                <span className="size-3 rounded-sm bg-destructive/15" />
+                                Libur
+                            </span>
+                            <span className="flex items-center gap-1.5">
+                                <span className="size-3 rounded-sm border bg-muted" />
+                                Cuti disetujui
+                            </span>
+                            <span className="flex items-center gap-1.5">
+                                <span className="size-3 rounded-sm border border-dashed" />
+                                Cuti menunggu
+                            </span>
+                        </>
+                    )}
                 </span>
                 {canSchedule && (
                     <span className="label-mono">Slot kosong bisa dipilih</span>
@@ -1152,6 +1305,7 @@ export function InterviewTab({ item }: { item: Requisition }) {
                 <WeekCalendar
                     entries={entries}
                     now={now}
+                    availability={item.availability}
                     canSchedule={canManage && unscheduled.length > 0}
                     onOpenEntry={(candidate) => openDrawer(candidate.id)}
                     onPickSlot={(value) => {
@@ -1268,6 +1422,7 @@ export function InterviewTab({ item }: { item: Requisition }) {
                     item={item}
                     candidate={inviting.candidate}
                     defaultAt={inviting.at}
+                    availability={item.availability}
                     onClose={() => setInviting(null)}
                 />
             )}

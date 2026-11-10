@@ -39,6 +39,7 @@ import type {
     Requisition,
     RequisitionContent,
     RequisitionDepartmentOption,
+    RequisitionPositionOption,
     ResponsibilityGroup,
 } from '@/types/recruitment';
 import type { WorkflowDiscussionData } from '@/types/workflow';
@@ -163,6 +164,7 @@ export default function RequisitionForm({
     requisition: existing,
     discussion,
     departments,
+    positions,
     branches,
     managers,
     employmentTypes,
@@ -175,6 +177,8 @@ export default function RequisitionForm({
     /** Only on one already made: what was said when it was sent back. */
     discussion?: WorkflowDiscussionData;
     departments: RequisitionDepartmentOption[];
+    /** The positions (Posisi) of those departments: the list the position is chosen from. */
+    positions: RequisitionPositionOption[];
     branches: { id: number; name: string; company_id: number }[];
     managers: ManagerOption[];
     employmentTypes: EmploymentTypeOption[];
@@ -210,6 +214,18 @@ export default function RequisitionForm({
     );
     const [departmentId, setDepartmentId] = useState(
         existing ? String(existing.departmentId) : '',
+    );
+    // The chosen position by its id, or "lama" for a name typed before the list existed.
+    const [positionId, setPositionId] = useState(
+        existing
+            ? (positions
+                  .find(
+                      (option) =>
+                          option.name === existing.positionName &&
+                          option.department_id === existing.departmentId,
+                  )
+                  ?.id.toString() ?? 'lama')
+            : '',
     );
     const [branchId, setBranchId] = useState(
         existing?.branchId ? String(existing.branchId) : '',
@@ -261,6 +277,34 @@ export default function RequisitionForm({
               (manager) => manager.company_id === department.company_id,
           )
         : [];
+    // Only the chosen department's positions once there is one; before that, all of them, grouped by department.
+    const positionOptions = positions.filter(
+        (option) =>
+            departmentId === '' ||
+            String(option.department_id) === departmentId,
+    );
+    const choosePosition = (value: string) => {
+        setPositionId(value);
+
+        const chosen = positions.find((option) => String(option.id) === value);
+
+        if (!chosen) {
+            setPositionName(
+                value === 'lama' ? (existing?.positionName ?? '') : '',
+            );
+
+            return;
+        }
+
+        setPositionName(chosen.name);
+
+        if (departmentId !== String(chosen.department_id)) {
+            chooseDepartment(String(chosen.department_id));
+            // chooseDepartment drops a position of another department; this one is the new department's own.
+            setPositionId(value);
+            setPositionName(chosen.name);
+        }
+    };
     const type = employmentTypes.find((item) => item.value === employmentType);
     const manager = managers.find((item) => String(item.id) === managerId);
 
@@ -270,6 +314,16 @@ export default function RequisitionForm({
 
         setDepartmentId(value);
         setBranchId('');
+
+        // A position belongs to one department: changing the department drops one that is not in the new one.
+        const chosen = positions.find(
+            (option) => String(option.id) === positionId,
+        );
+
+        if (chosen && String(chosen.department_id) !== value) {
+            setPositionId('');
+            setPositionName('');
+        }
 
         const stillValid = managers.some(
             (item) =>
@@ -711,18 +765,68 @@ export default function RequisitionForm({
                                         htmlFor="position_name"
                                         error={errors.position_name}
                                     >
-                                        <Input
-                                            id="position_name"
+                                        <input
+                                            type="hidden"
                                             name="position_name"
                                             value={positionName}
-                                            maxLength={120}
+                                        />
+                                        <select
+                                            id="position_name"
+                                            value={positionId}
                                             onChange={(event) =>
-                                                setPositionName(
+                                                choosePosition(
                                                     event.target.value,
                                                 )
                                             }
-                                            placeholder="mis. Admin Clerk"
-                                        />
+                                            className={selectClasses}
+                                            data-test="position-select"
+                                        >
+                                            <option value="">
+                                                Pilih posisi…
+                                            </option>
+                                            {positionId === 'lama' &&
+                                                existing && (
+                                                    <option value="lama">
+                                                        {existing.positionName}{' '}
+                                                        (belum ada di daftar)
+                                                    </option>
+                                                )}
+                                            {departments
+                                                .filter((option) =>
+                                                    positionOptions.some(
+                                                        (position) =>
+                                                            position.department_id ===
+                                                            option.id,
+                                                    ),
+                                                )
+                                                .map((option) => (
+                                                    <optgroup
+                                                        key={option.id}
+                                                        label={option.name}
+                                                    >
+                                                        {positionOptions
+                                                            .filter(
+                                                                (position) =>
+                                                                    position.department_id ===
+                                                                    option.id,
+                                                            )
+                                                            .map((position) => (
+                                                                <option
+                                                                    key={
+                                                                        position.id
+                                                                    }
+                                                                    value={String(
+                                                                        position.id,
+                                                                    )}
+                                                                >
+                                                                    {
+                                                                        position.name
+                                                                    }
+                                                                </option>
+                                                            ))}
+                                                    </optgroup>
+                                                ))}
+                                        </select>
                                     </FieldRow>
                                     <FieldRow
                                         label="Departemen"

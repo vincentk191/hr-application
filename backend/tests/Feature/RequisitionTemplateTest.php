@@ -6,6 +6,7 @@ use App\Enums\Role;
 use App\Models\Company;
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\Position;
 use App\Models\Requisition;
 use App\Models\User;
 use App\Support\Recruitment\RequisitionTemplate;
@@ -26,6 +27,8 @@ beforeEach(function () {
 
     $this->company = Company::factory()->create();
     $this->gudang = Department::factory()->create(['company_id' => $this->company->id, 'name' => 'Gudang']);
+    Position::factory()->forDepartment($this->gudang)->create(['name' => 'Staf Gudang']);
+    Position::factory()->forDepartment($this->gudang)->create(['name' => 'Staf Gudang Senior']);
 
     $this->mira = tplMember('Mira', null, Role::Management, $this->company, $this->gudang);
     $this->rudi = tplMember('Rudi', $this->mira, Role::Supervisor, $this->company, $this->gudang);

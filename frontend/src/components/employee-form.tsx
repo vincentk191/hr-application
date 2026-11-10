@@ -4,6 +4,7 @@ import { EmployeeAvatar } from '@/components/employee-avatar';
 import InputError from '@/components/input-error';
 import { PhotoInput } from '@/components/photo-input';
 import { Button } from '@/components/ui/button';
+import { RupiahInput } from '@/components/rupiah-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type {
@@ -51,6 +52,27 @@ function Section({
             )}
             <div className="mt-3 grid gap-4 sm:grid-cols-2">{children}</div>
         </section>
+    );
+}
+
+/** An amount in rupiah, written with dots between thousands as it is typed. */
+function RupiahField({
+    name,
+    label,
+    defaultValue,
+    error,
+}: {
+    name: string;
+    label: string;
+    defaultValue?: number | string | null;
+    error?: string;
+}) {
+    return (
+        <div className="grid gap-2">
+            <Label htmlFor={name}>{label}</Label>
+            <RupiahInput id={name} name={name} defaultValue={defaultValue} />
+            <InputError message={error} />
+        </div>
     );
 }
 
@@ -744,34 +766,25 @@ export function EmployeeForm({
                                     defaultValue={employee?.payroll?.pay_group}
                                     error={errors.pay_group}
                                 />
-                                <TextField
+                                <RupiahField
                                     name="base_salary_idr"
                                     label="Gaji pokok (Rp)"
-                                    type="number"
-                                    min={0}
-                                    step={1}
                                     defaultValue={
                                         employee?.payroll?.base_salary_idr
                                     }
                                     error={errors.base_salary_idr}
                                 />
-                                <TextField
+                                <RupiahField
                                     name="allowances_idr"
                                     label="Tunjangan (Rp)"
-                                    type="number"
-                                    min={0}
-                                    step={1}
                                     defaultValue={
                                         employee?.payroll?.allowances_idr
                                     }
                                     error={errors.allowances_idr}
                                 />
-                                <TextField
+                                <RupiahField
                                     name="overtime_rate_idr"
                                     label="Tarif lembur (Rp)"
-                                    type="number"
-                                    min={0}
-                                    step={1}
                                     defaultValue={
                                         employee?.payroll?.overtime_rate_idr
                                     }

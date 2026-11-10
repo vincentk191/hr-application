@@ -4,9 +4,12 @@ use App\Enums\Role;
 use App\Models\Company;
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\Position;
 use App\Models\Requisition;
 use App\Models\User;
 use App\Models\WorkflowStep;
+use App\Workflows\Definitions\RequisitionWorkflow;
+use App\Workflows\WorkflowEngine;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Testing\TestResponse;
@@ -25,6 +28,9 @@ beforeEach(function () {
     $this->company = Company::factory()->create();
     $this->gudang = Department::factory()->create(['company_id' => $this->company->id, 'name' => 'Gudang']);
     $this->finance = Department::factory()->create(['company_id' => $this->company->id, 'name' => 'Finance']);
+    foreach ([$this->gudang, $this->finance] as $department) {
+        Position::factory()->forDepartment($department)->create(['name' => 'Staf Gudang']);
+    }
 
     $this->hr = reqUser(Role::HrAdmin, $this->company);
     $this->hr2 = reqUser(Role::HrAdmin, $this->company);
@@ -387,6 +393,7 @@ it('returns a rejected requisition to its requester, who corrects and sends it a
 
 it('lets the requester correct a sent requisition until someone decides on it', function () {
     $requisition = submittedRequisition();
+    Position::factory()->forDepartment($this->gudang)->create(['name' => 'Staf Gudang Senior']);
     $fields = requisitionFields($this->gudang, ['position_name' => 'Staf Gudang Senior']);
 
     $this->actingAs($this->rudi->user)->put(route('recruitment.update', $requisition), $fields)->assertRedirect(route('recruitment.show', $requisition));
@@ -601,4 +608,42 @@ it('shows no badge on the public entrance', function () {
         });
 
     expect($count)->toBe(0);
+});
+
+// --- The position is chosen from the list ---
+
+it('takes the position from the department\'s own list, spelled as the org chart has it', function () {
+    draftRequisition($this->rudi->user, $this->gudang, ['position_name' => 'Admin Gudang'])->assertSessionHasErrors('position_name');
+    expect(Requisition::query()->count())->toBe(0);
+
+    // A position of another department is not on this department's list.
+    Position::factory()->forDepartment($this->finance)->create(['name' => 'Akuntan']);
+    draftRequisition($this->hr, $this->gudang, ['position_name' => 'Akuntan'])->assertSessionHasErrors('position_name');
+
+    draftRequisition($this->rudi->user, $this->gudang, ['position_name' => '  staf GUDANG '])->assertSessionDoesntHaveErrors();
+    expect(latestRequisition()->position_name)->toBe('Staf Gudang');
+});
+
+it('offers the wizard the positions of the departments this person may ask for', function () {
+    Position::factory()->forDepartment($this->finance)->create(['name' => 'Akuntan']);
+
+    $names = fn (User $user): array => collect(
+        $this->actingAs($user)->get(route('recruitment.create'))->viewData('page')['props']['positions'],
+    )->pluck('name')->sort()->values()->all();
+
+    // Rudi heads Gudang only; HR may ask for any department.
+    expect($names($this->rudi->user))->toBe(['Staf Gudang'])
+        ->and($names($this->hr))->toBe(['Akuntan', 'Staf Gudang', 'Staf Gudang']);
+});
+
+it('lets a requisition keep a position that was typed before the list existed, until it is changed', function () {
+    $requisition = Requisition::factory()->create([
+        'company_id' => $this->company->id, 'department_id' => $this->gudang->id, 'created_by_user_id' => $this->rudi->user->id, 'position_name' => 'Pegawai Lama',
+    ]);
+    app(WorkflowEngine::class)->start($requisition, new RequisitionWorkflow, [], $this->rudi->user);
+
+    $this->actingAs($this->rudi->user)->put(route('recruitment.update', $requisition), requisitionFields($this->gudang, ['position_name' => 'Pegawai Lama', 'quota' => 3]))->assertSessionDoesntHaveErrors();
+    expect($requisition->refresh()->quota)->toBe(3);
+
+    $this->actingAs($this->rudi->user)->put(route('recruitment.update', $requisition), requisitionFields($this->gudang, ['position_name' => 'Pegawai Baru']))->assertSessionHasErrors('position_name');
 });

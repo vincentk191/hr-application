@@ -175,6 +175,25 @@ export type Candidate = {
     form: CandidateForm | null;
 };
 
+/**
+ * Who is out when, for placing interviews: the company's holidays and the leave of the PIC, the direct superior and HR.
+ * One entry per working day, in a window around today.
+ */
+export type InterviewAvailability = {
+    from: string;
+    to: string;
+    holidays: { date: string; title: string }[];
+    absences: {
+        date: string;
+        person: string;
+        /** PIC, Atasan and/or HR. */
+        roles: string[];
+        detail: string;
+        /** "approved" or "submitted" (still waiting). */
+        status: string;
+    }[];
+};
+
 /** One interviewer's evaluation of a candidate: a 1 to 5 rating, a recommendation and a note. */
 export type CandidateEvaluation = {
     id: number;
@@ -282,6 +301,8 @@ export type Requisition = RequisitionRow & {
     selectedCount: number;
     /** HR may invite shortlisted candidates, at Interview and Offer. */
     canManageInterview: boolean;
+    /** Holidays and leave of the people interviews depend on; null outside Interview and Offer, and for those who do not see candidates. */
+    availability: InterviewAvailability | null;
     canManagePostings: boolean;
     canCancel: boolean;
     canEdit: boolean;
@@ -290,6 +311,14 @@ export type Requisition = RequisitionRow & {
     canSaveSalary: boolean;
     canAdvance: boolean;
     canComment: boolean;
+};
+
+/** A position (Posisi) of a department, for choosing the requisition's position from the org chart's own list. */
+export type RequisitionPositionOption = {
+    id: number;
+    name: string;
+    department_id: number;
+    company_id: number;
 };
 
 /** A department the person may ask for, with its company so the Cabang list can follow it. */

@@ -7,6 +7,7 @@ use App\Enums\EmploymentType;
 use App\Models\Branch;
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\Position;
 use App\Models\Requisition;
 use App\Support\Recruitment\RequisitionDepartments;
 use App\Support\Recruitment\RequisitionTemplate;
@@ -147,6 +148,8 @@ class SaveRequisitionRequest extends FormRequest
                     return;
                 }
 
+                $this->checkPosition($validator, $department);
+
                 $branch = $this->integer('branch_id');
 
                 if ($branch !== 0 && ! Branch::query()->whereKey($branch)->where('company_id', $department->company_id)->exists()) {
@@ -229,6 +232,36 @@ class SaveRequisitionRequest extends FormRequest
     }
 
     /**
+     * The position is chosen from the department's own list (Posisi in the org chart), not typed. A requisition made
+     * before that, with a name that is not on the list, keeps it as long as the name is left alone.
+     */
+    private function checkPosition(Validator $validator, Department $department): void
+    {
+        $name = trim((string) $this->input('position_name'));
+        $requisition = $this->route('requisition');
+
+        if ($name === '' || ($requisition instanceof Requisition && $requisition->position_name === $name && $requisition->department_id === $department->id)) {
+            return;
+        }
+
+        if ($this->listedPosition($department, $name) === null) {
+            $validator->errors()->add('position_name', 'Pilih posisi dari daftar posisi departemen ini.');
+        }
+    }
+
+    /**
+     * The department's position that goes by this name (ignoring case), as the org chart spells it.
+     */
+    private function listedPosition(Department $department, string $name): ?string
+    {
+        $found = Position::acrossCompanies()->where('department_id', $department->id)
+            ->whereRaw('lower(name) = ?', [mb_strtolower($name)])
+            ->value('name');
+
+        return is_string($found) ? $found : null;
+    }
+
+    /**
      * The requisition's own fields, as the draft stores them. The contract length is kept only for the types that
      * have one.
      *
@@ -248,7 +281,7 @@ class SaveRequisitionRequest extends FormRequest
             'company_id' => $department?->company_id,
             'department_id' => $department?->id,
             'branch_id' => $this->integer('branch_id') ?: null,
-            'position_name' => trim((string) $this->input('position_name')),
+            'position_name' => ($department === null ? null : $this->listedPosition($department, trim((string) $this->input('position_name')))) ?? trim((string) $this->input('position_name')),
             'quota' => $this->filled('quota') ? $this->integer('quota') : null,
             'employment_type' => $type,
             'contract_months' => $type !== null && Requisition::typeNeedsMonths($type) && $this->filled('contract_months') ? $this->integer('contract_months') : null,

@@ -2,6 +2,7 @@ import { Form, Head } from '@inertiajs/react';
 import { Send } from 'lucide-react';
 import InputError from '@/components/input-error';
 import { LinkifiedText } from '@/components/linkified-text';
+import { RupiahInput } from '@/components/rupiah-input';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -226,13 +227,9 @@ export default function CandidateForm(props: Props) {
                                         Gaji yang diharapkan per bulan (Rp,
                                         opsional)
                                     </Label>
-                                    <Input
+                                    <RupiahInput
                                         id="expected-salary"
                                         name="expected_salary"
-                                        type="number"
-                                        min={0}
-                                        step={50000}
-                                        inputMode="numeric"
                                     />
                                     <InputError
                                         message={errors.expected_salary}

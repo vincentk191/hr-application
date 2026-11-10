@@ -38,6 +38,7 @@ use App\Models\Branch;
 use App\Models\Candidate;
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\Position;
 use App\Models\Requisition;
 use App\Models\RequisitionPosting;
 use App\Models\User;
@@ -763,6 +764,12 @@ class RequisitionController extends Controller
                     'number' => $employee->employee_number,
                     'company_id' => $employee->company_id,
                 ])->values(),
+            // The positions of the departments this person may ask for: the list the position is chosen from.
+            'positions' => Position::acrossCompanies()->whereIn('department_id', $departments->pluck('id'))
+                ->orderBy('name')
+                ->get(['id', 'name', 'department_id', 'company_id'])
+                ->map(fn (Position $position): array => ['id' => $position->id, 'name' => $position->name, 'department_id' => $position->department_id, 'company_id' => $position->company_id])
+                ->values(),
             'departments' => $departments->map(fn (Department $department): array => [
                 'id' => $department->id,
                 'name' => $department->name,

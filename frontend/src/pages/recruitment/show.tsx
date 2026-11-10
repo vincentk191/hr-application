@@ -23,6 +23,7 @@ import { DecisionDialog } from '@/components/decision-dialog';
 import InputError from '@/components/input-error';
 import { PhaseActions } from '@/components/phase-actions';
 import type { PhaseAction } from '@/components/phase-actions';
+import { RupiahInput } from '@/components/rupiah-input';
 import { RequisitionMobileStatus } from '@/components/requisition-mobile-status';
 import {
     RequisitionSummary,
@@ -30,7 +31,6 @@ import {
 } from '@/components/requisition-summary';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { WorkflowDiscussion } from '@/components/workflow-discussion';
 import { InterviewTab, parseLocal } from '@/components/requisition-interview';
@@ -138,14 +138,10 @@ function SalaryFields({
                 <Label htmlFor={`${idPrefix}-salary-min`}>
                     Ekspektasi gaji minimal (Rp)
                 </Label>
-                <Input
+                <RupiahInput
                     id={`${idPrefix}-salary-min`}
                     name="salary_min"
-                    type="number"
-                    min={0}
-                    step={50000}
-                    inputMode="numeric"
-                    defaultValue={item.salary?.min ?? ''}
+                    defaultValue={item.salary?.min}
                 />
                 <InputError message={errors.salary_min} />
             </div>
@@ -153,14 +149,10 @@ function SalaryFields({
                 <Label htmlFor={`${idPrefix}-salary-max`}>
                     Ekspektasi gaji maksimal (Rp)
                 </Label>
-                <Input
+                <RupiahInput
                     id={`${idPrefix}-salary-max`}
                     name="salary_max"
-                    type="number"
-                    min={0}
-                    step={50000}
-                    inputMode="numeric"
-                    defaultValue={item.salary?.max ?? ''}
+                    defaultValue={item.salary?.max}
                 />
                 <InputError message={errors.salary_max} />
             </div>
@@ -259,6 +251,15 @@ export default function RequisitionShow({
         item.tabs.filter((tab) => tab.state === 'done').at(-1)?.stage ??
         'submitted';
     const [tab, setTab] = useState<string>(current);
+
+    // "Lanjut ke …" takes the person to the stage it moved to, from the top of its page. Approving, which changes
+    // no stage, leaves them where they are.
+    const moveTo = (stage: string) => ({
+        onSuccess: () => {
+            setTab(stage);
+            window.scrollTo({ top: 0 });
+        },
+    });
 
     // The tracker already marks the stage a requisition is at, so the stage's name is shown beside the title only when
     // no stage is marked (a cancelled requisition); the status line only when it says more than the stage's name.
@@ -391,7 +392,7 @@ export default function RequisitionShow({
                                   router.post(
                                       advance(item.id).url,
                                       {},
-                                      { preserveScroll: true },
+                                      moveTo('posting'),
                                   )
                               }
                           >
@@ -421,7 +422,7 @@ export default function RequisitionShow({
                                   router.post(
                                       screening(item.id).url,
                                       {},
-                                      { preserveScroll: true },
+                                      moveTo('screening'),
                                   )
                               }
                           >
@@ -451,7 +452,7 @@ export default function RequisitionShow({
                                   router.post(
                                       interview(item.id).url,
                                       {},
-                                      { preserveScroll: true },
+                                      moveTo('interview'),
                                   )
                               }
                           >
@@ -479,7 +480,7 @@ export default function RequisitionShow({
                                   router.post(
                                       offer(item.id).url,
                                       {},
-                                      { preserveScroll: true },
+                                      moveTo('offer'),
                                   )
                               }
                           >

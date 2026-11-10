@@ -137,6 +137,11 @@ class RequisitionPresenter
             // How many the direct superior has chosen: a count anyone who sees the requisition may see.
             'selectedCount' => $requisition->candidates->filter(fn (Candidate $candidate): bool => $candidate->isSelected())->count(),
             'canManageInterview' => $viewer->can('manageInterview', $requisition),
+            // Who is out when, for placing interviews: the Interview tab's calendar, for those who see the candidates.
+            'availability' => in_array($stage, [RequisitionStage::Interview, RequisitionStage::Offer], true)
+                && ($viewer->can('viewCandidates', $requisition) || $viewer->can('viewInterviewees', $requisition))
+                ? app(InterviewAvailability::class)->for($requisition, $viewer)
+                : null,
             // The company's today, which the posting date may not pass.
             'today' => SaveRequisitionRequest::today()->toDateString(),
             'platformOptions' => array_map(fn (JobPlatform $platform): array => ['value' => $platform->value, 'label' => $platform->label()], JobPlatform::cases()),
