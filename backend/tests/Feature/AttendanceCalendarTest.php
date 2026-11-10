@@ -561,6 +561,20 @@ it('keeps a rekapitulasi Cabang\'s people out of the status filter and the daily
     expect(collect(calendar('?view=week&date=2026-10-05')->viewData('page')['props']['rows'])->pluck('id')->all())->toContain($rina->id);
 });
 
+it('picks the people of a rekapitulasi Cabang with the "rekap" status, and keeps the side panel figures while a status is chosen', function () {
+    $rina = rekapEmployee();
+    scan($this->budi, '2026-10-05 08:00:00');
+
+    calendar('?view=day&date=2026-10-05&statuses[]=rekap')
+        ->assertInertia(fn (Assert $page) => $page->has('rows', 1)->where('rows.0.id', $rina->id));
+
+    // Choosing Hadir leaves the figures as they were: the panel is where the next status is picked from.
+    $all = calendar('?view=day&date=2026-10-05')->viewData('page')['props']['summary'];
+    $picked = calendar('?view=day&date=2026-10-05&statuses[]=present')->viewData('page')['props']['summary'];
+
+    expect($picked)->toBe($all)->and($all['counts']['present'])->toBe(1)->and($all['rekapEmployees'])->toBe(1);
+});
+
 it('shows the requests someone filed beside their attendance, without changing it', function () {
     $other = Employee::factory()->forCompany($this->company)->create(['joined_on' => '2020-01-01']);
     scan($other, '2026-10-06 08:00:00');

@@ -1,19 +1,13 @@
 import { Link } from '@inertiajs/react';
 import {
+    Building2,
     FileText,
     LogIn,
     LogOut,
-    Building2,
     ScanLine,
-    Search,
-    SlidersHorizontal,
-    Sigma,
     User,
     Users,
 } from 'lucide-react';
-import { useState } from 'react';
-import { StatusLegend } from '@/components/attendance-legend';
-import { Input } from '@/components/ui/input';
 import { STATUS_LABEL, STATUS_TILE } from '@/lib/attendance-status';
 import { cn } from '@/lib/utils';
 import { show as employeeShow } from '@/routes/employees';
@@ -25,22 +19,16 @@ import type {
 } from '@/types/attendance';
 
 /**
- * The day of the attendance calendar: who came, when, and what they filed. Above the list sit the search, the
- * filters and one chip per status with how many people are in it (all of them to begin with), so the list is
- * read by picking a status instead of scrolling past everyone.
+ * The day of the attendance calendar: who came, when, and what they filed. The search, the filters and the status
+ * chips above it are the calendar's own row, shared with the other views (attendance-filter-bar); the list shows
+ * whoever they leave.
  *
- * People of a Cabang that sends a rekapitulasi have no daily attendance, only their Pengajuan, so they have a
- * chip of their own rather than a status.
+ * People of a Cabang that sends a rekapitulasi have no daily attendance, only their Pengajuan, so they carry an R
+ * rather than a status.
  */
-
-type Pick = 'all' | 'rekap' | DayStatus;
 
 const GRID =
     'grid grid-cols-[auto_minmax(0,1fr)_auto] md:grid-cols-[4rem_minmax(12rem,1.5fr)_minmax(8rem,1fr)_minmax(7rem,1fr)_5.5rem_5.5rem_minmax(9rem,1.2fr)]';
-
-function pickOf(row: CalendarRow, date: string): Pick {
-    return row.viaRekap ? 'rekap' : (row.days[date]?.status ?? 'no_data');
-}
 
 /** "Design · Jakarta": the department and the Cabang, whichever the person has. */
 function unitOf(row: CalendarRow): string {
@@ -243,276 +231,147 @@ function PersonRow({
     );
 }
 
+/** How many units (department · Cabang) the people on the list are in. */
+export function unitCount(rows: CalendarRow[]): number {
+    return new Set(rows.map(unitOf)).size;
+}
+
+/** The two ways to read the list: everyone, or grouped by unit (the number is how many units there are). */
+export function GroupToggle({
+    grouped,
+    onChange,
+    units,
+}: {
+    grouped: boolean;
+    onChange: (grouped: boolean) => void;
+    units: number;
+}) {
+    return (
+        <div
+            role="group"
+            aria-label="Susunan daftar"
+            className="inline-flex shrink-0 items-center gap-1 rounded-full border bg-card p-1"
+        >
+            <button
+                type="button"
+                aria-pressed={!grouped}
+                aria-label="Semua karyawan"
+                onClick={() => onChange(false)}
+                className={cn(
+                    'hidden size-9 items-center justify-center rounded-full text-muted-foreground md:inline-flex',
+                    !grouped && 'bg-foreground text-background',
+                )}
+            >
+                <User className="size-4" aria-hidden />
+            </button>
+            <button
+                type="button"
+                aria-pressed={grouped}
+                aria-label="Kelompokkan per unit"
+                title="Kelompokkan per unit"
+                onClick={() => onChange(!grouped)}
+                className={cn(
+                    'inline-flex h-10 items-center justify-center gap-1.5 rounded-full px-3 text-sm text-muted-foreground md:h-9',
+                    grouped && 'bg-foreground text-background',
+                )}
+            >
+                <Building2 className="size-4" aria-hidden />
+                <span className="tabular-nums">{units}</span>
+            </button>
+        </div>
+    );
+}
+
 export function DayView({
     date,
     rows,
     statuses,
-    search,
-    onSearchChange,
-    onSearch,
-    filterCount,
-    onOpenFilters,
+    grouped,
 }: {
     date: string;
     rows: CalendarRow[];
     statuses: StatusOption[];
-    search: string;
-    onSearchChange: (value: string) => void;
-    onSearch: () => void;
-    /** How many filters are on, shown on the filter button. */
-    filterCount: number;
-    onOpenFilters: () => void;
+    grouped: boolean;
 }) {
-    const [pick, setPick] = useState<Pick>('all');
-    const [grouped, setGrouped] = useState(false);
-
     const codeOf = Object.fromEntries(
         statuses.map((status) => [status.value, status.code]),
     ) as Record<DayStatus, string>;
-
-    const counts = new Map<Pick, number>();
-
-    rows.forEach((row) => {
-        const key = pickOf(row, date);
-
-        counts.set(key, (counts.get(key) ?? 0) + 1);
-    });
-
-    // A chip only for a status somebody is in; the one that was picked stays even once it empties.
-    const chips: { key: Pick; code: string; label: string }[] = [
-        ...statuses.map((status) => ({
-            key: status.value as Pick,
-            code: status.code,
-            label: status.label,
-        })),
-        { key: 'rekap' as const, code: 'R', label: 'Rekapitulasi cabang' },
-    ].filter((chip) => (counts.get(chip.key) ?? 0) > 0 || chip.key === pick);
-
-    const shown = rows.filter(
-        (row) => pick === 'all' || pickOf(row, date) === pick,
-    );
 
     const units = [...new Set(rows.map(unitOf))].sort((a, b) =>
         a.localeCompare(b, 'id'),
     );
     const groups: { unit: string | null; rows: CalendarRow[] }[] = grouped
-        ? units
-              .map((unit) => ({
-                  unit,
-                  rows: shown.filter((row) => unitOf(row) === unit),
-              }))
-              .filter((group) => group.rows.length > 0)
-        : [{ unit: null, rows: shown }];
+        ? units.map((unit) => ({
+              unit,
+              rows: rows.filter((row) => unitOf(row) === unit),
+          }))
+        : [{ unit: null, rows }];
+
+    if (rows.length === 0) {
+        return (
+            <p className="surface p-6 text-center text-sm text-muted-foreground">
+                Tidak ada karyawan yang cocok.
+            </p>
+        );
+    }
 
     return (
-        <div className="flex flex-col gap-4">
-            <div className="flex flex-wrap items-center gap-2 md:gap-3">
-                <form
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        onSearch();
-                    }}
-                    className="relative min-w-0 flex-1 md:max-w-sm"
-                >
-                    <Search
-                        className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground"
-                        aria-hidden
-                    />
-                    <Input
-                        value={search}
-                        onChange={(event) => onSearchChange(event.target.value)}
-                        placeholder="Cari nama / ID"
-                        aria-label="Cari karyawan"
-                        className="h-12 rounded-full pl-10 md:h-11"
-                    />
-                </form>
-
-                <button
-                    type="button"
-                    onClick={onOpenFilters}
-                    aria-label="Cari & filter"
-                    data-test="open-filters"
-                    className="relative inline-flex size-12 shrink-0 items-center justify-center gap-2 rounded-full border bg-card text-sm font-semibold md:h-11 md:w-auto md:px-5"
-                >
-                    <SlidersHorizontal className="size-4" aria-hidden />
-                    <span className="hidden md:inline">Filter</span>
-                    {filterCount > 0 && (
-                        <span className="absolute -top-1 -right-1 inline-flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground md:static md:size-5 md:text-[11px]">
-                            {filterCount}
-                        </span>
+        <div className="surface overflow-hidden">
+            <div role="table" className="md:min-w-[56rem]">
+                <div
+                    role="row"
+                    className={cn(
+                        GRID,
+                        'hidden items-center gap-x-4 py-4 pr-4 md:grid',
                     )}
-                </button>
-
-                <span
-                    aria-hidden
-                    className="mx-1 hidden h-6 border-l md:block"
-                />
-
-                <div
-                    role="tablist"
-                    className="order-last grid w-full grid-cols-4 gap-2 md:contents"
                 >
-                    {[
-                        { key: 'all' as const, code: 'Σ', label: 'Semua' },
-                        ...chips,
-                    ].map((chip) => {
-                        const count =
-                            chip.key === 'all'
-                                ? rows.length
-                                : (counts.get(chip.key) ?? 0);
-                        const on = pick === chip.key;
+                    <span role="columnheader" aria-hidden />
+                    <span role="columnheader" className="label-mono">
+                        Karyawan
+                    </span>
+                    <span role="columnheader" className="label-mono">
+                        Unit
+                    </span>
+                    <span role="columnheader" className="label-mono">
+                        Atasan
+                    </span>
+                    <span role="columnheader" className="label-mono">
+                        <LogIn className="size-4" aria-hidden />
+                        <span className="sr-only">Masuk</span>
+                    </span>
+                    <span role="columnheader" className="label-mono">
+                        <LogOut className="size-4" aria-hidden />
+                        <span className="sr-only">Pulang</span>
+                    </span>
+                    <span role="columnheader" className="label-mono">
+                        Pengajuan
+                    </span>
+                </div>
 
-                        return (
-                            <button
-                                key={chip.key}
-                                type="button"
-                                role="tab"
-                                aria-selected={on}
-                                data-test={`day-tab-${chip.key}`}
-                                title={chip.label}
-                                onClick={() => setPick(chip.key)}
-                                className={cn(
-                                    'inline-flex h-14 items-center justify-center gap-2.5 rounded-2xl border bg-card px-2 transition-colors hover:bg-muted/40 md:h-11 md:rounded-full md:pr-5 md:pl-2',
-                                    on &&
-                                        'border-foreground ring-1 ring-foreground',
-                                )}
+                {groups.map((group) => (
+                    <div key={group.unit ?? 'all'} role="rowgroup">
+                        {group.unit !== null && (
+                            <div
+                                role="row"
+                                className="flex items-center justify-between border-t bg-muted/40 px-4 py-2"
                             >
-                                <span
-                                    className={cn(
-                                        'inline-flex size-8 items-center justify-center rounded-lg border text-sm font-bold md:size-7 md:rounded-full md:text-xs',
-                                        chip.key === 'all'
-                                            ? 'border-border bg-muted text-foreground'
-                                            : chip.key === 'rekap'
-                                              ? STATUS_TILE.off
-                                              : STATUS_TILE[chip.key],
-                                    )}
-                                >
-                                    {chip.key === 'all' ? (
-                                        <Sigma className="size-4" aria-hidden />
-                                    ) : (
-                                        chip.code
-                                    )}
+                                <span className="label-mono">{group.unit}</span>
+                                <span className="text-xs font-semibold text-muted-foreground tabular-nums">
+                                    {group.rows.length}
                                 </span>
-                                <span className="text-lg font-bold tabular-nums">
-                                    {count}
-                                </span>
-                            </button>
-                        );
-                    })}
-                </div>
-
-                <div
-                    role="group"
-                    aria-label="Susunan daftar"
-                    className="inline-flex shrink-0 items-center gap-1 rounded-full border bg-card p-1 md:ml-auto"
-                >
-                    <button
-                        type="button"
-                        aria-pressed={!grouped}
-                        aria-label="Semua karyawan"
-                        onClick={() => setGrouped(false)}
-                        className={cn(
-                            'hidden size-9 items-center justify-center rounded-full text-muted-foreground md:inline-flex',
-                            !grouped && 'bg-foreground text-background',
-                        )}
-                    >
-                        <User className="size-4" aria-hidden />
-                    </button>
-                    <button
-                        type="button"
-                        aria-pressed={grouped}
-                        aria-label="Kelompokkan per unit"
-                        title="Kelompokkan per unit"
-                        onClick={() => setGrouped((value) => !value)}
-                        className={cn(
-                            'inline-flex h-10 items-center justify-center gap-1.5 rounded-full px-3 text-sm text-muted-foreground md:h-9 md:px-3',
-                            grouped && 'bg-foreground text-background',
-                        )}
-                    >
-                        <Building2 className="size-4" aria-hidden />
-                        <span className="tabular-nums">{units.length}</span>
-                    </button>
-                </div>
-            </div>
-
-            {shown.length === 0 ? (
-                <p className="surface p-6 text-center text-sm text-muted-foreground">
-                    {rows.length === 0
-                        ? 'Tidak ada karyawan yang cocok.'
-                        : 'Tidak ada karyawan di pilihan ini.'}
-                </p>
-            ) : (
-                <div className="surface overflow-hidden">
-                    <div role="table" className="md:min-w-[56rem]">
-                        <div
-                            role="row"
-                            className={cn(
-                                GRID,
-                                'hidden items-center gap-x-4 py-4 pr-4 md:grid',
-                            )}
-                        >
-                            <span role="columnheader" aria-hidden />
-                            <span role="columnheader" className="label-mono">
-                                Karyawan
-                            </span>
-                            <span role="columnheader" className="label-mono">
-                                Unit
-                            </span>
-                            <span role="columnheader" className="label-mono">
-                                Atasan
-                            </span>
-                            <span role="columnheader" className="label-mono">
-                                <LogIn className="size-4" aria-hidden />
-                                <span className="sr-only">Masuk</span>
-                            </span>
-                            <span role="columnheader" className="label-mono">
-                                <LogOut className="size-4" aria-hidden />
-                                <span className="sr-only">Pulang</span>
-                            </span>
-                            <span role="columnheader" className="label-mono">
-                                Pengajuan
-                            </span>
-                        </div>
-
-                        {groups.map((group) => (
-                            <div key={group.unit ?? 'all'} role="rowgroup">
-                                {group.unit !== null && (
-                                    <div
-                                        role="row"
-                                        className="flex items-center justify-between border-t bg-muted/40 px-4 py-2"
-                                    >
-                                        <span className="label-mono">
-                                            {group.unit}
-                                        </span>
-                                        <span className="text-xs font-semibold text-muted-foreground tabular-nums">
-                                            {group.rows.length}
-                                        </span>
-                                    </div>
-                                )}
-                                {group.rows.map((row) => (
-                                    <PersonRow
-                                        key={row.id}
-                                        row={row}
-                                        date={date}
-                                        codeOf={codeOf}
-                                    />
-                                ))}
                             </div>
+                        )}
+                        {group.rows.map((row) => (
+                            <PersonRow
+                                key={row.id}
+                                row={row}
+                                date={date}
+                                codeOf={codeOf}
+                            />
                         ))}
                     </div>
-                </div>
-            )}
-
-            <StatusLegend statuses={statuses}>
-                <li className="flex items-center gap-1.5">
-                    <RequestDot status="submitted" />
-                    Menunggu
-                </li>
-                <li className="flex items-center gap-1.5">
-                    <RequestDot status="approved" />
-                    Disetujui
-                </li>
-            </StatusLegend>
+                ))}
+            </div>
         </div>
     );
 }

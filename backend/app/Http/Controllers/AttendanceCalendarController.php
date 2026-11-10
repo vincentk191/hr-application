@@ -47,6 +47,9 @@ class AttendanceCalendarController extends Controller
      */
     private const MAX_ROWS = 500;
 
+    /** The value of the status filter that picks the people of a Cabang that sends a rekapitulasi. */
+    private const REKAP = 'rekap';
+
     /**
      * The leave list in the side panel is cut off here and says how many more there are: a year
      * can hold more leave than a panel can show.
@@ -70,9 +73,9 @@ class AttendanceCalendarController extends Controller
                 : [],
             'months' => $data['view'] === 'year' ? $this->months($data['records'], $data['result']['dates'], $data['result']['dataThrough'], $schedule, $attendance) : [],
             'summary' => $this->summary(
-                $attendance->tally($data['records'], $data['result']['dates']),
-                count(array_filter($data['rows'], fn (array $row): bool => ! $row['viaRekap'])),
-                count(array_filter($data['rows'], fn (array $row): bool => $row['viaRekap'])),
+                $attendance->tally($data['allRecords'], $data['result']['dates']),
+                $data['people'] - $data['rekapPeople'],
+                $data['rekapPeople'],
             ),
             'onLeave' => $this->onLeave($data['rows'], $data['from'], $data['to'], $data['filters']['leaveType']),
             'events' => $this->events($request, $data['from'], $data['to'], $data['filters']['branches']),
@@ -183,6 +186,7 @@ class AttendanceCalendarController extends Controller
      *     view: string, timezone: string, anchor: CarbonImmutable, from: CarbonImmutable, to: CarbonImmutable,
      *     filters: array<string, mixed>, result: array<string, mixed>, rows: list<array<string, mixed>>,
      *     records: array<int, array<string, array{status: string, in: string|null, out: string|null, punches: int, minutes: int|null, duplicate: bool, event: string|null}>>,
+     *     allRecords: array<int, array<string, array{status: string, in: string|null, out: string|null, punches: int, minutes: int|null, duplicate: bool, event: string|null}>>, people: int, rekapPeople: int,
      *     requests: array<int, list<array{id: int, type: string, from: string, to: string, timeframe: string|null, status: string, statusLabel: string}>>
      * }
      */
@@ -201,9 +205,10 @@ class AttendanceCalendarController extends Controller
         $filters = [
             'branches' => OrganisationNames::fromInput($request->input('branches')),
             'departments' => OrganisationNames::fromInput($request->input('departments')),
+            // 'rekap' is not a status of a day: it picks the people of a Cabang that sends a rekapitulasi.
             'statuses' => array_values(array_intersect(
                 (array) $request->input('statuses', []),
-                array_column(AttendanceDayStatus::cases(), 'value'),
+                [...array_column(AttendanceDayStatus::cases(), 'value'), self::REKAP],
             )),
             'search' => trim((string) $request->string('search')),
             'team' => $request->integer('team') ?: null,
@@ -228,6 +233,10 @@ class AttendanceCalendarController extends Controller
             'filters' => $filters,
             'result' => $result,
             'rows' => $rows,
+            // The figures of the side panel are taken before the status filter, so they stay put while one is chosen.
+            'allRecords' => $result['records'],
+            'people' => $employees->count(),
+            'rekapPeople' => $employees->filter(fn (Employee $employee): bool => $employee->attendsViaRekap())->count(),
             'records' => collect($rows)->mapWithKeys(fn (array $row): array => [$row['id'] => $row['days']])->all(),
             // Only for the people the grid shows, so every filter narrows them too.
             'requests' => array_intersect_key($requests, array_flip(array_column($rows, 'id'))),
@@ -391,7 +400,9 @@ class AttendanceCalendarController extends Controller
         foreach ($employees as $employee) {
             $days = $records[$employee->id] ?? [];
 
-            if ($statuses !== [] && ! collect($days)->contains(fn (array $day): bool => in_array($day['status'], $statuses, true))) {
+            $picked = $employee->attendsViaRekap() && in_array(self::REKAP, $statuses, true);
+
+            if ($statuses !== [] && ! $picked && ! collect($days)->contains(fn (array $day): bool => in_array($day['status'], $statuses, true))) {
                 continue;
             }
 

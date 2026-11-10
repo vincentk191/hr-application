@@ -6,7 +6,6 @@ import {
     isCounted,
     LOW_DAY_SHARE,
 } from '@/components/attendance-summary-views';
-import { StatusLegend } from '@/components/attendance-legend';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import { STATUS_LABEL, STATUS_TILE } from '@/lib/attendance-status';
 import { cn } from '@/lib/utils';
@@ -361,15 +360,6 @@ export function WeekGrid({
                         ))
                     )}
                 </div>
-            </div>
-
-            <div className="sticky bottom-0 z-10 -mx-4 bg-background px-4 py-2">
-                <StatusLegend statuses={statuses}>
-                    <li className="flex items-center gap-1.5">
-                        <WaitingBadge count={1} />
-                        Menunggu
-                    </li>
-                </StatusLegend>
             </div>
         </section>
     );

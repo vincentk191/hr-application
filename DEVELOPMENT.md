@@ -69,6 +69,22 @@ left uncommitted for review.
 
 ## Change log (latest first)
 
+- **2026-11-10 (attendance: one toolbar and one status filter for every view of the Kalender).**
+  - **Same structure whatever the timeframe.** Title and previous / Hari ini / next on the left, the view switch (with print and
+    the Rekap / CSV menu) on the right, the working hours under them, then one row: search, Filter, the status chips (Σ, H, T,
+    P, A, C, ?, R with counts), and for the Day view only, at the far end, the group-by-unit toggle. Nothing moves when the
+    view is changed. Below desktop width the view switch sits over the date row on every view.
+  - **The status chips and the side panel filter every view.** `components/attendance-filter-bar.tsx` (the row and
+    `statusEntries`) and `components/attendance-status-panel.tsx` (the panel: the six statuses, R when a Cabang sends a
+    rekapitulasi, each clickable). Both toggle `filters.statuses`, server side, so the week, month and year narrow too.
+    The status "rekap" (`StatusFilterKey`) picks the people of a Cabang that sends a rekapitulasi. The panel figures are
+    taken before the status filter (`AttendanceCalendarController::gather`: `allRecords`, `people`, `rekapPeople`), so they
+    stay put while one is chosen. "Libur" (off) is not a chip: it says nothing about a person.
+  - **No legend under the views**: the panel is the key (with a line for the amber / green Pengajuan dots on the day and
+    week). Month and year keep the shading key inside their own view.
+  - Filter sheet: the Tim and Jenis pengajuan selects keep their text inside the pill. Test: `AttendanceCalendarTest`
+    (the rekap pick, figures kept while filtering).
+
 - **2026-11-10 (attendance: the Day view of the Kalender redrawn).** Front end, plus the day's title now reads
   "Selasa, 10 Nov 2026" (`navigation()` uses `l, j M Y`; a phone shortens the weekday).
   - `components/attendance-day-view.tsx` replaces `DayTable`/`DayRows`. Under the title: working hours and the late rule

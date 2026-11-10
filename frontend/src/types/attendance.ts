@@ -130,6 +130,9 @@ export type DayStatus =
     | 'off'
     | 'no_data';
 
+/** What the calendar can be filtered by: a status of a day, or the people of a Cabang that sends a rekapitulasi. */
+export type StatusFilterKey = DayStatus | 'rekap';
+
 export type CalendarView = 'day' | 'week' | 'month' | 'year';
 
 export type DayRecord = {
@@ -259,7 +262,7 @@ export type StatusOption = { value: DayStatus; label: string; code: string };
 export type CalendarFilters = {
     branches: string[];
     departments: string[];
-    statuses: DayStatus[];
+    statuses: StatusFilterKey[];
     search: string;
     team: number | null;
     leaveType: string | null;
