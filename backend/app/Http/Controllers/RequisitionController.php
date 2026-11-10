@@ -576,15 +576,25 @@ class RequisitionController extends Controller
     {
         $this->authorize('cancel', $requisition);
 
-        $validated = $request->validate(['note' => ['required', 'string', 'max:2000']], ['note.required' => 'Tulis alasan pembatalan.']);
+        $validated = $request->validate([
+            'note' => ['required', 'string', 'max:2000'],
+            'notify_candidates' => ['nullable', 'boolean'],
+        ], ['note.required' => 'Tulis alasan pembatalan.']);
 
         $scheduled = $requisition->candidates()->where('interview_at', '>', now())->count();
 
-        $cancel->handle($requisition, $request->user(), $validated['note']);
+        $emailed = $cancel->handle($requisition, $request->user(), $validated['note'], $request->boolean('notify_candidates'));
 
-        // Candidates are outside the app, so nothing tells them: HR has to.
-        Inertia::flash('toast', ['type' => 'success', 'message' => "{$requisition->reference()} dibatalkan."
-            .($scheduled > 0 ? " {$scheduled} kandidat sudah dijadwalkan interview, kabari mereka." : '')]);
+        // Candidates are outside the app: unless HR chose to email them, nothing tells them, and those without an email
+        // are HR's to tell either way.
+        $left = $scheduled - $emailed;
+        $told = match (true) {
+            $emailed > 0 => " {$emailed} kandidat dikabari lewat email".($left > 0 ? ", {$left} lainnya kabari sendiri." : '.'),
+            $left > 0 => " {$left} kandidat sudah dijadwalkan interview, kabari mereka.",
+            default => '',
+        };
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "{$requisition->reference()} dibatalkan.{$told}"]);
 
         return back();
     }

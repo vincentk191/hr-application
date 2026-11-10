@@ -7,6 +7,7 @@ import { CandidateDrawer } from '@/components/candidate-drawer';
 import type { CandidateTab } from '@/components/candidate-drawer';
 import { modeLabel } from '@/components/candidate-invitation';
 import InputError from '@/components/input-error';
+import { LinkifiedText } from '@/components/linkified-text';
 import { CopyButton } from '@/components/requisition-posting';
 import { Button } from '@/components/ui/button';
 import {
@@ -368,21 +369,30 @@ function CandidateSummaryRow({
     const average = averageRating(candidate.evaluations);
 
     return (
-        <li data-test="interview-candidate">
-            <button
-                type="button"
-                onClick={() => onOpen(candidate)}
-                className="block w-full space-y-0.5 px-4 py-3 text-left hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
-            >
-                <span className="block font-semibold">{candidate.name}</span>
-                <span className="label-mono block">
-                    {at
-                        ? `${dayMonthFormat.format(at)} · ${clock(at)} · ${modeLabel(candidate.interviewMode)}`
-                        : 'Belum ada jadwal'}
-                </span>
+        <li
+            className="relative focus-within:bg-muted/40 hover:bg-muted/40"
+            data-test="interview-candidate"
+        >
+            {/* The button's overlay makes the whole row open the card; the place sits above it, so a link in it can be
+                clicked on its own (a link cannot live inside the button). */}
+            <div className="space-y-0.5 px-4 py-3">
+                <button
+                    type="button"
+                    onClick={() => onOpen(candidate)}
+                    className="block w-full space-y-0.5 text-left after:absolute after:inset-0 focus-visible:outline-none"
+                >
+                    <span className="block font-semibold">
+                        {candidate.name}
+                    </span>
+                    <span className="label-mono block">
+                        {at
+                            ? `${dayMonthFormat.format(at)} · ${clock(at)} · ${modeLabel(candidate.interviewMode)}`
+                            : 'Belum ada jadwal'}
+                    </span>
+                </button>
                 {candidate.interviewPlace && (
-                    <span className="block text-sm break-words text-muted-foreground">
-                        {candidate.interviewPlace}
+                    <span className="pointer-events-none relative z-10 block text-sm break-words text-muted-foreground [&_a]:pointer-events-auto">
+                        <LinkifiedText text={candidate.interviewPlace} />
                     </span>
                 )}
                 {average && (
@@ -391,7 +401,7 @@ function CandidateSummaryRow({
                         PENILAI
                     </span>
                 )}
-            </button>
+            </div>
         </li>
     );
 }

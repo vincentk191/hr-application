@@ -116,9 +116,15 @@ left uncommitted for review.
     (`invitation_note`, `evaluation_prompted_at`). **Evaluation prompt:** `recruitment:interview-reminders` also tells HR and
     the direct superior, once per requisition, which interviews from before today have no evaluation yet (the same test as
     the tab's "Menunggu penilaian"; `Notifier::evaluationsDue`); a re-invite clears it. It is a notice, not a to-do, because
-    evaluating is not an approval. **Cancelling:** candidates are outside the app and are not emailed. The cancel dialog and
-    the toast say how many are already scheduled so HR can tell them, and the direct superior is notified when interviews
+    evaluating is not an approval. **Cancelling:** candidates are outside the app, so nothing tells them unless HR ticks
+    "Kabari kandidat terjadwal (N)" in the cancel dialog (unticked by default; `notify_candidates`). That queues one plain
+    email (`CandidateInterviewCancelled`, text from `InvitationMessage::cancellation`, fixed wording like the reminder) to
+    each candidate whose interview is still ahead and who has an email; the reason HR wrote is internal and not in it. The
+    dialog and the toast say how many have no email so HR can tell them. The direct superior is notified when interviews
     were still ahead (the requester always was). The candidate form was already closed for a cancelled requisition.
+    **The mail-merge file still has no form link, by decision:** a link cannot be read back, and making one for the export
+    would silently kill any link already sent; "Tautan Formulir" gives one per candidate on request. In the Interview tab's
+    side list the place is now a clickable link too (the row's button overlay sits under it).
   - **A new form link on request (REC-INT).** "Tautan Formulir" with a refresh icon in the candidate drawer's Interview
     section (`recruitment.candidates.form-link`, `RenewFormLink`, policy `renewFormLink`): HR only, for a candidate who was
     invited, has not filled the form in, and whose interview day is not over. Only a hash of a link is kept, so it cannot be

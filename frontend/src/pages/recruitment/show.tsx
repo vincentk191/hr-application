@@ -6,7 +6,16 @@ import {
     setLayoutProps,
     usePage,
 } from '@inertiajs/react';
-import { ArrowRight, Ban, Check, Plus, RefreshCw, Save, X } from 'lucide-react';
+import {
+    ArrowRight,
+    Ban,
+    Check,
+    Mail,
+    Plus,
+    RefreshCw,
+    Save,
+    X,
+} from 'lucide-react';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { ApprovalChain } from '@/components/approval-chain';
@@ -254,12 +263,17 @@ export default function RequisitionShow({
     const showStageBadge = !item.tabs.some((tab) => tab.state === 'current');
     const detail = statusDetail(item);
 
-    // Candidates are outside the app, so cancelling tells none of them: HR has to.
-    const scheduledInterviews = (item.shortlist ?? []).filter((candidate) => {
+    // Candidates are outside the app, so cancelling tells none of them unless HR ticks the box to email those who have
+    // an address; the rest, and everyone otherwise, HR has to tell.
+    const scheduled = (item.shortlist ?? []).filter((candidate) => {
         const at = parseLocal(candidate.interviewAtInput);
 
         return at !== null && at > new Date();
-    }).length;
+    });
+    const scheduledInterviews = scheduled.length;
+    const emailableInterviews = scheduled.filter(
+        (candidate) => candidate.email,
+    ).length;
 
     const phaseActions: PhaseAction[] = [
         ...(item.canEdit
@@ -486,10 +500,33 @@ export default function RequisitionShow({
                               subtitle={`${item.reference} · pembatalan tidak bisa diurungkan`}
                               fieldLabel="Alasan pembatalan"
                               hint={`Wajib diisi · terkirim ke pemohon lewat notifikasi${
-                                  scheduledInterviews > 0
-                                      ? ` · ${scheduledInterviews} kandidat sudah dijadwalkan interview dan harus Anda kabari sendiri`
+                                  scheduledInterviews > emailableInterviews
+                                      ? ` · ${scheduledInterviews - emailableInterviews} kandidat terjadwal tanpa email, kabari sendiri`
                                       : ''
                               }`}
+                              extra={
+                                  emailableInterviews > 0
+                                      ? () => (
+                                            <label
+                                                className="mb-3 flex items-center gap-2 text-sm font-medium"
+                                                data-test="notify-candidates"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    name="notify_candidates"
+                                                    value="1"
+                                                    className="size-4 accent-primary"
+                                                />
+                                                <Mail
+                                                    className="size-4 text-muted-foreground"
+                                                    aria-hidden
+                                                />
+                                                Kabari kandidat terjadwal (
+                                                {emailableInterviews})
+                                            </label>
+                                        )
+                                      : undefined
+                              }
                               required
                               confirmLabel="Batalkan lowongan"
                               footnote="Lowongan ditutup"

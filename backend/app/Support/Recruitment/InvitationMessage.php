@@ -121,6 +121,27 @@ class InvitationMessage
     }
 
     /**
+     * The word that an interview is off because the position was closed: which interview, an apology, nothing about why
+     * (the reason HR wrote is internal).
+     */
+    public static function cancellation(Candidate $candidate, Requisition $requisition): string
+    {
+        $when = $candidate->interview_at;
+
+        return implode("\n", [
+            "Halo {$candidate->name},",
+            '',
+            "Interview untuk posisi {$requisition->position_name} di {$requisition->company->name}"
+                .($when === null ? '' : ' pada '.self::dayLabel($when).' pukul '.self::local($when)->format('H:i').' WIB')
+                .' dibatalkan karena lowongan ini ditutup.',
+            '',
+            'Mohon maaf atas ketidaknyamanannya, dan terima kasih atas waktu dan minat Anda.',
+            '',
+            "HR {$requisition->company->name}",
+        ]);
+    }
+
+    /**
      * Example values for the admin page's preview: a candidate invited to an online interview on a future date.
      *
      * @return array<string, string>

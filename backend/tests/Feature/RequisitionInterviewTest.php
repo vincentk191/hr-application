@@ -2,6 +2,7 @@
 
 use App\Enums\RequisitionStage;
 use App\Enums\Role;
+use App\Mail\CandidateInterviewCancelled;
 use App\Mail\CandidateInvitation;
 use App\Models\Candidate;
 use App\Models\Company;
@@ -635,6 +636,40 @@ it('tells HR when a new link can be made, and gives back the invitation note to 
             ->where('requisition.shortlist.0.invitationNote', 'Mohon hadir 10 menit lebih awal.')
             ->where('requisition.shortlist.1.canRenewFormLink', false)
             ->where('requisition.shortlist.1.invitationNote', null));
+});
+
+it('emails the candidates whose interview is still ahead when HR chooses to, without the reason', function () {
+    $requisition = interviewRequisition();
+    $ahead = Candidate::factory()->for($requisition)->create(['name' => 'Budi', 'email' => 'budi@example.com']);
+    $noEmail = Candidate::factory()->for($requisition)->create(['email' => null]);
+    Candidate::factory()->for($requisition)->create(['email' => 'lama@example.com', 'interview_at' => now()->subHours(3)]);
+    Candidate::factory()->for($requisition)->create(['email' => 'belum@example.com']);
+    invite($requisition, $ahead);
+    invite($requisition, $noEmail);
+
+    $this->actingAs($this->hr)->post(route('recruitment.cancel', $requisition), ['note' => 'Rahasia internal', 'notify_candidates' => '1'])
+        ->assertRedirect()
+        ->assertInertiaFlash('toast', [
+            'type' => 'success',
+            'message' => "{$requisition->reference()} dibatalkan. 1 kandidat dikabari lewat email, 1 lainnya kabari sendiri.",
+        ]);
+
+    Mail::assertQueued(CandidateInterviewCancelled::class, 1);
+    Mail::assertQueued(CandidateInterviewCancelled::class, fn (CandidateInterviewCancelled $mail): bool => $mail->hasTo('budi@example.com')
+        && str_contains($mail->subjectLine, 'Staf Gudang')
+        && str_contains($mail->body, 'Halo Budi')
+        && str_contains($mail->body, 'Selasa, 10 November 2026')
+        && str_contains($mail->body, '10:00 WIB')
+        && ! str_contains($mail->body, 'Rahasia internal'));
+});
+
+it('emails no candidate when a requisition is cancelled unless HR asks for it', function () {
+    $requisition = interviewRequisition();
+    invite($requisition, Candidate::factory()->for($requisition)->create(['email' => 'budi@example.com']));
+
+    $this->actingAs($this->hr)->post(route('recruitment.cancel', $requisition), ['note' => 'Tidak jadi'])->assertRedirect();
+
+    Mail::assertNotQueued(CandidateInterviewCancelled::class);
 });
 
 it('gives the file to HR only', function () {
