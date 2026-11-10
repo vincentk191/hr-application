@@ -112,6 +112,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('recruitment/{requisition}/candidates/{candidate}', [RequisitionController::class, 'destroyCandidate'])->scopeBindings()->name('recruitment.candidates.destroy');
     Route::get('recruitment/{requisition}/candidates/{candidate}/cv', [RequisitionController::class, 'candidateCv'])->scopeBindings()->name('recruitment.candidates.cv');
     Route::post('recruitment/{requisition}/candidates/{candidate}/invitation', [RequisitionController::class, 'inviteCandidate'])->scopeBindings()->name('recruitment.candidates.invite');
+    Route::post('recruitment/{requisition}/candidates/{candidate}/rejection', [RequisitionController::class, 'rejectCandidate'])->scopeBindings()->name('recruitment.candidates.reject');
+    Route::delete('recruitment/{requisition}/candidates/{candidate}/rejection', [RequisitionController::class, 'restoreCandidate'])->scopeBindings()->name('recruitment.candidates.restore');
     Route::post('recruitment/{requisition}/candidates/{candidate}/form-link', [RequisitionController::class, 'renewFormLink'])->scopeBindings()->name('recruitment.candidates.form-link');
     Route::put('recruitment/{requisition}/candidates/{candidate}/evaluation', [RequisitionController::class, 'saveEvaluation'])->scopeBindings()->name('recruitment.candidates.evaluation');
     Route::post('recruitment/{requisition}/interview', [RequisitionController::class, 'advanceToInterview'])->name('recruitment.interview');

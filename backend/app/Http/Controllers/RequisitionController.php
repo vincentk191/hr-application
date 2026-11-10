@@ -9,9 +9,11 @@ use App\Actions\Recruitment\AdvanceToScreening;
 use App\Actions\Recruitment\CancelRequisition;
 use App\Actions\Recruitment\DecideRequisition;
 use App\Actions\Recruitment\InviteCandidate;
+use App\Actions\Recruitment\RejectCandidate;
 use App\Actions\Recruitment\RemoveCandidate;
 use App\Actions\Recruitment\RemovePosting;
 use App\Actions\Recruitment\RenewFormLink;
+use App\Actions\Recruitment\RestoreCandidate;
 use App\Actions\Recruitment\SaveApplicantCount;
 use App\Actions\Recruitment\SaveEvaluation;
 use App\Actions\Recruitment\SavePosting;
@@ -171,6 +173,7 @@ class RequisitionController extends Controller
         $subject = InvitationMessage::subject($requisition);
 
         $candidates = $requisition->candidates()
+            ->inProcess()
             ->whereNotNull('interview_at')
             ->whereNotNull('email')
             ->where('email', '!=', '')
@@ -485,6 +488,8 @@ class RequisitionController extends Controller
      */
     public function inviteCandidate(InviteCandidateRequest $request, Requisition $requisition, Candidate $candidate, InviteCandidate $invite): RedirectResponse
     {
+        abort_if($candidate->isRejected(), 403);
+
         $result = $invite->handle($requisition, $candidate, $request->invitationFields(), $request->user());
 
         Inertia::flash('invitation', [
@@ -496,6 +501,39 @@ class RequisitionController extends Controller
             'expiresOn' => $result['expiresAt'] === null ? null : InvitationMessage::dayLabel($result['expiresAt'], false),
         ]);
         Inertia::flash('toast', ['type' => 'success', 'message' => "{$candidate->name} diundang interview."]);
+
+        return back();
+    }
+
+    /**
+     * "Tolak": HR turns a candidate down, with a reason, and may email them (REC-CAN-003).
+     */
+    public function rejectCandidate(Request $request, Requisition $requisition, Candidate $candidate, RejectCandidate $reject): RedirectResponse
+    {
+        $this->authorize('rejectCandidate', [$requisition, $candidate]);
+
+        $validated = $request->validate([
+            'note' => ['required', 'string', 'max:1000'],
+            'notify_candidate' => ['nullable', 'boolean'],
+        ], ['note.required' => 'Tulis alasan penolakan.']);
+
+        $emailed = $reject->handle($requisition, $candidate, $request->user(), $validated['note'], $request->boolean('notify_candidate'));
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "{$candidate->name} ditolak".($emailed ? ' dan dikabari lewat email.' : '.')]);
+
+        return back();
+    }
+
+    /**
+     * "Pulihkan": HR takes a rejection back (REC-CAN-003).
+     */
+    public function restoreCandidate(Request $request, Requisition $requisition, Candidate $candidate, RestoreCandidate $restore): RedirectResponse
+    {
+        $this->authorize('restoreCandidate', [$requisition, $candidate]);
+
+        $restore->handle($requisition, $candidate, $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "{$candidate->name} kembali diproses."]);
 
         return back();
     }
@@ -581,7 +619,7 @@ class RequisitionController extends Controller
             'notify_candidates' => ['nullable', 'boolean'],
         ], ['note.required' => 'Tulis alasan pembatalan.']);
 
-        $scheduled = $requisition->candidates()->where('interview_at', '>', now())->count();
+        $scheduled = $requisition->candidates()->inProcess()->where('interview_at', '>', now())->count();
 
         $emailed = $cancel->handle($requisition, $request->user(), $validated['note'], $request->boolean('notify_candidates'));
 

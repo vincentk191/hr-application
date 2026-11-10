@@ -69,6 +69,25 @@ left uncommitted for review.
 
 ## Change log (latest first)
 
+- **2026-11-10 (recruitment: a candidate can be turned down; Phase 1 of the Offer plan, branch `feature/recruitement`).**
+  Migration `add_rejection_to_candidates_table` (`rejected_at`, `rejected_reason`, `rejected_by_user_id`). The plan this
+  belongs to is under "Offer, Filled and the candidate's outcome" in the Phase 4 notes.
+  - **Tolak (REC-CAN-002/003).** `RejectCandidate`, policy `rejectCandidate`, route `recruitment.candidates.reject`: HR only,
+    from Screening to Offer, for a candidate still in the process, with a **required reason** (kept with who and when, and on
+    the audit trail). The reason is internal and never in any email. An opt-in tick box "Kabari kandidat lewat email" appears
+    only for a candidate who was invited and has an email (`CandidateRejected`, text from `InvitationMessage::rejection`,
+    fixed wording); unticked by default, and nothing is sent for someone who was never invited.
+  - **Pulihkan.** `RestoreCandidate`, route `recruitment.candidates.restore`: HR takes a rejection back; an email already
+    sent is not recalled, and the audit trail keeps both entries.
+  - **A rejected candidate is out of the process** (`Candidate::inProcess()`, `isRejected()`): no day-before reminder, no
+    "interview today" or "waiting for evaluation" notice, not in the mail-merge file, not on Beranda's interview lists, not
+    counted in the cancel dialog or emailed when a requisition is cancelled, cannot be invited or given a new form link, and
+    the form link now says the form is closed. The row stays: the shortlist still shows who was shortlisted, struck through
+    with a "Ditolak" tag, and the Interview tab lists them apart under "Ditolak".
+  - **Who sees what:** everyone who sees a candidate sees that they were turned down; the reason and who gave it are HR's.
+  - **Checked:** new `RequisitionCandidateRejectionTest` (7); 187 across the recruitment, dashboard and notification suites;
+    Pint, PHPStan on the touched files, TypeScript and the formatter clean. Not seen in a browser.
+
 - **2026-11-06 (recruitment: the rest of stage 04, and the first-slice gaps; decided with the user).** Migrations
   `add_urgent_to_requisitions_table`, `create_candidate_evaluations_table`, `add_reminders_to_candidates_table`.
   - **Rescheduling by the candidate: not built, by decision.** The candidate replies to the email or WhatsApp and HR changes
@@ -1530,6 +1549,49 @@ Screening now happens inside the platforms, and the app only meets the people HR
 - Consequence: `REC-SCR` shrinks from XL to about M, and the funnel on the dashboard is applicants (the count) →
   shortlisted → interviewed → offered → filled. The checklist's shape is still the thing to hold steady.
 
+**Offer, Filled and the candidate's outcome: phased plan (decided 2026-11-10).** Built from the spec rows `REC-OFS`,
+`REC-OFR`, `REC-FIL`, `REC-CAN` in the features workbook and `context.md` §9.3 steps 10 to 14, as adjusted for the free
+platform accounts above (no career page, manual posting, nothing public except the invited candidate's form).
+
+- **Decisions (the user, 2026-11-10).** (1) **The direct superior (Atasan langsung) chooses the candidate they prefer.** HR
+  keeps turning candidates down, since the candidate list is HR's. (2) **The offer letter is a print page**, as the berita
+  acara is (Cetak / PDF), so no new dependency. (3) **Every email to a candidate is an opt-in tick box**, as the
+  cancellation email is: rejection, "position filled", and the offer. (4) **No minimum-wage (UMK) warning** for now; the
+  other `REC-OFR-006` checks stay (a real future start date, a numeric salary, a probation of at most 3 months).
+  (5) **Several offers may be out at once, but an acceptance is refused once the quota is full.**
+- **Model.** A candidate's outcome is read from facts, not one status column: `rejected_at/reason/by` on the candidate
+  (Phase 1), the superior's pick on the candidate (Phase 2), and a **`CandidateOffer`** per chosen candidate (salary, start
+  date, probation, letter, who and when) with its own status: proposed, approved, sent, accepted, declined, withdrawn.
+  The offer runs on the workflow engine with a one-step Management chain. The engine keeps one chain per instance, so an
+  instance per offer leaves stage 01's approvals alone, and puts the approval on the dashboard's "Menunggu keputusan" card
+  and the nav badge. Hired = an accepted offer. The label HR reads is derived: Dalam proses, Terpilih, Siap ditawari,
+  Penawaran terkirim, Diterima, Menolak, Ditolak.
+- **Phases.**
+  1. **Candidate outcome: Tolak and Pulihkan** (`REC-CAN-002/003`, `CDT-001`). **Built 2026-11-10** (change log above).
+  2. **The superior's choice, and Interview to Offer** (`REC-PIP`). "Pilih" by the direct superior, for an interviewed
+     candidate still in the process (open question: HR choosing on their behalf only when the superior has no account);
+     a guard `HasSelectedCandidate`; HR's "Lanjut ke Penawaran" (`AdvanceToOffer`); the Offer tab replaces the
+     placeholder. Screening and interviews stay open at Offer, as already decided.
+  3. **Management's approval** (`REC-OFS-001/002/006`). `CandidateOffer` and `OfferWorkflow`. Each pick becomes a proposal
+     showing "Direkomendasikan oleh n pewawancara" (from the evaluations). Management approves and sets the starting
+     salary, or rejects with a reason and the candidate returns to the Interview list. Notices to Management and back, the
+     dashboard card and the badge count offers, and each offer has the comment thread.
+  4. **Terms, letter and sending** (`REC-OFR-001..006`, `OFS-003/007`). Start date, salary (from Management's figure),
+     probation; Posisi and Departemen filled in; one set of terms may apply to several candidates (`OFR-003`, P2). The
+     letter is generated from a template with fields pulled in and a print page for the rest. Sending marks the offer
+     "Penawaran Terkirim" with an opt-in email.
+  5. **The response, and filling** (`REC-OFS-004/005/008/009`, `FIL-001/002/003/005`). "Tandai Diterima" (hired, filled
+     +1, refused if the quota is already full), "Menolak" with a reason (the candidate leaves, the slot stays open),
+     `RequisitionPresenter`'s hard-coded `filled => 0` replaced by the accepted offers, a gated "Tandai Selesai" when the
+     quota is full that moves the requisition to Filled, a close checklist (manual: take the listings down; automatic: end
+     future interviews and their form links), and an opt-in "position filled" email to the other interviewed candidates.
+  6. **Convert to employee** (`REC-FIL-006/007`, size L). A form prefilled from the candidate, the offer and the
+     requisition (company tag inherited, department, position, contract type, start date as `joined_on`, the direct
+     superior as manager), asking only for what is missing: the employee number, the 16-digit NIK (unique across the group)
+     and the Cabang. It reuses the existing employee validation and links candidate to employee so it cannot be done twice;
+     the hire then registers through `CORE-REG`.
+  7. **Funnel and documents.** The dashboard's offered and filled figures, the REC rows below, a browser check.
+
 | Screen                            | Name                        | f   | P1  | Status | Notes                                                       |
 | --------------------------------- | --------------------------- | --- | --- | ------ | ----------------------------------------------------------- |
 | `REC-DSH`                         | Recruitment dashboard       | 9   | 6   | ✅     | Built 11-06 as well: CSV export (007), the "what waits on me" badge (008), the "Mendesak" tag. Built 10-28: tiles (open, waiting approval, quota open, my drafts: candidates and interviews wait on stages 03/04), table (Jabatan + ID, Departemen, Kuota filled/quota, Kand., Update Terakhir or "Belum diajukan", Status, PIC), status and department filters, row routing (a draft opens the wizard), "+ Ajukan Lowongan", company switcher. The badge (008) counts only approvals assigned to the person, as the dashboard card does; HR hears of new requests through notifications. Unread comments show as a red count on the list rows (also on Offboarding) |
@@ -1543,7 +1605,7 @@ Screening now happens inside the platforms, and the app only meets the people HR
 | `REC-INT`                         | Stage 04 Interview          | 8   | 3   | ✅     | Built 11-04 (revised plan): invitation (time, online/in person, Meet link or address) by email with the same text for WhatsApp, single-use link, open only on the interview day, to the public in-app candidate form (Ya/Tidak on the checklist, salary, start date), answers shown to HR. Built 11-06: feedback by HR and the direct superior, reminders (candidate the day before, HR and superior on the day). Built 11-09: a notice to HR and the superior for interviews still without an evaluation; the CSV for mail merge (one row per interviewee with an email, the invitation's note included, every download on the audit trail); cancelling warns HR of candidates already scheduled and tells the superior. Candidate rescheduling stays with HR by decision. Google Meet creation waits on the account test |
 | `REC-OFS`                         | Stage 05 Offer              | 9   | 8   | ⬜     | Management final approval + offer letter                    |
 | `REC-FIL`                         | Stage 06 Filled             | 7   | 6   | ⬜     | Convert-to-employee (L). Creates the profile the hire then registers against (`CORE-REG`); until this exists HR creates profiles by hand or CSV |
-| `REC-CAN` · `REC-CDT` · `REC-CRV` | Candidate detail + tabs     | 11  | 8   | ⬜     |                                                             |
+| `REC-CAN` · `REC-CDT` · `REC-CRV` | Candidate detail + tabs     | 11  | 8   | 🟡     | The candidate is a side drawer, not a page (by decision): Ringkasan (answers of the form), Dokumen (CV), Interview (schedule, invitation, evaluations). Built 11-10: Tolak with a reason and an opt-in email, and Pulihkan (`CAN-002/003`, the "Ditolak" banner of `CDT-001`). The stage-dependent actions for Siap Ditawari and Penawaran Terkirim come with the Offer phases |
 | `REC-OFR`                         | Send offer form             | 6   | 4   | ⬜     |                                                             |
 | `REC-EDI`                         | Post-interview form builder | 1   | 0   | ⬜     | P5 — backlog                                                |
 | `REC-CAR`                         | Career page (public)        | 3   | 0   | ➖     | Dropped 2026-11-04: no public career page; only invited, shortlisted candidates reach a form (inside this app) |

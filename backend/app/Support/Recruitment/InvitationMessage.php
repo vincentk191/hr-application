@@ -142,6 +142,23 @@ class InvitationMessage
     }
 
     /**
+     * The word to a candidate who will not go further: thanks, and that the process stops here. Nothing about why (the
+     * reason HR wrote is internal).
+     */
+    public static function rejection(Candidate $candidate, Requisition $requisition): string
+    {
+        return implode("\n", [
+            "Halo {$candidate->name},",
+            '',
+            "Terima kasih atas waktu dan minat Anda pada posisi {$requisition->position_name} di {$requisition->company->name}.",
+            '',
+            'Setelah kami pertimbangkan, kami belum dapat melanjutkan proses Anda untuk posisi ini. Kami menghargai usaha Anda dan berharap Anda sukses ke depannya.',
+            '',
+            "HR {$requisition->company->name}",
+        ]);
+    }
+
+    /**
      * Example values for the admin page's preview: a candidate invited to an online interview on a future date.
      *
      * @return array<string, string>

@@ -130,10 +130,19 @@ function ShortlistRow({
                 className="flex min-w-0 flex-1 items-center gap-2 text-left focus-visible:outline-none"
                 data-test="candidate-open"
             >
-                <span className="truncate font-semibold">{candidate.name}</span>
+                <span
+                    className={`truncate font-semibold ${candidate.isRejected ? 'text-muted-foreground line-through' : ''}`}
+                >
+                    {candidate.name}
+                </span>
                 <Badge variant="secondary" className="shrink-0">
                     {candidate.sourceLabel}
                 </Badge>
+                {candidate.isRejected && (
+                    <Badge variant="destructive" className="shrink-0">
+                        Ditolak
+                    </Badge>
+                )}
             </button>
             {item.canManageScreening && (
                 <Button

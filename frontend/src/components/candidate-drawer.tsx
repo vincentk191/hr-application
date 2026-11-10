@@ -1,16 +1,20 @@
 import { router } from '@inertiajs/react';
 import {
+    Ban,
     CalendarDays,
     Clock,
     Mail,
     MapPin,
     Phone,
     RefreshCw,
+    RotateCcw,
     Send,
     Trash2,
+    X,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Evaluations } from '@/components/candidate-evaluations';
+import { DecisionDialog } from '@/components/decision-dialog';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import { FileLink, useFilePreview } from '@/components/file-preview';
 import {
@@ -28,7 +32,13 @@ import {
     SheetDescription,
     SheetTitle,
 } from '@/components/ui/sheet';
-import { destroy, formLink, invite } from '@/routes/recruitment/candidates';
+import {
+    destroy,
+    formLink,
+    invite,
+    reject,
+    restore,
+} from '@/routes/recruitment/candidates';
 import type { Candidate, Requisition } from '@/types/recruitment';
 
 export type CandidateTab = 'overview' | 'documents' | 'interview';
@@ -134,6 +144,7 @@ function DrawerBody({
     onInvite?: (candidate: Candidate) => void;
 }) {
     const [removing, setRemoving] = useState(false);
+    const [restoring, setRestoring] = useState(false);
 
     return (
         <>
@@ -157,6 +168,34 @@ function DrawerBody({
                     </p>
                 </div>
             </div>
+
+            {candidate.isRejected && (
+                <div
+                    className="flex items-start gap-2 border-b bg-destructive/10 px-4 py-3 text-sm"
+                    data-test="candidate-rejected"
+                >
+                    <Ban
+                        className="mt-0.5 size-4 shrink-0 text-destructive"
+                        aria-hidden
+                    />
+                    <div className="min-w-0">
+                        <p className="font-semibold">
+                            Ditolak
+                            {candidate.rejectedOn
+                                ? ` · ${shortDate(candidate.rejectedOn)}`
+                                : ''}
+                            {candidate.rejectedBy
+                                ? ` · ${candidate.rejectedBy}`
+                                : ''}
+                        </p>
+                        {candidate.rejectedReason && (
+                            <p className="break-words text-muted-foreground">
+                                {candidate.rejectedReason}
+                            </p>
+                        )}
+                    </div>
+                </div>
+            )}
 
             <nav className="pill-tabs px-2">
                 {TABS.map((entry) => (
@@ -185,6 +224,79 @@ function DrawerBody({
 
             {item.canManageScreening && (
                 <div className="flex flex-wrap gap-2 border-t bg-card p-4">
+                    {candidate.canReject && (
+                        <DecisionDialog
+                            form={reject.form({
+                                requisition: item.id,
+                                candidate: candidate.id,
+                            })}
+                            decision="reject"
+                            title={`Tolak kandidat — ${candidate.name}`}
+                            subtitle={`${item.reference} · ${item.positionName}`}
+                            fieldLabel="Alasan penolakan"
+                            hint="Wajib diisi · tidak dikirim ke kandidat"
+                            required
+                            confirmLabel="Tolak"
+                            destructive
+                            extra={
+                                candidate.email &&
+                                candidate.inviteState !== 'none'
+                                    ? () => (
+                                          <label
+                                              className="mb-3 flex items-center gap-2 text-sm font-medium"
+                                              data-test="notify-candidate"
+                                          >
+                                              <input
+                                                  type="checkbox"
+                                                  name="notify_candidate"
+                                                  value="1"
+                                                  className="size-4 accent-primary"
+                                              />
+                                              <Mail
+                                                  className="size-4 text-muted-foreground"
+                                                  aria-hidden
+                                              />
+                                              Kabari kandidat lewat email
+                                          </label>
+                                      )
+                                    : undefined
+                            }
+                            trigger={
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    data-test="reject-candidate"
+                                >
+                                    <X className="size-4" aria-hidden />
+                                    Tolak
+                                </Button>
+                            }
+                        />
+                    )}
+                    {candidate.canRestore && (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            disabled={restoring}
+                            onClick={() =>
+                                router.delete(
+                                    restore.url({
+                                        requisition: item.id,
+                                        candidate: candidate.id,
+                                    }),
+                                    {
+                                        preserveScroll: true,
+                                        onStart: () => setRestoring(true),
+                                        onFinish: () => setRestoring(false),
+                                    },
+                                )
+                            }
+                            data-test="restore-candidate"
+                        >
+                            <RotateCcw className="size-4" aria-hidden />
+                            Pulihkan
+                        </Button>
+                    )}
                     <Button
                         type="button"
                         variant="outline"
@@ -487,7 +599,10 @@ function InterviewSection({
     const at = interviewMoment(candidate.interviewAtInput);
     const [resending, setResending] = useState(false);
     const [renewing, setRenewing] = useState(false);
-    const canManage = onInvite !== undefined && item.canManageInterview;
+    const canManage =
+        onInvite !== undefined &&
+        item.canManageInterview &&
+        !candidate.isRejected;
 
     // The old link stops working, and the candidate may be holding it: ask first.
     const renewLink = () => {

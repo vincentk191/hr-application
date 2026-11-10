@@ -391,6 +391,7 @@ class Notifier
         $requisition->loadMissing('creator');
 
         $interviewsAhead = Candidate::acrossCompanies()
+            ->inProcess()
             ->where('requisition_id', $requisition->id)
             ->where('interview_at', '>', now())
             ->exists();

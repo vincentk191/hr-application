@@ -1,13 +1,33 @@
 import { Form, router } from '@inertiajs/react';
-import { CalendarDays, Download, EyeOff, Link2, Plus } from 'lucide-react';
+import {
+    Building2,
+    CalendarDays,
+    Check,
+    Clock,
+    Download,
+    EyeOff,
+    Link2,
+    MapPin,
+    MessageSquare,
+    Minus,
+    Plus,
+    User,
+    Video,
+    X,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { Fragment, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { averageRating } from '@/components/candidate-evaluations';
+import {
+    averageRating,
+    averageValue,
+    overallRecommendation,
+} from '@/components/candidate-evaluations';
 import { CandidateDrawer } from '@/components/candidate-drawer';
 import type { CandidateTab } from '@/components/candidate-drawer';
 import { modeLabel } from '@/components/candidate-invitation';
 import InputError from '@/components/input-error';
-import { LinkifiedText } from '@/components/linkified-text';
+import { firstAddress, LinkifiedText } from '@/components/linkified-text';
 import { CopyButton } from '@/components/requisition-posting';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,6 +42,7 @@ import { Label } from '@/components/ui/label';
 import { exportMethod, invite } from '@/routes/recruitment/candidates';
 import type {
     Candidate,
+    CandidateEvaluation,
     FormLink,
     Invitation,
     Requisition,
@@ -353,60 +374,261 @@ function shortName(name: string): string {
     return rest.length === 0 ? first : `${first} ${rest[0][0].toUpperCase()}.`;
 }
 
+const RECOMMENDATION_STYLE: Record<
+    CandidateEvaluation['recommendation'],
+    { label: string; stroke: string; fill: string; icon: LucideIcon }
+> = {
+    continue: {
+        label: 'Lanjut',
+        stroke: 'stroke-green-500',
+        fill: 'bg-green-500',
+        icon: Check,
+    },
+    consider: {
+        label: 'Pertimbangkan',
+        stroke: 'stroke-amber-500',
+        fill: 'bg-amber-500',
+        icon: Minus,
+    },
+    reject: {
+        label: 'Tidak lanjut',
+        stroke: 'stroke-red-500',
+        fill: 'bg-red-500',
+        icon: X,
+    },
+};
+
 /**
- * One candidate in the side list, kept to what is needed to scan it: the name, and when and where. Clicking the row opens
- * the candidate's card with everything else.
+ * The candidate's standing at a glance: a ring filled to the average rating, its number in the middle, and a badge
+ * in the colour of what the interviewers lean towards. A dashed ring with a question mark while nobody has evaluated.
+ */
+function ScoreRing({ evaluations }: { evaluations: CandidateEvaluation[] }) {
+    const average = averageValue(evaluations);
+    const lean = overallRecommendation(evaluations);
+    const style = lean ? RECOMMENDATION_STYLE[lean] : null;
+
+    return (
+        <span
+            className="relative inline-flex size-14 shrink-0 items-center justify-center"
+            data-test="score-ring"
+            role="img"
+            aria-label={
+                average === null || !style
+                    ? 'Belum dinilai'
+                    : `Nilai ${averageRating(evaluations)} dari 5, ${style.label}`
+            }
+        >
+            <svg
+                viewBox="0 0 56 56"
+                className="absolute inset-0 -rotate-90"
+                aria-hidden
+            >
+                {average === null ? (
+                    <circle
+                        cx="28"
+                        cy="28"
+                        r="24"
+                        fill="none"
+                        pathLength={100}
+                        strokeWidth="3"
+                        strokeDasharray="1.5 1"
+                        className="stroke-muted-foreground/40"
+                    />
+                ) : (
+                    <>
+                        <circle
+                            cx="28"
+                            cy="28"
+                            r="24"
+                            fill="none"
+                            strokeWidth="5"
+                            className="stroke-muted"
+                        />
+                        <circle
+                            cx="28"
+                            cy="28"
+                            r="24"
+                            fill="none"
+                            pathLength={100}
+                            strokeWidth="5"
+                            strokeLinecap="round"
+                            strokeDasharray={`${(average / 5) * 100} 100`}
+                            className={style?.stroke}
+                        />
+                    </>
+                )}
+            </svg>
+            <span className="font-mono text-sm font-semibold">
+                {average === null ? (
+                    <span className="text-muted-foreground">?</span>
+                ) : (
+                    averageRating(evaluations)
+                )}
+            </span>
+            {style && (
+                <span
+                    aria-hidden
+                    className={`absolute -right-0.5 -bottom-0.5 flex size-5 items-center justify-center rounded-full text-background ring-2 ring-card ${style.fill}`}
+                >
+                    <style.icon className="size-3.5" strokeWidth={3} />
+                </span>
+            )}
+        </span>
+    );
+}
+
+/**
+ * The round button at the end of a scheduled row. For an online interview it opens the Meet link; for one in person it
+ * opens a small pop-up with the address (a button, as there is no link to follow). Nothing when no place was given.
+ */
+function PlaceButton({ candidate }: { candidate: Candidate }) {
+    const [open, setOpen] = useState(false);
+    const place = candidate.interviewPlace;
+    const meet =
+        candidate.interviewMode === 'online' ? firstAddress(place) : null;
+
+    if (!place || !candidate.interviewMode) {
+        return null;
+    }
+
+    if (meet) {
+        return (
+            <Button
+                asChild
+                variant="outline"
+                size="icon"
+                className="size-11"
+                data-test="meet-button"
+            >
+                <a
+                    href={meet}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`Buka Google Meet ${candidate.name}`}
+                    title="Buka Google Meet"
+                >
+                    <Video className="size-5" aria-hidden />
+                </a>
+            </Button>
+        );
+    }
+
+    return (
+        <>
+            <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="size-11"
+                onClick={() => setOpen(true)}
+                aria-label={`Lihat alamat interview ${candidate.name}`}
+                title="Lihat alamat"
+                data-test="address-button"
+            >
+                {candidate.interviewMode === 'online' ? (
+                    <Video className="size-5" aria-hidden />
+                ) : (
+                    <Building2 className="size-5" aria-hidden />
+                )}
+            </Button>
+            {open && (
+                <Dialog open onOpenChange={setOpen}>
+                    <DialogContent
+                        className="gap-3 sm:max-w-xs"
+                        data-test="address-popup"
+                    >
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2 text-base">
+                                <MapPin className="size-4" aria-hidden />
+                                {candidate.name}
+                            </DialogTitle>
+                            <DialogDescription className="break-words text-foreground">
+                                <LinkifiedText text={place} />
+                            </DialogDescription>
+                        </DialogHeader>
+                    </DialogContent>
+                </Dialog>
+            )}
+        </>
+    );
+}
+
+/**
+ * One candidate in the side list as a card: the score ring, the name, when it is (the day in red when it is today),
+ * how many evaluated and whether anyone left a comment, and the button for where. Clicking the card opens the
+ * candidate's card with everything else.
  */
 function CandidateSummaryRow({
     candidate,
     at,
+    now,
     onOpen,
 }: {
     candidate: Candidate;
     at: Date | null;
+    now: Date;
     onOpen: (candidate: Candidate) => void;
 }) {
-    const average = averageRating(candidate.evaluations);
+    const evaluators = candidate.evaluations.length;
+    const hasComment = candidate.evaluations.some((entry) => entry.note);
 
     return (
         <li
-            className="relative focus-within:bg-muted/40 hover:bg-muted/40"
+            className="relative flex items-center gap-3 rounded-2xl border bg-card p-3 focus-within:bg-muted/40 hover:bg-muted/40"
             data-test="interview-candidate"
         >
-            {/* The button's overlay makes the whole row open the card; the place sits above it, so a link in it can be
-                clicked on its own (a link cannot live inside the button). */}
-            <div className="space-y-0.5 px-4 py-3">
-                <button
-                    type="button"
-                    onClick={() => onOpen(candidate)}
-                    className="block w-full space-y-0.5 text-left after:absolute after:inset-0 focus-visible:outline-none"
-                >
-                    <span className="block font-semibold">
-                        {candidate.name}
-                    </span>
-                    <span className="label-mono block">
-                        {at
-                            ? `${dayMonthFormat.format(at)} · ${clock(at)} · ${modeLabel(candidate.interviewMode)}`
-                            : 'Belum ada jadwal'}
-                    </span>
-                </button>
-                {candidate.interviewPlace && (
-                    <span className="pointer-events-none relative z-10 block text-sm break-words text-muted-foreground [&_a]:pointer-events-auto">
-                        <LinkifiedText text={candidate.interviewPlace} />
-                    </span>
-                )}
-                {average && (
-                    <span className="label-mono block">
-                        NILAI {average} / 5 · {candidate.evaluations.length}{' '}
-                        PENILAI
-                    </span>
-                )}
+            <ScoreRing evaluations={candidate.evaluations} />
+            {/* The button's overlay makes the whole card open the drawer; the place button sits above it. */}
+            <button
+                type="button"
+                onClick={() => onOpen(candidate)}
+                className="min-w-0 flex-1 space-y-1 text-left after:absolute after:inset-0 after:rounded-2xl focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring"
+            >
+                <span className="block truncate font-bold">
+                    {candidate.name}
+                </span>
+                <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 font-mono text-sm text-muted-foreground">
+                    {at ? (
+                        <>
+                            <span
+                                className={`inline-flex items-center gap-1.5 ${sameDay(at, now) ? 'text-red-500' : ''}`}
+                            >
+                                <CalendarDays className="size-4" aria-hidden />
+                                {weekdayFormat.format(at)} {at.getDate()}
+                            </span>
+                            <span className="inline-flex items-center gap-1.5">
+                                <Clock className="size-4" aria-hidden />
+                                {clock(at)}
+                            </span>
+                        </>
+                    ) : (
+                        'Belum ada jadwal'
+                    )}
+                    {evaluators > 0 && (
+                        <span
+                            className="inline-flex items-center gap-1.5"
+                            title="Penilai"
+                        >
+                            <User className="size-4" aria-hidden />
+                            {evaluators}
+                        </span>
+                    )}
+                    {hasComment && (
+                        <MessageSquare
+                            className="size-4"
+                            aria-label="Ada catatan"
+                        />
+                    )}
+                </span>
+            </button>
+            <div className="relative z-10">
+                <PlaceButton candidate={candidate} />
             </div>
         </li>
     );
 }
 
-/** A titled group in the side list, with how many are in it. */
+/** A titled group in the side list: its name, a rule, and how many are in it; "Kosong" when there is no one. */
 function Group({
     title,
     count,
@@ -417,17 +639,41 @@ function Group({
     children: ReactNode;
 }) {
     return (
-        <section className="overflow-hidden rounded-xl border">
-            <header className="flex items-center justify-between gap-3 border-b bg-muted/40 px-4 py-2.5">
-                <h3 className="label-mono">{title}</h3>
-                <span className="label-mono">{count}</span>
+        <section className="space-y-2.5">
+            <header className="flex items-center gap-3">
+                <h3 className="label-mono text-xs">{title}</h3>
+                <span aria-hidden className="h-px flex-1 bg-border" />
+                <span className="label-mono text-xs">{count}</span>
             </header>
             {count === 0 ? (
-                <p className="p-4 text-sm text-muted-foreground">Tidak ada.</p>
+                <p className="flex items-center gap-2 rounded-2xl border border-dashed p-3 text-muted-foreground">
+                    <Check className="size-4" aria-hidden />
+                    Kosong
+                </p>
             ) : (
-                <ul className="divide-y">{children}</ul>
+                <ul className="space-y-2.5">{children}</ul>
             )}
         </section>
+    );
+}
+
+/** What the colours on the rings stand for. */
+function RingLegend() {
+    return (
+        <ul
+            className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t pt-3 text-sm text-muted-foreground"
+            data-test="ring-legend"
+        >
+            {Object.values(RECOMMENDATION_STYLE).map((style) => (
+                <li key={style.label} className="flex items-center gap-1.5">
+                    <span
+                        aria-hidden
+                        className={`size-3 rounded-full ${style.fill}`}
+                    />
+                    {style.label}
+                </li>
+            ))}
+        </ul>
     );
 }
 
@@ -835,12 +1081,17 @@ export function InterviewTab({ item }: { item: Requisition }) {
         );
     }
 
-    const entries: Scheduled[] = item.shortlist.flatMap((candidate) => {
+    // Someone HR turned down is out of the calendar and the groups, and listed apart at the end.
+    const inProcess = item.shortlist.filter(
+        (candidate) => !candidate.isRejected,
+    );
+    const rejected = item.shortlist.filter((candidate) => candidate.isRejected);
+    const entries: Scheduled[] = inProcess.flatMap((candidate) => {
         const at = parseLocal(candidate.interviewAtInput);
 
         return at ? [{ candidate, at }] : [];
     });
-    const unscheduled = item.shortlist.filter(
+    const unscheduled = inProcess.filter(
         (candidate) => parseLocal(candidate.interviewAtInput) === null,
     );
     const upcoming = entries
@@ -857,7 +1108,7 @@ export function InterviewTab({ item }: { item: Requisition }) {
         (entry) => entry.candidate.evaluations.length > 0,
     );
     const canManage = item.canManageInterview;
-    const mailable = item.shortlist.filter(
+    const mailable = inProcess.filter(
         (candidate) => candidate.email && candidate.interviewAtInput,
     ).length;
     const viewing =
@@ -873,6 +1124,7 @@ export function InterviewTab({ item }: { item: Requisition }) {
             key={candidate.id}
             candidate={candidate}
             at={at}
+            now={now}
             onOpen={(chosen) => openDrawer(chosen.id)}
         />
     );
@@ -933,29 +1185,41 @@ export function InterviewTab({ item }: { item: Requisition }) {
                                 )}
                             </Group>
                             <Group
-                                title="Menunggu penilaian"
+                                title="Menunggu nilai"
                                 count={awaiting.length}
                             >
                                 {awaiting.map((entry) =>
                                     row(entry.candidate, entry.at),
                                 )}
                             </Group>
-                            <Group
-                                title="Sudah dinilai"
-                                count={evaluated.length}
-                            >
+                            <Group title="Dinilai" count={evaluated.length}>
                                 {evaluated.map((entry) =>
                                     row(entry.candidate, entry.at),
                                 )}
                             </Group>
-                            <Group
-                                title="Belum dijadwalkan"
-                                count={unscheduled.length}
-                            >
-                                {unscheduled.map((candidate) =>
-                                    row(candidate, null),
-                                )}
-                            </Group>
+                            {unscheduled.length > 0 && (
+                                <Group
+                                    title="Belum dijadwalkan"
+                                    count={unscheduled.length}
+                                >
+                                    {unscheduled.map((candidate) =>
+                                        row(candidate, null),
+                                    )}
+                                </Group>
+                            )}
+                            {rejected.length > 0 && (
+                                <Group title="Ditolak" count={rejected.length}>
+                                    {rejected.map((candidate) =>
+                                        row(
+                                            candidate,
+                                            parseLocal(
+                                                candidate.interviewAtInput,
+                                            ),
+                                        ),
+                                    )}
+                                </Group>
+                            )}
+                            <RingLegend />
                         </>
                     )}
                 </aside>

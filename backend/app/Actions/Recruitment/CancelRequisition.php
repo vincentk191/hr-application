@@ -49,6 +49,7 @@ class CancelRequisition
         $subject = 'Interview dibatalkan — '.$requisition->position_name;
 
         $candidates = $requisition->candidates()
+            ->inProcess()
             ->where('interview_at', '>', now())
             ->whereNotNull('email')
             ->where('email', '!=', '')

@@ -120,13 +120,14 @@ class SendInterviewReminders extends Command
     }
 
     /**
-     * Candidates with an interview time, on requisitions that are at Interview or Offer.
+     * Candidates still in the process (not turned down) with an interview time, on requisitions at Interview or Offer.
      *
      * @return Builder<Candidate>
      */
     private function live(): Builder
     {
         return Candidate::query()->acrossCompanies()
+            ->inProcess()
             ->whereNotNull('interview_at')
             ->whereHas('requisition', fn (Builder $requisition) => $requisition->withoutGlobalScopes()
                 ->whereHas('workflow', fn (Builder $workflow) => $workflow->withoutGlobalScopes()

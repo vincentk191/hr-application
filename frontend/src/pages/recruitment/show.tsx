@@ -268,7 +268,7 @@ export default function RequisitionShow({
     const scheduled = (item.shortlist ?? []).filter((candidate) => {
         const at = parseLocal(candidate.interviewAtInput);
 
-        return at !== null && at > new Date();
+        return !candidate.isRejected && at !== null && at > new Date();
     });
     const scheduledInterviews = scheduled.length;
     const emailableInterviews = scheduled.filter(

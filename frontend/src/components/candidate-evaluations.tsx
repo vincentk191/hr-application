@@ -29,17 +29,50 @@ const VARIANT: Record<
     reject: 'destructive',
 };
 
-/** The average of the ratings given so far, as "4,0", or null while there are none. */
-export function averageRating(
+/** The average of the ratings given so far, or null while there are none. */
+export function averageValue(
     evaluations: CandidateEvaluation[],
-): string | null {
+): number | null {
     if (evaluations.length === 0) {
         return null;
     }
 
     const total = evaluations.reduce((sum, entry) => sum + entry.rating, 0);
 
-    return (total / evaluations.length).toFixed(1).replace('.', ',');
+    return total / evaluations.length;
+}
+
+/** The average of the ratings given so far, as "4,0", or null while there are none. */
+export function averageRating(
+    evaluations: CandidateEvaluation[],
+): string | null {
+    const average = averageValue(evaluations);
+
+    return average === null ? null : average.toFixed(1).replace('.', ',');
+}
+
+/**
+ * What the interviewers together lean towards: the recommendation given most often, and the more cautious one when
+ * they are tied. Null while nobody has evaluated.
+ */
+export function overallRecommendation(
+    evaluations: CandidateEvaluation[],
+): CandidateEvaluation['recommendation'] | null {
+    if (evaluations.length === 0) {
+        return null;
+    }
+
+    const cautious: CandidateEvaluation['recommendation'][] = [
+        'reject',
+        'consider',
+        'continue',
+    ];
+    const count = (value: CandidateEvaluation['recommendation']) =>
+        evaluations.filter((entry) => entry.recommendation === value).length;
+
+    return cautious.reduce((best, value) =>
+        count(value) > count(best) ? value : best,
+    );
 }
 
 /**

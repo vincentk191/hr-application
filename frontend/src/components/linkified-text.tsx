@@ -7,6 +7,19 @@ const ADDRESS =
 /** Sentence punctuation that follows an address but is not part of it. */
 const TRAILING = /[.,;:!?)\]]+$/;
 
+/** The first web address in a text, ready to open (a bare Meet address gets https), or null when there is none. */
+export function firstAddress(text: string | null): string | null {
+    const found = text?.split(ADDRESS)[1];
+
+    if (!found) {
+        return null;
+    }
+
+    const address = found.replace(TRAILING, '');
+
+    return /^https?:\/\//i.test(address) ? address : `https://${address}`;
+}
+
 /**
  * Text in which every web address is a link that opens in a new tab (an interview's place, which for an online interview
  * is the Meet link). Only http and https are linked, so nothing like a `javascript:` address becomes clickable.

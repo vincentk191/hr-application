@@ -7,6 +7,7 @@ use App\Enums\CandidateSource;
 use Carbon\CarbonImmutable;
 use Database\Factories\CandidateFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -47,6 +48,9 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $evaluation_prompted_at
  * @property Carbon|null $form_submitted_at
  * @property array<string, mixed>|null $form_data
+ * @property Carbon|null $rejected_at
+ * @property string|null $rejected_reason
+ * @property int|null $rejected_by_user_id
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -80,6 +84,9 @@ use Illuminate\Support\Carbon;
     'evaluation_prompted_at',
     'form_submitted_at',
     'form_data',
+    'rejected_at',
+    'rejected_reason',
+    'rejected_by_user_id',
 ])]
 class Candidate extends Model
 {
@@ -107,6 +114,7 @@ class Candidate extends Model
             'candidate_reminded_at' => 'datetime',
             'interviewers_reminded_at' => 'datetime',
             'evaluation_prompted_at' => 'datetime',
+            'rejected_at' => 'datetime',
             'form_data' => 'array',
         ];
     }
@@ -174,6 +182,33 @@ class Candidate extends Model
     public function evaluations(): HasMany
     {
         return $this->hasMany(CandidateEvaluation::class)->orderBy('id');
+    }
+
+    /**
+     * HR turned this candidate down (REC-CAN-003): they are out of the process, but the record stays.
+     */
+    public function isRejected(): bool
+    {
+        return $this->rejected_at !== null;
+    }
+
+    /**
+     * Candidates still in the process: not turned down.
+     *
+     * @param  Builder<Candidate>  $query
+     * @return Builder<Candidate>
+     */
+    public function scopeInProcess(Builder $query): Builder
+    {
+        return $query->whereNull('rejected_at');
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function rejectedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'rejected_by_user_id');
     }
 
     /**

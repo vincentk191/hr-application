@@ -148,6 +148,15 @@ export type Candidate = {
     invitationNote: string | null;
     /** HR may make a new link to the form now: invited, form not filled in, interview day not over. */
     canRenewFormLink: boolean;
+    /** HR turned this candidate down (REC-CAN-003): out of the process, the record stays. */
+    isRejected: boolean;
+    rejectedOn: string | null;
+    /** The reason and who gave it are HR's; null for everyone else. */
+    rejectedReason: string | null;
+    rejectedBy: string | null;
+    /** HR may turn them down now, or take the rejection back. */
+    canReject: boolean;
+    canRestore: boolean;
     formSubmittedOn: string | null;
     /** The invitation as sent, without its personal link; null if never invited. */
     invitation: SentInvitation | null;

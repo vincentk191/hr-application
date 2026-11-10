@@ -30,7 +30,7 @@ class CandidateFormController extends Controller
 
         $state = match (true) {
             $candidate->form_submitted_at !== null => 'submitted',
-            $requisition->stage()->isFinal() => 'closed',
+            $requisition->stage()->isFinal(), $candidate->isRejected() => 'closed',
             $candidate->inviteState() === 'expired' => 'expired',
             $this->isEarly($candidate) => 'early',
             default => 'open',
@@ -78,6 +78,7 @@ class CandidateFormController extends Controller
             || ! $requisition instanceof Requisition
             || $candidate->inviteState() !== 'invited'
             || $this->isEarly($candidate)
+            || $candidate->isRejected()
             || $requisition->stage()->isFinal()) {
             return to_route('candidate-form.show', $token);
         }

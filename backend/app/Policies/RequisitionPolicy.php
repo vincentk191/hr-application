@@ -175,12 +175,33 @@ class RequisitionPolicy
     }
 
     /**
+     * Turning a candidate down is HR's, from Screening to Offer, for someone still in the process (REC-CAN-003).
+     */
+    public function rejectCandidate(User $user, Requisition $requisition, Candidate $candidate): bool
+    {
+        return $this->manageScreening($user, $requisition)
+            && $candidate->requisition_id === $requisition->id
+            && ! $candidate->isRejected();
+    }
+
+    /**
+     * Taking a rejection back is HR's, while the requisition is still at a stage where candidates are handled.
+     */
+    public function restoreCandidate(User $user, Requisition $requisition, Candidate $candidate): bool
+    {
+        return $this->manageScreening($user, $requisition)
+            && $candidate->requisition_id === $requisition->id
+            && $candidate->isRejected();
+    }
+
+    /**
      * A new link to a candidate's form, for one who asks for it again: HR's, for a candidate who was invited and has not
      * filled the form in, while the interview day has not ended (after that the link would be dead on arrival).
      */
     public function renewFormLink(User $user, Requisition $requisition, Candidate $candidate): bool
     {
         return $this->manageInterview($user, $requisition)
+            && ! $candidate->isRejected()
             && $candidate->requisition_id === $requisition->id
             && $candidate->invited_at !== null
             && $candidate->form_submitted_at === null

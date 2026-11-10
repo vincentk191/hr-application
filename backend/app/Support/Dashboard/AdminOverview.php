@@ -137,6 +137,7 @@ class AdminOverview
         $weekEnd = CarbonImmutable::now((string) config('attendance.device_timezone'))->endOfWeek()->utc();
 
         $upcoming = Candidate::query()
+            ->inProcess()
             ->with('requisition.workflow')
             ->whereNotNull('interview_at')
             ->where('interview_at', '>=', $now)
@@ -145,6 +146,7 @@ class AdminOverview
             ->get();
 
         $lapsed = Candidate::query()
+            ->inProcess()
             ->with('requisition')
             ->whereNotNull('invited_at')
             ->whereNull('form_submitted_at')
@@ -265,6 +267,7 @@ class AdminOverview
     private function interviewEntries(CarbonImmutable $from, CarbonImmutable $to, string $timezone): array
     {
         return array_values(Candidate::query()
+            ->inProcess()
             ->with('requisition.workflow')
             ->whereBetween('interview_at', [$from->utc(), $to->endOfDay()->utc()])
             ->get()

@@ -213,7 +213,7 @@ class RequisitionPresenter
      */
     private function candidates(Requisition $requisition, User $viewer, bool $intervieweesOnly = false): array
     {
-        $requisition->loadMissing('candidates.addedBy:id,name', 'candidates.evaluations.author:id,name');
+        $requisition->loadMissing('candidates.addedBy:id,name', 'candidates.evaluations.author:id,name', 'candidates.rejectedBy:id,name');
 
         return array_values($requisition->candidates
             ->filter(fn (Candidate $candidate): bool => ! $intervieweesOnly || $candidate->inviteState() !== 'none')
@@ -246,7 +246,7 @@ class RequisitionPresenter
      */
     public function candidate(Requisition $requisition, Candidate $candidate, ?User $viewer = null): array
     {
-        $candidate->loadMissing('addedBy:id,name', 'evaluations.author:id,name');
+        $candidate->loadMissing('addedBy:id,name', 'evaluations.author:id,name', 'rejectedBy:id,name');
         $cvUrl = $candidate->cv_path === null ? null : route('recruitment.candidates.cv', [$requisition, $candidate]);
 
         return [
@@ -268,6 +268,7 @@ class RequisitionPresenter
             'canRenewFormLink' => $viewer !== null && $viewer->can('renewFormLink', [$requisition, $candidate]),
             // What HR wrote to the candidate in the invitation: HR's own, kept so a re-send repeats it.
             'invitationNote' => $viewer !== null && $viewer->can('viewCandidates', $requisition) ? $candidate->invitation_note : null,
+            ...$this->rejectionFields($requisition, $candidate, $viewer),
         ];
     }
 
@@ -330,6 +331,27 @@ class RequisitionPresenter
                 'availableFrom' => $form['available_from'] ?? null,
                 'message' => $form['message'] ?? null,
             ],
+        ];
+    }
+
+    /**
+     * Whether a candidate was turned down (REC-CAN-003). Everyone who sees the candidate sees that; the reason and who gave it
+     * are HR's.
+     *
+     * @return array<string, mixed>
+     */
+    private function rejectionFields(Requisition $requisition, Candidate $candidate, ?User $viewer): array
+    {
+        $isHr = $viewer !== null && $viewer->can('viewCandidates', $requisition);
+        $timezone = (string) config('attendance.device_timezone');
+
+        return [
+            'isRejected' => $candidate->isRejected(),
+            'rejectedOn' => $candidate->rejected_at?->copy()->setTimezone($timezone)->toDateString(),
+            'rejectedReason' => $isHr ? $candidate->rejected_reason : null,
+            'rejectedBy' => $isHr ? $candidate->rejectedBy?->name : null,
+            'canReject' => $viewer !== null && $viewer->can('rejectCandidate', [$requisition, $candidate]),
+            'canRestore' => $viewer !== null && $viewer->can('restoreCandidate', [$requisition, $candidate]),
         ];
     }
 
