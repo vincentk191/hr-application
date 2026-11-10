@@ -1,5 +1,7 @@
 import { Form } from '@inertiajs/react';
+import { Save, X } from 'lucide-react';
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import {
@@ -28,7 +30,7 @@ export function LastDayDialog({
 }: {
     item: OffboardingCase;
     /** The trigger's text; shorter in a phone's action bar. */
-    label?: string;
+    label?: ReactNode;
     className?: string;
 }) {
     const [open, setOpen] = useState(false);
@@ -97,10 +99,12 @@ export function LastDayDialog({
                             <DialogFooter className="items-center border-t bg-muted/40 p-5 sm:justify-between">
                                 <DialogClose asChild>
                                     <Button type="button" variant="outline">
+                                        <X className="size-4" aria-hidden />
                                         Batal
                                     </Button>
                                 </DialogClose>
                                 <Button type="submit" disabled={processing}>
+                                    <Save className="size-4" aria-hidden />
                                     Simpan
                                 </Button>
                             </DialogFooter>

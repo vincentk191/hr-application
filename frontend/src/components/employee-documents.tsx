@@ -1,5 +1,13 @@
 import { Form, router } from '@inertiajs/react';
-import { Download, Eye, Lock } from 'lucide-react';
+import {
+    Download,
+    Eye,
+    Lock,
+    RefreshCw,
+    Save,
+    Trash2,
+    Upload,
+} from 'lucide-react';
 import { useState } from 'react';
 import { useFilePreview } from '@/components/file-preview';
 import type { PreviewableFile } from '@/components/file-preview';
@@ -214,6 +222,7 @@ function DocumentCard({
                                 type="button"
                                 onClick={() => toggle('edit')}
                             >
+                                <RefreshCw className="size-4" aria-hidden />
                                 Ubah
                             </Button>
                             <Button
@@ -234,6 +243,7 @@ function DocumentCard({
                                     }
                                 }}
                             >
+                                <Trash2 className="size-4" aria-hidden />
                                 Hapus
                             </Button>
                         </>
@@ -320,6 +330,7 @@ function DocumentCard({
                             </div>
                             <div className="sm:col-span-2">
                                 <Button type="submit" disabled={processing}>
+                                    <Upload className="size-4" aria-hidden />
                                     Unggah versi baru
                                 </Button>
                             </div>
@@ -345,6 +356,7 @@ function DocumentCard({
                             />
                             <div className="sm:col-span-2">
                                 <Button type="submit" disabled={processing}>
+                                    <Save className="size-4" aria-hidden />
                                     Simpan
                                 </Button>
                             </div>
@@ -415,6 +427,7 @@ export function EmployeeDocuments({
                             </div>
                             <div className="sm:col-span-2">
                                 <Button type="submit" disabled={processing}>
+                                    <Upload className="size-4" aria-hidden />
                                     Unggah dokumen
                                 </Button>
                             </div>

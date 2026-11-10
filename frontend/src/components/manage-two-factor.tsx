@@ -1,5 +1,5 @@
 import { Form } from '@inertiajs/react';
-import { ShieldCheck } from 'lucide-react';
+import { Power, PowerOff, ShieldCheck } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import Heading from '@/components/heading';
 import TwoFactorRecoveryCodes from '@/components/two-factor-recovery-codes';
@@ -71,6 +71,10 @@ export default function ManageTwoFactor(props: Props) {
                                         type="submit"
                                         disabled={processing}
                                     >
+                                        <PowerOff
+                                            className="size-4"
+                                            aria-hidden
+                                        />
                                         Nonaktifkan 2FA
                                     </Button>
                                 )}
@@ -110,6 +114,7 @@ export default function ManageTwoFactor(props: Props) {
                             >
                                 {({ processing }) => (
                                     <Button type="submit" disabled={processing}>
+                                        <Power className="size-4" aria-hidden />
                                         Aktifkan 2FA
                                     </Button>
                                 )}

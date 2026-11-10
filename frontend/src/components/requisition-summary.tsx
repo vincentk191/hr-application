@@ -6,6 +6,21 @@ import type {
     ResponsibilityGroup,
 } from '@/types/recruitment';
 
+/**
+ * What the status line says beyond the stage's name: "Menunggu persetujuan Manajemen", "Diposting di Glints". Past
+ * Posting and Screening the status is only the stage's own name again (Interview, Interview), which is nothing to read
+ * twice, so it comes back empty.
+ */
+export function statusDetail(item: {
+    stageLabel: string;
+    statusLabel: string;
+}): string | null {
+    return item.statusLabel.trim().toLowerCase() ===
+        item.stageLabel.trim().toLowerCase()
+        ? null
+        : item.statusLabel;
+}
+
 /** The lines in one list, blanks not counted: what the review calls a "field". */
 export function lineCount(lines: string[]): number {
     return lines.filter((line) => line.trim() !== '').length;

@@ -1,4 +1,5 @@
 import { Link } from '@inertiajs/react';
+import { Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import { EmployeeTeamTab } from '@/components/employee-team';
@@ -246,6 +247,7 @@ function DrawerBody({
                                 query: { employee: employee.id },
                             })}
                         >
+                            <Plus className="size-4" aria-hidden />
                             Buat pengajuan
                         </Link>
                     </Button>

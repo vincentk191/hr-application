@@ -1,5 +1,5 @@
 import { Form, router } from '@inertiajs/react';
-import { Wand2 } from 'lucide-react';
+import { Plus, Save, Trash2, Wand2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { CandidateDrawer } from '@/components/candidate-drawer';
@@ -92,6 +92,7 @@ function Counts({ item }: { item: Requisition }) {
                                 disabled={processing}
                                 data-test="save-applicants"
                             >
+                                <Save className="size-4" aria-hidden />
                                 Simpan
                             </Button>
                             <div className="basis-full">
@@ -156,6 +157,7 @@ function ShortlistRow({
                     }}
                     data-test="candidate-remove"
                 >
+                    <Trash2 className="size-4" aria-hidden />
                     Hapus
                 </Button>
             )}
@@ -470,6 +472,7 @@ function QuickAdd({ item }: { item: Requisition }) {
                             disabled={processing}
                             data-test="add-candidate"
                         >
+                            <Plus className="size-4" aria-hidden />
                             Tambah ke shortlist
                         </Button>
                     </>

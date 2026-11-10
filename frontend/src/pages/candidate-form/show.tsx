@@ -1,4 +1,5 @@
 import { Form, Head } from '@inertiajs/react';
+import { Send } from 'lucide-react';
 import InputError from '@/components/input-error';
 import { LinkifiedText } from '@/components/linkified-text';
 import { Button } from '@/components/ui/button';
@@ -273,6 +274,7 @@ export default function CandidateForm(props: Props) {
                                 disabled={processing}
                                 data-test="submit-candidate-form"
                             >
+                                <Send className="size-4" aria-hidden />
                                 Kirim formulir
                             </Button>
                             <p className="text-center text-xs text-muted-foreground">

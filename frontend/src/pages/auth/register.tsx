@@ -1,4 +1,5 @@
 import { Form, Head } from '@inertiajs/react';
+import { UserPlus } from 'lucide-react';
 import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
 import TextLink from '@/components/text-link';
@@ -116,7 +117,11 @@ export default function Register({ passwordRules }: Props) {
                             disabled={processing}
                             data-test="register-button"
                         >
-                            {processing && <Spinner />}
+                            {processing ? (
+                                <Spinner />
+                            ) : (
+                                <UserPlus className="size-4" aria-hidden />
+                            )}
                             Daftar
                         </Button>
 

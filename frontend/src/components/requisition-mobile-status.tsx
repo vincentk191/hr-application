@@ -1,5 +1,5 @@
 import { Check } from 'lucide-react';
-import { shortDate } from '@/components/requisition-summary';
+import { shortDate, statusDetail } from '@/components/requisition-summary';
 import type { Requisition } from '@/types/recruitment';
 
 /**
@@ -24,6 +24,14 @@ export function RequisitionMobileStatus({
     const viewedIndex = item.tabs.findIndex((tab) => tab.stage === active);
     const viewed = viewedIndex === -1 ? null : item.tabs[viewedIndex];
     const viewingCurrent = viewed === null || viewed.stage === current?.stage;
+
+    // Under the stage's name: where in the stage it stands, but not the stage's own name a second time.
+    const subline =
+        viewingCurrent || viewed === null
+            ? statusDetail(item)
+            : viewed.reachedAt
+              ? `Selesai · ${shortDate(viewed.reachedAt)}`
+              : 'Selesai';
 
     return (
         <div className="space-y-3 md:hidden" data-test="mobile-status">
@@ -104,16 +112,14 @@ export function RequisitionMobileStatus({
                     >
                         {viewed?.label ?? item.stageLabel}
                     </h2>
-                    <p
-                        className="text-base text-muted-foreground"
-                        data-test="status-label-mobile"
-                    >
-                        {viewingCurrent || viewed === null
-                            ? item.statusLabel
-                            : viewed.reachedAt
-                              ? `Selesai · ${shortDate(viewed.reachedAt)}`
-                              : 'Selesai'}
-                    </p>
+                    {subline && (
+                        <p
+                            className="text-base text-muted-foreground"
+                            data-test="status-label-mobile"
+                        >
+                            {subline}
+                        </p>
+                    )}
                 </div>
             </section>
 

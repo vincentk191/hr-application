@@ -1,5 +1,7 @@
 import { Head, Link, router, setLayoutProps } from '@inertiajs/react';
+import { Download, Plus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { statusDetail } from '@/components/requisition-summary';
 import { Button } from '@/components/ui/button';
 import { UnreadComments } from '@/components/unread-comments';
 import { create, exportMethod, index, show } from '@/routes/recruitment';
@@ -132,13 +134,18 @@ export default function RecruitmentIndex({
                                     ) as Record<string, string>,
                                 ).toString()}`}
                             >
+                                <Download
+                                    className="size-4 shrink-0"
+                                    aria-hidden
+                                />
                                 Ekspor CSV
                             </a>
                         </Button>
                         {canCreate && (
                             <Button asChild data-test="new-requisition">
                                 <Link href={create().url}>
-                                    + Ajukan Lowongan
+                                    <Plus className="size-4" aria-hidden />
+                                    Ajukan Lowongan
                                 </Link>
                             </Button>
                         )}
@@ -218,8 +225,11 @@ export default function RecruitmentIndex({
                                             <StatusBadge row={row} />
                                         </div>
                                         <p className="text-sm text-muted-foreground">
-                                            Kuota {quota(row)} ·{' '}
-                                            {row.statusLabel}
+                                            Kuota {quota(row)}
+                                            {!row.isDraft &&
+                                            statusDetail(row) !== null
+                                                ? ` · ${statusDetail(row)}`
+                                                : ''}
                                         </p>
                                         <p className="label-mono">
                                             {lastUpdate(row)} · PIC{' '}
@@ -306,11 +316,13 @@ export default function RecruitmentIndex({
                                             </td>
                                             <td className="p-3">
                                                 <StatusBadge row={row} />
-                                                {!row.isDraft && (
-                                                    <div className="label-mono mt-1">
-                                                        {row.statusLabel}
-                                                    </div>
-                                                )}
+                                                {!row.isDraft &&
+                                                    statusDetail(row) !==
+                                                        null && (
+                                                        <div className="label-mono mt-1">
+                                                            {statusDetail(row)}
+                                                        </div>
+                                                    )}
                                             </td>
                                             <td className="hidden p-3 lg:table-cell">
                                                 {row.createdBy ?? '—'}

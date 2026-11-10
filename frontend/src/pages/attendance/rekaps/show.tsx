@@ -1,4 +1,5 @@
 import { Form, Head, router } from '@inertiajs/react';
+import { Check } from 'lucide-react';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -487,6 +488,7 @@ export default function AttendanceRekapShow({
                                 )
                             }
                         >
+                            <Check className="size-4" aria-hidden />
                             Konfirmasi rekapitulasi
                         </Button>
                         <Button

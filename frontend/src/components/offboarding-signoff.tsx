@@ -1,5 +1,5 @@
 import { Form, Link, router } from '@inertiajs/react';
-import { Check } from 'lucide-react';
+import { Check, Eye, Upload } from 'lucide-react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
 import LimitedFileInput from '@/components/limited-file-input';
@@ -326,6 +326,7 @@ function ExitDocuments({ item }: { item: OffboardingCase }) {
                         variant="outline"
                         disabled={processing}
                     >
+                        <Upload className="size-4" aria-hidden />
                         Unggah
                     </Button>
                 </>
@@ -368,6 +369,7 @@ export function OffboardingSignOffPanel({
                 {item.canBeritaAcara && (
                     <Button asChild variant="outline" size="sm">
                         <Link href={`/offboarding/${item.id}/berita-acara`}>
+                            <Eye className="size-4 shrink-0" aria-hidden />
                             Lihat berita acara
                         </Link>
                     </Button>

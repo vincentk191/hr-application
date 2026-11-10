@@ -1,5 +1,5 @@
 import { Head, Link, router, setLayoutProps, usePage } from '@inertiajs/react';
-import { ChevronRight, MoreVertical } from 'lucide-react';
+import { ChevronRight, MoreVertical, Printer, RotateCcw } from 'lucide-react';
 import { useState } from 'react';
 import {
     MonthSummary,
@@ -658,6 +658,10 @@ export default function AttendanceCalendar(props: Props) {
                                 </>
                             )}
                             <DropdownMenuItem onSelect={() => printReport()}>
+                                <Printer
+                                    className="size-4 shrink-0"
+                                    aria-hidden
+                                />
                                 Cetak / PDF
                             </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -747,6 +751,7 @@ export default function AttendanceCalendar(props: Props) {
                             type="button"
                             onClick={printReport}
                         >
+                            <Printer className="size-4" aria-hidden />
                             Cetak / PDF
                         </Button>
                     </div>
@@ -897,6 +902,7 @@ export default function AttendanceCalendar(props: Props) {
                                 });
                             }}
                         >
+                            <RotateCcw className="size-4" aria-hidden />
                             Atur ulang
                         </Button>
                     )}

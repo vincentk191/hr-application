@@ -1,4 +1,5 @@
 import { Form } from '@inertiajs/react';
+import { X } from 'lucide-react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -110,6 +111,7 @@ export function DecisionDialog({
                                             variant="outline"
                                             data-test="decision-cancel"
                                         >
+                                            <X className="size-4" aria-hidden />
                                             Batal
                                         </Button>
                                     </DialogClose>

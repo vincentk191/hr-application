@@ -1,4 +1,5 @@
 import { Form, router } from '@inertiajs/react';
+import { Save, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -208,6 +209,7 @@ function AddEventForm({
                         </div>
                     )}
                     <Button type="submit" disabled={processing}>
+                        <Save className="size-4" aria-hidden />
                         Simpan
                     </Button>
                 </>
@@ -297,6 +299,10 @@ export function CalendarEvents({
                                             }
                                         }}
                                     >
+                                        <Trash2
+                                            className="size-4"
+                                            aria-hidden
+                                        />
                                         Hapus
                                     </Button>
                                     {event.seriesSize > 1 && (
@@ -323,6 +329,10 @@ export function CalendarEvents({
                                                 }
                                             }}
                                         >
+                                            <Trash2
+                                                className="size-4"
+                                                aria-hidden
+                                            />
                                             Hapus seri
                                         </Button>
                                     )}

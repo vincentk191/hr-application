@@ -1,5 +1,6 @@
 // Components
 import { Form, Head } from '@inertiajs/react';
+import { Send } from 'lucide-react';
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
@@ -21,7 +22,11 @@ export default function VerifyEmail({ status }: { status?: string }) {
                 {({ processing }) => (
                     <>
                         <Button disabled={processing} variant="secondary">
-                            {processing && <Spinner />}
+                            {processing ? (
+                                <Spinner />
+                            ) : (
+                                <Send className="size-4" aria-hidden />
+                            )}
                             Kirim ulang email verifikasi
                         </Button>
 

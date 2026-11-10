@@ -6,14 +6,19 @@ import {
     setLayoutProps,
     usePage,
 } from '@inertiajs/react';
+import { ArrowRight, Ban, Check, Plus, RefreshCw, Save, X } from 'lucide-react';
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { ApprovalChain } from '@/components/approval-chain';
 import { DecisionDialog } from '@/components/decision-dialog';
 import InputError from '@/components/input-error';
 import { PhaseActions } from '@/components/phase-actions';
 import type { PhaseAction } from '@/components/phase-actions';
 import { RequisitionMobileStatus } from '@/components/requisition-mobile-status';
-import { RequisitionSummary } from '@/components/requisition-summary';
+import {
+    RequisitionSummary,
+    statusDetail,
+} from '@/components/requisition-summary';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -204,6 +209,7 @@ function SubmittedTab({ item }: { item: Requisition }) {
                                         disabled={processing}
                                         data-test="save-salary"
                                     >
+                                        <Save className="size-4" aria-hidden />
                                         Simpan
                                     </Button>
                                 </>
@@ -243,6 +249,11 @@ export default function RequisitionShow({
         'submitted';
     const [tab, setTab] = useState<string>(current);
 
+    // The tracker already marks the stage a requisition is at, so the stage's name is shown beside the title only when
+    // no stage is marked (a cancelled requisition); the status line only when it says more than the stage's name.
+    const showStageBadge = !item.tabs.some((tab) => tab.state === 'current');
+    const detail = statusDetail(item);
+
     // Candidates are outside the app, so cancelling tells none of them: HR has to.
     const scheduledInterviews = (item.shortlist ?? []).filter((candidate) => {
         const at = parseLocal(candidate.interviewAtInput);
@@ -255,9 +266,10 @@ export default function RequisitionShow({
             ? [
                   {
                       key: 'edit',
+                      icon: RefreshCw,
                       label: 'Ubah',
                       rank: 4,
-                      render: (label: string, className?: string) => (
+                      render: (label: ReactNode, className?: string) => (
                           <Button
                               asChild
                               variant="outline"
@@ -273,9 +285,10 @@ export default function RequisitionShow({
             ? [
                   {
                       key: 'reject',
+                      icon: X,
                       label: 'Tolak',
                       rank: 2,
-                      render: (label: string, className?: string) => (
+                      render: (label: ReactNode, className?: string) => (
                           <DecisionDialog
                               form={decide.form(item.id)}
                               decision="reject"
@@ -301,10 +314,11 @@ export default function RequisitionShow({
                   },
                   {
                       key: 'approve',
+                      icon: Check,
                       label: `Setujui sebagai ${item.awaitingSalary ? 'Manajemen' : 'HR'}`,
                       short: 'Setujui',
                       rank: 1,
-                      render: (label: string, className?: string) => (
+                      render: (label: ReactNode, className?: string) => (
                           <DecisionDialog
                               form={decide.form(item.id)}
                               decision="approve"
@@ -345,10 +359,11 @@ export default function RequisitionShow({
             ? [
                   {
                       key: 'advance',
-                      label: 'Lanjut ke Posting ›',
+                      icon: ArrowRight,
+                      label: 'Lanjut ke Posting',
                       short: 'Lanjut',
                       rank: item.advanceBlockers.length === 0 ? 1 : 3,
-                      render: (label: string, className?: string) => (
+                      render: (label: ReactNode, className?: string) => (
                           <Button
                               data-test="advance-posting"
                               className={className}
@@ -374,10 +389,11 @@ export default function RequisitionShow({
             ? [
                   {
                       key: 'screening',
-                      label: 'Lanjut ke Screening ›',
+                      icon: ArrowRight,
+                      label: 'Lanjut ke Screening',
                       short: 'Lanjut',
                       rank: item.screeningBlockers.length === 0 ? 1 : 3,
-                      render: (label: string, className?: string) => (
+                      render: (label: ReactNode, className?: string) => (
                           <Button
                               data-test="advance-screening"
                               className={className}
@@ -403,10 +419,11 @@ export default function RequisitionShow({
             ? [
                   {
                       key: 'interview',
-                      label: 'Lanjut ke Interview ›',
+                      icon: ArrowRight,
+                      label: 'Lanjut ke Interview',
                       short: 'Lanjut',
                       rank: item.interviewBlockers.length === 0 ? 1 : 3,
-                      render: (label: string, className?: string) => (
+                      render: (label: ReactNode, className?: string) => (
                           <Button
                               data-test="advance-interview"
                               className={className}
@@ -432,10 +449,11 @@ export default function RequisitionShow({
             ? [
                   {
                       key: 'add-candidate',
+                      icon: Plus,
                       label: 'Tambah kandidat',
                       short: 'Tambah',
                       rank: 2,
-                      render: (label: string, className?: string) => (
+                      render: (label: ReactNode, className?: string) => (
                           <AddCandidateDialog
                               item={item}
                               trigger={
@@ -456,10 +474,11 @@ export default function RequisitionShow({
             ? [
                   {
                       key: 'cancel',
+                      icon: Ban,
                       label: 'Batalkan lowongan',
                       short: 'Batalkan',
                       rank: 5,
-                      render: (label: string, className?: string) => (
+                      render: (label: ReactNode, className?: string) => (
                           <DecisionDialog
                               form={cancel.form(item.id)}
                               decision="cancel"
@@ -509,8 +528,14 @@ export default function RequisitionShow({
                                 : `${item.filled}/${item.quota}`}{' '}
                             · PIC {item.createdBy ?? '—'}
                         </p>
-                        <div className="mt-2 flex flex-wrap items-center gap-2 max-md:hidden">
-                            <Badge>{item.stageLabel}</Badge>
+                        <div
+                            className={`mt-2 flex-wrap items-center gap-2 max-md:hidden ${
+                                showStageBadge || item.isUrgent || detail
+                                    ? 'flex'
+                                    : 'hidden'
+                            }`}
+                        >
+                            {showStageBadge && <Badge>{item.stageLabel}</Badge>}
                             {item.isUrgent && (
                                 <Badge
                                     variant="destructive"
@@ -523,19 +548,15 @@ export default function RequisitionShow({
                                         : ''}
                                 </Badge>
                             )}
-                            <span
-                                className="text-sm text-muted-foreground"
-                                data-test="status-label"
-                            >
-                                {item.statusLabel}
-                            </span>
+                            {detail && (
+                                <span
+                                    className="text-sm text-muted-foreground"
+                                    data-test="status-label"
+                                >
+                                    {detail}
+                                </span>
+                            )}
                         </div>
-                        {item.submittedAt && (
-                            <p className="mt-1 text-xs text-muted-foreground max-md:hidden">
-                                Diajukan {item.submittedAt} oleh{' '}
-                                {item.createdBy ?? '—'}
-                            </p>
-                        )}
                     </div>
 
                     <PhaseActions

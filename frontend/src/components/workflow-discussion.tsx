@@ -1,5 +1,5 @@
 import { Form, router, usePoll } from '@inertiajs/react';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, Send } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -230,6 +230,7 @@ export function WorkflowDiscussion({
                                         disabled={processing}
                                         data-test="discussion-send"
                                     >
+                                        <Send className="size-4" aria-hidden />
                                         Kirim komentar
                                     </Button>
                                 </div>

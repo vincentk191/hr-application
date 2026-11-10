@@ -1,5 +1,5 @@
 import { Link, router, usePage } from '@inertiajs/react';
-import { Bell } from 'lucide-react';
+import { Bell, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -101,6 +101,7 @@ export function NotificationBell() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                     <Link href={index().url} className="justify-center text-sm">
+                        <Eye className="size-4 shrink-0" aria-hidden />
                         Lihat semua
                     </Link>
                 </DropdownMenuItem>

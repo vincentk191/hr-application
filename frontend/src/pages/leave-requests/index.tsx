@@ -1,4 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { Check, Download, X } from 'lucide-react';
 import { useState } from 'react';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import {
@@ -149,6 +150,10 @@ export default function LeaveRequestsIndex({
                             <a
                                 href={`${exportMethod().url}?${exportQuery.toString()}`}
                             >
+                                <Download
+                                    className="size-4 shrink-0"
+                                    aria-hidden
+                                />
                                 Ekspor
                             </a>
                         </Button>
@@ -403,9 +408,14 @@ export default function LeaveRequestsIndex({
                                             variant="outline"
                                             onClick={() => setSelected(row)}
                                         >
+                                            <X className="size-4" aria-hidden />
                                             Tolak
                                         </Button>
                                         <Button onClick={() => approve(row)}>
+                                            <Check
+                                                className="size-4"
+                                                aria-hidden
+                                            />
                                             Setujui
                                         </Button>
                                     </div>

@@ -1,5 +1,5 @@
 import { Form, router } from '@inertiajs/react';
-import { Download } from 'lucide-react';
+import { Download, Plus } from 'lucide-react';
 import { Fragment, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { averageRating } from '@/components/candidate-evaluations';
@@ -548,7 +548,11 @@ function WeekCalendar({
                                             className="flex h-full min-h-11 w-full items-center rounded-xl border border-dashed px-3 text-sm text-muted-foreground transition-colors hover:bg-primary/10 focus-visible:bg-primary/10 focus-visible:outline-none"
                                             data-test="agenda-free-slot"
                                         >
-                                            + Jadwalkan
+                                            <Plus
+                                                className="mr-1.5 size-4"
+                                                aria-hidden
+                                            />
+                                            Jadwalkan
                                         </button>
                                     )}
                                 </div>
@@ -773,9 +777,6 @@ export function InterviewTab({ item }: { item: Requisition }) {
     const evaluated = past.filter(
         (entry) => entry.candidate.evaluations.length > 0,
     );
-    const thisWeek = upcoming.filter(
-        (entry) => entry.at < addDays(startOfWeek(now), 7),
-    ).length;
     const canManage = item.canManageInterview;
     const mailable = item.shortlist.filter(
         (candidate) => candidate.email && candidate.interviewAtInput,
@@ -799,18 +800,6 @@ export function InterviewTab({ item }: { item: Requisition }) {
 
     return (
         <div className="space-y-5" data-test="interview-tab">
-            <p
-                className="surface px-4 py-3 text-sm font-medium"
-                data-test="interview-summary"
-            >
-                {item.shortlist.length} kandidat di tahap interview ·{' '}
-                {upcoming.length} terjadwal ({thisWeek} minggu ini) ·{' '}
-                {awaiting.length} menunggu penilaian.
-                {unscheduled.length > 0
-                    ? ` ${unscheduled.length} kandidat belum punya jadwal.`
-                    : ''}
-            </p>
-
             <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_24rem]">
                 <WeekCalendar
                     entries={entries}
@@ -833,12 +822,7 @@ export function InterviewTab({ item }: { item: Requisition }) {
                     className="surface space-y-4 p-4 lg:col-start-2 lg:row-start-1"
                     data-test="interview-list"
                 >
-                    <header className="flex items-center justify-between gap-3">
-                        <h2 className="label-mono">Kandidat &amp; jadwal</h2>
-                        <span className="label-mono">
-                            {item.shortlist.length} ORANG
-                        </span>
-                    </header>
+                    <h2 className="label-mono">Kandidat &amp; jadwal</h2>
 
                     {canManage && mailable > 0 && (
                         <Button

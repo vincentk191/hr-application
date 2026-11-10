@@ -1,5 +1,14 @@
 import { Form, router } from '@inertiajs/react';
-import { Check, ChevronDown, Copy, ExternalLink } from 'lucide-react';
+import {
+    Check,
+    ChevronDown,
+    Copy,
+    ExternalLink,
+    RefreshCw,
+    Save,
+    Trash2,
+    X,
+} from 'lucide-react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { shortDate } from '@/components/requisition-summary';
@@ -278,6 +287,7 @@ function PostingRow({
                                     disabled={processing}
                                     data-test="posting-save"
                                 >
+                                    <Save className="size-4" aria-hidden />
                                     Simpan
                                 </Button>
                                 <Button
@@ -286,6 +296,7 @@ function PostingRow({
                                     variant="outline"
                                     onClick={() => setEditing(false)}
                                 >
+                                    <X className="size-4" aria-hidden />
                                     Batal
                                 </Button>
                             </div>
@@ -314,6 +325,7 @@ function PostingRow({
                         rel="noopener noreferrer"
                         className="mt-1 inline-flex items-center gap-1 text-sm underline underline-offset-4"
                     >
+                        <ExternalLink className="size-4 shrink-0" aria-hidden />
                         Buka lowongan
                         <ExternalLink className="size-3.5" />
                     </a>
@@ -328,6 +340,7 @@ function PostingRow({
                         onClick={() => setEditing(true)}
                         data-test="posting-edit-button"
                     >
+                        <RefreshCw className="size-4" aria-hidden />
                         Ubah
                     </Button>
                     <Button
@@ -351,6 +364,7 @@ function PostingRow({
                         }}
                         data-test="posting-remove"
                     >
+                        <Trash2 className="size-4" aria-hidden />
                         Hapus
                     </Button>
                 </div>
@@ -437,6 +451,7 @@ export function PostingTab({ item }: { item: Requisition }) {
                                     disabled={processing}
                                     data-test="posting-add"
                                 >
+                                    <Check className="size-4" aria-hidden />
                                     Tandai diposting
                                 </Button>
                             </>

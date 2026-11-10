@@ -1,4 +1,5 @@
 import { MoreHorizontal } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { Fragment, useState } from 'react';
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
@@ -20,9 +21,25 @@ export type PhaseAction = {
     short?: string;
     /** Lower comes first on a phone: the first two sit in the bar, the rest go under "⋯". */
     rank: number;
-    /** Builds the control with the label and classes for where it is shown. */
-    render: (label: string, className?: string) => ReactNode;
+    /** Shown before the label wherever the action appears, so the same action looks the same on every screen. */
+    icon?: LucideIcon;
+    /** Builds the control with the label (and its icon) and classes for where it is shown. */
+    render: (label: ReactNode, className?: string) => ReactNode;
 };
+
+/** The label with the action's icon in front of it. */
+function labelled(action: PhaseAction, text: string): ReactNode {
+    const Icon = action.icon;
+
+    return Icon ? (
+        <>
+            <Icon aria-hidden />
+            {text}
+        </>
+    ) : (
+        text
+    );
+}
 
 /**
  * The actions for a case's current stage (save, send, approve, reject, …). From tablet width up they sit in the page
@@ -52,7 +69,7 @@ export function PhaseActions({
             >
                 {actions.map((action) => (
                     <Fragment key={action.key}>
-                        {action.render(action.label)}
+                        {action.render(labelled(action, action.label))}
                     </Fragment>
                 ))}
                 {extra}
@@ -95,7 +112,7 @@ export function PhaseActions({
                             className={`min-w-0 ${index === 1 ? 'col-start-3' : ''}`}
                         >
                             {action.render(
-                                action.short ?? action.label,
+                                labelled(action, action.short ?? action.label),
                                 'w-full min-w-0',
                             )}
                         </div>
@@ -136,7 +153,10 @@ export function PhaseActions({
                                         {more.map((action) => (
                                             <Fragment key={action.key}>
                                                 {action.render(
-                                                    action.label,
+                                                    labelled(
+                                                        action,
+                                                        action.label,
+                                                    ),
                                                     'w-full',
                                                 )}
                                             </Fragment>

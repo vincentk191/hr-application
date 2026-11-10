@@ -1,4 +1,5 @@
 import { Form, Head } from '@inertiajs/react';
+import { Send } from 'lucide-react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
 import LimitedFileInput from '@/components/limited-file-input';
@@ -210,6 +211,7 @@ export default function LeaveRequestCreate({
 
                             <div className="flex gap-2">
                                 <Button type="submit" disabled={processing}>
+                                    <Send className="size-4" aria-hidden />
                                     Kirim pengajuan
                                 </Button>
                             </div>

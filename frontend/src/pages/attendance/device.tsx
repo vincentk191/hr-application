@@ -1,4 +1,5 @@
 import { Form, Head, router } from '@inertiajs/react';
+import { Save, Trash2, Upload } from 'lucide-react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
 import LimitedFileInput from '@/components/limited-file-input';
@@ -235,6 +236,7 @@ function UploadCard({
                     </p>
                     <div className="sm:col-span-2">
                         <Button type="submit" disabled={processing}>
+                            <Upload className="size-4" aria-hidden />
                             Impor laporan
                         </Button>
                     </div>
@@ -618,6 +620,7 @@ function AddMapCard({
 
                     <div>
                         <Button type="submit" disabled={processing}>
+                            <Save className="size-4" aria-hidden />
                             Simpan pemetaan
                         </Button>
                     </div>
@@ -799,6 +802,10 @@ export default function AttendanceDevice({
                                                         confirmDeleteMap(map)
                                                     }
                                                 >
+                                                    <Trash2
+                                                        className="size-4"
+                                                        aria-hidden
+                                                    />
                                                     Hapus
                                                 </Button>
                                             </li>
@@ -860,6 +867,10 @@ export default function AttendanceDevice({
                                                                     )
                                                                 }
                                                             >
+                                                                <Trash2
+                                                                    className="size-4"
+                                                                    aria-hidden
+                                                                />
                                                                 Hapus
                                                             </Button>
                                                         </td>

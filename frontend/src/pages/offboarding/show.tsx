@@ -1,5 +1,16 @@
 import { Head, Link, router, setLayoutProps, usePage } from '@inertiajs/react';
+import {
+    ArrowRight,
+    Ban,
+    Check,
+    Lock,
+    RefreshCw,
+    Undo2,
+    Upload,
+    X,
+} from 'lucide-react';
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { ApprovalChain } from '@/components/approval-chain';
 import { DecisionDialog } from '@/components/decision-dialog';
 import InputError from '@/components/input-error';
@@ -199,6 +210,7 @@ function Files({ item }: { item: OffboardingCase }) {
                                 variant="outline"
                                 disabled={processing}
                             >
+                                <Upload className="size-4" aria-hidden />
                                 Unggah
                             </Button>
                         </>
@@ -296,9 +308,10 @@ export default function OffboardingShow({
             ? [
                   {
                       key: 'edit',
+                      icon: RefreshCw,
                       label: 'Ubah',
                       rank: 4,
-                      render: (label: string, className?: string) => (
+                      render: (label: ReactNode, className?: string) => (
                           <Button
                               asChild
                               variant="outline"
@@ -314,9 +327,10 @@ export default function OffboardingShow({
             ? [
                   {
                       key: 'reject',
+                      icon: X,
                       label: 'Tolak',
                       rank: 2,
-                      render: (label: string, className?: string) => (
+                      render: (label: ReactNode, className?: string) => (
                           <DecisionDialog
                               form={decide.form(item.id)}
                               decision="reject"
@@ -342,9 +356,10 @@ export default function OffboardingShow({
                   },
                   {
                       key: 'approve',
+                      icon: Check,
                       label: 'Setujui',
                       rank: 1,
-                      render: (label: string, className?: string) => (
+                      render: (label: ReactNode, className?: string) => (
                           <DecisionDialog
                               form={decide.form(item.id)}
                               decision="approve"
@@ -370,10 +385,11 @@ export default function OffboardingShow({
             ? [
                   {
                       key: 'last-day',
+                      icon: RefreshCw,
                       label: 'Ubah hari terakhir',
                       short: 'Hari terakhir',
                       rank: 5,
-                      render: (label: string, className?: string) => (
+                      render: (label: ReactNode, className?: string) => (
                           <LastDayDialog
                               item={item}
                               label={label}
@@ -387,10 +403,11 @@ export default function OffboardingShow({
             ? [
                   {
                       key: 'cancel',
+                      icon: Ban,
                       label: 'Batalkan kasus',
                       short: 'Batalkan',
                       rank: 6,
-                      render: (label: string, className?: string) => (
+                      render: (label: ReactNode, className?: string) => (
                           <DecisionDialog
                               form={cancel.form(item.id)}
                               decision="cancel"
@@ -420,10 +437,11 @@ export default function OffboardingShow({
             ? [
                   {
                       key: 'send-back',
+                      icon: Undo2,
                       label: 'Kembalikan ke checklist',
                       short: 'Kembalikan',
                       rank: 3,
-                      render: (label: string, className?: string) => (
+                      render: (label: ReactNode, className?: string) => (
                           <DecisionDialog
                               form={sendBack.form(item.id)}
                               decision="send-back"
@@ -452,10 +470,11 @@ export default function OffboardingShow({
             ? [
                   {
                       key: 'close',
+                      icon: Lock,
                       label: 'Tutup kasus',
                       short: 'Tutup',
                       rank: 1,
-                      render: (label: string, className?: string) => (
+                      render: (label: ReactNode, className?: string) => (
                           <Button
                               data-test="close-case"
                               className={className}
@@ -485,10 +504,11 @@ export default function OffboardingShow({
             ? [
                   {
                       key: 'approve-checklist',
+                      icon: Check,
                       label: 'Setujui checklist',
                       short: 'Setujui',
                       rank: 1,
-                      render: (label: string, className?: string) => (
+                      render: (label: ReactNode, className?: string) => (
                           <Button
                               data-test="approve-checklist"
                               className={className}
@@ -510,10 +530,11 @@ export default function OffboardingShow({
             ? [
                   {
                       key: 'proceed',
+                      icon: ArrowRight,
                       label: 'Lanjut ke sign-off',
                       short: 'Lanjut',
                       rank: 1,
-                      render: (label: string, className?: string) => (
+                      render: (label: ReactNode, className?: string) => (
                           <Button
                               data-test="proceed-signoff"
                               className={className}

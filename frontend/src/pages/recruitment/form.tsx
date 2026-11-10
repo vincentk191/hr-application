@@ -6,6 +6,7 @@ import {
     setLayoutProps,
     usePage,
 } from '@inertiajs/react';
+import { ArrowRight, Plus, Save, Send, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import InputError from '@/components/input-error';
@@ -409,6 +410,7 @@ export default function RequisitionForm({
     const actions: PhaseAction[] = [
         {
             key: 'save',
+            icon: Save,
             label: sent ? 'Simpan perubahan' : 'Simpan Draft',
             short: 'Simpan',
             rank: sent ? 1 : 2,
@@ -428,10 +430,11 @@ export default function RequisitionForm({
             ? [
                   {
                       key: 'send',
+                      icon: step === 3 ? Send : ArrowRight,
                       label: step === 3 ? 'Ajukan untuk Persetujuan' : 'Review',
                       short: step === 3 ? 'Ajukan' : 'Review',
                       rank: 1,
-                      render: (label: string, className?: string) =>
+                      render: (label: ReactNode, className?: string) =>
                           step === 3 ? (
                               <Button
                                   type="submit"
@@ -466,10 +469,11 @@ export default function RequisitionForm({
             ? [
                   {
                       key: 'delete',
+                      icon: Trash2,
                       label: 'Hapus draft',
                       short: 'Hapus',
                       rank: 3,
-                      render: (label: string, className?: string) => (
+                      render: (label: ReactNode, className?: string) => (
                           <Button
                               type="button"
                               variant="ghost"
@@ -1076,6 +1080,10 @@ export default function RequisitionForm({
                                                                 )
                                                             }
                                                         >
+                                                            <Trash2
+                                                                className="size-4"
+                                                                aria-hidden
+                                                            />
                                                             Hapus
                                                         </Button>
                                                     </div>
@@ -1110,7 +1118,11 @@ export default function RequisitionForm({
                                                     ])
                                                 }
                                             >
-                                                + Tambah subjudul
+                                                <Plus
+                                                    className="size-4"
+                                                    aria-hidden
+                                                />
+                                                Tambah subjudul
                                             </Button>
                                         </div>
                                         <InputError
@@ -1347,6 +1359,10 @@ export default function RequisitionForm({
                                                 : index().url
                                         }
                                     >
+                                        <X
+                                            className="size-4 shrink-0"
+                                            aria-hidden
+                                        />
                                         Batal
                                     </Link>
                                 </Button>

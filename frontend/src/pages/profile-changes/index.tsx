@@ -1,4 +1,5 @@
 import { Head, router, setLayoutProps } from '@inertiajs/react';
+import { Check, X } from 'lucide-react';
 import { useState } from 'react';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import {
@@ -253,9 +254,14 @@ export default function ProfileChanges({
                                                 setSelectedId(change.id)
                                             }
                                         >
+                                            <X className="size-4" aria-hidden />
                                             Tolak
                                         </Button>
                                         <Button onClick={() => approve(change)}>
+                                            <Check
+                                                className="size-4"
+                                                aria-hidden
+                                            />
                                             Setujui
                                         </Button>
                                     </div>

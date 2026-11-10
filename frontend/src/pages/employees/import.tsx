@@ -1,4 +1,5 @@
 import { Form, Head } from '@inertiajs/react';
+import { Upload } from 'lucide-react';
 import InputError from '@/components/input-error';
 import LimitedFileInput from '@/components/limited-file-input';
 import { Button } from '@/components/ui/button';
@@ -87,6 +88,7 @@ export default function EmployeesImport({
                                     type="submit"
                                     disabled={processing || company === null}
                                 >
+                                    <Upload className="size-4" aria-hidden />
                                     Impor
                                 </Button>
                                 <Button asChild variant="outline">

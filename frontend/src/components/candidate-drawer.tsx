@@ -1,5 +1,13 @@
 import { router } from '@inertiajs/react';
-import { CalendarDays, Clock, Mail, MapPin, Phone, Send } from 'lucide-react';
+import {
+    CalendarDays,
+    Clock,
+    Mail,
+    MapPin,
+    Phone,
+    Send,
+    Trash2,
+} from 'lucide-react';
 import { useState } from 'react';
 import { Evaluations } from '@/components/candidate-evaluations';
 import { EmployeeAvatar } from '@/components/employee-avatar';
@@ -202,6 +210,7 @@ function DrawerBody({
                         }}
                         data-test="cancel-candidate"
                     >
+                        <Trash2 className="size-4" aria-hidden />
                         Hapus kandidat
                     </Button>
                 </div>

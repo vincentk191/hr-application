@@ -1,4 +1,5 @@
 import { Form, router } from '@inertiajs/react';
+import { Ban, Plus, RefreshCw, Save } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -58,6 +59,7 @@ function ScanRow({
                                 setMode(mode === 'change' ? null : 'change')
                             }
                         >
+                            <RefreshCw className="size-4" aria-hidden />
                             Ubah
                         </Button>
                         <Button
@@ -69,6 +71,7 @@ function ScanRow({
                                 setMode(mode === 'void' ? null : 'void')
                             }
                         >
+                            <Ban className="size-4" aria-hidden />
                             Batalkan
                         </Button>
                     </span>
@@ -109,6 +112,7 @@ function ScanRow({
                                 size="sm"
                                 disabled={processing}
                             >
+                                <Save className="size-4" aria-hidden />
                                 Simpan
                             </Button>
                         </>
@@ -139,6 +143,7 @@ function ScanRow({
                                 variant="destructive"
                                 disabled={processing}
                             >
+                                <Ban className="size-4" aria-hidden />
                                 Batalkan scan
                             </Button>
                         </>
@@ -274,6 +279,10 @@ function DayRow({
                                             className="self-end"
                                             disabled={processing}
                                         >
+                                            <Plus
+                                                className="size-4"
+                                                aria-hidden
+                                            />
                                             Tambah
                                         </Button>
                                     </>
@@ -408,6 +417,7 @@ function DayCard({
                                         size="sm"
                                         disabled={processing}
                                     >
+                                        <Plus className="size-4" aria-hidden />
                                         Tambah
                                     </Button>
                                 </>

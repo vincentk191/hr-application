@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ChevronDown, MoreVertical } from 'lucide-react';
+import { ChevronDown, MoreVertical, Printer } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { ChipMultiSelect } from '@/components/chip-multi-select';
@@ -617,6 +617,10 @@ export default function AttendanceRecap({
                                 <a href={exportUrl('csv')}>Unduh CSV</a>
                             </DropdownMenuItem>
                             <DropdownMenuItem onSelect={() => printReport()}>
+                                <Printer
+                                    className="size-4 shrink-0"
+                                    aria-hidden
+                                />
                                 Cetak / PDF
                             </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -732,6 +736,7 @@ export default function AttendanceRecap({
                             type="button"
                             onClick={printReport}
                         >
+                            <Printer className="size-4" aria-hidden />
                             Cetak / PDF
                         </Button>
                     </div>

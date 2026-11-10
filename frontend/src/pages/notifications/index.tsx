@@ -1,4 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { CheckCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { relativeTime } from '@/lib/relative-time';
 import { index, readAll } from '@/routes/notifications';
@@ -60,6 +61,7 @@ export default function NotificationsIndex({ list, filter }: Props) {
                             )
                         }
                     >
+                        <CheckCheck className="size-4" aria-hidden />
                         Tandai semua dibaca
                     </Button>
                 </div>

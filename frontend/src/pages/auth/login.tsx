@@ -1,4 +1,5 @@
 import { Form, Head, usePage } from '@inertiajs/react';
+import { LogIn } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
@@ -202,7 +203,11 @@ export default function Login({ status, canRegister }: Props) {
                                 disabled={processing}
                                 data-test="login-button"
                             >
-                                {processing && <Spinner />}
+                                {processing ? (
+                                    <Spinner />
+                                ) : (
+                                    <LogIn className="size-4" aria-hidden />
+                                )}
                                 Masuk
                             </Button>
                         </div>

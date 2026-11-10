@@ -1,4 +1,5 @@
 import { Form, Head, Link, router, setLayoutProps } from '@inertiajs/react';
+import { Send, X } from 'lucide-react';
 import InputError from '@/components/input-error';
 import { PhotoInput } from '@/components/photo-input';
 import { ProfileChangeDiff } from '@/components/profile-change-diff';
@@ -196,11 +197,22 @@ export default function ProfileChangeRequestPage({
                                         disabled={processing}
                                         data-test="submit-change"
                                     >
-                                        {processing && <Spinner />}
+                                        {processing ? (
+                                            <Spinner />
+                                        ) : (
+                                            <Send
+                                                className="size-4"
+                                                aria-hidden
+                                            />
+                                        )}
                                         Kirim ke HR
                                     </Button>
                                     <Button asChild variant="ghost">
                                         <Link href={show(employee.id).url}>
+                                            <X
+                                                className="size-4 shrink-0"
+                                                aria-hidden
+                                            />
                                             Batal
                                         </Link>
                                     </Button>

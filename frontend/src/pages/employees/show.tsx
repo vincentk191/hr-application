@@ -1,5 +1,13 @@
 import { Head, Link, router, setLayoutProps, usePage } from '@inertiajs/react';
-import { ArrowLeft, MoreVertical } from 'lucide-react';
+import {
+    ArrowLeft,
+    MoreVertical,
+    Power,
+    RefreshCw,
+    RotateCcw,
+    Send,
+    X,
+} from 'lucide-react';
 import { useState } from 'react';
 import { EmployeeAttendance } from '@/components/employee-attendance';
 import { EmployeeAvatar } from '@/components/employee-avatar';
@@ -302,6 +310,10 @@ export default function EmployeeShow({
                                 {canUpdate && (
                                     <DropdownMenuItem asChild>
                                         <Link href={edit(employee.id).url}>
+                                            <RefreshCw
+                                                className="size-4 shrink-0"
+                                                aria-hidden
+                                            />
                                             Ubah data
                                         </Link>
                                     </DropdownMenuItem>
@@ -311,6 +323,10 @@ export default function EmployeeShow({
                                         data-test="reactivate-employee"
                                         onSelect={confirmReactivate}
                                     >
+                                        <RotateCcw
+                                            className="size-4 shrink-0"
+                                            aria-hidden
+                                        />
                                         Aktifkan kembali
                                     </DropdownMenuItem>
                                 )}
@@ -321,6 +337,10 @@ export default function EmployeeShow({
                                                 requestChange(employee.id).url
                                             }
                                         >
+                                            <Send
+                                                className="size-4 shrink-0"
+                                                aria-hidden
+                                            />
                                             Ajukan perubahan data
                                         </Link>
                                     </DropdownMenuItem>
@@ -364,12 +384,14 @@ export default function EmployeeShow({
                             data-test="reactivate-employee"
                             onClick={confirmReactivate}
                         >
+                            <RotateCcw className="size-4" aria-hidden />
                             Aktifkan kembali
                         </Button>
                     )}
                     {canRequestChange && (
                         <Button asChild variant="outline">
                             <Link href={requestChange(employee.id).url}>
+                                <Send className="size-4 shrink-0" aria-hidden />
                                 Ajukan perubahan data
                             </Link>
                         </Button>
@@ -396,6 +418,7 @@ export default function EmployeeShow({
                                     })
                                 }
                             >
+                                <X className="size-4" aria-hidden />
                                 Tolak
                             </Button>
                             <Button
@@ -408,6 +431,7 @@ export default function EmployeeShow({
                                     )
                                 }
                             >
+                                <Power className="size-4" aria-hidden />
                                 Aktifkan akun
                             </Button>
                         </div>

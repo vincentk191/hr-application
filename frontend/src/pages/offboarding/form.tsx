@@ -1,4 +1,5 @@
 import { Form, Head, Link, setLayoutProps } from '@inertiajs/react';
+import { ArrowRight, RefreshCw, Save, Send } from 'lucide-react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
 import LimitedFileInput from '@/components/limited-file-input';
@@ -121,6 +122,7 @@ export default function OffboardingForm({
                             actions={[
                                 {
                                     key: 'save',
+                                    icon: Save,
                                     label: 'Simpan draft',
                                     short: 'Simpan',
                                     rank: 2,
@@ -138,6 +140,7 @@ export default function OffboardingForm({
                                 },
                                 {
                                     key: 'send',
+                                    icon: Send,
                                     label: 'Kirim untuk persetujuan',
                                     short: 'Kirim',
                                     rank: 1,
@@ -568,6 +571,10 @@ export default function OffboardingForm({
                                     onClick={() => setStep(2)}
                                     data-test="to-review"
                                 >
+                                    <ArrowRight
+                                        className="size-4"
+                                        aria-hidden
+                                    />
                                     Lanjut ke review
                                 </Button>
                             </div>
@@ -631,6 +638,10 @@ export default function OffboardingForm({
                                             className="h-auto p-0"
                                             onClick={() => setStep(1)}
                                         >
+                                            <RefreshCw
+                                                className="size-4"
+                                                aria-hidden
+                                            />
                                             Ubah
                                         </Button>
                                     </p>

@@ -1,4 +1,5 @@
 import { Link } from '@inertiajs/react';
+import { RefreshCw } from 'lucide-react';
 import { FileLink, useFilePreview } from '@/components/file-preview';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -181,6 +182,10 @@ export function LeaveRequestDetail({ row }: { row: Detail }) {
                 <div>
                     <Button asChild size="sm">
                         <Link href={edit(row.id).url}>
+                            <RefreshCw
+                                className="size-4 shrink-0"
+                                aria-hidden
+                            />
                             Ubah &amp; ajukan ulang
                         </Link>
                     </Button>

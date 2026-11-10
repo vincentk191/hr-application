@@ -1,4 +1,4 @@
-import { X } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -66,7 +66,8 @@ export function LineListEditor({
                 data-test={`add-line-${label}`}
                 onClick={() => onChange([...lines, ''])}
             >
-                + Tambah baris
+                <Plus className="size-4" aria-hidden />
+                Tambah baris
             </Button>
         </div>
     );

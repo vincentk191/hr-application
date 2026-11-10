@@ -1,4 +1,5 @@
 import { Head, Link, setLayoutProps } from '@inertiajs/react';
+import { Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { show } from '@/routes/offboarding';
 import type { BreadcrumbItem } from '@/types';
@@ -49,6 +50,7 @@ export default function BeritaAcara({ case: item }: { case: OffboardingCase }) {
                         <Link href={show(item.id).url}>Kembali ke kasus</Link>
                     </Button>
                     <Button onClick={() => window.print()} data-test="print">
+                        <Printer className="size-4" aria-hidden />
                         Cetak / PDF
                     </Button>
                 </div>

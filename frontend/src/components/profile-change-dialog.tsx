@@ -1,4 +1,5 @@
 import { Form, Link } from '@inertiajs/react';
+import { Check, X } from 'lucide-react';
 import { ProfileChangeDiff } from '@/components/profile-change-diff';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -100,6 +101,7 @@ export function ProfileChangeDialog({
                                         disabled={processing}
                                         data-test={`approve-${change.id}`}
                                     >
+                                        <Check className="size-4" aria-hidden />
                                         Setujui
                                     </Button>
                                     <Button
@@ -110,6 +112,7 @@ export function ProfileChangeDialog({
                                         disabled={processing}
                                         data-test={`reject-${change.id}`}
                                     >
+                                        <X className="size-4" aria-hidden />
                                         Tolak
                                     </Button>
                                 </div>

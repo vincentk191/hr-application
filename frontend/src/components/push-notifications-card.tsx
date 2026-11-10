@@ -1,3 +1,4 @@
+import { Power, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePushNotifications } from '@/hooks/use-push-notifications';
 
@@ -52,6 +53,7 @@ export function PushNotificationsCard({ endpoints }: { endpoints: string[] }) {
 
             {state === 'off' && (
                 <Button size="sm" disabled={busy} onClick={() => void enable()}>
+                    <Power className="size-4" aria-hidden />
                     Aktifkan
                 </Button>
             )}
@@ -63,6 +65,7 @@ export function PushNotificationsCard({ endpoints }: { endpoints: string[] }) {
                         disabled={busy}
                         onClick={() => void sendTest()}
                     >
+                        <Send className="size-4" aria-hidden />
                         Kirim uji
                     </Button>
                     <Button

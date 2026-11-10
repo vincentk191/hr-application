@@ -1,4 +1,5 @@
 import { Form, Head } from '@inertiajs/react';
+import { Check } from 'lucide-react';
 import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
 import { Button } from '@/components/ui/button';
@@ -33,7 +34,11 @@ export default function ConfirmPassword() {
                                 disabled={processing}
                                 data-test="confirm-password-button"
                             >
-                                {processing && <Spinner />}
+                                {processing ? (
+                                    <Spinner />
+                                ) : (
+                                    <Check className="size-4" aria-hidden />
+                                )}
                                 Konfirmasi
                             </Button>
                         </div>

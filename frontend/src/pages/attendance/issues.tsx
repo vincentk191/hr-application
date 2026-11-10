@@ -1,4 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { Check, Plus, RotateCcw, X } from 'lucide-react';
 import { useState } from 'react';
 import { ChipMultiSelect } from '@/components/chip-multi-select';
 import {
@@ -194,6 +195,7 @@ export default function AttendanceIssues({
                                 },
                             })}
                         >
+                            <Plus className="size-4" aria-hidden />
                             Buat pengajuan
                         </Link>
                     </Button>
@@ -206,6 +208,7 @@ export default function AttendanceIssues({
                     variant="ghost"
                     onClick={() => reopenIssue(issue)}
                 >
+                    <RotateCcw className="size-4" aria-hidden />
                     Buka kembali
                 </Button>
             )
@@ -376,6 +379,7 @@ export default function AttendanceIssues({
                         </div>
                         <div className="grid w-full grid-cols-2 gap-2 md:flex md:w-auto">
                             <Button type="button" onClick={excuse}>
+                                <Check className="size-4" aria-hidden />
                                 Tandai dimaklumi
                             </Button>
                             <Button
@@ -383,6 +387,7 @@ export default function AttendanceIssues({
                                 variant="ghost"
                                 onClick={() => setSelected([])}
                             >
+                                <X className="size-4" aria-hidden />
                                 Batal
                             </Button>
                         </div>

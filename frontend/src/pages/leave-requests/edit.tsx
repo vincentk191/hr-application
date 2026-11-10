@@ -1,4 +1,5 @@
 import { Form, Head } from '@inertiajs/react';
+import { Send } from 'lucide-react';
 import { useState } from 'react';
 import { FileLink, useFilePreview } from '@/components/file-preview';
 import InputError from '@/components/input-error';
@@ -250,6 +251,7 @@ export default function LeaveRequestEdit({
 
                             <div className="flex gap-2">
                                 <Button type="submit" disabled={processing}>
+                                    <Send className="size-4" aria-hidden />
                                     Ajukan ulang
                                 </Button>
                                 <Button asChild variant="outline">

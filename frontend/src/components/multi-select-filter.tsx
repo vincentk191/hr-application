@@ -1,4 +1,4 @@
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, X } from 'lucide-react';
 import {
     DropdownMenu,
     DropdownMenuCheckboxItem,
@@ -80,6 +80,7 @@ export function MultiSelectFilter({
                             onSelect={() => onChange([])}
                             className="text-xs text-muted-foreground"
                         >
+                            <X className="size-4 shrink-0" aria-hidden />
                             Hapus pilihan
                         </DropdownMenuItem>
                     </>

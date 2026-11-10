@@ -1,4 +1,5 @@
 import { Form, Head, setLayoutProps } from '@inertiajs/react';
+import { ArrowRight } from 'lucide-react';
 import { REGEXP_ONLY_DIGITS } from 'input-otp';
 import { useMemo, useState } from 'react';
 import InputError from '@/components/input-error';
@@ -107,6 +108,7 @@ export default function TwoFactorChallenge() {
                                 className="w-full"
                                 disabled={processing}
                             >
+                                <ArrowRight className="size-4" aria-hidden />
                                 Lanjut
                             </Button>
 

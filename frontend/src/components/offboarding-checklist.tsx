@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/react';
-import { X } from 'lucide-react';
+import { Check, Plus, RefreshCw, X } from 'lucide-react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -81,6 +81,7 @@ function AdhocForm({ caseId, groupId }: { caseId: number; groupId: number }) {
                 variant="outline"
                 disabled={name.trim() === ''}
             >
+                <Plus className="size-4" aria-hidden />
                 Tambah
             </Button>
         </form>
@@ -228,6 +229,7 @@ function Group({
                                 )
                             }
                         >
+                            <Check className="size-4" aria-hidden />
                             Tandai tidak terkait
                         </Button>
                     )}
@@ -319,6 +321,7 @@ function Group({
                             )
                         }
                     >
+                        <Check className="size-4" aria-hidden />
                         Daftar selesai
                     </Button>
                     <span className="label-mono">
@@ -393,6 +396,7 @@ export function OffboardingChecklistPanel({
                             router.post(refresh(caseId).url, {}, visit)
                         }
                     >
+                        <RefreshCw className="size-4" aria-hidden />
                         Perbarui dari daftar induk
                     </Button>
                 </section>

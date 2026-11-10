@@ -1,3 +1,4 @@
+import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useInstallPrompt } from '@/hooks/use-install-prompt';
 
@@ -26,6 +27,7 @@ export function InstallBanner() {
             <span className="flex gap-2">
                 {mode === 'prompt' && (
                     <Button size="sm" onClick={() => void install()}>
+                        <Download className="size-4" aria-hidden />
                         Pasang
                     </Button>
                 )}

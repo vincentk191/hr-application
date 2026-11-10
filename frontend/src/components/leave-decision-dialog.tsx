@@ -1,4 +1,5 @@
 import { Form, Link } from '@inertiajs/react';
+import { Check, RefreshCw, X } from 'lucide-react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -131,6 +132,10 @@ export function LeaveDecisionDialog({
                 {request.canResubmit && (
                     <Button asChild variant="outline" className="w-fit">
                         <Link href={edit(request.id).url}>
+                            <RefreshCw
+                                className="size-4 shrink-0"
+                                aria-hidden
+                            />
                             Ubah &amp; ajukan ulang
                         </Link>
                     </Button>
@@ -177,6 +182,7 @@ export function LeaveDecisionDialog({
                                             setDecisionValue('reject')
                                         }
                                     >
+                                        <X className="size-4" aria-hidden />
                                         Tolak
                                     </Button>
                                     <Button
@@ -186,6 +192,7 @@ export function LeaveDecisionDialog({
                                             setDecisionValue('approve')
                                         }
                                     >
+                                        <Check className="size-4" aria-hidden />
                                         Setujui
                                     </Button>
                                 </DialogFooter>
