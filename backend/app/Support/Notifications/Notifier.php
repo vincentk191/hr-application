@@ -430,6 +430,23 @@ class Notifier
     }
 
     /**
+     * The direct superior chose a candidate (REC-PIP): tell HR, who take the requisition on to the offer.
+     */
+    public function candidateSelected(Requisition $requisition, Candidate $candidate, User $actor): void
+    {
+        $notice = new InAppNotice(
+            'recruitment',
+            "{$candidate->name} dipilih: {$requisition->position_name}",
+            "{$requisition->reference()} · dipilih oleh {$actor->name}. Lanjutkan ke Penawaran.",
+            route('recruitment.show', $requisition, absolute: false),
+        );
+
+        $this->hrAdmins($requisition->company_id)
+            ->reject(fn (User $user): bool => $user->is($actor))
+            ->each(fn (User $user) => $user->notify($notice));
+    }
+
+    /**
      * Interviews held today for a requisition (REC-INT): tell HR and the new hire's direct superior, once, with the
      * candidates and their times.
      *

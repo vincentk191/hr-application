@@ -69,6 +69,25 @@ left uncommitted for review.
 
 ## Change log (latest first)
 
+- **2026-11-10 (recruitment: the direct superior's choice, and Interview to Penawaran; Phase 2 of the Offer plan, branch `feature/recruitement`).**
+  Migration `add_selection_to_candidates_table` (`selected_at`, `selected_by_user_id`). **Decided with the user:** the direct
+  superior is also the PIC who raised the requisition, so they always have an account; **HR never chooses on their
+  behalf** (the open question in the plan is closed).
+  - **Pilih / Batalkan pilihan.** `SelectCandidate`, `UnselectCandidate`, policy `selectCandidate` / `unselectCandidate`,
+    routes `recruitment.candidates.select` (POST) and `.unselect` (DELETE): the direct superior only (`viewInterviewees`),
+    at Interview or Offer, for a candidate who was invited, whose interview time has passed and who is still in the process.
+    Several may be chosen (a quota above one). Choosing tells HR in the app (`Notifier::candidateSelected`) and is on the
+    audit trail; taking it back is quiet. A candidate HR then turns down stops counting as chosen (`Candidate::isSelected()`,
+    `scopeSelected`) and counts again if HR restores them.
+  - **Lanjut ke Penawaran (REC-PIP).** `AdvanceToOffer`, policy `advanceToOffer` (HR, from Interview), route
+    `recruitment.offer`; guard `HasSelectedCandidate` ("Atasan langsung belum memilih kandidat.") on the Offer stage.
+  - **Screens.** The drawer shows a green "Dipilih" banner, and the superior gets "Pilih" (UserCheck) and "Batalkan pilihan"
+    (UserMinus) in a bottom bar; the Interview list marks chosen rows with the icon; the new Penawaran tab
+    (`requisition-offer.tsx`) lists the chosen candidates with "n dari m penilai: Lanjut" and the quota, to HR and the
+    superior; anyone else who sees the requisition gets a count (`selectedCount`). The tab is where Phase 3's proposals go.
+  - **Checked:** new `RequisitionCandidateSelectionTest` (6); the full suite (1149 tests, 5 intentional skips); Pint,
+    PHPStan on the touched files, TypeScript and the formatter clean. Not seen in a browser.
+
 - **2026-11-10 (recruitment: a candidate can be turned down; Phase 1 of the Offer plan, branch `feature/recruitement`).**
   Migration `add_rejection_to_candidates_table` (`rejected_at`, `rejected_reason`, `rejected_by_user_id`). The plan this
   belongs to is under "Offer, Filled and the candidate's outcome" in the Phase 4 notes.
@@ -1568,10 +1587,11 @@ platform accounts above (no career page, manual posting, nothing public except t
   Penawaran terkirim, Diterima, Menolak, Ditolak.
 - **Phases.**
   1. **Candidate outcome: Tolak and Pulihkan** (`REC-CAN-002/003`, `CDT-001`). **Built 2026-11-10** (change log above).
-  2. **The superior's choice, and Interview to Offer** (`REC-PIP`). "Pilih" by the direct superior, for an interviewed
-     candidate still in the process (open question: HR choosing on their behalf only when the superior has no account);
-     a guard `HasSelectedCandidate`; HR's "Lanjut ke Penawaran" (`AdvanceToOffer`); the Offer tab replaces the
-     placeholder. Screening and interviews stay open at Offer, as already decided.
+  2. **The superior's choice, and Interview to Offer** (`REC-PIP`). **Built 2026-11-10** (change log above). "Pilih" by the
+     direct superior, for an interviewed candidate still in the process; HR does not choose for them (the superior is the PIC
+     who raised the requisition, so always has an account); a guard `HasSelectedCandidate`; HR's "Lanjut ke Penawaran"
+     (`AdvanceToOffer`); the Offer tab replaces the placeholder. Screening and interviews stay open at Offer, as already
+     decided.
   3. **Management's approval** (`REC-OFS-001/002/006`). `CandidateOffer` and `OfferWorkflow`. Each pick becomes a proposal
      showing "Direkomendasikan oleh n pewawancara" (from the evaluations). Management approves and sets the starting
      salary, or rejects with a reason and the candidate returns to the Interview list. Notices to Management and back, the
@@ -1598,14 +1618,14 @@ platform accounts above (no career page, manual posting, nothing public except t
 | `REC-WIZ`                         | Requisition wizard shell    | 6   | 4   | ✅     | Built 10-28: stepper, Sebelumnya/Selanjutnya keeping the values, Simpan Draft at any step (back to the dashboard), resume at the saved step, edit while sent and undecided (005). Built 11-06: the "Mendesak" marker with a reason (006), a marker only |
 | `REC-WZ1` · `REC-WZ2` · `REC-WZ3` | Wizard steps 01–03          | 8   | 7   | ✅     | Built 10-28, reworked the same day to the design's fixed template (see the Phase 4 notes). Step 1 "The ask": Posisi, Departemen, Cabang (optional, added), Jumlah kuota (whole, ≥ 1), Tipe kontrak (+ months for Kontrak/Magang), Atasan langsung, Target mulai kerja (never in the past), Alasan permintaan. Step 2: the job posting (Tentang Posisi, Tanggung Jawab Utama with the requester's own subtitles, Benefit & Fasilitas) and the candidate checklist (Kualifikasi, Skills, Nilai Plus). Step 3: one review page, then "Ajukan untuk Persetujuan" builds the chain. `REC-WZ2-002`'s requirement list is now the checklist; its base is the admin template (`REC-TPL-001`) |
 | `REC-TPL`                         | Templates (admin)           | 1   | 0   | 🟡     | Built 10-28: admin page **Template rekrutmen** (parent-wide HR Admin) holds the base lines for Benefit & Fasilitas and for each fixed checklist subtitle (Pendidikan, Pengalaman, Hard Skills, Soft Skills, Nilai Plus); a new requisition copies them. The sections and subtitles themselves are fixed in code |
-| `REC-PIP`                         | Requisition pipeline        | 6   | 4   | 🟡     | Built 10-28: header and breadcrumb, 6-stage tracker with the date each was reached, locked future stages, forward-only (`RequisitionWorkflow`), opens on the current stage, status line (006). Stages 02, 03 and 04 (invitation) are built (11-04); stages 05-06 show a placeholder, and nothing yet moves a requisition from Interview to Offer (no action, no guard). A cancelled requisition keeps the stages it reached open |
+| `REC-PIP`                         | Requisition pipeline        | 6   | 4   | 🟡     | Built 10-28: header and breadcrumb, 6-stage tracker with the date each was reached, locked future stages, forward-only (`RequisitionWorkflow`), opens on the current stage, status line (006). Stages 02, 03 and 04 (invitation) are built (11-04). Built 11-10: HR's "Lanjut ke Penawaran" once the direct superior has chosen a candidate (guard `HasSelectedCandidate`), and the Penawaran tab listing the chosen; stage 06 shows a placeholder, and nothing moves a requisition from Penawaran to Terisi yet. A cancelled requisition keeps the stages it reached open |
 | `REC-APR`                         | Stage 01 Approval           | 9   | 5   | ✅     | Built 10-28: chain Manajemen → HR (decided 2026-10-28, see Phase 4 notes), "Setujui sebagai …", reject with a reason back to a draft, "Lanjut ke Posting" gated on every approval, Edit, "Diajukan <date> oleh <requester>", Ekspektasi Gaji required for Management's approval with "Simpan" before it (007/008), comment thread (009) |
 | `REC-PST`                         | Stage 02 Posting            | 7   | 4   | ✅     | Built 11-04 (revised plan: manual, no cmp-api push): copy buttons (Judul, Deskripsi, Persyaratan, Semua), "Tandai sudah diposting" per platform with date and optional link, correct/remove, "Lanjut ke Screening" once one is recorded, "Batalkan lowongan" with a reason (PST-004) |
 | `REC-SCR`                         | Stage 03 Screening          | 8   | 4   | ✅     | Built 11-04 (revised plan): total-applicants count, quick-add of shortlisted candidates (duplicate warning, paste-to-autofill, optional CV), shortlist list, "Lanjut ke Interview". No ranking. Candidate list is HR-only |
 | `REC-INT`                         | Stage 04 Interview          | 8   | 3   | ✅     | Built 11-04 (revised plan): invitation (time, online/in person, Meet link or address) by email with the same text for WhatsApp, single-use link, open only on the interview day, to the public in-app candidate form (Ya/Tidak on the checklist, salary, start date), answers shown to HR. Built 11-06: feedback by HR and the direct superior, reminders (candidate the day before, HR and superior on the day). Built 11-09: a notice to HR and the superior for interviews still without an evaluation; the CSV for mail merge (one row per interviewee with an email, the invitation's note included, every download on the audit trail); cancelling warns HR of candidates already scheduled and tells the superior. Candidate rescheduling stays with HR by decision. Google Meet creation waits on the account test |
 | `REC-OFS`                         | Stage 05 Offer              | 9   | 8   | ⬜     | Management final approval + offer letter                    |
 | `REC-FIL`                         | Stage 06 Filled             | 7   | 6   | ⬜     | Convert-to-employee (L). Creates the profile the hire then registers against (`CORE-REG`); until this exists HR creates profiles by hand or CSV |
-| `REC-CAN` · `REC-CDT` · `REC-CRV` | Candidate detail + tabs     | 11  | 8   | 🟡     | The candidate is a side drawer, not a page (by decision): Ringkasan (answers of the form), Dokumen (CV), Interview (schedule, invitation, evaluations). Built 11-10: Tolak with a reason and an opt-in email, and Pulihkan (`CAN-002/003`, the "Ditolak" banner of `CDT-001`). The stage-dependent actions for Siap Ditawari and Penawaran Terkirim come with the Offer phases |
+| `REC-CAN` · `REC-CDT` · `REC-CRV` | Candidate detail + tabs     | 11  | 8   | 🟡     | The candidate is a side drawer, not a page (by decision): Ringkasan (answers of the form), Dokumen (CV), Interview (schedule, invitation, evaluations). Built 11-10: Tolak with a reason and an opt-in email, and Pulihkan (`CAN-002/003`, the "Ditolak" banner of `CDT-001`); Pilih and Batalkan pilihan for the direct superior, with the "Dipilih" banner. The stage-dependent actions for Siap Ditawari and Penawaran Terkirim come with the Offer phases |
 | `REC-OFR`                         | Send offer form             | 6   | 4   | ⬜     |                                                             |
 | `REC-EDI`                         | Post-interview form builder | 1   | 0   | ⬜     | P5 — backlog                                                |
 | `REC-CAR`                         | Career page (public)        | 3   | 0   | ➖     | Dropped 2026-11-04: no public career page; only invited, shortlisted candidates reach a form (inside this app) |

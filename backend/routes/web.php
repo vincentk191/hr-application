@@ -114,9 +114,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('recruitment/{requisition}/candidates/{candidate}/invitation', [RequisitionController::class, 'inviteCandidate'])->scopeBindings()->name('recruitment.candidates.invite');
     Route::post('recruitment/{requisition}/candidates/{candidate}/rejection', [RequisitionController::class, 'rejectCandidate'])->scopeBindings()->name('recruitment.candidates.reject');
     Route::delete('recruitment/{requisition}/candidates/{candidate}/rejection', [RequisitionController::class, 'restoreCandidate'])->scopeBindings()->name('recruitment.candidates.restore');
+    Route::post('recruitment/{requisition}/candidates/{candidate}/selection', [RequisitionController::class, 'selectCandidate'])->scopeBindings()->name('recruitment.candidates.select');
+    Route::delete('recruitment/{requisition}/candidates/{candidate}/selection', [RequisitionController::class, 'unselectCandidate'])->scopeBindings()->name('recruitment.candidates.unselect');
     Route::post('recruitment/{requisition}/candidates/{candidate}/form-link', [RequisitionController::class, 'renewFormLink'])->scopeBindings()->name('recruitment.candidates.form-link');
     Route::put('recruitment/{requisition}/candidates/{candidate}/evaluation', [RequisitionController::class, 'saveEvaluation'])->scopeBindings()->name('recruitment.candidates.evaluation');
     Route::post('recruitment/{requisition}/interview', [RequisitionController::class, 'advanceToInterview'])->name('recruitment.interview');
+    Route::post('recruitment/{requisition}/offer', [RequisitionController::class, 'advanceToOffer'])->name('recruitment.offer');
     Route::post('recruitment/{requisition}/cancel', [RequisitionController::class, 'cancel'])->name('recruitment.cancel');
     Route::post('recruitment/{requisition}/comments', [RequisitionController::class, 'comment'])->name('recruitment.comments.store');
     Route::post('recruitment/{requisition}/comments/read', [RequisitionController::class, 'markCommentsRead'])->name('recruitment.comments.read');

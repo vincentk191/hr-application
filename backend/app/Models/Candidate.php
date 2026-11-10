@@ -51,6 +51,8 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $rejected_at
  * @property string|null $rejected_reason
  * @property int|null $rejected_by_user_id
+ * @property Carbon|null $selected_at
+ * @property int|null $selected_by_user_id
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -87,6 +89,8 @@ use Illuminate\Support\Carbon;
     'rejected_at',
     'rejected_reason',
     'rejected_by_user_id',
+    'selected_at',
+    'selected_by_user_id',
 ])]
 class Candidate extends Model
 {
@@ -115,6 +119,7 @@ class Candidate extends Model
             'interviewers_reminded_at' => 'datetime',
             'evaluation_prompted_at' => 'datetime',
             'rejected_at' => 'datetime',
+            'selected_at' => 'datetime',
             'form_data' => 'array',
         ];
     }
@@ -201,6 +206,34 @@ class Candidate extends Model
     public function scopeInProcess(Builder $query): Builder
     {
         return $query->whereNull('rejected_at');
+    }
+
+    /**
+     * The direct superior chose this candidate (REC-PIP) and HR has not turned them down since: they are in line for an
+     * offer. A rejection keeps the choice on record but ends its effect, and taking the rejection back revives it.
+     */
+    public function isSelected(): bool
+    {
+        return $this->selected_at !== null && ! $this->isRejected();
+    }
+
+    /**
+     * Candidates the direct superior chose and who are still in the process.
+     *
+     * @param  Builder<Candidate>  $query
+     * @return Builder<Candidate>
+     */
+    public function scopeSelected(Builder $query): Builder
+    {
+        return $query->whereNotNull('selected_at')->whereNull('rejected_at');
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function selectedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'selected_by_user_id');
     }
 
     /**

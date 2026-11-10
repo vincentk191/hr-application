@@ -34,6 +34,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { WorkflowDiscussion } from '@/components/workflow-discussion';
 import { InterviewTab, parseLocal } from '@/components/requisition-interview';
+import { OfferTab } from '@/components/requisition-offer';
 import { PostingTab } from '@/components/requisition-posting';
 import {
     AddCandidateDialog,
@@ -46,6 +47,7 @@ import {
     edit,
     index,
     interview,
+    offer,
     salary,
     screening,
 } from '@/routes/recruitment';
@@ -459,6 +461,34 @@ export default function RequisitionShow({
                   },
               ]
             : []),
+        ...(item.canAdvanceToOffer
+            ? [
+                  {
+                      key: 'offer',
+                      icon: ArrowRight,
+                      label: 'Lanjut ke Penawaran',
+                      short: 'Lanjut',
+                      rank: item.offerBlockers.length === 0 ? 1 : 3,
+                      render: (label: ReactNode, className?: string) => (
+                          <Button
+                              data-test="advance-offer"
+                              className={className}
+                              disabled={item.offerBlockers.length > 0}
+                              title={item.offerBlockers.join(' ') || undefined}
+                              onClick={() =>
+                                  router.post(
+                                      offer(item.id).url,
+                                      {},
+                                      { preserveScroll: true },
+                                  )
+                              }
+                          >
+                              {label}
+                          </Button>
+                      ),
+                  },
+              ]
+            : []),
         ...(item.canManageScreening
             ? [
                   {
@@ -665,6 +695,8 @@ export default function RequisitionShow({
                     <ScreeningTab item={item} />
                 ) : tab === 'interview' ? (
                     <InterviewTab item={item} />
+                ) : tab === 'offer' ? (
+                    <OfferTab item={item} />
                 ) : (
                     <section className="surface p-6 text-sm text-muted-foreground">
                         Tahap ini disiapkan pada tahap pengembangan berikutnya.

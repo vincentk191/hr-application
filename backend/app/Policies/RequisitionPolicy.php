@@ -175,6 +175,40 @@ class RequisitionPolicy
     }
 
     /**
+     * Choosing the candidate they prefer is the direct superior's (REC-PIP), for someone invited and already interviewed who
+     * is still in the process, at Interview or Offer. HR does not choose for them: the superior is the one who raised the
+     * requisition, so they always have an account.
+     */
+    public function selectCandidate(User $user, Requisition $requisition, Candidate $candidate): bool
+    {
+        return $this->viewInterviewees($user, $requisition)
+            && $candidate->requisition_id === $requisition->id
+            && ! $candidate->isRejected()
+            && $candidate->selected_at === null
+            && $candidate->inviteState() !== 'none'
+            && $candidate->interview_at !== null
+            && $candidate->interview_at->isPast();
+    }
+
+    /**
+     * Taking the choice back is the direct superior's, for a candidate they chose and who is still in the process.
+     */
+    public function unselectCandidate(User $user, Requisition $requisition, Candidate $candidate): bool
+    {
+        return $this->viewInterviewees($user, $requisition)
+            && $candidate->requisition_id === $requisition->id
+            && $candidate->isSelected();
+    }
+
+    /**
+     * "Lanjut ke Penawaran" is HR's, once, from 04 Interview; the stage's guard keeps it shut until a candidate is chosen.
+     */
+    public function advanceToOffer(User $user, Requisition $requisition): bool
+    {
+        return $requisition->stage() === RequisitionStage::Interview && $this->viewCandidates($user, $requisition);
+    }
+
+    /**
      * Turning a candidate down is HR's, from Screening to Offer, for someone still in the process (REC-CAN-003).
      */
     public function rejectCandidate(User $user, Requisition $requisition, Candidate $candidate): bool

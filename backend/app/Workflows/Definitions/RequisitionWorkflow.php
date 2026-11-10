@@ -8,6 +8,7 @@ use App\Workflows\Contracts\WorkflowDefinition;
 use App\Workflows\Contracts\WorkflowStage;
 use App\Workflows\Guards\ChainFullyApproved;
 use App\Workflows\Guards\HasBeenPosted;
+use App\Workflows\Guards\HasSelectedCandidate;
 use App\Workflows\Guards\HasShortlist;
 use BackedEnum;
 
@@ -18,7 +19,8 @@ use BackedEnum;
  * Forward only (REC-PIP-004): a stage never goes back to an earlier one, except that a rejection at stage 01
  * returns the requisition to its requester as a draft (REC-APR-006). Posting needs every approval done
  * (REC-APR-003), and Screening needs the listing recorded on a platform (REC-PST-003), and Interview needs at least one
- * candidate shortlisted (REC-SCR). The later stages have no guards yet: each gets its own when it is built.
+ * candidate shortlisted (REC-SCR), and Penawaran needs a candidate the direct superior has chosen (REC-PIP). Filled has no
+ * guard yet: it gets its own when it is built.
  */
 class RequisitionWorkflow implements WorkflowDefinition
 {
@@ -63,6 +65,7 @@ class RequisitionWorkflow implements WorkflowDefinition
             Stage::Posting->value => [ChainFullyApproved::class],
             Stage::Screening->value => [HasBeenPosted::class],
             Stage::Interview->value => [HasShortlist::class],
+            Stage::Offer->value => [HasSelectedCandidate::class],
         ];
     }
 }

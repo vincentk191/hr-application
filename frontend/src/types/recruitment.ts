@@ -157,6 +157,13 @@ export type Candidate = {
     /** HR may turn them down now, or take the rejection back. */
     canReject: boolean;
     canRestore: boolean;
+    /** The direct superior chose this candidate (REC-PIP) and they are still in the process. */
+    isSelected: boolean;
+    selectedOn: string | null;
+    selectedBy: string | null;
+    /** Only the direct superior may choose, or take the choice back. */
+    canSelect: boolean;
+    canUnselect: boolean;
     formSubmittedOn: string | null;
     /** The invitation as sent, without its personal link; null if never invited. */
     invitation: SentInvitation | null;
@@ -267,6 +274,12 @@ export type Requisition = RequisitionRow & {
     /** HR may enter the total and shortlist: at Screening, and still at Interview. */
     canManageScreening: boolean;
     canAdvanceToInterview: boolean;
+    /** HR may move on to Penawaran, once the direct superior has chosen someone. */
+    canAdvanceToOffer: boolean;
+    /** Why "Lanjut ke Penawaran" is not open yet. */
+    offerBlockers: string[];
+    /** How many the direct superior chose: a count everyone who sees the requisition may see. */
+    selectedCount: number;
     /** HR may invite shortlisted candidates, at Interview and Offer. */
     canManageInterview: boolean;
     canManagePostings: boolean;

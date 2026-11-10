@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\Recruitment\AddCandidate;
 use App\Actions\Recruitment\AdvanceToInterview;
+use App\Actions\Recruitment\AdvanceToOffer;
 use App\Actions\Recruitment\AdvanceToPosting;
 use App\Actions\Recruitment\AdvanceToScreening;
 use App\Actions\Recruitment\CancelRequisition;
@@ -19,7 +20,9 @@ use App\Actions\Recruitment\SaveEvaluation;
 use App\Actions\Recruitment\SavePosting;
 use App\Actions\Recruitment\SaveRequisitionDraft;
 use App\Actions\Recruitment\SaveSalaryExpectation;
+use App\Actions\Recruitment\SelectCandidate;
 use App\Actions\Recruitment\SubmitRequisition;
+use App\Actions\Recruitment\UnselectCandidate;
 use App\Enums\EmploymentStatus;
 use App\Enums\EmploymentType;
 use App\Enums\Permission;
@@ -534,6 +537,52 @@ class RequisitionController extends Controller
         $restore->handle($requisition, $candidate, $request->user());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => "{$candidate->name} kembali diproses."]);
+
+        return back();
+    }
+
+    /**
+     * "Pilih": the direct superior chooses the candidate they prefer (REC-PIP).
+     */
+    public function selectCandidate(Request $request, Requisition $requisition, Candidate $candidate, SelectCandidate $select): RedirectResponse
+    {
+        $this->authorize('selectCandidate', [$requisition, $candidate]);
+
+        $select->handle($requisition, $candidate, $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "{$candidate->name} dipilih."]);
+
+        return back();
+    }
+
+    /**
+     * "Batalkan pilihan": the direct superior takes their choice back (REC-PIP).
+     */
+    public function unselectCandidate(Request $request, Requisition $requisition, Candidate $candidate, UnselectCandidate $unselect): RedirectResponse
+    {
+        $this->authorize('unselectCandidate', [$requisition, $candidate]);
+
+        $unselect->handle($requisition, $candidate, $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "Pilihan {$candidate->name} dibatalkan."]);
+
+        return back();
+    }
+
+    /**
+     * "Lanjut ke Penawaran ›" (REC-PIP), refused until the direct superior has chosen a candidate.
+     */
+    public function advanceToOffer(Request $request, Requisition $requisition, AdvanceToOffer $advance): RedirectResponse
+    {
+        $this->authorize('advanceToOffer', $requisition);
+
+        try {
+            $advance->handle($requisition, $request->user());
+        } catch (TransitionBlocked $blocked) {
+            throw ValidationException::withMessages(['advance' => $blocked->getMessage()]);
+        }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "{$requisition->reference()} lanjut ke tahap Penawaran."]);
 
         return back();
     }

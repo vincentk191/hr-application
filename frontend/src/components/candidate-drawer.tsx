@@ -10,6 +10,8 @@ import {
     RotateCcw,
     Send,
     Trash2,
+    UserCheck,
+    UserMinus,
     X,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -38,6 +40,8 @@ import {
     invite,
     reject,
     restore,
+    select,
+    unselect,
 } from '@/routes/recruitment/candidates';
 import type { Candidate, Requisition } from '@/types/recruitment';
 
@@ -145,6 +149,7 @@ function DrawerBody({
 }) {
     const [removing, setRemoving] = useState(false);
     const [restoring, setRestoring] = useState(false);
+    const [choosing, setChoosing] = useState(false);
 
     return (
         <>
@@ -194,6 +199,27 @@ function DrawerBody({
                             </p>
                         )}
                     </div>
+                </div>
+            )}
+
+            {candidate.isSelected && (
+                <div
+                    className="flex items-start gap-2 border-b bg-emerald-500/10 px-4 py-3 text-sm"
+                    data-test="candidate-selected"
+                >
+                    <UserCheck
+                        className="mt-0.5 size-4 shrink-0 text-emerald-600"
+                        aria-hidden
+                    />
+                    <p className="font-semibold">
+                        Dipilih
+                        {candidate.selectedOn
+                            ? ` · ${shortDate(candidate.selectedOn)}`
+                            : ''}
+                        {candidate.selectedBy
+                            ? ` · ${candidate.selectedBy}`
+                            : ''}
+                    </p>
                 </div>
             )}
 
@@ -326,6 +352,59 @@ function DrawerBody({
                         <Trash2 className="size-4" aria-hidden />
                         Hapus kandidat
                     </Button>
+                </div>
+            )}
+
+            {(candidate.canSelect || candidate.canUnselect) && (
+                <div className="flex flex-wrap gap-2 border-t bg-card p-4">
+                    {candidate.canSelect && (
+                        <Button
+                            type="button"
+                            disabled={choosing}
+                            onClick={() =>
+                                router.post(
+                                    select.url({
+                                        requisition: item.id,
+                                        candidate: candidate.id,
+                                    }),
+                                    {},
+                                    {
+                                        preserveScroll: true,
+                                        onStart: () => setChoosing(true),
+                                        onFinish: () => setChoosing(false),
+                                    },
+                                )
+                            }
+                            data-test="select-candidate"
+                        >
+                            <UserCheck className="size-4" aria-hidden />
+                            Pilih
+                        </Button>
+                    )}
+                    {candidate.canUnselect && (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            disabled={choosing}
+                            onClick={() =>
+                                router.delete(
+                                    unselect.url({
+                                        requisition: item.id,
+                                        candidate: candidate.id,
+                                    }),
+                                    {
+                                        preserveScroll: true,
+                                        onStart: () => setChoosing(true),
+                                        onFinish: () => setChoosing(false),
+                                    },
+                                )
+                            }
+                            data-test="unselect-candidate"
+                        >
+                            <UserMinus className="size-4" aria-hidden />
+                            Batalkan pilihan
+                        </Button>
+                    )}
                 </div>
             )}
         </>

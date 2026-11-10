@@ -130,6 +130,12 @@ class RequisitionPresenter
                 : [],
             'canManageScreening' => $viewer->can('manageScreening', $requisition),
             'canAdvanceToInterview' => $viewer->can('advanceToInterview', $requisition),
+            'canAdvanceToOffer' => $viewer->can('advanceToOffer', $requisition),
+            'offerBlockers' => $stage === RequisitionStage::Interview
+                ? $this->engine->blockingReasons($requisition->workflow, RequisitionStage::Offer)
+                : [],
+            // How many the direct superior has chosen: a count anyone who sees the requisition may see.
+            'selectedCount' => $requisition->candidates->filter(fn (Candidate $candidate): bool => $candidate->isSelected())->count(),
             'canManageInterview' => $viewer->can('manageInterview', $requisition),
             // The company's today, which the posting date may not pass.
             'today' => SaveRequisitionRequest::today()->toDateString(),
@@ -213,7 +219,7 @@ class RequisitionPresenter
      */
     private function candidates(Requisition $requisition, User $viewer, bool $intervieweesOnly = false): array
     {
-        $requisition->loadMissing('candidates.addedBy:id,name', 'candidates.evaluations.author:id,name', 'candidates.rejectedBy:id,name');
+        $requisition->loadMissing('candidates.addedBy:id,name', 'candidates.evaluations.author:id,name', 'candidates.rejectedBy:id,name', 'candidates.selectedBy:id,name');
 
         return array_values($requisition->candidates
             ->filter(fn (Candidate $candidate): bool => ! $intervieweesOnly || $candidate->inviteState() !== 'none')
@@ -246,7 +252,7 @@ class RequisitionPresenter
      */
     public function candidate(Requisition $requisition, Candidate $candidate, ?User $viewer = null): array
     {
-        $candidate->loadMissing('addedBy:id,name', 'evaluations.author:id,name', 'rejectedBy:id,name');
+        $candidate->loadMissing('addedBy:id,name', 'evaluations.author:id,name', 'rejectedBy:id,name', 'selectedBy:id,name');
         $cvUrl = $candidate->cv_path === null ? null : route('recruitment.candidates.cv', [$requisition, $candidate]);
 
         return [
@@ -269,6 +275,7 @@ class RequisitionPresenter
             // What HR wrote to the candidate in the invitation: HR's own, kept so a re-send repeats it.
             'invitationNote' => $viewer !== null && $viewer->can('viewCandidates', $requisition) ? $candidate->invitation_note : null,
             ...$this->rejectionFields($requisition, $candidate, $viewer),
+            ...$this->selectionFields($requisition, $candidate, $viewer),
         ];
     }
 
@@ -352,6 +359,22 @@ class RequisitionPresenter
             'rejectedBy' => $isHr ? $candidate->rejectedBy?->name : null,
             'canReject' => $viewer !== null && $viewer->can('rejectCandidate', [$requisition, $candidate]),
             'canRestore' => $viewer !== null && $viewer->can('restoreCandidate', [$requisition, $candidate]),
+        ];
+    }
+
+    /**
+     * Whether the direct superior chose this candidate (REC-PIP), and whether this person may choose or take the choice back.
+     *
+     * @return array<string, mixed>
+     */
+    private function selectionFields(Requisition $requisition, Candidate $candidate, ?User $viewer): array
+    {
+        return [
+            'isSelected' => $candidate->isSelected(),
+            'selectedOn' => $candidate->isSelected() ? $candidate->selected_at?->copy()->setTimezone((string) config('attendance.device_timezone'))->toDateString() : null,
+            'selectedBy' => $candidate->isSelected() ? $candidate->selectedBy?->name : null,
+            'canSelect' => $viewer !== null && $viewer->can('selectCandidate', [$requisition, $candidate]),
+            'canUnselect' => $viewer !== null && $viewer->can('unselectCandidate', [$requisition, $candidate]),
         ];
     }
 

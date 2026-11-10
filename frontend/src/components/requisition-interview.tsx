@@ -11,6 +11,7 @@ import {
     Minus,
     Plus,
     User,
+    UserCheck,
     Video,
     X,
 } from 'lucide-react';
@@ -627,6 +628,12 @@ function CandidateSummaryRow({
                         <MessageSquare
                             className="size-4"
                             aria-label="Ada catatan"
+                        />
+                    )}
+                    {candidate.isSelected && (
+                        <UserCheck
+                            className="size-4 text-emerald-600"
+                            aria-label="Dipilih"
                         />
                     )}
                 </span>
