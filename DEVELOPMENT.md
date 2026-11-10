@@ -80,7 +80,10 @@ left uncommitted for review.
     Pengajuan as pills with a dot (amber waiting, green approved). A phone shows tile, name and unit, with "masuk →
     pulang" and a short Pengajuan line on the right. "ID belum dipetakan" and "Lewat rekapitulasi cabang" are notes
     under the name. A holiday's name stands where the Pengajuan would.
-  - Side: only the events card on this view (no tally, no ring, no on-leave panel: the chips and the list carry them). `CalendarEvents` is now a compact card (flag, "Libur & acara · kosong", round + button).
+  - Side: the same panel as the other views (the status tiles with counts, the events card, who is on leave).
+  - **Week grid scrolls inside itself.** The grid has a capped height (the viewport minus the toolbar) and scrolls both ways
+    inside its card, the date header sticks to the top of it, and the legend sticks to the bottom of the page, so a long
+    list of people never pushes either out of sight. `CalendarEvents` is now a compact card (flag, "Libur & acara · kosong", round + button).
   - `components/attendance-legend.tsx` is the key shared by the week and the day.
 
 - **2026-11-10 (attendance: the week of the Kalender redrawn as a grid of people; front end only).**

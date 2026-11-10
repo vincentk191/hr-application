@@ -732,56 +732,54 @@ export default function AttendanceCalendar(props: Props) {
                     </div>
 
                     <aside className="flex flex-col gap-3">
-                        {view !== 'day' && (
-                            <section className="surface p-5">
-                                <h2 className="label-mono">
-                                    {isCurrent ? currentLabel(view) : nav.label}
-                                </h2>
-                                <ul className="mt-4 flex flex-col gap-3">
-                                    {(
-                                        [
-                                            ['present', 'Hadir'],
-                                            ['late', 'Terlambat'],
-                                            ['early_leave', 'Pulang cepat'],
-                                            ['absent', 'Tidak hadir'],
-                                            ['leave', 'Cuti'],
-                                        ] as [DayStatus, string][]
-                                    ).map(([status, label]) => (
-                                        <li
-                                            key={status}
-                                            className="flex items-center gap-3"
+                        <section className="surface p-5">
+                            <h2 className="label-mono">
+                                {isCurrent ? currentLabel(view) : nav.label}
+                            </h2>
+                            <ul className="mt-4 flex flex-col gap-3">
+                                {(
+                                    [
+                                        ['present', 'Hadir'],
+                                        ['late', 'Terlambat'],
+                                        ['early_leave', 'Pulang cepat'],
+                                        ['absent', 'Tidak hadir'],
+                                        ['leave', 'Cuti'],
+                                    ] as [DayStatus, string][]
+                                ).map(([status, label]) => (
+                                    <li
+                                        key={status}
+                                        className="flex items-center gap-3"
+                                    >
+                                        <span
+                                            className={cn(
+                                                'inline-flex size-9 items-center justify-center rounded-lg border text-sm font-bold',
+                                                STATUS_TILE[status],
+                                            )}
                                         >
-                                            <span
-                                                className={cn(
-                                                    'inline-flex size-9 items-center justify-center rounded-lg border text-sm font-bold',
-                                                    STATUS_TILE[status],
-                                                )}
-                                            >
-                                                {options.statuses.find(
-                                                    (option) =>
-                                                        option.value === status,
-                                                )?.code ?? ''}
-                                            </span>
-                                            <span className="flex-1 text-sm">
-                                                {label}
-                                            </span>
-                                            <span className="text-xl font-bold tabular-nums">
-                                                {summary.counts[status]}
-                                            </span>
-                                        </li>
-                                    ))}
-                                </ul>
-                                <p className="mt-4 text-xs text-muted-foreground">
-                                    {summary.expected > 0
-                                        ? `Kehadiran ${Math.round((summary.attended / summary.expected) * 100)}% dari ${summary.expected} hari-orang yang dinilai.`
-                                        : 'Belum ada hari yang dapat dinilai pada rentang ini.'}
-                                    {summary.counts.no_data > 0 &&
-                                        ` ${summary.counts.no_data} hari-orang belum ada datanya.`}
-                                    {summary.rekapEmployees > 0 &&
-                                        ` +${summary.rekapEmployees} dari Cabang Rekapitulasi tidak dihitung.`}
-                                </p>
-                            </section>
-                        )}
+                                            {options.statuses.find(
+                                                (option) =>
+                                                    option.value === status,
+                                            )?.code ?? ''}
+                                        </span>
+                                        <span className="flex-1 text-sm">
+                                            {label}
+                                        </span>
+                                        <span className="text-xl font-bold tabular-nums">
+                                            {summary.counts[status]}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                            <p className="mt-4 text-xs text-muted-foreground">
+                                {summary.expected > 0
+                                    ? `Kehadiran ${Math.round((summary.attended / summary.expected) * 100)}% dari ${summary.expected} hari-orang yang dinilai.`
+                                    : 'Belum ada hari yang dapat dinilai pada rentang ini.'}
+                                {summary.counts.no_data > 0 &&
+                                    ` ${summary.counts.no_data} hari-orang belum ada datanya.`}
+                                {summary.rekapEmployees > 0 &&
+                                    ` +${summary.rekapEmployees} dari Cabang Rekapitulasi tidak dihitung.`}
+                            </p>
+                        </section>
 
                         <CalendarEvents
                             events={events}
@@ -789,15 +787,13 @@ export default function AttendanceCalendar(props: Props) {
                             defaultDate={anchor}
                         />
 
-                        {view !== 'day' && (
-                            <OnLeavePanel
-                                view={view}
-                                label={nav.label}
-                                today={nav.today}
-                                range={range}
-                                onLeave={onLeave}
-                            />
-                        )}
+                        <OnLeavePanel
+                            view={view}
+                            label={nav.label}
+                            today={nav.today}
+                            range={range}
+                            onLeave={onLeave}
+                        />
                     </aside>
                 </div>
             </div>

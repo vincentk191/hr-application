@@ -273,9 +273,15 @@ export function WeekGrid({
 
     return (
         <section className="flex flex-col gap-3">
-            <div className="surface overflow-x-auto">
+            <div className="surface max-h-[calc(100dvh-22rem)] min-h-64 overflow-auto md:max-h-[calc(100dvh-19rem)]">
                 <div role="table" className="md:min-w-[56rem]">
-                    <div role="row" className={COLUMNS}>
+                    <div
+                        role="row"
+                        className={cn(
+                            COLUMNS,
+                            'sticky top-0 z-10 bg-card shadow-[0_1px_0_var(--color-border)]',
+                        )}
+                    >
                         <div
                             role="columnheader"
                             className="hidden items-end p-4 md:flex"
@@ -357,12 +363,14 @@ export function WeekGrid({
                 </div>
             </div>
 
-            <StatusLegend statuses={statuses}>
-                <li className="flex items-center gap-1.5">
-                    <WaitingBadge count={1} />
-                    Menunggu
-                </li>
-            </StatusLegend>
+            <div className="sticky bottom-0 z-10 -mx-4 bg-background px-4 py-2">
+                <StatusLegend statuses={statuses}>
+                    <li className="flex items-center gap-1.5">
+                        <WaitingBadge count={1} />
+                        Menunggu
+                    </li>
+                </StatusLegend>
+            </div>
         </section>
     );
 }
