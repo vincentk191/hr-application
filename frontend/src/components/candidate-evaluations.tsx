@@ -52,27 +52,22 @@ export function averageRating(
 }
 
 /**
- * What the interviewers together lean towards: the recommendation given most often, and the more cautious one when
- * they are tied. Null while nobody has evaluated.
+ * What the interviewers together lean towards: the recommendation given most often. One entry when there is a
+ * majority, two or three (in the order continue, consider, reject) when they are tied, none while nobody has evaluated.
  */
-export function overallRecommendation(
+export function leadingRecommendations(
     evaluations: CandidateEvaluation[],
-): CandidateEvaluation['recommendation'] | null {
-    if (evaluations.length === 0) {
-        return null;
-    }
-
-    const cautious: CandidateEvaluation['recommendation'][] = [
-        'reject',
-        'consider',
+): CandidateEvaluation['recommendation'][] {
+    const values: CandidateEvaluation['recommendation'][] = [
         'continue',
+        'consider',
+        'reject',
     ];
     const count = (value: CandidateEvaluation['recommendation']) =>
         evaluations.filter((entry) => entry.recommendation === value).length;
+    const most = Math.max(0, ...values.map(count));
 
-    return cautious.reduce((best, value) =>
-        count(value) > count(best) ? value : best,
-    );
+    return most === 0 ? [] : values.filter((value) => count(value) === most);
 }
 
 /**

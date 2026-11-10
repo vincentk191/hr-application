@@ -7,7 +7,6 @@ import {
     Download,
     EyeOff,
     Link2,
-    MapPin,
     MessageSquare,
     Minus,
     Plus,
@@ -21,7 +20,7 @@ import type { ReactNode } from 'react';
 import {
     averageRating,
     averageValue,
-    overallRecommendation,
+    leadingRecommendations,
 } from '@/components/candidate-evaluations';
 import { CandidateDrawer } from '@/components/candidate-drawer';
 import type { CandidateTab } from '@/components/candidate-drawer';
@@ -399,13 +398,17 @@ const RECOMMENDATION_STYLE: Record<
 };
 
 /**
- * The candidate's standing at a glance: a ring filled to the average rating, its number in the middle, and a badge
- * in the colour of what the interviewers lean towards. A dashed ring with a question mark while nobody has evaluated.
+ * The candidate's standing at a glance: a ring filled to the average rating with its number in the middle, in the
+ * colour of the recommendation most interviewers gave, and a badge of its icon. When the most given are tied, the ring
+ * is white and the badges of the tied recommendations are stacked over one another. A dashed ring with a question
+ * mark while nobody has evaluated.
  */
 function ScoreRing({ evaluations }: { evaluations: CandidateEvaluation[] }) {
     const average = averageValue(evaluations);
-    const lean = overallRecommendation(evaluations);
-    const style = lean ? RECOMMENDATION_STYLE[lean] : null;
+    const leading = leadingRecommendations(evaluations);
+    const styles = leading.map((value) => RECOMMENDATION_STYLE[value]);
+    const ringStroke =
+        styles.length === 1 ? styles[0].stroke : 'stroke-foreground';
 
     return (
         <span
@@ -413,9 +416,9 @@ function ScoreRing({ evaluations }: { evaluations: CandidateEvaluation[] }) {
             data-test="score-ring"
             role="img"
             aria-label={
-                average === null || !style
+                average === null
                     ? 'Belum dinilai'
-                    : `Nilai ${averageRating(evaluations)} dari 5, ${style.label}`
+                    : `Nilai ${averageRating(evaluations)} dari 5, ${styles.map((style) => style.label).join(' / ')}`
             }
         >
             <svg
@@ -453,7 +456,7 @@ function ScoreRing({ evaluations }: { evaluations: CandidateEvaluation[] }) {
                             strokeWidth="5"
                             strokeLinecap="round"
                             strokeDasharray={`${(average / 5) * 100} 100`}
-                            className={style?.stroke}
+                            className={ringStroke}
                         />
                     </>
                 )}
@@ -465,12 +468,20 @@ function ScoreRing({ evaluations }: { evaluations: CandidateEvaluation[] }) {
                     averageRating(evaluations)
                 )}
             </span>
-            {style && (
+            {styles.length > 0 && (
                 <span
                     aria-hidden
-                    className={`absolute -right-0.5 -bottom-0.5 flex size-5 items-center justify-center rounded-full text-background ring-2 ring-card ${style.fill}`}
+                    className="absolute -right-0.5 -bottom-0.5 flex -space-x-2"
+                    data-test="score-badges"
                 >
-                    <style.icon className="size-3.5" strokeWidth={3} />
+                    {styles.map((style) => (
+                        <span
+                            key={style.label}
+                            className={`flex size-5 items-center justify-center rounded-full text-background ring-2 ring-card ${style.fill}`}
+                        >
+                            <style.icon className="size-3.5" strokeWidth={3} />
+                        </span>
+                    ))}
                 </span>
             )}
         </span>
@@ -534,15 +545,14 @@ function PlaceButton({ candidate }: { candidate: Candidate }) {
             {open && (
                 <Dialog open onOpenChange={setOpen}>
                     <DialogContent
-                        className="gap-3 sm:max-w-xs"
+                        className="sm:max-w-xs"
                         data-test="address-popup"
                     >
                         <DialogHeader>
-                            <DialogTitle className="flex items-center gap-2 text-base">
-                                <MapPin className="size-4" aria-hidden />
-                                {candidate.name}
+                            <DialogTitle className="sr-only">
+                                Alamat interview
                             </DialogTitle>
-                            <DialogDescription className="break-words text-foreground">
+                            <DialogDescription className="pr-6 break-words text-foreground">
                                 <LinkifiedText text={place} />
                             </DialogDescription>
                         </DialogHeader>
