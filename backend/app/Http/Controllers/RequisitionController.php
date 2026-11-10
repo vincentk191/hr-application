@@ -11,6 +11,7 @@ use App\Actions\Recruitment\DecideRequisition;
 use App\Actions\Recruitment\InviteCandidate;
 use App\Actions\Recruitment\RemoveCandidate;
 use App\Actions\Recruitment\RemovePosting;
+use App\Actions\Recruitment\RenewFormLink;
 use App\Actions\Recruitment\SaveApplicantCount;
 use App\Actions\Recruitment\SaveEvaluation;
 use App\Actions\Recruitment\SavePosting;
@@ -495,6 +496,26 @@ class RequisitionController extends Controller
             'expiresOn' => $result['expiresAt'] === null ? null : InvitationMessage::dayLabel($result['expiresAt'], false),
         ]);
         Inertia::flash('toast', ['type' => 'success', 'message' => "{$candidate->name} diundang interview."]);
+
+        return back();
+    }
+
+    /**
+     * "Tautan Formulir": a candidate asks for the link to their form again. A new link is made and handed back once;
+     * nothing is emailed and the invitation itself is left as it was.
+     */
+    public function renewFormLink(Requisition $requisition, Candidate $candidate, RenewFormLink $renew): RedirectResponse
+    {
+        $this->authorize('renewFormLink', [$requisition, $candidate]);
+
+        $result = $renew->handle($requisition, $candidate, request()->user());
+
+        Inertia::flash('formLink', [
+            'candidateId' => $candidate->id,
+            'name' => $candidate->name,
+            'link' => $result['link'],
+            'expiresOn' => InvitationMessage::dayLabel($result['expiresAt'], false),
+        ]);
 
         return back();
     }

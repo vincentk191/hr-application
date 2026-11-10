@@ -5,6 +5,7 @@ import {
     Mail,
     MapPin,
     Phone,
+    RefreshCw,
     Send,
     Trash2,
 } from 'lucide-react';
@@ -27,7 +28,7 @@ import {
     SheetDescription,
     SheetTitle,
 } from '@/components/ui/sheet';
-import { destroy, invite } from '@/routes/recruitment/candidates';
+import { destroy, formLink, invite } from '@/routes/recruitment/candidates';
 import type { Candidate, Requisition } from '@/types/recruitment';
 
 export type CandidateTab = 'overview' | 'documents' | 'interview';
@@ -485,7 +486,27 @@ function InterviewSection({
     const state = INVITE_STATE[candidate.inviteState];
     const at = interviewMoment(candidate.interviewAtInput);
     const [resending, setResending] = useState(false);
+    const [renewing, setRenewing] = useState(false);
     const canManage = onInvite !== undefined && item.canManageInterview;
+
+    // The old link stops working, and the candidate may be holding it: ask first.
+    const renewLink = () => {
+        if (
+            !window.confirm('Buat tautan baru? Tautan lama tidak berlaku lagi.')
+        ) {
+            return;
+        }
+
+        router.post(
+            formLink.url({ requisition: item.id, candidate: candidate.id }),
+            {},
+            {
+                preserveScroll: true,
+                onStart: () => setRenewing(true),
+                onFinish: () => setRenewing(false),
+            },
+        );
+    };
     // The invitation is only valid for a time still ahead, and worth sending again only while the form is unfilled.
     const canResend =
         canManage &&
@@ -505,6 +526,7 @@ function InterviewSection({
                 interview_at: candidate.interviewAtInput,
                 interview_mode: candidate.interviewMode ?? 'online',
                 interview_place: candidate.interviewPlace ?? '',
+                note: candidate.invitationNote ?? '',
             },
             {
                 preserveScroll: true,
@@ -605,6 +627,20 @@ function InterviewSection({
                             >
                                 <Send className="size-4" />
                                 Kirim ulang undangan
+                            </Button>
+                        )}
+                        {candidate.canRenewFormLink && (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="rounded-full"
+                                title="Buat tautan baru"
+                                disabled={renewing}
+                                onClick={renewLink}
+                                data-test="renew-form-link"
+                            >
+                                <RefreshCw className="size-4" aria-hidden />
+                                Tautan Formulir
                             </Button>
                         )}
                     </div>

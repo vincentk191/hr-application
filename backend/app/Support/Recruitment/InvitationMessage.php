@@ -45,6 +45,18 @@ class InvitationMessage
     }
 
     /**
+     * The address of a candidate's personal form. It is on the **public** address: HR works on the VPN hostname, but the
+     * candidate is not on the VPN.
+     */
+    public static function formLink(string $token): string
+    {
+        $path = route('candidate-form.show', $token, absolute: false);
+        $base = config('app.public_url');
+
+        return filled($base) ? rtrim((string) $base, '/').$path : url($path);
+    }
+
+    /**
      * The subject line, from the template HR set.
      */
     public static function subject(Requisition $requisition): string

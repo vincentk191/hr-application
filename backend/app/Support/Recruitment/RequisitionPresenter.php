@@ -265,6 +265,9 @@ class RequisitionPresenter
             'cvPreviewUrl' => $cvUrl === null ? null : InlineImage::previewUrl($cvUrl, (string) $candidate->cv_name),
             ...$this->interviewFields($candidate),
             ...$this->evaluationFields($requisition, $candidate, $viewer),
+            'canRenewFormLink' => $viewer !== null && $viewer->can('renewFormLink', [$requisition, $candidate]),
+            // What HR wrote to the candidate in the invitation: HR's own, kept so a re-send repeats it.
+            'invitationNote' => $viewer !== null && $viewer->can('viewCandidates', $requisition) ? $candidate->invitation_note : null,
         ];
     }
 

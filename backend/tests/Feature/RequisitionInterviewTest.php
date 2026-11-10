@@ -551,6 +551,92 @@ it('tells the direct superior when a requisition is cancelled with interviews st
         ->and($this->requester->notifications()->where('data->title', 'like', '%dibatalkan%')->count())->toBe(2);
 });
 
+// --- A candidate asks for the link to their form again ---
+
+function renewLink(Requisition $requisition, Candidate $candidate, ?User $as = null)
+{
+    return test()->actingAs($as ?? test()->hr)->post(route('recruitment.candidates.form-link', [$requisition, $candidate]));
+}
+
+it('gives a candidate a new form link and leaves the invitation itself alone', function () {
+    $requisition = interviewRequisition();
+    $candidate = Candidate::factory()->for($requisition)->create(['name' => 'Budi', 'email' => 'budi@example.com']);
+    $oldLink = sentLink($requisition, $candidate);
+    $before = $candidate->refresh()->only(['invited_at', 'interview_at', 'interview_place', 'invitation_note', 'invitation_message', 'candidate_reminded_at']);
+
+    renewLink($requisition, $candidate)->assertRedirect();
+    $given = session('inertia.flash_data')['formLink'];
+
+    expect($given['link'])->toContain('/lamaran/')->not->toBe($oldLink)
+        ->and($given['name'])->toBe('Budi')
+        ->and($given['expiresOn'])->toBe('10 November 2026')
+        ->and($candidate->refresh()->only(['invited_at', 'interview_at', 'interview_place', 'invitation_note', 'invitation_message', 'candidate_reminded_at']))->toEqual($before)
+        ->and($candidate->invitation_note)->toBe('Mohon hadir 10 menit lebih awal.')
+        ->and($candidate->invite_token_hash)->toBe(Candidate::hashToken(substr($given['link'], -48)));
+
+    // Only the invitation made it to the candidate's mailbox, and nothing was sent for the new link.
+    Mail::assertQueued(CandidateInvitation::class, 1);
+
+    // On the day, the old link is dead and the new one opens.
+    auth()->logout();
+    $this->travelTo(CarbonImmutable::parse('2026-11-10 08:00', 'Asia/Jakarta'));
+    $this->get($oldLink)->assertInertia(fn (Assert $page) => $page->where('state', 'invalid'));
+    $this->get($given['link'])->assertInertia(fn (Assert $page) => $page->where('state', 'open'));
+});
+
+it('writes a new form link to the audit trail', function () {
+    $requisition = interviewRequisition();
+    $candidate = Candidate::factory()->for($requisition)->create(['name' => 'Budi']);
+    invite($requisition, $candidate);
+
+    renewLink($requisition, $candidate)->assertRedirect();
+
+    $entry = Activity::query()->where('description', 'Tautan formulir kandidat dibuat ulang')->sole();
+
+    expect($entry->causer_id)->toBe($this->hr->id)
+        ->and($entry->subject_id)->toBe($requisition->id)
+        ->and($entry->properties['candidate'])->toBe('Budi');
+});
+
+it('makes a new form link for HR only, for an invited candidate whose form is open and whose day is not over', function () {
+    $requisition = interviewRequisition();
+    $candidate = Candidate::factory()->for($requisition)->create();
+
+    // Never invited: there is no day to open on.
+    renewLink($requisition, $candidate)->assertForbidden();
+
+    invite($requisition, $candidate);
+    renewLink($requisition, $candidate, $this->requester)->assertForbidden();
+    renewLink($requisition, $candidate, $this->management)->assertForbidden();
+
+    // A candidate of another requisition is not found through this one.
+    $other = interviewRequisition();
+    renewLink($requisition, Candidate::factory()->for($other)->create())->assertNotFound();
+
+    // Once the form is filled in there is nothing to send.
+    $candidate->forceFill(['form_submitted_at' => now()])->save();
+    renewLink($requisition, $candidate)->assertForbidden();
+    $candidate->forceFill(['form_submitted_at' => null])->save();
+
+    // After the interview day the link would be dead on arrival.
+    $this->travelTo(CarbonImmutable::parse('2026-11-11 09:00', 'Asia/Jakarta'));
+    renewLink($requisition, $candidate)->assertForbidden();
+});
+
+it('tells HR when a new link can be made, and gives back the invitation note to repeat it', function () {
+    $requisition = interviewRequisition();
+    $invited = Candidate::factory()->for($requisition)->create(['name' => 'Budi']);
+    Candidate::factory()->for($requisition)->create(['name' => 'Ani']);
+    invite($requisition, $invited);
+
+    $this->actingAs($this->hr)->get(route('recruitment.show', $requisition))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('requisition.shortlist.0.canRenewFormLink', true)
+            ->where('requisition.shortlist.0.invitationNote', 'Mohon hadir 10 menit lebih awal.')
+            ->where('requisition.shortlist.1.canRenewFormLink', false)
+            ->where('requisition.shortlist.1.invitationNote', null));
+});
+
 it('gives the file to HR only', function () {
     $requisition = interviewRequisition();
 

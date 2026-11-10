@@ -119,6 +119,13 @@ left uncommitted for review.
     evaluating is not an approval. **Cancelling:** candidates are outside the app and are not emailed. The cancel dialog and
     the toast say how many are already scheduled so HR can tell them, and the direct superior is notified when interviews
     were still ahead (the requester always was). The candidate form was already closed for a cancelled requisition.
+  - **A new form link on request (REC-INT).** "Tautan Formulir" with a refresh icon in the candidate drawer's Interview
+    section (`recruitment.candidates.form-link`, `RenewFormLink`, policy `renewFormLink`): HR only, for a candidate who was
+    invited, has not filled the form in, and whose interview day is not over. Only a hash of a link is kept, so it cannot be
+    looked up; this makes a new one for the same day and shows it once in a small dialog (copy, the day it works, "sekali
+    tampil"). **Nothing else moves:** no email, the time, place and note stay, the reminders are not re-armed. The old link
+    dies, so the button asks first, and the audit trail records who did it. "Kirim ulang undangan" and the reschedule dialog
+    now repeat the invitation's note (kept as `invitation_note`, shown to HR only) instead of dropping it.
   - **Candidate page: not built, by decision**; the candidate drawer (below) is the candidate view.
   - **Checked:** new `RequisitionEvaluationTest` (11), `InterviewRemindersTest` (7), more cases in `RequisitionTest`; Pint,
     PHPStan on the touched files, TypeScript and the formatter clean. A whole-suite run found 9 failures, none a bug: eight

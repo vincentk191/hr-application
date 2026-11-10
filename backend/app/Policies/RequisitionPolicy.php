@@ -175,6 +175,19 @@ class RequisitionPolicy
     }
 
     /**
+     * A new link to a candidate's form, for one who asks for it again: HR's, for a candidate who was invited and has not
+     * filled the form in, while the interview day has not ended (after that the link would be dead on arrival).
+     */
+    public function renewFormLink(User $user, Requisition $requisition, Candidate $candidate): bool
+    {
+        return $this->manageInterview($user, $requisition)
+            && $candidate->requisition_id === $requisition->id
+            && $candidate->invited_at !== null
+            && $candidate->form_submitted_at === null
+            && $candidate->formClosesAt()?->isFuture() === true;
+    }
+
+    /**
      * "Lanjut ke Interview" is HR's, once, from 03 Screening.
      */
     public function advanceToInterview(User $user, Requisition $requisition): bool

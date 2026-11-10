@@ -23,17 +23,6 @@ class InviteCandidate
     public const MASKED_LINK = '[tautan formulir pribadi — hanya tampil saat undangan dibuat]';
 
     /**
-     * The link on the **public** address: HR creates it on the VPN hostname, but the candidate is not on the VPN.
-     */
-    private function publicLink(string $token): string
-    {
-        $path = route('candidate-form.show', $token, absolute: false);
-        $base = config('app.public_url');
-
-        return filled($base) ? rtrim((string) $base, '/').$path : url($path);
-    }
-
-    /**
      * @param  array{interview_at: string, interview_mode: string, interview_place: string, note: string|null}  $fields  `interview_at` is a local date and time in the company timezone
      * @return array{link: string|null, message: string, emailed: bool, expiresAt: CarbonImmutable|null}
      */
@@ -59,7 +48,7 @@ class InviteCandidate
             'evaluation_prompted_at' => null,
         ])->save();
 
-        $link = $formOpen ? $this->publicLink($token) : null;
+        $link = $formOpen ? InvitationMessage::formLink($token) : null;
         $message = InvitationMessage::text($candidate, $requisition, $link, $fields['note']);
 
         $subject = InvitationMessage::subject($requisition);

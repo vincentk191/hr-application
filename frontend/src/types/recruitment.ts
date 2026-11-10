@@ -144,6 +144,10 @@ export type Candidate = {
     interviewAtInput: string | null;
     interviewMode: 'online' | 'onsite' | null;
     interviewPlace: string | null;
+    /** What HR wrote to the candidate in the invitation; repeated when it is sent again. HR only. */
+    invitationNote: string | null;
+    /** HR may make a new link to the form now: invited, form not filled in, interview day not over. */
+    canRenewFormLink: boolean;
     formSubmittedOn: string | null;
     /** The invitation as sent, without its personal link; null if never invited. */
     invitation: SentInvitation | null;
@@ -197,6 +201,14 @@ export type Invitation = {
     link: string | null;
     message: string;
     expiresOn: string | null;
+};
+
+/** A new link to a candidate's form, handed to HR once (a candidate asked for it again). */
+export type FormLink = {
+    candidateId: number;
+    name: string;
+    link: string;
+    expiresOn: string;
 };
 
 /** A requisition on its pipeline, or in the wizard (REC-PIP, REC-WIZ). */

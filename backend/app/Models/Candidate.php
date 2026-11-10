@@ -138,6 +138,19 @@ class Candidate extends Model
     }
 
     /**
+     * When the form's link lapses: the end of the interview day, company time. Null before an interview time is set.
+     */
+    public function formClosesAt(): ?CarbonImmutable
+    {
+        return $this->interview_at === null
+            ? null
+            : CarbonImmutable::instance($this->interview_at)
+                ->setTimezone((string) config('attendance.device_timezone'))
+                ->endOfDay()
+                ->utc();
+    }
+
+    /**
      * What is kept of an invitation link: its hash, so a copy of the database holds no working link.
      */
     public static function hashToken(string $token): string

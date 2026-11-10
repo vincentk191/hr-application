@@ -1,5 +1,5 @@
 import { Form, router } from '@inertiajs/react';
-import { Download, Plus } from 'lucide-react';
+import { CalendarDays, Download, EyeOff, Link2, Plus } from 'lucide-react';
 import { Fragment, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { averageRating } from '@/components/candidate-evaluations';
@@ -19,7 +19,12 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { exportMethod, invite } from '@/routes/recruitment/candidates';
-import type { Candidate, Invitation, Requisition } from '@/types/recruitment';
+import type {
+    Candidate,
+    FormLink,
+    Invitation,
+    Requisition,
+} from '@/types/recruitment';
 
 const selectClasses =
     'border-input bg-card h-10 rounded-xl border px-3 text-sm';
@@ -82,6 +87,61 @@ export function InvitationResult({
                     >
                         Selesai
                     </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+/**
+ * The new link to a candidate's form, shown once (only its hash is kept). Kept to the link, who it is for, and when it
+ * works, in icons.
+ */
+export function FormLinkResult({
+    formLink,
+    onClose,
+}: {
+    formLink: FormLink;
+    onClose: () => void;
+}) {
+    return (
+        <Dialog open onOpenChange={(open) => !open && onClose()}>
+            <DialogContent
+                className="gap-4 sm:max-w-md"
+                data-test="form-link-result"
+            >
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                        <Link2 className="size-5" aria-hidden />
+                        Tautan Formulir
+                    </DialogTitle>
+                    <DialogDescription>{formLink.name}</DialogDescription>
+                </DialogHeader>
+
+                <input
+                    readOnly
+                    value={formLink.link}
+                    onFocus={(event) => event.currentTarget.select()}
+                    className="w-full rounded-xl border border-input bg-muted/30 px-3 py-2 font-mono text-xs"
+                    data-test="form-link-value"
+                />
+
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <CopyButton
+                        label="Salin"
+                        text={formLink.link}
+                        testId="copy-form-link"
+                    />
+                    <p className="label-mono flex items-center gap-3">
+                        <span className="inline-flex items-center gap-1.5">
+                            <CalendarDays className="size-3.5" aria-hidden />
+                            {formLink.expiresOn}
+                        </span>
+                        <span className="inline-flex items-center gap-1.5">
+                            <EyeOff className="size-3.5" aria-hidden />
+                            Sekali tampil
+                        </span>
+                    </p>
                 </div>
             </DialogContent>
         </Dialog>
@@ -204,6 +264,9 @@ export function InviteDialog({
                                     name="note"
                                     rows={2}
                                     maxLength={1000}
+                                    defaultValue={
+                                        candidate.invitationNote ?? ''
+                                    }
                                     className="w-full rounded-xl border border-input bg-card px-3 py-2 text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
                                 />
                                 <InputError message={errors.note} />
@@ -734,16 +797,22 @@ export function InterviewTab({ item }: { item: Requisition }) {
     const [viewingId, setViewingId] = useState<number | null>(null);
     const [drawerTab, setDrawerTab] = useState<CandidateTab>('interview');
     const [invitation, setInvitation] = useState<Invitation | null>(null);
+    const [formLink, setFormLink] = useState<FormLink | null>(null);
 
-    // The invitation (with its link) comes back once, as flash data on the redirect after sending it.
+    // The invitation (with its link) comes back once, as flash data on the redirect after sending it. So does a new
+    // form link, asked for on its own.
     useEffect(() => {
         return router.on('flash', (event) => {
-            const data = (event as CustomEvent).detail?.flash?.invitation as
-                | Invitation
+            const flash = (event as CustomEvent).detail?.flash as
+                | { invitation?: Invitation; formLink?: FormLink }
                 | undefined;
 
-            if (data) {
-                setInvitation(data);
+            if (flash?.invitation) {
+                setInvitation(flash.invitation);
+            }
+
+            if (flash?.formLink) {
+                setFormLink(flash.formLink);
             }
         });
     }, []);
@@ -915,6 +984,12 @@ export function InterviewTab({ item }: { item: Requisition }) {
                 <InvitationResult
                     invitation={invitation}
                     onClose={() => setInvitation(null)}
+                />
+            )}
+            {formLink && (
+                <FormLinkResult
+                    formLink={formLink}
+                    onClose={() => setFormLink(null)}
                 />
             )}
         </div>
