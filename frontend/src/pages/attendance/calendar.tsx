@@ -633,8 +633,16 @@ export default function AttendanceCalendar(props: Props) {
                     }
                 />
 
-                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
-                    <div className="flex min-w-0 flex-col gap-3">
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem] print:block">
+                    {/* Cetak / PDF prints only this: the table of the view on screen, under the period it covers. */}
+                    <div
+                        data-print-area
+                        className="flex min-w-0 flex-col gap-3"
+                    >
+                        <p className="hidden text-base font-semibold print:block">
+                            Absensi · {nav.label}
+                        </p>
+
                         {view === 'year' ? (
                             <YearSummary
                                 months={months}

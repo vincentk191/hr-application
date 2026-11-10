@@ -406,6 +406,27 @@ html[data-keyboard='open'] [data-hide-on-keyboard] {
         margin: 0 !important;
         box-shadow: none !important;
     }
+
+    /*
+     * A page that marks its table with data-print-area prints only that table: everything that is neither the
+     * marked element, inside it, nor one of the elements that contain it is left off the paper. Colours are kept,
+     * so the status tiles still read, and a row is not split across two pages.
+     */
+    body:has([data-print-area])
+        *:not(:has([data-print-area])):not([data-print-area]):not(
+            [data-print-area] *
+        ) {
+        display: none !important;
+    }
+
+    [data-print-area] {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    [data-print-area] [role='row'] {
+        break-inside: avoid;
+    }
 }
 
 /*

@@ -272,13 +272,13 @@ export function WeekGrid({
 
     return (
         <section className="flex flex-col gap-3">
-            <div className="surface max-h-[calc(100dvh-22rem)] min-h-64 overflow-auto md:max-h-[calc(100dvh-19rem)]">
+            <div className="surface max-h-[calc(100dvh-22rem)] min-h-64 overflow-auto md:max-h-[calc(100dvh-19rem)] print:max-h-none print:overflow-visible">
                 <div role="table" className="md:min-w-[56rem]">
                     <div
                         role="row"
                         className={cn(
                             COLUMNS,
-                            'sticky top-0 z-10 bg-card shadow-[0_1px_0_var(--color-border)]',
+                            'sticky top-0 z-10 bg-card shadow-[0_1px_0_var(--color-border)] print:static',
                         )}
                     >
                         <div

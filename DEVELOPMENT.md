@@ -69,6 +69,14 @@ left uncommitted for review.
 
 ## Change log (latest first)
 
+- **2026-11-10 (attendance: Cetak / PDF prints only the table).** The Kalender's print used to print the whole page. Now the
+  table of the view on screen (the day's list, the week's grid, the month's calendar, the year's table) is marked
+  `data-print-area` and is all that reaches the paper, under a line "Absensi · <period>" (print only), with the note when
+  the list was cut at 500. Generic rule in `css/app.css` (`@media print`): on a page with a `data-print-area`, everything
+  that is not that element, inside it or around it is `display: none`; colours are kept and a row is not split across
+  pages. The week grid's height cap and sticky header are off on paper. Pages without the marker (the recap) print as
+  before. The CSV download is unchanged.
+
 - **2026-11-10 (attendance: one toolbar and one status filter for every view of the Kalender).**
   - **Same structure whatever the timeframe.** Title and previous / Hari ini / next on the left, the view switch (with print and
     the Rekap / CSV menu) on the right, the working hours under them, then one row: search, Filter, the status chips (Σ, H, T,
