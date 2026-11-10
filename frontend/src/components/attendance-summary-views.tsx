@@ -2,24 +2,24 @@ import type { ReactNode } from 'react';
 import type { CalendarDaySummary, CalendarMonth } from '@/types/attendance';
 
 /**
- * The week, month and year views of the attendance calendar: a summary per timeframe rather than a
- * grid of people. Each scale answers the same question — how many came in, and how many were late
- * or away — at day, week-of-days and month resolution. Clicking a day opens its Day view, where
- * the people are listed.
+ * The month and year views of the attendance calendar: a summary per timeframe rather than a grid of
+ * people (the week is a grid of people, in attendance-week-grid). Each scale answers the same question —
+ * how many came in, and how many were late or away. Clicking a day opens its Day view, where the people
+ * are listed.
  *
  * A day the log has not reached shows "—", never a zero: a missing upload must not read as
  * nobody coming.
  */
 
 /** Below this share of the headcount a day is flagged, as is a month under {@link LOW_RATE}. */
-const LOW_DAY_SHARE = 0.6;
+export const LOW_DAY_SHARE = 0.6;
 const LOW_RATE = 90;
 
-const HATCH =
+export const HATCH =
     'bg-[repeating-linear-gradient(135deg,transparent,transparent_5px,var(--color-border)_5px,var(--color-border)_6px)]';
 
 /** People expected in that day: came in or were absent. Approved leave is not an expectation. */
-function expectedOf(day: CalendarDaySummary): number {
+export function expectedOf(day: CalendarDaySummary): number {
     return day.attended + day.absent;
 }
 
@@ -37,7 +37,7 @@ function requestsLine(day: CalendarDaySummary): string {
 }
 
 /** A working day inside the data where someone was expected; the rest say nothing about attendance. */
-function isCounted(day: CalendarDaySummary): boolean {
+export function isCounted(day: CalendarDaySummary): boolean {
     return (
         day.covered &&
         day.isWorkday &&
@@ -66,114 +66,6 @@ function Legend({
                 </li>
             ))}
         </ul>
-    );
-}
-
-export function WeekSummary({
-    days,
-    employees,
-    onOpen,
-}: {
-    days: CalendarDaySummary[];
-    employees: number;
-    onOpen: (date: string) => void;
-}) {
-    const counted = days.filter(isCounted);
-    const average =
-        counted.length === 0
-            ? null
-            : Math.round(
-                  counted.reduce((sum, day) => sum + day.attended, 0) /
-                      counted.length,
-              );
-    const scale = Math.max(...days.map(expectedOf), 1);
-
-    return (
-        <section className="surface flex flex-col gap-4 p-4">
-            <div className="flex items-baseline gap-2">
-                <span className="text-4xl font-semibold tabular-nums">
-                    {average ?? '—'}
-                </span>
-                <span className="text-sm text-muted-foreground">
-                    rata-rata hadir per hari kerja, dari {employees} karyawan
-                </span>
-            </div>
-
-            <div className="grid grid-cols-7 items-end gap-2">
-                {days.map((day) => {
-                    const hasData =
-                        day.covered && (day.attended > 0 || isCounted(day));
-                    const height = hasData ? (day.attended / scale) * 100 : 0;
-                    const lateHeight =
-                        day.attended === 0
-                            ? 0
-                            : (day.late / day.attended) * height;
-                    const muted = !day.isWorkday || day.holiday !== null;
-
-                    return (
-                        <button
-                            key={day.date}
-                            type="button"
-                            onClick={() => onOpen(day.date)}
-                            className="group flex flex-col items-center gap-1 text-center"
-                            title={day.holiday ?? undefined}
-                        >
-                            <div className="flex h-48 w-full items-end">
-                                <div
-                                    className={`relative flex w-full flex-col justify-start overflow-hidden rounded-sm border ${
-                                        hasData && !muted
-                                            ? 'border-transparent bg-emerald-500'
-                                            : `${HATCH} border-border`
-                                    } ${hasData && muted ? 'bg-emerald-500/30' : ''}`}
-                                    style={{
-                                        height: `${Math.max(height, hasData ? 2 : 8)}%`,
-                                    }}
-                                >
-                                    {lateHeight > 0 && (
-                                        <span
-                                            className="block w-full bg-amber-400"
-                                            style={{
-                                                height: `${(day.late / day.attended) * 100}%`,
-                                            }}
-                                        />
-                                    )}
-                                </div>
-                            </div>
-                            <span className="text-sm font-medium tabular-nums">
-                                {day.covered ? day.attended : '—'}
-                            </span>
-                            <span className="text-xs text-muted-foreground group-hover:text-foreground">
-                                {day.weekday} {day.day}
-                            </span>
-                            <span className="min-h-4 text-[11px] text-muted-foreground">
-                                {day.holiday ??
-                                    (day.leave > 0 ? `${day.leave} cuti` : '')}
-                            </span>
-                            <span
-                                data-test="week-requests"
-                                className="min-h-4 text-[11px] text-sky-700 dark:text-sky-300"
-                            >
-                                {requestsLine(day)}
-                            </span>
-                        </button>
-                    );
-                })}
-            </div>
-
-            <Legend
-                items={[
-                    { swatch: 'bg-emerald-500', label: 'Hadir' },
-                    {
-                        swatch: 'bg-amber-400',
-                        label: 'Terlambat (bagian dari hadir)',
-                    },
-                    {
-                        swatch: `${HATCH} border`,
-                        label: 'Libur / akhir pekan / belum ada data',
-                    },
-                ]}
-            />
-        </section>
     );
 }
 

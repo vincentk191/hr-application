@@ -7,6 +7,8 @@ import {
     SheetDescription,
     SheetTitle,
 } from '@/components/ui/sheet';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
 
 /**
  * The phone's way into a list's search and filters: one button, with how many are active. From tablet width up the
@@ -47,6 +49,7 @@ export function FilterSheet({
     onOpenChange,
     onReset,
     showLabel,
+    onDesktop = false,
     children,
 }: {
     open: boolean;
@@ -54,13 +57,24 @@ export function FilterSheet({
     onReset: () => void;
     /** The text of the closing button, for example "Tampilkan 12 karyawan". */
     showLabel: string;
+    /** For a page whose only way to filter is this sheet: from tablet width up it opens from the right instead of staying hidden. */
+    onDesktop?: boolean;
     children: ReactNode;
 }) {
+    const isMobile = useIsMobile();
+    const fromRight = onDesktop && !isMobile;
+
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent
-                side="bottom"
-                className="max-h-[88vh] gap-0 rounded-t-3xl md:hidden"
+                side={fromRight ? 'right' : 'bottom'}
+                className={cn(
+                    'gap-0',
+                    fromRight
+                        ? 'w-full sm:max-w-md'
+                        : 'max-h-[88vh] rounded-t-3xl',
+                    !onDesktop && 'md:hidden',
+                )}
             >
                 <div className="flex items-center justify-between p-4 pr-12">
                     <SheetTitle className="text-xl font-extrabold">

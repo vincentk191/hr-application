@@ -1,18 +1,20 @@
 import { Head, Link, router, setLayoutProps, usePage } from '@inertiajs/react';
-import { ChevronRight, MoreVertical, Printer, RotateCcw } from 'lucide-react';
+import {
+    ChevronLeft,
+    ChevronRight,
+    MoreVertical,
+    Printer,
+    Search,
+    SlidersHorizontal,
+} from 'lucide-react';
 import { useState } from 'react';
 import {
     MonthSummary,
-    WeekSummary,
     YearSummary,
 } from '@/components/attendance-summary-views';
+import { WeekGrid } from '@/components/attendance-week-grid';
 import { CalendarEvents } from '@/components/calendar-events';
-import {
-    FilterButton,
-    FilterSection,
-    FilterSheet,
-} from '@/components/filter-sheet';
-import { MultiSelectFilter } from '@/components/multi-select-filter';
+import { FilterSection, FilterSheet } from '@/components/filter-sheet';
 import { Button } from '@/components/ui/button';
 import {
     Collapsible,
@@ -33,8 +35,9 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { STATUS_STYLE } from '@/lib/attendance-status';
+import { STATUS_STYLE, STATUS_TILE } from '@/lib/attendance-status';
 import { printReport } from '@/lib/print';
+import { cn } from '@/lib/utils';
 import { device } from '@/routes/attendance';
 import { calendar } from '@/routes/attendance';
 import { recap } from '@/routes/attendance';
@@ -388,6 +391,41 @@ const PERIOD: Record<CalendarView, string> = {
     year: 'tahun',
 };
 
+/** "Minggu ini", "Hari ini": what the button that returns to the present is called in each view. */
+function currentLabel(view: CalendarView): string {
+    return `${PERIOD[view][0].toUpperCase()}${PERIOD[view].slice(1)} ini`;
+}
+
+/** The round icon that opens the search and filters, with how many are active. */
+function FilterIconButton({
+    count,
+    onClick,
+    className,
+}: {
+    count: number;
+    onClick: () => void;
+    className?: string;
+}) {
+    return (
+        <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={onClick}
+            aria-label="Cari & filter"
+            data-test="open-filters"
+            className={cn('relative size-9 rounded-full md:size-10', className)}
+        >
+            <SlidersHorizontal className="size-4" aria-hidden />
+            {count > 0 && (
+                <span className="absolute -top-1 -right-1 inline-flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
+                    {count}
+                </span>
+            )}
+        </Button>
+    );
+}
+
 type OnLeaveEntry = Props['onLeave']['entries'][number];
 
 /** One person's leave entries, kept together so someone with several stays a single row. */
@@ -599,13 +637,29 @@ export default function AttendanceCalendar(props: Props) {
             ? list.filter((item) => item !== value)
             : [...list, value];
 
-    const hasFilters =
-        filters.branches.length > 0 ||
-        filters.departments.length > 0 ||
-        filters.statuses.length > 0 ||
-        filters.team !== null ||
-        filters.leaveType !== null ||
-        filters.search !== '';
+    const filterCount =
+        filters.branches.length +
+        filters.departments.length +
+        filters.statuses.length +
+        (filters.team !== null ? 1 : 0) +
+        (filters.leaveType !== null ? 1 : 0) +
+        (filters.search !== '' ? 1 : 0);
+
+    const resetFilters = () => {
+        setSearch('');
+        go({
+            filters: {
+                branches: [],
+                departments: [],
+                statuses: [],
+                search: '',
+                team: null,
+                leaveType: null,
+            },
+        });
+    };
+
+    const isCurrent = range.from <= nav.today && nav.today <= range.to;
 
     // The export is the view as filtered: the same query, to the export route.
     const exportUrl = `${exportRoute().url}?${new URLSearchParams([
@@ -647,6 +701,11 @@ export default function AttendanceCalendar(props: Props) {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                                onSelect={() => go({ date: nav.today })}
+                            >
+                                {currentLabel(view)}
+                            </DropdownMenuItem>
                             {features.attendance && (
                                 <>
                                     <DropdownMenuItem asChild>
@@ -689,222 +748,119 @@ export default function AttendanceCalendar(props: Props) {
                     </p>
                 )}
 
-                <div className="seg w-full md:w-fit">
-                    {VIEWS.map((item) => (
-                        <button
-                            key={item.value}
-                            type="button"
-                            onClick={() => go({ view: item.value })}
-                            data-on={view === item.value}
-                            className="flex-1 md:flex-initial"
-                        >
-                            {item.label}
-                        </button>
-                    ))}
-                </div>
+                {/* A phone stacks the view switch over the date row; from tablet width up it is one row. */}
+                <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center">
+                    <div className="seg order-1 w-full text-sm tracking-normal normal-case md:order-4 md:w-fit md:[&>*]:px-5 md:[&>*]:py-2">
+                        {VIEWS.map((item) => (
+                            <button
+                                key={item.value}
+                                type="button"
+                                onClick={() => go({ view: item.value })}
+                                data-on={view === item.value}
+                                className="flex-1 md:flex-initial"
+                            >
+                                {item.label}
+                            </button>
+                        ))}
+                    </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h2 className="text-xl font-extrabold tracking-tight">
-                        {nav.label}
-                    </h2>
-
-                    <div className="flex items-center gap-1">
+                    <div className="order-2 flex items-center gap-2 md:order-1">
                         <Button
                             variant="outline"
-                            size="sm"
+                            size="icon"
                             onClick={() => go({ date: nav.prev })}
                             aria-label="Sebelumnya"
+                            className="order-1 size-9 shrink-0 rounded-full md:order-2 md:size-10"
                         >
-                            ‹
+                            <ChevronLeft className="size-4" aria-hidden />
                         </Button>
+                        <h2 className="order-2 min-w-0 flex-1 truncate text-center text-xl font-extrabold tracking-tight md:order-1 md:mr-2 md:flex-none md:text-3xl">
+                            {nav.label}
+                        </h2>
+                        <FilterIconButton
+                            count={filterCount}
+                            onClick={() => setFiltersOpen(true)}
+                            className="order-3 md:hidden"
+                        />
                         <Button
                             variant="outline"
-                            size="sm"
                             onClick={() => go({ date: nav.today })}
+                            className="order-3 hidden h-10 rounded-full px-5 md:inline-flex"
                         >
-                            Hari ini
+                            {currentLabel(view)}
                         </Button>
                         <Button
                             variant="outline"
-                            size="sm"
+                            size="icon"
                             onClick={() => go({ date: nav.next })}
                             aria-label="Berikutnya"
+                            className="order-4 size-9 shrink-0 rounded-full md:size-10"
                         >
-                            ›
+                            <ChevronRight className="size-4" aria-hidden />
                         </Button>
                     </div>
 
-                    <div className="ml-auto hidden gap-2 md:flex print:hidden">
-                        {features.attendance && (
-                            <>
-                                <Button asChild variant="outline" size="sm">
-                                    <Link href={recap()}>Rekap</Link>
-                                </Button>
-                                <Button asChild variant="outline" size="sm">
-                                    <a href={exportUrl}>Unduh CSV</a>
-                                </Button>
-                            </>
-                        )}
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            type="button"
-                            onClick={printReport}
-                        >
-                            <Printer className="size-4" aria-hidden />
-                            Cetak / PDF
-                        </Button>
-                    </div>
-
-                    <span className="hidden text-xs text-muted-foreground md:block">
-                        Data sampai {dataThrough ?? '—'} · jam kerja{' '}
-                        {schedule.start}–{schedule.end}
-                        {schedule.fridayEnd &&
-                            ` (Jumat sampai ${schedule.fridayEnd})`}
-                        , terlambat setelah {schedule.lateAfter}
-                    </span>
-                </div>
-
-                <FilterButton
-                    count={
-                        filters.branches.length +
-                        filters.departments.length +
-                        filters.statuses.length +
-                        (filters.team !== null ? 1 : 0) +
-                        (filters.leaveType !== null ? 1 : 0) +
-                        (filters.search !== '' ? 1 : 0)
-                    }
-                    onClick={() => setFiltersOpen(true)}
-                />
-
-                <div className="hidden flex-wrap items-center gap-2 md:flex">
                     <form
                         onSubmit={(event) => {
                             event.preventDefault();
                             go({});
                         }}
-                        className="w-full sm:w-56"
+                        className="relative hidden md:order-2 md:ml-auto md:block md:w-64"
                     >
+                        <Search
+                            className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground"
+                            aria-hidden
+                        />
                         <Input
                             value={search}
                             onChange={(event) => setSearch(event.target.value)}
-                            placeholder="Cari nama atau ID…"
+                            placeholder="Cari nama atau ID"
                             aria-label="Cari karyawan"
+                            className="h-10 rounded-full pl-10"
                         />
                     </form>
 
-                    <MultiSelectFilter
-                        label="Cabang"
-                        options={options.branches}
-                        selected={filters.branches}
-                        onChange={(branches) => go({ filters: { branches } })}
-                    />
-                    <MultiSelectFilter
-                        label="Departemen"
-                        options={options.departments}
-                        selected={filters.departments}
-                        onChange={(departments) =>
-                            go({ filters: { departments } })
-                        }
+                    <FilterIconButton
+                        count={filterCount}
+                        onClick={() => setFiltersOpen(true)}
+                        className="hidden md:order-3 md:inline-flex"
                     />
 
-                    <span className="mx-1 hidden h-5 border-l sm:block" />
-
-                    {options.statuses
-                        .filter(
-                            (status) =>
-                                status.value !== 'off' &&
-                                status.value !== 'no_data',
-                        )
-                        .map((status) => (
-                            <button
-                                key={status.value}
-                                type="button"
-                                onClick={() =>
-                                    go({
-                                        filters: {
-                                            statuses: toggle(
-                                                filters.statuses,
-                                                status.value,
-                                            ),
-                                        },
-                                    })
-                                }
-                                className={`rounded-full px-3 py-1 text-xs ${
-                                    STATUS_STYLE[status.value]
-                                } ${
-                                    filters.statuses.includes(status.value)
-                                        ? 'ring-2 ring-foreground/60'
-                                        : 'opacity-70'
-                                }`}
-                            >
-                                {status.code} · {status.label}
-                            </button>
-                        ))}
-
-                    <select
-                        aria-label="Tim"
-                        value={filters.team ?? ''}
-                        onChange={(event) =>
-                            go({
-                                filters: {
-                                    team: event.target.value
-                                        ? Number(event.target.value)
-                                        : null,
-                                },
-                            })
-                        }
-                        className="h-8 rounded-xl border border-input bg-card px-2 text-xs"
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        type="button"
+                        onClick={printReport}
+                        aria-label="Cetak / PDF"
+                        className="hidden size-10 rounded-full md:order-5 md:inline-flex print:hidden"
                     >
-                        <option value="">Semua tim</option>
-                        {options.teams.map((lead) => (
-                            <option key={lead.id} value={lead.id}>
-                                Tim {lead.full_name}
-                            </option>
-                        ))}
-                    </select>
+                        <Printer className="size-4" aria-hidden />
+                    </Button>
 
-                    <select
-                        aria-label="Jenis pengajuan"
-                        value={filters.leaveType ?? ''}
-                        onChange={(event) =>
-                            go({
-                                filters: {
-                                    leaveType: event.target.value || null,
-                                },
-                            })
-                        }
-                        className="h-8 rounded-xl border border-input bg-card px-2 text-xs"
-                    >
-                        <option value="">Semua jenis pengajuan</option>
-                        {options.leaveTypes.map((type) => (
-                            <option key={type.value} value={type.value}>
-                                {type.label}
-                            </option>
-                        ))}
-                    </select>
-
-                    {hasFilters && (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                                setSearch('');
-                                go({
-                                    filters: {
-                                        branches: [],
-                                        departments: [],
-                                        statuses: [],
-                                        search: '',
-                                        team: null,
-                                        leaveType: null,
-                                    },
-                                });
-                            }}
-                        >
-                            <RotateCcw className="size-4" aria-hidden />
-                            Atur ulang
-                        </Button>
+                    {features.attendance && (
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    aria-label="Menu kalender"
+                                    className="hidden size-10 rounded-full md:order-6 md:inline-flex print:hidden"
+                                >
+                                    <MoreVertical
+                                        className="size-4"
+                                        aria-hidden
+                                    />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem asChild>
+                                    <Link href={recap()}>Rekap</Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                    <a href={exportUrl}>Unduh CSV</a>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     )}
                 </div>
 
@@ -923,9 +879,12 @@ export default function AttendanceCalendar(props: Props) {
                                 statuses={options.statuses}
                             />
                         ) : view === 'week' ? (
-                            <WeekSummary
+                            <WeekGrid
+                                dates={dates}
+                                rows={rows}
                                 days={daily}
-                                employees={summary.employees}
+                                today={nav.today}
+                                statuses={options.statuses}
                                 onOpen={(date) => go({ view: 'day', date })}
                             />
                         ) : (
@@ -943,7 +902,20 @@ export default function AttendanceCalendar(props: Props) {
                             </p>
                         )}
 
-                        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        <p className="hidden text-xs text-muted-foreground md:block">
+                            Data sampai {dataThrough ?? '—'} · jam kerja{' '}
+                            {schedule.start}–{schedule.end}
+                            {schedule.fridayEnd &&
+                                ` (Jumat sampai ${schedule.fridayEnd})`}
+                            , terlambat setelah {schedule.lateAfter}
+                        </p>
+
+                        <ul
+                            className={cn(
+                                'flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground',
+                                view === 'week' && 'hidden',
+                            )}
+                        >
                             {options.statuses.map((status) => (
                                 <li
                                     key={status.value}
@@ -961,19 +933,11 @@ export default function AttendanceCalendar(props: Props) {
                     </div>
 
                     <aside className="flex flex-col gap-3">
-                        <section className="surface p-4">
-                            <h2 className="font-medium">Ringkasan</h2>
-                            <p className="text-xs text-muted-foreground">
-                                {summary.employees} karyawan · rentang{' '}
-                                {nav.label}
-                            </p>
-                            {summary.rekapEmployees > 0 && (
-                                <p className="text-xs text-muted-foreground">
-                                    +{summary.rekapEmployees} dari Cabang
-                                    Rekapitulasi (tidak dihitung)
-                                </p>
-                            )}
-                            <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                        <section className="surface p-5">
+                            <h2 className="label-mono">
+                                {isCurrent ? currentLabel(view) : nav.label}
+                            </h2>
+                            <ul className="mt-4 flex flex-col gap-3">
                                 {(
                                     [
                                         ['present', 'Hadir'],
@@ -983,23 +947,38 @@ export default function AttendanceCalendar(props: Props) {
                                         ['leave', 'Cuti'],
                                     ] as [DayStatus, string][]
                                 ).map(([status, label]) => (
-                                    <div
+                                    <li
                                         key={status}
-                                        className={`rounded-lg p-2 ${STATUS_STYLE[status]}`}
+                                        className="flex items-center gap-3"
                                     >
-                                        <dt className="text-xs">{label}</dt>
-                                        <dd className="text-lg font-semibold">
+                                        <span
+                                            className={cn(
+                                                'inline-flex size-9 items-center justify-center rounded-lg border text-sm font-bold',
+                                                STATUS_TILE[status],
+                                            )}
+                                        >
+                                            {options.statuses.find(
+                                                (option) =>
+                                                    option.value === status,
+                                            )?.code ?? ''}
+                                        </span>
+                                        <span className="flex-1 text-sm">
+                                            {label}
+                                        </span>
+                                        <span className="text-xl font-bold tabular-nums">
                                             {summary.counts[status]}
-                                        </dd>
-                                    </div>
+                                        </span>
+                                    </li>
                                 ))}
-                            </dl>
-                            <p className="mt-3 text-xs text-muted-foreground">
+                            </ul>
+                            <p className="mt-4 text-xs text-muted-foreground">
                                 {summary.expected > 0
                                     ? `Kehadiran ${Math.round((summary.attended / summary.expected) * 100)}% dari ${summary.expected} hari-orang yang dinilai.`
                                     : 'Belum ada hari yang dapat dinilai pada rentang ini.'}
                                 {summary.counts.no_data > 0 &&
                                     ` ${summary.counts.no_data} hari-orang belum ada datanya.`}
+                                {summary.rekapEmployees > 0 &&
+                                    ` +${summary.rekapEmployees} dari Cabang Rekapitulasi tidak dihitung.`}
                             </p>
                         </section>
 
@@ -1023,20 +1002,9 @@ export default function AttendanceCalendar(props: Props) {
             <FilterSheet
                 open={filtersOpen}
                 onOpenChange={setFiltersOpen}
-                onReset={() => {
-                    setSearch('');
-                    go({
-                        filters: {
-                            branches: [],
-                            departments: [],
-                            statuses: [],
-                            search: '',
-                            team: null,
-                            leaveType: null,
-                        },
-                    });
-                }}
+                onReset={resetFilters}
                 showLabel="Terapkan filter"
+                onDesktop
             >
                 <form
                     onSubmit={(event) => {

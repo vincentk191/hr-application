@@ -69,6 +69,23 @@ left uncommitted for review.
 
 ## Change log (latest first)
 
+- **2026-11-10 (attendance: the week of the Kalender redrawn as a grid of people; front end only).**
+  - **Week = person by day.** `components/attendance-week-grid.tsx` replaces `WeekSummary` (bars per day). One row per
+    person (avatar, name, position), one column per day, each day a tile with the status letter (H, T, P, A, C, `·`
+    for Libur, dashed `?` for belum ada data) and, from tablet width up, the time (arrival; for Pulang cepat the time
+    they left; Terlambat in amber). The column header gives the weekday, the date (today filled), the share of those
+    expected who came (with a bar; red under 60%) and a pill with how many Pengajuan still wait; clicking it opens that
+    day. Weekend and holiday columns are hatched; a holiday's name shows in the header. A tile with a waiting Pengajuan
+    covering it carries a small amber dot; the Pengajuan of the day are in its tooltip. On a phone: letters only, first
+    names, percent without the bar. People of a Cabang that sends a rekapitulasi show "–" (no daily records).
+  - **Toolbar for every view.** One row on desktop (title, previous, "Minggu ini", next | search, filter, Hari/Minggu/
+    Bulan/Tahun, print, menu with Rekap and Unduh CSV); on a phone the view switch sits over the date row with the filter
+    icon between the title and next. The inline filters are gone: the filter sheet is the way in at every width (it opens
+    from the right on desktop, `FilterSheet onDesktop`). "Ringkasan" became the tile list "Minggu ini" (letter, label,
+    count).
+  - Shared `STATUS_TILE` in `lib/attendance-status.ts`; `HATCH`, `expectedOf`, `isCounted` exported from
+    `attendance-summary-views`. No backend change: the week already sent `rows`, `dates` and `daily`.
+
 - **2026-11-10 (recruitment: position list, rupiah fields, moving on, availability on the interview calendar).**
   - **Posisi is chosen, not typed.** The request form's Posisi is a dropdown of the org chart's positions (grouped by
     department; once a department is chosen, only its own). Choosing one fills in its department; changing the department

@@ -13,6 +13,19 @@ export const STATUS_STYLE: Record<DayStatus, string> = {
     no_data: 'border border-dashed text-muted-foreground bg-transparent',
 };
 
+/** The same colours as a bordered tile carrying the status letter, as the week grid and its legend draw it. */
+export const STATUS_TILE: Record<DayStatus, string> = {
+    present:
+        'border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
+    late: 'border-amber-500/40 bg-amber-500/15 text-amber-700 dark:text-amber-300',
+    early_leave:
+        'border-orange-500/40 bg-orange-500/15 text-orange-700 dark:text-orange-300',
+    absent: 'border-red-500/40 bg-red-500/15 text-red-700 dark:text-red-300',
+    leave: 'border-sky-500/40 bg-sky-500/15 text-sky-700 dark:text-sky-300',
+    off: 'border-border bg-muted/50 text-muted-foreground',
+    no_data: 'border-dashed border-border bg-transparent text-muted-foreground',
+};
+
 export const STATUS_LABEL: Record<DayStatus, string> = {
     present: 'Hadir',
     late: 'Terlambat',
