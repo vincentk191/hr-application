@@ -6,6 +6,7 @@ import {
     isCounted,
     LOW_DAY_SHARE,
 } from '@/components/attendance-summary-views';
+import { StatusLegend } from '@/components/attendance-legend';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import { STATUS_LABEL, STATUS_TILE } from '@/lib/attendance-status';
 import { cn } from '@/lib/utils';
@@ -30,11 +31,6 @@ import type {
 
 const COLUMNS =
     'grid grid-cols-[7rem_repeat(7,minmax(0,1fr))] md:grid-cols-[minmax(13rem,17rem)_repeat(7,minmax(5.5rem,1fr))]';
-
-/** What the legend calls the two statuses that are not about the person. */
-const LEGEND_LABEL: Partial<Record<DayStatus, string>> = {
-    off: 'Libur',
-};
 
 function firstName(name: string): string {
     return name.trim().split(/\s+/)[0] ?? name;
@@ -361,28 +357,12 @@ export function WeekGrid({
                 </div>
             </div>
 
-            <ul className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
-                {statuses.map((status) => (
-                    <li
-                        key={status.value}
-                        className="flex items-center gap-1.5"
-                    >
-                        <span
-                            className={cn(
-                                'inline-flex size-6 items-center justify-center rounded-md border text-[11px] font-bold',
-                                STATUS_TILE[status.value],
-                            )}
-                        >
-                            {status.code}
-                        </span>
-                        {LEGEND_LABEL[status.value] ?? status.label}
-                    </li>
-                ))}
+            <StatusLegend statuses={statuses}>
                 <li className="flex items-center gap-1.5">
                     <WaitingBadge count={1} />
                     Menunggu
                 </li>
-            </ul>
+            </StatusLegend>
         </section>
     );
 }

@@ -1,5 +1,5 @@
 import { Form, router } from '@inertiajs/react';
-import { Save, Trash2 } from 'lucide-react';
+import { Flag, Plus, Save, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -237,24 +237,40 @@ export function CalendarEvents({
     return (
         <section className="surface p-4">
             <div className="flex items-center justify-between gap-2">
-                <h3 className="font-medium">Hari libur & acara</h3>
+                <h3
+                    className={
+                        events.length === 0
+                            ? 'flex items-center gap-3 text-muted-foreground'
+                            : 'flex items-center gap-3 font-medium'
+                    }
+                >
+                    <Flag className="size-4 shrink-0" aria-hidden />
+                    <span>
+                        Libur & acara
+                        {events.length === 0 && ' · kosong'}
+                    </span>
+                </h3>
                 {options && (
                     <Button
-                        size="sm"
+                        size="icon"
                         variant="outline"
                         type="button"
+                        className="size-10 rounded-full"
+                        aria-label={
+                            adding ? 'Tutup' : 'Tambah libur atau acara'
+                        }
                         onClick={() => setAdding((value) => !value)}
                     >
-                        {adding ? 'Tutup' : 'Tambah'}
+                        {adding ? (
+                            <X className="size-4" aria-hidden />
+                        ) : (
+                            <Plus className="size-4" aria-hidden />
+                        )}
                     </Button>
                 )}
             </div>
 
-            {events.length === 0 ? (
-                <p className="mt-2 text-sm text-muted-foreground">
-                    Tidak ada pada rentang ini.
-                </p>
-            ) : (
+            {events.length === 0 ? null : (
                 <ul className="mt-2 divide-y text-sm">
                     {events.map((event) => (
                         <li

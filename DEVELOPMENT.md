@@ -69,6 +69,20 @@ left uncommitted for review.
 
 ## Change log (latest first)
 
+- **2026-11-10 (attendance: the Day view of the Kalender redrawn).** Front end, plus the day's title now reads
+  "Selasa, 10 Nov 2026" (`navigation()` uses `l, j M Y`; a phone shortens the weekday).
+  - `components/attendance-day-view.tsx` replaces `DayTable`/`DayRows`. Under the title: working hours and the late rule
+    ("08:00–17:00 · Jum 17:30", "T > 08:10", with "Data sampai" on desktop; on a phone only on the Day view). Then
+    the search, a labelled Filter button and one chip per status with its count (Σ = everyone, the default; a chip only
+    for a status someone is in; R for people of a Cabang that sends a rekapitulasi). Chips replace the old Hadir / Tidak
+    hadir tabs. A toggle at the right groups the list by unit (department · Cabang), showing how many units there are.
+  - The list: status tile, name and position, Unit, Atasan, Masuk, Pulang (late arrival and early leave in amber),
+    Pengajuan as pills with a dot (amber waiting, green approved). A phone shows tile, name and unit, with "masuk →
+    pulang" and a short Pengajuan line on the right. "ID belum dipetakan" and "Lewat rekapitulasi cabang" are notes
+    under the name. A holiday's name stands where the Pengajuan would.
+  - Side: only the events card on this view (no tally, no ring, no on-leave panel: the chips and the list carry them). `CalendarEvents` is now a compact card (flag, "Libur & acara · kosong", round + button).
+  - `components/attendance-legend.tsx` is the key shared by the week and the day.
+
 - **2026-11-10 (attendance: the week of the Kalender redrawn as a grid of people; front end only).**
   - **Week = person by day.** `components/attendance-week-grid.tsx` replaces `WeekSummary` (bars per day). One row per
     person (avatar, name, position), one column per day, each day a tile with the status letter (H, T, P, A, C, `·`

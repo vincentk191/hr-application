@@ -359,7 +359,7 @@ class AttendanceCalendarController extends Controller
     private function navigation(string $view, CarbonImmutable $anchor, string $timezone): array
     {
         [$prev, $next, $label] = match ($view) {
-            'day' => [$anchor->subDay(), $anchor->addDay(), $this->indonesian($anchor, 'l, j F Y')],
+            'day' => [$anchor->subDay(), $anchor->addDay(), $this->indonesian($anchor, 'l, j M Y')],
             'week' => [$anchor->subWeek(), $anchor->addWeek(), $this->indonesian($anchor->startOfWeek(), 'j M').' – '.$this->indonesian($anchor->endOfWeek(), 'j M Y')],
             'year' => [$anchor->subYear(), $anchor->addYear(), $anchor->format('Y')],
             default => [$anchor->startOfMonth()->subMonth(), $anchor->startOfMonth()->addMonth(), $this->indonesian($anchor, 'F Y')],

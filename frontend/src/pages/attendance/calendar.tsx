@@ -2,16 +2,19 @@ import { Head, Link, router, setLayoutProps, usePage } from '@inertiajs/react';
 import {
     ChevronLeft,
     ChevronRight,
+    Clock,
     MoreVertical,
     Printer,
     Search,
     SlidersHorizontal,
+    Timer,
 } from 'lucide-react';
 import { useState } from 'react';
 import {
     MonthSummary,
     YearSummary,
 } from '@/components/attendance-summary-views';
+import { DayView } from '@/components/attendance-day-view';
 import { WeekGrid } from '@/components/attendance-week-grid';
 import { CalendarEvents } from '@/components/calendar-events';
 import { FilterSection, FilterSheet } from '@/components/filter-sheet';
@@ -51,7 +54,6 @@ import type {
     EventFormOptions,
     CalendarFilters,
     CalendarMonth,
-    CalendarRequest,
     CalendarRow,
     CalendarView,
     CaptureStatus,
@@ -113,277 +115,6 @@ const VIEWS: { value: CalendarView; label: string }[] = [
     { value: 'year', label: 'Tahun' },
 ];
 
-type DayTab = 'present' | 'away' | 'rekap' | 'other';
-
-/** Who counts as "Hadir": anyone who came, however late or early they left. */
-const PRESENT: DayStatus[] = ['present', 'late', 'early_leave'];
-/** "Tidak hadir": absent without a reason, or away on approved leave. */
-const AWAY: DayStatus[] = ['absent', 'leave'];
-
-function tabOf(row: CalendarRow, date: string): DayTab {
-    // No daily records exist for a Cabang that sends a rekapitulasi, so they are neither here nor away.
-    if (row.viaRekap) {
-        return 'rekap';
-    }
-
-    const status = row.days[date]?.status;
-
-    if (status !== undefined && PRESENT.includes(status)) {
-        return 'present';
-    }
-
-    return status !== undefined && AWAY.includes(status) ? 'away' : 'other';
-}
-
-/** The requests that cover a date, as chips kept apart from the attendance status. */
-function RequestChips({
-    requests,
-    date,
-}: {
-    requests: CalendarRequest[];
-    date: string;
-}) {
-    const covering = requests.filter(
-        (request) => request.from <= date && request.to >= date,
-    );
-
-    if (covering.length === 0) {
-        return <span className="text-muted-foreground">—</span>;
-    }
-
-    return (
-        <div className="flex flex-col items-start gap-1">
-            {covering.map((request) => (
-                <span
-                    key={request.id}
-                    data-test="request-chip"
-                    title={request.timeframe ?? undefined}
-                    className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${
-                        request.status === 'approved'
-                            ? 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200'
-                            : 'border border-dashed border-amber-500/70 text-amber-800 dark:text-amber-200'
-                    }`}
-                >
-                    {request.type} · {request.statusLabel}
-                </span>
-            ))}
-        </div>
-    );
-}
-
-/**
- * The Day view, split into two tabs: Hadir (on time, Terlambat and Pulang cepat all stay here) and
- * Tidak hadir (Cuti and absent). A holiday, a weekend or a day the log has not reached is neither, so
- * those people sit in another tab that only appears when there is someone in it. People of a Cabang
- * that sends a rekapitulasi have their own tab: they have no daily attendance, only their Pengajuan.
- */
-function DayTable({
-    date,
-    rows,
-    statuses,
-}: {
-    date: string;
-    rows: CalendarRow[];
-    statuses: StatusOption[];
-}) {
-    const byTab: Record<DayTab, CalendarRow[]> = {
-        present: [],
-        away: [],
-        rekap: [],
-        other: [],
-    };
-
-    rows.forEach((row) => byTab[tabOf(row, date)].push(row));
-
-    // Open on Hadir; if nobody came, open on whichever tab has people.
-    const [tab, setTab] = useState<DayTab>(
-        byTab.present.length > 0
-            ? 'present'
-            : byTab.away.length > 0
-              ? 'away'
-              : byTab.other.length > 0
-                ? 'other'
-                : byTab.rekap.length > 0
-                  ? 'rekap'
-                  : 'present',
-    );
-
-    const tabs: { value: DayTab; label: string }[] = [
-        { value: 'present', label: 'Hadir' },
-        { value: 'away', label: 'Tidak hadir' },
-        ...(byTab.other.length > 0
-            ? [{ value: 'other' as const, label: 'Libur / belum ada data' }]
-            : []),
-        ...(byTab.rekap.length > 0
-            ? [{ value: 'rekap' as const, label: 'Rekapitulasi cabang' }]
-            : []),
-    ];
-
-    return (
-        <div className="space-y-3">
-            <div className="pill-tabs" role="tablist">
-                {tabs.map((item) => (
-                    <button
-                        key={item.value}
-                        type="button"
-                        role="tab"
-                        aria-selected={tab === item.value}
-                        data-on={tab === item.value}
-                        data-test={`day-tab-${item.value}`}
-                        onClick={() => setTab(item.value)}
-                    >
-                        {item.label} ({byTab[item.value].length})
-                    </button>
-                ))}
-            </div>
-
-            <DayRows
-                date={date}
-                rows={byTab[tab]}
-                statuses={statuses}
-                empty={
-                    rows.length === 0
-                        ? 'Tidak ada karyawan yang cocok.'
-                        : 'Tidak ada karyawan di tab ini.'
-                }
-            />
-        </div>
-    );
-}
-
-/**
- * The list itself rather than a one-column grid: the date is already in the toolbar, so the columns
- * carry what differs per person — position, supervisor, first and last scan, and status.
- */
-function DayRows({
-    date,
-    rows,
-    statuses,
-    empty,
-}: {
-    date: string;
-    rows: CalendarRow[];
-    statuses: StatusOption[];
-    empty: string;
-}) {
-    const labelOf = Object.fromEntries(
-        statuses.map((status) => [status.value, status.label]),
-    ) as Record<DayStatus, string>;
-
-    if (rows.length === 0) {
-        return (
-            <p className="surface p-6 text-center text-sm text-muted-foreground">
-                {empty}
-            </p>
-        );
-    }
-
-    return (
-        <div className="surface overflow-x-auto">
-            <table className="w-full text-sm">
-                <thead className="bg-muted/50 text-left">
-                    <tr>
-                        <th className="p-3 font-medium">Karyawan</th>
-                        <th className="hidden p-3 font-medium md:table-cell">
-                            Posisi
-                        </th>
-                        <th className="hidden p-3 font-medium md:table-cell">
-                            Atasan
-                        </th>
-                        <th className="p-3 font-medium">Masuk</th>
-                        <th className="p-3 font-medium">Pulang</th>
-                        <th className="p-3 font-medium">Status</th>
-                        <th className="p-3 font-medium">Pengajuan</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {rows.map((row) => {
-                        const record = row.days[date];
-
-                        return (
-                            <tr key={row.id} className="border-t">
-                                <td className="p-3">
-                                    <Link
-                                        href={employeeShow(row.id)}
-                                        className="font-medium hover:underline"
-                                    >
-                                        {row.name}
-                                    </Link>
-                                    <div className="text-xs text-muted-foreground">
-                                        {[row.branch, row.department]
-                                            .filter(Boolean)
-                                            .join(' · ') || row.number}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground md:hidden">
-                                        {[
-                                            row.position,
-                                            row.manager
-                                                ? `Atasan: ${row.manager}`
-                                                : null,
-                                        ]
-                                            .filter(Boolean)
-                                            .join(' · ')}
-                                    </div>
-                                    {row.viaRekap ? (
-                                        <div className="text-[11px] text-muted-foreground">
-                                            Absensi lewat rekapitulasi cabang
-                                        </div>
-                                    ) : (
-                                        !row.hasScannerId && (
-                                            <div className="text-[11px] text-amber-700 dark:text-amber-300">
-                                                ID pemindai belum dipetakan
-                                            </div>
-                                        )
-                                    )}
-                                </td>
-                                <td className="hidden p-3 md:table-cell">
-                                    {row.position ?? '—'}
-                                </td>
-                                <td className="hidden p-3 md:table-cell">
-                                    {row.manager ?? '—'}
-                                </td>
-                                <td className="p-3 tabular-nums">
-                                    {record?.in ?? '—'}
-                                </td>
-                                <td className="p-3 tabular-nums">
-                                    {record?.out ?? '—'}
-                                </td>
-                                <td className="p-3">
-                                    {row.viaRekap && (
-                                        <span
-                                            data-test="rekap-badge"
-                                            className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${STATUS_STYLE.no_data}`}
-                                        >
-                                            Rekapitulasi
-                                        </span>
-                                    )}
-                                    {record && (
-                                        <span
-                                            title={record.event ?? undefined}
-                                            className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[record.status]}`}
-                                        >
-                                            {record.event &&
-                                            record.status === 'off'
-                                                ? record.event
-                                                : labelOf[record.status]}
-                                        </span>
-                                    )}
-                                </td>
-                                <td className="p-3">
-                                    <RequestChips
-                                        requests={row.requests}
-                                        date={date}
-                                    />
-                                </td>
-                            </tr>
-                        );
-                    })}
-                </tbody>
-            </table>
-        </div>
-    );
-}
-
 const PERIOD: Record<CalendarView, string> = {
     day: 'hari',
     week: 'minggu',
@@ -394,6 +125,44 @@ const PERIOD: Record<CalendarView, string> = {
 /** "Minggu ini", "Hari ini": what the button that returns to the present is called in each view. */
 function currentLabel(view: CalendarView): string {
     return `${PERIOD[view][0].toUpperCase()}${PERIOD[view].slice(1)} ini`;
+}
+
+/** "Selasa, 10 Nov 2026" as "Sel, 10 Nov 2026", for a phone. */
+function shortDay(label: string): string {
+    return label.replace(/^(\p{L}{3})\p{L}*,/u, '$1,');
+}
+
+/** The working hours and when someone counts as late, under the date: "08:00–17:00 · Jum 17:30", "T > 08:10". */
+function ScheduleMeta({
+    schedule,
+    dataThrough,
+    className,
+}: {
+    schedule: Props['schedule'];
+    dataThrough?: string | null;
+    className?: string;
+}) {
+    return (
+        <p
+            className={cn(
+                'flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-xs text-muted-foreground',
+                className,
+            )}
+        >
+            <span className="inline-flex items-center gap-1.5">
+                <Clock className="size-3.5" aria-hidden />
+                {schedule.start}–{schedule.end}
+                {schedule.fridayEnd && ` · Jum ${schedule.fridayEnd}`}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+                <Timer className="size-3.5" aria-hidden />T &gt;{' '}
+                {schedule.lateAfter}
+            </span>
+            {dataThrough !== undefined && (
+                <span>Data sampai {dataThrough ?? '—'}</span>
+            )}
+        </p>
+    );
 }
 
 /** The round icon that opens the search and filters, with how many are active. */
@@ -774,14 +543,35 @@ export default function AttendanceCalendar(props: Props) {
                         >
                             <ChevronLeft className="size-4" aria-hidden />
                         </Button>
-                        <h2 className="order-2 min-w-0 flex-1 truncate text-center text-xl font-extrabold tracking-tight md:order-1 md:mr-2 md:flex-none md:text-3xl">
-                            {nav.label}
-                        </h2>
-                        <FilterIconButton
-                            count={filterCount}
-                            onClick={() => setFiltersOpen(true)}
-                            className="order-3 md:hidden"
-                        />
+                        <div className="order-2 min-w-0 flex-1 text-center md:order-1 md:mr-2 md:flex-none md:text-left">
+                            <h2 className="truncate text-xl font-extrabold tracking-tight md:text-3xl">
+                                {view === 'day' ? (
+                                    <>
+                                        <span className="md:hidden">
+                                            {shortDay(nav.label)}
+                                        </span>
+                                        <span className="hidden md:inline">
+                                            {nav.label}
+                                        </span>
+                                    </>
+                                ) : (
+                                    nav.label
+                                )}
+                            </h2>
+                            {view === 'day' && (
+                                <ScheduleMeta
+                                    schedule={schedule}
+                                    className="justify-center md:hidden"
+                                />
+                            )}
+                        </div>
+                        {view !== 'day' && (
+                            <FilterIconButton
+                                count={filterCount}
+                                onClick={() => setFiltersOpen(true)}
+                                className="order-3 md:hidden"
+                            />
+                        )}
                         <Button
                             variant="outline"
                             onClick={() => go({ date: nav.today })}
@@ -800,31 +590,37 @@ export default function AttendanceCalendar(props: Props) {
                         </Button>
                     </div>
 
-                    <form
-                        onSubmit={(event) => {
-                            event.preventDefault();
-                            go({});
-                        }}
-                        className="relative hidden md:order-2 md:ml-auto md:block md:w-64"
-                    >
-                        <Search
-                            className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground"
-                            aria-hidden
-                        />
-                        <Input
-                            value={search}
-                            onChange={(event) => setSearch(event.target.value)}
-                            placeholder="Cari nama atau ID"
-                            aria-label="Cari karyawan"
-                            className="h-10 rounded-full pl-10"
-                        />
-                    </form>
+                    {view !== 'day' && (
+                        <>
+                            <form
+                                onSubmit={(event) => {
+                                    event.preventDefault();
+                                    go({});
+                                }}
+                                className="relative hidden md:order-2 md:ml-auto md:block md:w-64"
+                            >
+                                <Search
+                                    className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground"
+                                    aria-hidden
+                                />
+                                <Input
+                                    value={search}
+                                    onChange={(event) =>
+                                        setSearch(event.target.value)
+                                    }
+                                    placeholder="Cari nama atau ID"
+                                    aria-label="Cari karyawan"
+                                    className="h-10 rounded-full pl-10"
+                                />
+                            </form>
 
-                    <FilterIconButton
-                        count={filterCount}
-                        onClick={() => setFiltersOpen(true)}
-                        className="hidden md:order-3 md:inline-flex"
-                    />
+                            <FilterIconButton
+                                count={filterCount}
+                                onClick={() => setFiltersOpen(true)}
+                                className="hidden md:order-3 md:inline-flex"
+                            />
+                        </>
+                    )}
 
                     <Button
                         variant="outline"
@@ -832,7 +628,10 @@ export default function AttendanceCalendar(props: Props) {
                         type="button"
                         onClick={printReport}
                         aria-label="Cetak / PDF"
-                        className="hidden size-10 rounded-full md:order-5 md:inline-flex print:hidden"
+                        className={cn(
+                            'hidden size-10 rounded-full md:order-5 md:inline-flex print:hidden',
+                            view === 'day' && 'md:ml-2',
+                        )}
                     >
                         <Printer className="size-4" aria-hidden />
                     </Button>
@@ -864,6 +663,12 @@ export default function AttendanceCalendar(props: Props) {
                     )}
                 </div>
 
+                <ScheduleMeta
+                    schedule={schedule}
+                    dataThrough={dataThrough}
+                    className="hidden md:flex"
+                />
+
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
                     <div className="flex min-w-0 flex-col gap-3">
                         {view === 'year' ? (
@@ -872,11 +677,16 @@ export default function AttendanceCalendar(props: Props) {
                                 onOpen={(date) => go({ view: 'month', date })}
                             />
                         ) : view === 'day' ? (
-                            <DayTable
+                            <DayView
                                 key={dates[0]?.date ?? anchor}
                                 date={dates[0]?.date ?? anchor}
                                 rows={rows}
                                 statuses={options.statuses}
+                                search={search}
+                                onSearchChange={setSearch}
+                                onSearch={() => go({})}
+                                filterCount={filterCount}
+                                onOpenFilters={() => setFiltersOpen(true)}
                             />
                         ) : view === 'week' ? (
                             <WeekGrid
@@ -902,85 +712,76 @@ export default function AttendanceCalendar(props: Props) {
                             </p>
                         )}
 
-                        <p className="hidden text-xs text-muted-foreground md:block">
-                            Data sampai {dataThrough ?? '—'} · jam kerja{' '}
-                            {schedule.start}–{schedule.end}
-                            {schedule.fridayEnd &&
-                                ` (Jumat sampai ${schedule.fridayEnd})`}
-                            , terlambat setelah {schedule.lateAfter}
-                        </p>
-
-                        <ul
-                            className={cn(
-                                'flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground',
-                                view === 'week' && 'hidden',
-                            )}
-                        >
-                            {options.statuses.map((status) => (
-                                <li
-                                    key={status.value}
-                                    className="flex items-center gap-1"
-                                >
-                                    <span
-                                        className={`inline-flex size-5 items-center justify-center rounded text-[11px] font-medium ${STATUS_STYLE[status.value]}`}
-                                    >
-                                        {status.code}
-                                    </span>
-                                    {status.label}
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-
-                    <aside className="flex flex-col gap-3">
-                        <section className="surface p-5">
-                            <h2 className="label-mono">
-                                {isCurrent ? currentLabel(view) : nav.label}
-                            </h2>
-                            <ul className="mt-4 flex flex-col gap-3">
-                                {(
-                                    [
-                                        ['present', 'Hadir'],
-                                        ['late', 'Terlambat'],
-                                        ['early_leave', 'Pulang cepat'],
-                                        ['absent', 'Tidak hadir'],
-                                        ['leave', 'Cuti'],
-                                    ] as [DayStatus, string][]
-                                ).map(([status, label]) => (
+                        {(view === 'month' || view === 'year') && (
+                            <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                                {options.statuses.map((status) => (
                                     <li
-                                        key={status}
-                                        className="flex items-center gap-3"
+                                        key={status.value}
+                                        className="flex items-center gap-1"
                                     >
                                         <span
-                                            className={cn(
-                                                'inline-flex size-9 items-center justify-center rounded-lg border text-sm font-bold',
-                                                STATUS_TILE[status],
-                                            )}
+                                            className={`inline-flex size-5 items-center justify-center rounded text-[11px] font-medium ${STATUS_STYLE[status.value]}`}
                                         >
-                                            {options.statuses.find(
-                                                (option) =>
-                                                    option.value === status,
-                                            )?.code ?? ''}
+                                            {status.code}
                                         </span>
-                                        <span className="flex-1 text-sm">
-                                            {label}
-                                        </span>
-                                        <span className="text-xl font-bold tabular-nums">
-                                            {summary.counts[status]}
-                                        </span>
+                                        {status.label}
                                     </li>
                                 ))}
                             </ul>
-                            <p className="mt-4 text-xs text-muted-foreground">
-                                {summary.expected > 0
-                                    ? `Kehadiran ${Math.round((summary.attended / summary.expected) * 100)}% dari ${summary.expected} hari-orang yang dinilai.`
-                                    : 'Belum ada hari yang dapat dinilai pada rentang ini.'}
-                                {summary.counts.no_data > 0 &&
-                                    ` ${summary.counts.no_data} hari-orang belum ada datanya.`}
-                                {summary.rekapEmployees > 0 &&
-                                    ` +${summary.rekapEmployees} dari Cabang Rekapitulasi tidak dihitung.`}
-                            </p>
-                        </section>
+                        )}
+                    </div>
+
+                    <aside className="flex flex-col gap-3">
+                        {view !== 'day' && (
+                            <section className="surface p-5">
+                                <h2 className="label-mono">
+                                    {isCurrent ? currentLabel(view) : nav.label}
+                                </h2>
+                                <ul className="mt-4 flex flex-col gap-3">
+                                    {(
+                                        [
+                                            ['present', 'Hadir'],
+                                            ['late', 'Terlambat'],
+                                            ['early_leave', 'Pulang cepat'],
+                                            ['absent', 'Tidak hadir'],
+                                            ['leave', 'Cuti'],
+                                        ] as [DayStatus, string][]
+                                    ).map(([status, label]) => (
+                                        <li
+                                            key={status}
+                                            className="flex items-center gap-3"
+                                        >
+                                            <span
+                                                className={cn(
+                                                    'inline-flex size-9 items-center justify-center rounded-lg border text-sm font-bold',
+                                                    STATUS_TILE[status],
+                                                )}
+                                            >
+                                                {options.statuses.find(
+                                                    (option) =>
+                                                        option.value === status,
+                                                )?.code ?? ''}
+                                            </span>
+                                            <span className="flex-1 text-sm">
+                                                {label}
+                                            </span>
+                                            <span className="text-xl font-bold tabular-nums">
+                                                {summary.counts[status]}
+                                            </span>
+                                        </li>
+                                    ))}
+                                </ul>
+                                <p className="mt-4 text-xs text-muted-foreground">
+                                    {summary.expected > 0
+                                        ? `Kehadiran ${Math.round((summary.attended / summary.expected) * 100)}% dari ${summary.expected} hari-orang yang dinilai.`
+                                        : 'Belum ada hari yang dapat dinilai pada rentang ini.'}
+                                    {summary.counts.no_data > 0 &&
+                                        ` ${summary.counts.no_data} hari-orang belum ada datanya.`}
+                                    {summary.rekapEmployees > 0 &&
+                                        ` +${summary.rekapEmployees} dari Cabang Rekapitulasi tidak dihitung.`}
+                                </p>
+                            </section>
+                        )}
 
                         <CalendarEvents
                             events={events}
@@ -988,13 +789,15 @@ export default function AttendanceCalendar(props: Props) {
                             defaultDate={anchor}
                         />
 
-                        <OnLeavePanel
-                            view={view}
-                            label={nav.label}
-                            today={nav.today}
-                            range={range}
-                            onLeave={onLeave}
-                        />
+                        {view !== 'day' && (
+                            <OnLeavePanel
+                                view={view}
+                                label={nav.label}
+                                today={nav.today}
+                                range={range}
+                                onLeave={onLeave}
+                            />
+                        )}
                     </aside>
                 </div>
             </div>
