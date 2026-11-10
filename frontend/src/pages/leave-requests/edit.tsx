@@ -1,5 +1,5 @@
 import { Form, Head } from '@inertiajs/react';
-import { Send } from 'lucide-react';
+import { Send, Undo2, X } from 'lucide-react';
 import { useState } from 'react';
 import { FileLink, useFilePreview } from '@/components/file-preview';
 import InputError from '@/components/input-error';
@@ -177,14 +177,16 @@ export default function LeaveRequestEdit({
                                                 key={file.id}
                                                 className="flex items-center gap-2"
                                             >
-                                                <input
-                                                    type="checkbox"
-                                                    name="remove_attachments[]"
-                                                    value={file.id}
-                                                    checked={removed.includes(
-                                                        file.id,
-                                                    )}
-                                                    onChange={() =>
+                                                {removed.includes(file.id) && (
+                                                    <input
+                                                        type="hidden"
+                                                        name="remove_attachments[]"
+                                                        value={file.id}
+                                                    />
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
                                                         setRemoved(
                                                             removed.includes(
                                                                 file.id,
@@ -200,8 +202,33 @@ export default function LeaveRequestEdit({
                                                                   ],
                                                         )
                                                     }
-                                                    aria-label={`Hapus ${file.name}`}
-                                                />
+                                                    aria-pressed={removed.includes(
+                                                        file.id,
+                                                    )}
+                                                    aria-label={
+                                                        removed.includes(
+                                                            file.id,
+                                                        )
+                                                            ? `Batalkan hapus ${file.name}`
+                                                            : `Hapus ${file.name}`
+                                                    }
+                                                    title={
+                                                        removed.includes(
+                                                            file.id,
+                                                        )
+                                                            ? 'Batalkan hapus'
+                                                            : 'Hapus'
+                                                    }
+                                                    className="flex size-6 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-destructive"
+                                                >
+                                                    {removed.includes(
+                                                        file.id,
+                                                    ) ? (
+                                                        <Undo2 className="size-4" />
+                                                    ) : (
+                                                        <X className="size-4" />
+                                                    )}
+                                                </button>
                                                 <FileLink
                                                     file={file}
                                                     open={open}
@@ -224,11 +251,6 @@ export default function LeaveRequestEdit({
                                     maxSizeMb={5}
                                     maxFiles={5}
                                 />
-                                <p className="text-xs text-muted-foreground">
-                                    Centang untuk menghapus lampiran lama.
-                                    Tambahkan berkas baru jika perlu (PDF, JPG,
-                                    PNG, maks. 5 berkas @ 5 MB).
-                                </p>
                                 <InputError message={errors.attachments} />
                                 <InputError message={errors['attachments.0']} />
                             </div>

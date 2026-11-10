@@ -11,6 +11,7 @@ use App\Models\LeaveRequest;
 use App\Models\Requisition;
 use App\Models\User;
 use App\Models\WorkflowStep;
+use App\Support\Dashboard\AdminOverview;
 use App\Workflows\Definitions\RequisitionWorkflow;
 use App\Workflows\WorkflowEngine;
 use Carbon\CarbonImmutable;
@@ -117,6 +118,46 @@ it('counts what waits on this person the same way the approval queue does', func
 
     expect($items['leave']['count'])->toBe(WorkflowStep::waitingOn($this->hr, LeaveRequest::class)->count())
         ->and($items->keys()->all())->toBe(['leave', 'requisition', 'offboarding', 'profile']);
+});
+
+it('lists what waits on this person with its kind, size, how long it has waited and where to open it', function () {
+    $leave = adminLeave('2026-11-03', '2026-11-04', decision: null);
+    $leave->workflow->steps()->update(['updated_at' => now()->subDays(4)->subHours(20)]);
+
+    $waiting = collect(dashboardProps($this->hr)['waiting']['items'])->firstWhere('key', 'leave');
+
+    expect($waiting['entries'])->toHaveCount(1)
+        ->and($waiting['entries'][0])->toMatchArray([
+            'id' => $leave->id,
+            'title' => 'Budi',
+            'chip' => $leave->typeLabel(),
+            'detail' => '2 hari',
+            'subdetail' => '3–4 Nov',
+            'waiting' => '4 hari 20 jam',
+            'href' => route('leave-requests.index', ['status' => 'waiting', 'open' => $leave->id], absolute: false),
+        ]);
+});
+
+it('shows the items that have waited longest first, and only the first few of a long list', function () {
+    $leaves = collect(['2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-09', '2026-11-10'])
+        ->map(fn (string $day): LeaveRequest => adminLeave($day, $day, decision: null));
+
+    // The last one filed has waited longest.
+    $leaves->last()->workflow->steps()->update(['updated_at' => now()->subDays(2)]);
+
+    $waiting = collect(dashboardProps($this->hr)['waiting']['items'])->firstWhere('key', 'leave');
+
+    expect($waiting['count'])->toBe(6)
+        ->and($waiting['entries'])->toHaveCount(AdminOverview::LIST_LIMIT)
+        ->and($waiting['entries'][0]['id'])->toBe($leaves->last()->id);
+});
+
+it('says how long something has waited in days and hours, hours and minutes, or minutes', function () {
+    expect(AdminOverview::waitingFor(now()->subDays(4)->subHours(20)))->toBe('4 hari 20 jam')
+        ->and(AdminOverview::waitingFor(now()->subDays(2)))->toBe('2 hari')
+        ->and(AdminOverview::waitingFor(now()->subHours(3)->subMinutes(53)))->toBe('3 jam 53 mnt')
+        ->and(AdminOverview::waitingFor(now()->subMinutes(22)))->toBe('22 mnt')
+        ->and(AdminOverview::waitingFor(now()))->toBe('1 mnt');
 });
 
 // --- The calendar ---

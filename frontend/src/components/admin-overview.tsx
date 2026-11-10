@@ -3,7 +3,6 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { MonthGrid } from '@/components/attendance-summary-views';
 import { daysOfMonth } from '@/components/dashboard-overview';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { index as leaveIndex } from '@/routes/leave-requests';
 import { index as offboardingIndex } from '@/routes/offboarding';
@@ -26,11 +25,14 @@ const WAITING_LINKS: Record<AdminWaiting['items'][number]['key'], string> = {
     profile: profileChangesIndex().url,
 };
 
-/** What waits on this person's decision, one line per kind, each opening the list it is decided in. */
+/**
+ * What waits on this person's decision, in a group per kind: the kind's name and count opening the list it is decided in,
+ * then the items that have waited longest, each opening itself, with what kind it is and how long it has waited.
+ */
 export function WaitingCard({ data }: { data: AdminWaiting }) {
     return (
-        <section className="surface p-4" data-test="admin-waiting">
-            <div className="flex items-baseline justify-between gap-2">
+        <section className="surface overflow-hidden" data-test="admin-waiting">
+            <div className="flex items-baseline justify-between gap-2 p-4">
                 <h2 className="font-semibold">Menunggu keputusan</h2>
                 <span className="text-2xl font-extrabold tabular-nums">
                     {data.total}
@@ -38,26 +40,86 @@ export function WaitingCard({ data }: { data: AdminWaiting }) {
             </div>
 
             {data.total === 0 ? (
-                <p className="mt-2 text-sm text-muted-foreground">
+                <p className="px-4 pb-4 text-sm text-muted-foreground">
                     Tidak ada yang menunggu keputusan Anda.
                 </p>
             ) : (
-                <ul className="mt-2 divide-y text-sm">
-                    {data.items
-                        .filter((item) => item.count > 0)
-                        .map((item) => (
-                            <li key={item.key}>
+                data.items
+                    .filter((item) => item.count > 0)
+                    .map((item) => (
+                        <div key={item.key} data-test={`waiting-${item.key}`}>
+                            <Link
+                                href={WAITING_LINKS[item.key]}
+                                className="flex items-center justify-between gap-3 border-y bg-muted/40 px-4 py-2 hover:bg-muted/60"
+                            >
+                                <span className="label-mono">
+                                    {item.label}{' '}
+                                    <span className="font-semibold">
+                                        {item.count}
+                                    </span>
+                                </span>
+                                <ChevronRight
+                                    className="size-4 text-muted-foreground"
+                                    aria-hidden
+                                />
+                            </Link>
+
+                            <ul className="divide-y">
+                                {item.entries.map((entry) => (
+                                    <li key={entry.id}>
+                                        <Link
+                                            href={entry.href}
+                                            className="flex items-center gap-3 px-4 py-3 hover:bg-muted/40"
+                                            data-test="waiting-entry"
+                                        >
+                                            <span className="min-w-0 flex-1 space-y-1">
+                                                <span className="block truncate font-semibold">
+                                                    {entry.title}
+                                                </span>
+                                                <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                                                    {entry.chip && (
+                                                        <span className="rounded-md bg-muted px-2 py-0.5 font-medium text-foreground">
+                                                            {entry.chip}
+                                                        </span>
+                                                    )}
+                                                    menunggu {entry.waiting}
+                                                </span>
+                                            </span>
+                                            {(entry.detail ||
+                                                entry.subdetail) && (
+                                                <span className="shrink-0 text-right">
+                                                    {entry.detail && (
+                                                        <span className="block text-sm font-bold">
+                                                            {entry.detail}
+                                                        </span>
+                                                    )}
+                                                    {entry.subdetail && (
+                                                        <span className="block text-xs text-muted-foreground">
+                                                            {entry.subdetail}
+                                                        </span>
+                                                    )}
+                                                </span>
+                                            )}
+                                            <ChevronRight
+                                                className="size-4 shrink-0 text-muted-foreground"
+                                                aria-hidden
+                                            />
+                                        </Link>
+                                    </li>
+                                ))}
+                            </ul>
+
+                            {item.count > item.entries.length && (
                                 <Link
                                     href={WAITING_LINKS[item.key]}
-                                    className="flex items-center justify-between gap-3 py-2 hover:underline"
-                                    data-test={`waiting-${item.key}`}
+                                    className="block border-t px-4 py-2.5 text-sm text-primary underline-offset-4 hover:underline"
                                 >
-                                    <span>{item.label}</span>
-                                    <Badge>{item.count}</Badge>
+                                    Lihat {item.count - item.entries.length}{' '}
+                                    lainnya
                                 </Link>
-                            </li>
-                        ))}
-                </ul>
+                            )}
+                        </div>
+                    ))
             )}
         </section>
     );

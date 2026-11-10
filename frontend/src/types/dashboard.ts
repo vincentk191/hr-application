@@ -77,13 +77,29 @@ export type Intro = {
     nowMinutes: number;
 };
 
+/** One thing waiting on this person's decision, as a line of its kind's list. */
+export type AdminWaitingEntry = {
+    id: number;
+    title: string;
+    /** What kind of it: the leave type, the reference. */
+    chip: string | null;
+    detail: string | null;
+    subdetail: string | null;
+    /** How long it has waited, "4 hari 20 jam". */
+    waiting: string;
+    /** Opens the item itself. */
+    href: string;
+};
+
 /** What waits on this person's decision, by kind (HR and Management, or anyone with something waiting). */
 export type AdminWaiting = {
     total: number;
     items: {
         key: 'leave' | 'requisition' | 'offboarding' | 'profile';
         label: string;
+        /** All of them; `entries` holds only the first few. */
         count: number;
+        entries: AdminWaitingEntry[];
     }[];
 };
 

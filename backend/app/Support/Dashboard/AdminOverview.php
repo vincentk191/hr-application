@@ -18,7 +18,10 @@ use App\Support\Attendance\WorkSchedule;
 use App\Support\CompanyContext;
 use App\Support\Recruitment\InvitationMessage;
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
+use Closure;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * The cards the dashboard shows the people who run HR, on top of their own overview: what is waiting for their
@@ -54,20 +57,39 @@ class AdminOverview
      * What waits on this person's decision, by kind. Null when nothing does and they are not HR or Management, so a
      * supervisor sees it only when something is waiting, and most employees never.
      *
-     * @return array{total: int, items: list<array{key: string, label: string, count: int}>}|null
+     * Each kind also lists its first few items, the ones that have waited longest, so they can be opened from here; the
+     * count is of all of them.
+     *
+     * @return array{total: int, items: list<array{key: string, label: string, count: int, entries: list<array{id: int, title: string, chip: string|null, detail: string|null, subdetail: string|null, waiting: string, href: string}>}>}|null
      */
     public function waiting(User $user): ?array
     {
         $items = [
-            ['key' => 'leave', 'label' => 'Pengajuan', 'count' => WorkflowStep::waitingOn($user, LeaveRequest::class)->count()],
-            ['key' => 'requisition', 'label' => 'Lowongan', 'count' => WorkflowStep::waitingOn($user, Requisition::class)->count()],
-            ['key' => 'offboarding', 'label' => 'Offboarding', 'count' => WorkflowStep::waitingOn($user, OffboardingCase::class)->count()],
-            // As the menu badge counts them: someone's change to their own record is decided by another HR Admin.
-            ['key' => 'profile', 'label' => 'Perubahan data', 'count' => $user->can('viewAny', ProfileChangeRequest::class)
-                ? ProfileChangeRequest::query()->pending()
-                    ->whereHas('employee', fn (Builder $employee) => $employee->where('user_id', '!=', $user->id)->orWhereNull('user_id'))
-                    ->count()
-                : 0],
+            $this->stepItem('leave', 'Pengajuan', WorkflowStep::waitingOn($user, LeaveRequest::class), fn (LeaveRequest $leave): array => [
+                'id' => $leave->id,
+                'title' => (string) $leave->employee?->full_name,
+                'chip' => $leave->typeLabel(),
+                'detail' => $leave->days.' hari',
+                'subdetail' => self::dateRange($leave->start_on, $leave->end_on),
+                'href' => route('leave-requests.index', ['status' => 'waiting', 'open' => $leave->id], absolute: false),
+            ]),
+            $this->stepItem('requisition', 'Lowongan', WorkflowStep::waitingOn($user, Requisition::class), fn (Requisition $requisition): array => [
+                'id' => $requisition->id,
+                'title' => $requisition->position_name,
+                'chip' => $requisition->reference(),
+                'detail' => $requisition->department?->name,
+                'subdetail' => null,
+                'href' => route('recruitment.show', $requisition->id, absolute: false),
+            ]),
+            $this->stepItem('offboarding', 'Offboarding', WorkflowStep::waitingOn($user, OffboardingCase::class), fn (OffboardingCase $case): array => [
+                'id' => $case->id,
+                'title' => (string) $case->employee?->full_name,
+                'chip' => $case->exit_type?->label() ?? $case->reference(),
+                'detail' => $case->last_working_on === null ? null : self::dateRange($case->last_working_on, $case->last_working_on),
+                'subdetail' => $case->last_working_on === null ? null : 'hari terakhir',
+                'href' => route('offboarding.show', $case, absolute: false),
+            ]),
+            $this->profileItem($user),
         ];
 
         $total = array_sum(array_column($items, 'count'));
@@ -77,6 +99,99 @@ class AdminOverview
         }
 
         return ['total' => $total, 'items' => $items];
+    }
+
+    /**
+     * One kind of waiting item that is a workflow step: how many there are, and the first few with the subject they
+     * are about, longest waiting first.
+     *
+     * @param  Builder<WorkflowStep>  $steps
+     * @param  Closure(Model): array<string, mixed>  $entry  the subject as one line of the list
+     * @return array<string, mixed>
+     */
+    private function stepItem(string $key, string $label, Builder $steps, Closure $entry): array
+    {
+        $count = (clone $steps)->count();
+
+        $entries = $steps->with('instance.subject')
+            ->orderBy('updated_at')
+            ->orderBy('id')
+            ->limit(self::LIST_LIMIT)
+            ->get()
+            ->filter(fn (WorkflowStep $step): bool => $step->instance?->subject !== null)
+            ->map(fn (WorkflowStep $step): array => [...$entry($step->instance->subject), 'waiting' => self::waitingFor($step->updated_at)])
+            ->values()
+            ->all();
+
+        return ['key' => $key, 'label' => $label, 'count' => $count, 'entries' => $entries];
+    }
+
+    /**
+     * The data changes waiting on this person. As the menu badge counts them: someone's change to their own record is
+     * decided by another HR Admin. They are not workflow steps, so they wait from the day they were asked for.
+     *
+     * @return array<string, mixed>
+     */
+    private function profileItem(User $user): array
+    {
+        $item = ['key' => 'profile', 'label' => 'Perubahan data', 'count' => 0, 'entries' => []];
+
+        if (! $user->can('viewAny', ProfileChangeRequest::class)) {
+            return $item;
+        }
+
+        $changes = ProfileChangeRequest::query()->pending()
+            ->whereHas('employee', fn (Builder $employee) => $employee->where('user_id', '!=', $user->id)->orWhereNull('user_id'));
+
+        $item['count'] = (clone $changes)->count();
+        $item['entries'] = $changes->with('employee:id,full_name')
+            ->oldest()
+            ->limit(self::LIST_LIMIT)
+            ->get()
+            ->map(fn (ProfileChangeRequest $change): array => [
+                'id' => $change->id,
+                'title' => (string) $change->employee?->full_name,
+                'chip' => $change->reference(),
+                'detail' => count($change->changes).' data',
+                'subdetail' => null,
+                'waiting' => self::waitingFor($change->created_at),
+                'href' => route('profile-changes.index', absolute: false),
+            ])
+            ->all();
+
+        return $item;
+    }
+
+    /**
+     * How long something has waited, as "4 hari 20 jam", "3 jam 53 mnt" or "22 mnt".
+     */
+    public static function waitingFor(CarbonInterface $since): string
+    {
+        $minutes = max(0, intdiv(now()->getTimestamp() - $since->getTimestamp(), 60));
+        $days = intdiv($minutes, 1440);
+        $hours = intdiv($minutes % 1440, 60);
+        $rest = $minutes % 60;
+
+        return match (true) {
+            $days > 0 => $days.' hari'.($hours > 0 ? ' '.$hours.' jam' : ''),
+            $hours > 0 => $hours.' jam'.($rest > 0 ? ' '.$rest.' mnt' : ''),
+            default => max(1, $rest).' mnt',
+        };
+    }
+
+    /**
+     * "5 Nov", "5–6 Nov" or "30 Okt – 2 Nov" for the days from `$start` to `$end`.
+     */
+    private static function dateRange(CarbonInterface $start, CarbonInterface $end): string
+    {
+        $from = CarbonImmutable::instance($start)->locale('id');
+        $to = CarbonImmutable::instance($end)->locale('id');
+
+        return match (true) {
+            $from->isSameDay($to) => $from->translatedFormat('j M'),
+            $from->isSameMonth($to) => $from->translatedFormat('j').'–'.$to->translatedFormat('j M'),
+            default => $from->translatedFormat('j M').' – '.$to->translatedFormat('j M'),
+        };
     }
 
     /**
