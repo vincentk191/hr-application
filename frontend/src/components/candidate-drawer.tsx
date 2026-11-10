@@ -9,6 +9,7 @@ import {
     InvitationEmail,
     modeLabel,
 } from '@/components/candidate-invitation';
+import { LinkifiedText } from '@/components/linkified-text';
 import { shortDate } from '@/components/requisition-summary';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -535,9 +536,16 @@ function InterviewSection({
                                     <MapPin className="size-4 shrink-0 text-muted-foreground" />
                                     <span className="break-words">
                                         {modeLabel(candidate.interviewMode)}
-                                        {candidate.interviewPlace
-                                            ? ` · ${candidate.interviewPlace}`
-                                            : ''}
+                                        {candidate.interviewPlace && (
+                                            <>
+                                                {' · '}
+                                                <LinkifiedText
+                                                    text={
+                                                        candidate.interviewPlace
+                                                    }
+                                                />
+                                            </>
+                                        )}
                                     </span>
                                 </span>
                             </p>

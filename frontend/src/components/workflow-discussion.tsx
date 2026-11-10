@@ -11,6 +11,7 @@ import {
     SheetTitle,
     SheetTrigger,
 } from '@/components/ui/sheet';
+import { useIsMobile } from '@/hooks/use-mobile';
 import type { WorkflowDiscussionData } from '@/types/workflow';
 
 function initials(name: string | null): string {
@@ -53,6 +54,8 @@ export function WorkflowDiscussion({
     postUrl: string;
     readUrl: string;
 }) {
+    // On a phone the button floats above the action bar as a round primary button (see PhaseActions).
+    const isMobile = useIsMobile();
     const [open, setOpen] = useState(false);
     const [stage, setStage] = useState<string>('all');
     const bottom = useRef<HTMLDivElement>(null);
@@ -94,16 +97,24 @@ export function WorkflowDiscussion({
         <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
                 <Button
-                    variant="outline"
+                    variant={isMobile ? 'default' : 'outline'}
                     size="icon"
-                    className="relative"
+                    className={
+                        isMobile
+                            ? 'relative size-12 shadow-lg [&_svg]:size-5'
+                            : 'relative'
+                    }
                     aria-label={`Komentar${discussion.unread > 0 ? `, ${discussion.unread} baru` : ''}`}
                     data-test="discussion-button"
                 >
                     <MessageSquare />
                     {discussion.unread > 0 && (
                         <span
-                            className="absolute -top-2 -right-2 flex min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[11px] leading-5 font-semibold text-primary-foreground"
+                            className={`absolute -top-2 -right-2 flex min-w-5 items-center justify-center rounded-full px-1 text-[11px] leading-5 font-semibold ${
+                                isMobile
+                                    ? 'bg-background text-primary ring-2 ring-primary'
+                                    : 'bg-primary text-primary-foreground'
+                            }`}
                             data-test="discussion-unread"
                         >
                             {discussion.unread}

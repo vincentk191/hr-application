@@ -1,5 +1,6 @@
 import { Form, Head } from '@inertiajs/react';
 import InputError from '@/components/input-error';
+import { LinkifiedText } from '@/components/linkified-text';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -191,9 +192,14 @@ export default function CandidateForm(props: Props) {
                         <p className="font-semibold">{props.interview.when}</p>
                         <p className="text-sm text-muted-foreground">
                             {props.interview.mode}
-                            {props.interview.place
-                                ? ` · ${props.interview.place}`
-                                : ''}
+                            {props.interview.place && (
+                                <>
+                                    {' · '}
+                                    <LinkifiedText
+                                        text={props.interview.place}
+                                    />
+                                </>
+                            )}
                         </p>
                     </section>
                 )}

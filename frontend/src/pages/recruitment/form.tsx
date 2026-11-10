@@ -524,7 +524,7 @@ export default function RequisitionForm({
                 }
             />
 
-            <div className="w-full max-w-5xl space-y-5 p-4 max-md:pb-24">
+            <div className="w-full max-w-5xl space-y-5 p-4 max-md:pb-32">
                 <header>
                     <div className="flex items-start justify-between gap-3">
                         <div>
