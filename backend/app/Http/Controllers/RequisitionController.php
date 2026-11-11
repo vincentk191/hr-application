@@ -8,6 +8,7 @@ use App\Actions\Recruitment\AdvanceToOffer;
 use App\Actions\Recruitment\AdvanceToPosting;
 use App\Actions\Recruitment\AdvanceToScreening;
 use App\Actions\Recruitment\CancelRequisition;
+use App\Actions\Recruitment\ChangeDirectSuperior;
 use App\Actions\Recruitment\DecideRequisition;
 use App\Actions\Recruitment\InviteCandidate;
 use App\Actions\Recruitment\RejectCandidate;
@@ -538,6 +539,38 @@ class RequisitionController extends Controller
         $restore->handle($requisition, $candidate, $request->user());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => "{$candidate->name} kembali diproses."]);
+
+        return back();
+    }
+
+    /**
+     * "Ganti atasan": HR names a different direct superior (REC-PIP), who must be an active employee of the company with
+     * an active account, since only they can choose the candidate.
+     */
+    public function changeSuperior(Request $request, Requisition $requisition, ChangeDirectSuperior $change): RedirectResponse
+    {
+        $this->authorize('changeSuperior', $requisition);
+
+        $validated = $request->validate([
+            'manager_employee_id' => ['required', 'integer'],
+            'note' => ['nullable', 'string', 'max:500'],
+        ], ['manager_employee_id.required' => 'Pilih atasan langsung.']);
+
+        $superior = Employee::acrossCompanies()->with('user')
+            ->whereKey($validated['manager_employee_id'])
+            ->whereKeyNot($requisition->manager_employee_id ?? 0)
+            ->where('company_id', $requisition->company_id)
+            ->where('employment_status', EmploymentStatus::Active)
+            ->whereHas('user', fn ($user) => $user->where('is_active', true))
+            ->first();
+
+        if (! $superior instanceof Employee) {
+            throw ValidationException::withMessages(['manager_employee_id' => 'Pilih karyawan aktif yang punya akun, selain atasan saat ini.']);
+        }
+
+        $change->handle($requisition, $superior, $request->user(), $validated['note'] ?? null);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "Atasan langsung diganti ke {$superior->full_name}."]);
 
         return back();
     }

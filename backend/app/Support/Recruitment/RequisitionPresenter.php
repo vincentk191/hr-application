@@ -3,6 +3,7 @@
 namespace App\Support\Recruitment;
 
 use App\Enums\CandidateSource;
+use App\Enums\EmploymentStatus;
 use App\Enums\JobPlatform;
 use App\Enums\Permission;
 use App\Enums\RequisitionStage;
@@ -10,6 +11,7 @@ use App\Enums\Role;
 use App\Http\Requests\SaveRequisitionRequest;
 use App\Models\Candidate;
 use App\Models\CandidateEvaluation;
+use App\Models\Employee;
 use App\Models\Requisition;
 use App\Models\RequisitionPosting;
 use App\Models\User;
@@ -137,6 +139,8 @@ class RequisitionPresenter
             // How many the direct superior has chosen: a count anyone who sees the requisition may see.
             'selectedCount' => $requisition->candidates->filter(fn (Candidate $candidate): bool => $candidate->isSelected())->count(),
             'canManageInterview' => $viewer->can('manageInterview', $requisition),
+            'canChangeSuperior' => $viewer->can('changeSuperior', $requisition),
+            'superiorChoices' => $viewer->can('changeSuperior', $requisition) ? $this->superiorChoices($requisition) : [],
             // Who is out when, for placing interviews: the Interview tab's calendar, for those who see the candidates.
             'availability' => in_array($stage, [RequisitionStage::Interview, RequisitionStage::Offer], true)
                 && ($viewer->can('viewCandidates', $requisition) || $viewer->can('viewInterviewees', $requisition))
@@ -381,6 +385,25 @@ class RequisitionPresenter
             'canSelect' => $viewer !== null && $viewer->can('selectCandidate', [$requisition, $candidate]),
             'canUnselect' => $viewer !== null && $viewer->can('unselectCandidate', [$requisition, $candidate]),
         ];
+    }
+
+    /**
+     * Who HR may name as the direct superior: active employees of the requisition's company who have an active account (a
+     * superior without one could never choose), other than the one already named.
+     *
+     * @return list<array{id: int, name: string, number: string|null}>
+     */
+    private function superiorChoices(Requisition $requisition): array
+    {
+        return array_values(Employee::acrossCompanies()
+            ->where('company_id', $requisition->company_id)
+            ->where('employment_status', EmploymentStatus::Active)
+            ->whereKeyNot($requisition->manager_employee_id ?? 0)
+            ->whereHas('user', fn ($user) => $user->where('is_active', true))
+            ->orderBy('full_name')
+            ->get(['id', 'full_name', 'employee_number'])
+            ->map(fn (Employee $employee): array => ['id' => $employee->id, 'name' => $employee->full_name, 'number' => $employee->employee_number])
+            ->all());
     }
 
     private function reachedScreening(RequisitionStage $stage): bool

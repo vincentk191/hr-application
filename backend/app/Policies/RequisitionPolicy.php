@@ -175,6 +175,17 @@ class RequisitionPolicy
     }
 
     /**
+     * Naming a different direct superior is HR's, once the requisition is out of approval and until it is filled or called
+     * off: before that the requester corrects it in the wizard.
+     */
+    public function changeSuperior(User $user, Requisition $requisition): bool
+    {
+        return in_array($requisition->stage(), [RequisitionStage::Posting, RequisitionStage::Screening, RequisitionStage::Interview, RequisitionStage::Offer], true)
+            && $user->can(Permission::ManageRecruitment->value)
+            && $user->canAccessCompany($requisition->company_id);
+    }
+
+    /**
      * Choosing the candidate they prefer is the direct superior's (REC-PIP), for someone invited and already interviewed who
      * is still in the process, at Interview or Offer. HR does not choose for them: the superior is the one who raised the
      * requisition, so they always have an account.

@@ -293,6 +293,9 @@ export type Requisition = RequisitionRow & {
     /** HR may enter the total and shortlist: at Screening, and still at Interview. */
     canManageScreening: boolean;
     canAdvanceToInterview: boolean;
+    /** HR may name a different direct superior, and from whom: active employees with an active account. */
+    canChangeSuperior: boolean;
+    superiorChoices: { id: number; name: string; number: string | null }[];
     /** HR may move on to Penawaran, once the direct superior has chosen someone. */
     canAdvanceToOffer: boolean;
     /** Why "Lanjut ke Penawaran" is not open yet. */

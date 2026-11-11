@@ -119,6 +119,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('recruitment/{requisition}/candidates/{candidate}/form-link', [RequisitionController::class, 'renewFormLink'])->scopeBindings()->name('recruitment.candidates.form-link');
     Route::put('recruitment/{requisition}/candidates/{candidate}/evaluation', [RequisitionController::class, 'saveEvaluation'])->scopeBindings()->name('recruitment.candidates.evaluation');
     Route::post('recruitment/{requisition}/interview', [RequisitionController::class, 'advanceToInterview'])->name('recruitment.interview');
+    Route::put('recruitment/{requisition}/superior', [RequisitionController::class, 'changeSuperior'])->name('recruitment.superior');
     Route::post('recruitment/{requisition}/offer', [RequisitionController::class, 'advanceToOffer'])->name('recruitment.offer');
     Route::post('recruitment/{requisition}/cancel', [RequisitionController::class, 'cancel'])->name('recruitment.cancel');
     Route::post('recruitment/{requisition}/comments', [RequisitionController::class, 'comment'])->name('recruitment.comments.store');

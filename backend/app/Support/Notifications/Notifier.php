@@ -430,6 +430,22 @@ class Notifier
     }
 
     /**
+     * HR named a different direct superior (REC-PIP): tell the new one that candidates are theirs to choose from, and the
+     * old one that they no longer are. Whoever has no account is left out, and so is whoever made the change.
+     */
+    public function directSuperiorChanged(Requisition $requisition, ?Employee $previous, Employee $current, User $actor): void
+    {
+        $link = route('recruitment.show', $requisition, absolute: false);
+
+        collect([
+            [$current->user, new InAppNotice('recruitment', "Anda atasan langsung: {$requisition->position_name}", "{$requisition->reference()} · Anda yang memilih kandidat setelah interview.", $link)],
+            [$previous?->user, new InAppNotice('recruitment', "Anda bukan lagi atasan langsung: {$requisition->position_name}", "{$requisition->reference()} · digantikan oleh {$current->full_name}.", $link)],
+        ])
+            ->filter(fn (array $pair): bool => $pair[0] instanceof User && $pair[0]->is_active && $pair[0]->isNot($actor))
+            ->each(fn (array $pair) => $pair[0]->notify($pair[1]));
+    }
+
+    /**
      * The direct superior chose a candidate (REC-PIP): tell HR, who take the requisition on to the offer.
      */
     public function candidateSelected(Requisition $requisition, Candidate $candidate, User $actor): void

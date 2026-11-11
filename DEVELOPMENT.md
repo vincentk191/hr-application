@@ -69,6 +69,23 @@ left uncommitted for review.
 
 ## Change log (latest first)
 
+- **2026-11-11 (recruitment: HR can name a different direct superior; found while testing Phase 2, branch `feature/recruitement`).**
+  The superior of REC-0010 could not choose because the login used was not the one linked to the employee named as Atasan
+  langsung (the app ties the choice to the employee record's own account, not to a name), and nothing allowed correcting it
+  once the requisition was decided. **Decided with the user:** PIC (the requester) and Atasan langsung are two separate
+  things; the wizard already offers the requester as the default superior, who can be reset to someone else; the PIC can
+  view the workflow and comment; the Atasan langsung alone chooses the candidate.
+  - **Ganti atasan.** `ChangeDirectSuperior`, policy `changeSuperior`, route `recruitment.superior` (PUT): HR only, from
+    Posting to Penawaran. The new superior must be an **active employee of the requisition's company with an active
+    account** (a superior without one could never choose), other than the one already named, so the same mistake cannot be
+    repeated. An optional reason goes on the audit trail with the old and new names; the new superior is told they are the
+    atasan and the old one that they no longer are (in the app). Choices the old superior already made stay, and the new
+    one may keep or take them back.
+  - **Screen.** "Ganti atasan" (Replace icon) in the requisition's action bar, a dialog with the list and an optional reason.
+  - **Not done:** the wizard's Atasan list does not mark employees who have no account; only "Ganti atasan" enforces it.
+  - **Checked:** new `RequisitionChangeSuperiorTest` (5); the full suite (1171 tests, 5 intentional skips); Pint, PHPStan on
+    the touched files, TypeScript and the formatter clean. Not seen in a browser.
+
 - **2026-11-10 (attendance: Cetak / PDF prints only the table).** The Kalender's print used to print the whole page. Now the
   table of the view on screen (the day's list, the week's grid, the month's calendar, the year's table) is marked
   `data-print-area` and is all that reaches the paper, under a line "Absensi · <period>" (print only), with the note when

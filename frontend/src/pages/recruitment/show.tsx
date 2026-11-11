@@ -13,6 +13,7 @@ import {
     Mail,
     Plus,
     RefreshCw,
+    Replace,
     Save,
     X,
 } from 'lucide-react';
@@ -50,6 +51,7 @@ import {
     offer,
     salary,
     screening,
+    superior,
 } from '@/routes/recruitment';
 import {
     read as readComments,
@@ -505,6 +507,75 @@ export default function RequisitionShow({
                                   <Button
                                       variant="outline"
                                       data-test="add-candidate-button"
+                                      className={className}
+                                  >
+                                      {label}
+                                  </Button>
+                              }
+                          />
+                      ),
+                  },
+              ]
+            : []),
+        ...(item.canChangeSuperior
+            ? [
+                  {
+                      key: 'superior',
+                      icon: Replace,
+                      label: 'Ganti atasan',
+                      short: 'Atasan',
+                      rank: 4,
+                      render: (label: ReactNode, className?: string) => (
+                          <DecisionDialog
+                              form={superior.form(item.id)}
+                              decision="change-superior"
+                              title={`Ganti atasan langsung — ${item.positionName}`}
+                              subtitle={`${item.reference} · saat ini ${item.manager ?? '—'}`}
+                              fieldLabel="Alasan"
+                              hint="Opsional · hanya karyawan dengan akun aktif"
+                              confirmLabel="Ganti"
+                              extra={(errors) => (
+                                  <div className="mb-3 space-y-1">
+                                      <label
+                                          htmlFor="manager_employee_id"
+                                          className="text-sm font-semibold text-muted-foreground"
+                                      >
+                                          Atasan langsung baru
+                                      </label>
+                                      <select
+                                          id="manager_employee_id"
+                                          name="manager_employee_id"
+                                          defaultValue=""
+                                          required
+                                          className="h-10 w-full rounded-xl border border-input bg-card px-3 text-sm"
+                                          data-test="superior-select"
+                                      >
+                                          <option value="">
+                                              Pilih atasan…
+                                          </option>
+                                          {item.superiorChoices.map(
+                                              (option) => (
+                                                  <option
+                                                      key={option.id}
+                                                      value={option.id}
+                                                  >
+                                                      {option.name}
+                                                      {option.number
+                                                          ? ` (${option.number})`
+                                                          : ''}
+                                                  </option>
+                                              ),
+                                          )}
+                                      </select>
+                                      <InputError
+                                          message={errors.manager_employee_id}
+                                      />
+                                  </div>
+                              )}
+                              trigger={
+                                  <Button
+                                      variant="outline"
+                                      data-test="change-superior"
                                       className={className}
                                   >
                                       {label}
