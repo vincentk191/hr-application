@@ -201,6 +201,40 @@ class InvitationMessage
     }
 
     /**
+     * The word to a candidate whose offer was taken back: that it no longer stands, and an apology. Nothing about why (the
+     * reason HR wrote is internal).
+     */
+    public static function offerWithdrawn(Candidate $candidate, Requisition $requisition): string
+    {
+        return implode("\n", [
+            "Halo {$candidate->name},",
+            '',
+            "Dengan menyesal kami sampaikan bahwa penawaran kerja untuk posisi {$requisition->position_name} di {$requisition->company->name} yang kami kirimkan kepada Anda tidak dapat dilanjutkan.",
+            '',
+            'Mohon maaf atas ketidaknyamanannya, dan terima kasih atas waktu dan minat Anda.',
+            '',
+            "HR {$requisition->company->name}",
+        ]);
+    }
+
+    /**
+     * The word to the other interviewed candidates that the position is filled (REC-OFS-009): thanks, and that the process
+     * stops here.
+     */
+    public static function positionFilled(Candidate $candidate, Requisition $requisition): string
+    {
+        return implode("\n", [
+            "Halo {$candidate->name},",
+            '',
+            "Terima kasih atas waktu dan minat Anda pada posisi {$requisition->position_name} di {$requisition->company->name}.",
+            '',
+            'Posisi ini sudah terisi, sehingga kami tidak dapat melanjutkan proses Anda. Kami menghargai usaha Anda dan berharap Anda sukses ke depannya.',
+            '',
+            "HR {$requisition->company->name}",
+        ]);
+    }
+
+    /**
      * Example values for the admin page's preview: a candidate invited to an online interview on a future date.
      *
      * @return array<string, string>

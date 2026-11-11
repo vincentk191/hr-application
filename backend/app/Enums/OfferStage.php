@@ -45,4 +45,24 @@ enum OfferStage: string implements WorkflowStage
     {
         return [self::Proposed, self::Approved, self::Sent];
     }
+
+    /**
+     * The offer has reached the candidate: sent, or already accepted. Nobody can be turned down or removed while one is out.
+     *
+     * @return list<self>
+     */
+    public static function out(): array
+    {
+        return [self::Sent, self::Accepted];
+    }
+
+    /**
+     * An offer that still holds its candidate: live, or accepted (a hire is not "live" but is not free either).
+     *
+     * @return list<self>
+     */
+    public static function standing(): array
+    {
+        return [self::Proposed, self::Approved, self::Sent, self::Accepted];
+    }
 }

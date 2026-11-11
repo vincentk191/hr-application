@@ -323,35 +323,37 @@ function DrawerBody({
                             Pulihkan
                         </Button>
                     )}
-                    <Button
-                        type="button"
-                        variant="outline"
-                        className="text-destructive"
-                        disabled={removing}
-                        onClick={() => {
-                            if (
-                                window.confirm(
-                                    `Hapus ${candidate.name} dari proses rekrutmen ini? Datanya dan CV-nya dihapus, dan tautan formulir yang sudah dikirim tidak bisa dibuka lagi. Ini tidak bisa diurungkan.`,
-                                )
-                            ) {
-                                router.delete(
-                                    destroy.url({
-                                        requisition: item.id,
-                                        candidate: candidate.id,
-                                    }),
-                                    {
-                                        preserveScroll: true,
-                                        onStart: () => setRemoving(true),
-                                        onFinish: () => setRemoving(false),
-                                    },
-                                );
-                            }
-                        }}
-                        data-test="cancel-candidate"
-                    >
-                        <Trash2 className="size-4" aria-hidden />
-                        Hapus kandidat
-                    </Button>
+                    {candidate.canRemove && (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="text-destructive"
+                            disabled={removing}
+                            onClick={() => {
+                                if (
+                                    window.confirm(
+                                        `Hapus ${candidate.name} dari proses rekrutmen ini? Datanya dan CV-nya dihapus, dan tautan formulir yang sudah dikirim tidak bisa dibuka lagi. Ini tidak bisa diurungkan.`,
+                                    )
+                                ) {
+                                    router.delete(
+                                        destroy.url({
+                                            requisition: item.id,
+                                            candidate: candidate.id,
+                                        }),
+                                        {
+                                            preserveScroll: true,
+                                            onStart: () => setRemoving(true),
+                                            onFinish: () => setRemoving(false),
+                                        },
+                                    );
+                                }
+                            }}
+                            data-test="cancel-candidate"
+                        >
+                            <Trash2 className="size-4" aria-hidden />
+                            Hapus kandidat
+                        </Button>
+                    )}
                 </div>
             )}
 

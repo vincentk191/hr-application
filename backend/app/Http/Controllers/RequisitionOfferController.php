@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Actions\Recruitment\DecideOffer;
 use App\Actions\Recruitment\ProposeOffers;
+use App\Actions\Recruitment\RespondToOffer;
 use App\Actions\Recruitment\SendOffer;
 use App\Actions\Recruitment\SetOfferTerms;
 use App\Actions\Recruitment\WithdrawOffer;
+use App\Enums\OfferStage;
 use App\Models\CandidateOffer;
 use App\Models\Requisition;
 use App\Support\Recruitment\RequisitionPresenter;
@@ -138,9 +140,52 @@ class RequisitionOfferController extends Controller
     {
         $this->authorize('withdrawOffer', [$requisition, $offer]);
 
-        $withdraw->handle($offer, $request->user());
+        if ($offer->stage() !== OfferStage::Sent) {
+            $withdraw->handle($offer, $request->user());
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => "Penawaran {$offer->candidate?->name} ditarik."]);
+            Inertia::flash('toast', ['type' => 'success', 'message' => "Penawaran {$offer->candidate?->name} ditarik."]);
+
+            return back();
+        }
+
+        $validated = $request->validate([
+            'note' => ['required', 'string', 'max:1000'],
+            'notify_candidate' => ['nullable', 'boolean'],
+        ], ['note.required' => 'Tulis alasan penarikan.']);
+
+        $emailed = $withdraw->handleSent($requisition, $offer, $request->user(), $validated['note'], $request->boolean('notify_candidate'));
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "Penawaran {$offer->candidate?->name} ditarik".($emailed ? ' dan kandidat dikabari lewat email.' : '.')]);
+
+        return back();
+    }
+
+    /**
+     * "Tandai Diterima": the candidate said yes (REC-OFS-004). Refused once the quota is full.
+     */
+    public function accept(Request $request, Requisition $requisition, CandidateOffer $offer, RespondToOffer $respond): RedirectResponse
+    {
+        $this->authorize('respondToOffer', [$requisition, $offer]);
+
+        $respond->accept($requisition, $offer, $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "{$offer->candidate?->name} diterima ({$requisition->filledCount()} dari {$requisition->quota})."]);
+
+        return back();
+    }
+
+    /**
+     * "Menolak": the candidate said no (REC-OFS-008). The reason is required and internal; the place stays open.
+     */
+    public function decline(Request $request, Requisition $requisition, CandidateOffer $offer, RespondToOffer $respond): RedirectResponse
+    {
+        $this->authorize('respondToOffer', [$requisition, $offer]);
+
+        $validated = $request->validate(['note' => ['required', 'string', 'max:1000']], ['note.required' => 'Tulis alasan kandidat menolak.']);
+
+        $respond->decline($requisition, $offer, $request->user(), $validated['note']);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "{$offer->candidate?->name} menolak penawaran; tempat masih terbuka."]);
 
         return back();
     }

@@ -10,6 +10,7 @@ import {
     ArrowRight,
     Ban,
     Check,
+    Flag,
     Mail,
     Plus,
     RefreshCw,
@@ -35,6 +36,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { WorkflowDiscussion } from '@/components/workflow-discussion';
 import { InterviewTab, parseLocal } from '@/components/requisition-interview';
+import { FilledTab } from '@/components/requisition-filled';
 import { OfferTab } from '@/components/requisition-offer';
 import { PostingTab } from '@/components/requisition-posting';
 import {
@@ -46,6 +48,7 @@ import {
     cancel,
     decide,
     edit,
+    filled,
     index,
     interview,
     offer,
@@ -492,6 +495,66 @@ export default function RequisitionShow({
                   },
               ]
             : []),
+        ...(item.canMarkFilled
+            ? [
+                  {
+                      key: 'filled',
+                      icon: Flag,
+                      label: 'Tandai Selesai',
+                      short: 'Selesai',
+                      rank: item.filledBlockers.length === 0 ? 1 : 3,
+                      render: (label: ReactNode, className?: string) => (
+                          <DecisionDialog
+                              form={filled.form(item.id)}
+                              decision="filled"
+                              title={`Tandai selesai — ${item.positionName}`}
+                              subtitle={`${item.reference} · ${item.filled} dari ${item.quota ?? '—'} terisi`}
+                              confirmLabel="Tandai selesai"
+                              footnote="Penawaran lain ditarik, tautan formulir ditutup"
+                              extra={(dialogErrors) => (
+                                  <div className="space-y-3">
+                                      {item.emailableOthers > 0 && (
+                                          <label
+                                              className="flex items-center gap-2 text-sm font-medium"
+                                              data-test="notify-others"
+                                          >
+                                              <input
+                                                  type="checkbox"
+                                                  name="notify_candidates"
+                                                  value="1"
+                                                  className="size-4 accent-primary"
+                                              />
+                                              <Mail
+                                                  className="size-4 text-muted-foreground"
+                                                  aria-hidden
+                                              />
+                                              Kabari {item.emailableOthers}{' '}
+                                              kandidat lain lewat email
+                                          </label>
+                                      )}
+                                      <InputError
+                                          message={dialogErrors.filled}
+                                      />
+                                  </div>
+                              )}
+                              trigger={
+                                  <Button
+                                      data-test="mark-filled"
+                                      className={className}
+                                      disabled={item.filledBlockers.length > 0}
+                                      title={
+                                          item.filledBlockers.join(' ') ||
+                                          undefined
+                                      }
+                                  >
+                                      {label}
+                                  </Button>
+                              }
+                          />
+                      ),
+                  },
+              ]
+            : []),
         ...(item.canManageScreening
             ? [
                   {
@@ -769,6 +832,8 @@ export default function RequisitionShow({
                     <InterviewTab item={item} />
                 ) : tab === 'offer' ? (
                     <OfferTab item={item} />
+                ) : tab === 'filled' ? (
+                    <FilledTab item={item} />
                 ) : (
                     <section className="surface p-6 text-sm text-muted-foreground">
                         Tahap ini disiapkan pada tahap pengembangan berikutnya.

@@ -39,7 +39,7 @@ class ProposeOffers
         $candidates = $requisition->candidates()
             ->selected()
             ->whereIn('id', $candidateIds)
-            ->whereDoesntHave('offers', fn (Builder $offers) => $offers->live())
+            ->whereDoesntHave('offers', fn (Builder $offers) => $offers->standing())
             ->get();
 
         if ($candidates->isEmpty()) {

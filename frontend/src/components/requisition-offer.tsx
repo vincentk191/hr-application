@@ -1,5 +1,6 @@
 import { Link, router } from '@inertiajs/react';
 import {
+    BadgeCheck,
     CalendarCheck,
     Check,
     CheckCheck,
@@ -8,6 +9,7 @@ import {
     Send,
     Undo2,
     UserCheck,
+    UserX,
     Users,
     X,
 } from 'lucide-react';
@@ -21,7 +23,9 @@ import { shortDate } from '@/components/requisition-summary';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
+    accept,
     decide,
+    decline,
     letter,
     send as sendOffer,
     store,
@@ -353,6 +357,126 @@ function SendOffer({
     );
 }
 
+/**
+ * "Tandai Diterima": the candidate said yes. It counts toward the quota, and the server refuses it once the quota is full,
+ * which the dialog shows as the error.
+ */
+function AcceptOffer({
+    item,
+    offer,
+}: {
+    item: Requisition;
+    offer: CandidateOffer;
+}) {
+    return (
+        <DecisionDialog
+            form={accept.form({ requisition: item.id, offer: offer.id })}
+            decision="accept"
+            title={`Tandai diterima — ${offer.name}`}
+            subtitle={`${item.reference} · ${item.filled} dari ${item.quota ?? '—'} terisi`}
+            confirmLabel="Tandai diterima"
+            extra={(errors) => (
+                <>
+                    <p className="text-sm text-muted-foreground">
+                        Kandidat menerima penawaran, dan dihitung sebagai satu
+                        tempat terisi.
+                    </p>
+                    <InputError message={errors.answer} />
+                </>
+            )}
+            trigger={
+                <Button size="sm" data-test="accept-offer">
+                    <BadgeCheck className="size-4" aria-hidden />
+                    Tandai diterima
+                </Button>
+            }
+        />
+    );
+}
+
+/** "Menolak": the candidate said no. The reason is required and stays internal; the place stays open. */
+function DeclineOffer({
+    item,
+    offer,
+}: {
+    item: Requisition;
+    offer: CandidateOffer;
+}) {
+    return (
+        <DecisionDialog
+            form={decline.form({ requisition: item.id, offer: offer.id })}
+            decision="decline"
+            title={`Kandidat menolak — ${offer.name}`}
+            subtitle={`${item.reference} · tempat masih terbuka`}
+            fieldLabel="Alasan kandidat menolak"
+            hint="Wajib diisi · tidak dikirim ke kandidat"
+            required
+            confirmLabel="Catat penolakan"
+            destructive
+            trigger={
+                <Button size="sm" variant="outline" data-test="decline-offer">
+                    <UserX className="size-4" aria-hidden />
+                    Menolak
+                </Button>
+            }
+        />
+    );
+}
+
+/**
+ * "Tarik" for an offer the candidate already has: a reason is required and stays internal, and telling the candidate by
+ * email is a tick box, unticked, offered only when they have an address.
+ */
+function WithdrawSentOffer({
+    item,
+    offer,
+}: {
+    item: Requisition;
+    offer: CandidateOffer;
+}) {
+    return (
+        <DecisionDialog
+            form={withdraw.form({ requisition: item.id, offer: offer.id })}
+            decision="withdraw"
+            title={`Tarik penawaran — ${offer.name}`}
+            subtitle={`${item.reference} · kandidat sudah menerima suratnya`}
+            fieldLabel="Alasan penarikan"
+            hint="Wajib diisi · tidak dikirim ke kandidat"
+            required
+            confirmLabel="Tarik penawaran"
+            destructive
+            extra={
+                offer.candidate?.email
+                    ? () => (
+                          <label
+                              className="mb-3 flex items-center gap-2 text-sm font-medium"
+                              data-test="notify-candidate"
+                          >
+                              <input
+                                  type="checkbox"
+                                  name="notify_candidate"
+                                  value="1"
+                                  className="size-4 accent-primary"
+                              />
+                              <Mail
+                                  className="size-4 text-muted-foreground"
+                                  aria-hidden
+                              />
+                              Kabari kandidat lewat email
+                          </label>
+                      )
+                    : undefined
+            }
+            trigger={
+                <Button size="sm" variant="outline" data-test="withdraw-offer">
+                    <Undo2 className="size-4" aria-hidden />
+                    Tarik
+                </Button>
+            }
+        />
+    );
+}
+
 /** One offer: who, where it stands, what Management decided, and the actions that are this person's. */
 function OfferRow({
     item,
@@ -379,6 +503,9 @@ function OfferRow({
             : null;
     const sent = offer.sentOn
         ? `Terkirim ${shortDate(offer.sentOn)}${offer.sentBy ? ` oleh ${offer.sentBy}` : ''}${offer.emailed ? ' · dikabari lewat email' : ''}`
+        : null;
+    const answered = offer.respondedOn
+        ? `${offer.stage === 'accepted' ? 'Diterima' : 'Menolak'} ${shortDate(offer.respondedOn)}${offer.declineReason ? ` · “${offer.declineReason}”` : ''}`
         : null;
 
     return (
@@ -409,8 +536,12 @@ function OfferRow({
             )}
 
             {sent && <p className="text-sm text-muted-foreground">{sent}</p>}
+            {answered && (
+                <p className="text-sm text-muted-foreground">{answered}</p>
+            )}
 
             {(offer.canDecide ||
+                offer.canRespond ||
                 offer.canWithdraw ||
                 offer.canSetTerms ||
                 offer.canViewLetter ||
@@ -444,7 +575,16 @@ function OfferRow({
                         </Button>
                     )}
                     {offer.canSend && <SendOffer item={item} offer={offer} />}
-                    {offer.canWithdraw && (
+                    {offer.canRespond && (
+                        <>
+                            <AcceptOffer item={item} offer={offer} />
+                            <DeclineOffer item={item} offer={offer} />
+                        </>
+                    )}
+                    {offer.canWithdraw && offer.stage === 'sent' && (
+                        <WithdrawSentOffer item={item} offer={offer} />
+                    )}
+                    {offer.canWithdraw && offer.stage !== 'sent' && (
                         <Button
                             size="sm"
                             variant="outline"
@@ -500,9 +640,10 @@ export function OfferTab({ item }: { item: Requisition }) {
     }
 
     const offers = item.offers;
+    // Someone with a live offer, or who accepted one, is with Management or hired: not there to be put forward.
     const liveIds = new Set(
         offers
-            .filter((offer) => offer.isLive)
+            .filter((offer) => offer.isLive || offer.stage === 'accepted')
             .map((offer) => offer.candidateId),
     );
     // The chosen who are not yet with Management: what HR can still put forward.

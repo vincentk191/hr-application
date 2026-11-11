@@ -3,6 +3,7 @@
 namespace App\Support\Notifications;
 
 use App\Enums\Permission;
+use App\Enums\Role;
 use App\Models\Candidate;
 use App\Models\CandidateOffer;
 use App\Models\Employee;
@@ -482,6 +483,60 @@ class Notifier
             ->when($superior instanceof User && $superior->is_active, fn (Collection $users) => $users->push($superior))
             ->unique('id')
             ->reject(fn (User $user): bool => $user->is($actor))
+            ->each(fn (User $user) => $user->notify($notice));
+    }
+
+    /**
+     * HR recorded the candidate's answer to a sent offer (REC-OFS-004/008): tell the direct superior and the requester. A
+     * "no" matters most to the superior, who has to choose again.
+     */
+    public function offerAnswered(Requisition $requisition, CandidateOffer $offer, bool $accepted, ?string $reason, User $actor): void
+    {
+        $offer->loadMissing('candidate');
+        $requisition->loadMissing('creator');
+        $name = (string) $offer->candidate?->name;
+
+        $notice = new InAppNotice(
+            'recruitment',
+            $accepted ? "{$name} menerima penawaran: {$requisition->position_name}" : "{$name} menolak penawaran: {$requisition->position_name}",
+            $accepted
+                ? "{$requisition->reference()} · {$requisition->filledCount()} dari {$requisition->quota} terisi."
+                : "{$requisition->reference()} · tempat masih terbuka, atasan langsung dapat memilih kandidat lain.",
+            route('recruitment.show', $requisition, absolute: false),
+        );
+
+        $superior = $this->directSuperiorOf($requisition);
+
+        collect([$requisition->creator, $superior])
+            ->filter()
+            ->unique('id')
+            ->reject(fn (User $user): bool => $user->is($actor) || ! $user->is_active)
+            ->each(fn (User $user) => $user->notify($notice));
+    }
+
+    /**
+     * The requisition is filled (REC-FIL-001): tell its requester, the direct superior and Management that recruiting for it is
+     * over.
+     */
+    public function requisitionFilled(Requisition $requisition, User $actor): void
+    {
+        $requisition->loadMissing('creator');
+
+        $notice = new InAppNotice(
+            'recruitment',
+            "{$requisition->reference()} terisi: {$requisition->position_name}",
+            "{$requisition->filledCount()} dari {$requisition->quota} tempat terisi.",
+            route('recruitment.show', $requisition, absolute: false),
+        );
+
+        $management = User::role(Role::Management->value)->where('is_active', true)->get()
+            ->filter(fn (User $user): bool => $user->canAccessCompany($requisition->company_id));
+
+        collect([$requisition->creator, $this->directSuperiorOf($requisition)])
+            ->filter()
+            ->concat($management)
+            ->unique('id')
+            ->reject(fn (User $user): bool => $user->is($actor) || ! $user->is_active)
             ->each(fn (User $user) => $user->notify($notice));
     }
 

@@ -11,6 +11,7 @@ use App\Actions\Recruitment\CancelRequisition;
 use App\Actions\Recruitment\ChangeDirectSuperior;
 use App\Actions\Recruitment\DecideRequisition;
 use App\Actions\Recruitment\InviteCandidate;
+use App\Actions\Recruitment\MarkRequisitionFilled;
 use App\Actions\Recruitment\RejectCandidate;
 use App\Actions\Recruitment\RemoveCandidate;
 use App\Actions\Recruitment\RemovePosting;
@@ -117,7 +118,7 @@ class RequisitionController extends Controller
     private function listed(User $user, array $filters): Collection
     {
         return Requisition::query()->visibleTo($user)
-            ->with(['department:id,name', 'branch:id,name', 'creator:id,name', 'workflow.steps', 'postings', 'candidates:id,requisition_id'])
+            ->with(['department:id,name', 'branch:id,name', 'creator:id,name', 'workflow.steps', 'postings', 'candidates:id,requisition_id', 'offers.workflow'])
             ->when($filters['status'] === 'open', fn (Builder $query) => $query->open())
             ->when(! in_array($filters['status'], ['open', 'all'], true), fn (Builder $query) => $query->whereHas('workflow', fn (Builder $workflow) => $workflow->where('current_stage', $filters['status'])))
             ->when($filters['department'] !== null, fn (Builder $query) => $query->whereHas('department', fn (Builder $department) => $department->where('name', $filters['department'])))
@@ -478,7 +479,7 @@ class RequisitionController extends Controller
 
     public function destroyCandidate(Requisition $requisition, Candidate $candidate, RemoveCandidate $remove): RedirectResponse
     {
-        $this->authorize('manageScreening', $requisition);
+        $this->authorize('removeCandidate', [$requisition, $candidate]);
 
         $remove->handle($candidate, request()->user());
 
@@ -617,6 +618,38 @@ class RequisitionController extends Controller
         }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => "{$requisition->reference()} lanjut ke tahap Penawaran."]);
+
+        return back();
+    }
+
+    /**
+     * "Tandai Selesai" (REC-FIL-001/003): the quota is filled, so the requisition moves to Terisi. The stage's guard refuses
+     * while it is not. HR may tick that the other interviewed candidates are told by email.
+     */
+    public function markFilled(Request $request, Requisition $requisition, MarkRequisitionFilled $fill): RedirectResponse
+    {
+        $this->authorize('markFilled', $requisition);
+
+        try {
+            $emailed = $fill->handle($requisition, $request->user(), $request->boolean('notify_candidates'));
+        } catch (TransitionBlocked $blocked) {
+            throw ValidationException::withMessages(['filled' => $blocked->getMessage()]);
+        }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "{$requisition->reference()} terisi.".($emailed > 0 ? " {$emailed} kandidat dikabari lewat email." : '')]);
+
+        return back();
+    }
+
+    /**
+     * "Sudah diturunkan": HR marks a listing as taken down from its platform after the position is filled (REC-FIL-005), or
+     * takes the mark back.
+     */
+    public function takeDownPosting(Requisition $requisition, RequisitionPosting $posting): RedirectResponse
+    {
+        $this->authorize('closeFilled', $requisition);
+
+        $posting->forceFill(['taken_down_at' => $posting->taken_down_at === null ? now() : null])->save();
 
         return back();
     }

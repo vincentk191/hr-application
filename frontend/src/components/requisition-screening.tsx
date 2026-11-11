@@ -144,7 +144,7 @@ function ShortlistRow({
                     </Badge>
                 )}
             </button>
-            {item.canManageScreening && (
+            {item.canManageScreening && candidate.canRemove && (
                 <Button
                     type="button"
                     size="sm"

@@ -115,6 +115,8 @@ export type RequisitionPosting = {
     url: string | null;
     postedOn: string;
     postedBy: string | null;
+    /** The day HR marked the listing as taken down from its platform, once the position was filled. */
+    takenDownOn: string | null;
 };
 
 /** Someone HR shortlisted (REC-SCR). Only HR is given these. */
@@ -157,6 +159,8 @@ export type Candidate = {
     /** HR may turn them down now, or take the rejection back. */
     canReject: boolean;
     canRestore: boolean;
+    /** HR may take them off the shortlist: not while an offer is out to them, and never after they accepted. */
+    canRemove: boolean;
     /** The direct superior chose this candidate (REC-PIP) and they are still in the process. */
     isSelected: boolean;
     selectedOn: string | null;
@@ -229,6 +233,11 @@ export type CandidateOffer = {
     sentBy: string | null;
     /** Whether the candidate was also emailed when the offer was marked sent. */
     emailed: boolean;
+    /** The day the candidate's answer was recorded, and, for HR, why they said no. */
+    respondedOn: string | null;
+    declineReason: string | null;
+    /** HR may record the candidate's answer: the offer is sent and the requisition still at Penawaran. */
+    canRespond: boolean;
     canDecide: boolean;
     canWithdraw: boolean;
     canSetTerms: boolean;
@@ -356,6 +365,13 @@ export type Requisition = RequisitionRow & {
     canProposeOffers: boolean;
     /** The offers to chosen candidates; null for anyone but HR, the direct superior and Management. */
     offers: CandidateOffer[] | null;
+    /** HR may close the requisition as filled ("Tandai Selesai"), and why it is not open yet (the quota). */
+    canMarkFilled: boolean;
+    filledBlockers: string[];
+    /** Interviewed candidates, not hired, with an email: who "kabari kandidat lain" would reach. */
+    emailableOthers: number;
+    /** HR may tick listings off as taken down, once the position is filled. */
+    canCloseFilled: boolean;
     /** HR may name a different direct superior, and from whom: active employees with an active account. */
     canChangeSuperior: boolean;
     superiorChoices: { id: number; name: string; number: string | null }[];

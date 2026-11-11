@@ -5,6 +5,7 @@ use App\Enums\OfferStage;
 use App\Enums\RequisitionStage;
 use App\Enums\Role;
 use App\Mail\CandidateOfferSent;
+use App\Mail\CandidateOfferWithdrawn;
 use App\Models\Candidate;
 use App\Models\CandidateEvaluation;
 use App\Models\CandidateOffer;
@@ -231,12 +232,53 @@ it('needs the terms before sending, sends once, and locks the terms and the with
     $this->actingAs($this->hr)->post($send)->assertForbidden();
 
     setLetterTerms($requisition, $offer, ['start_on' => '2026-12-20', 'probation_months' => 1])->assertForbidden();
-    $this->actingAs($this->hr)->delete(route('recruitment.offers.withdraw', [$requisition, $offer]))->assertForbidden();
 
     // The letter can still be printed again.
     $this->actingAs($this->hr)->get(route('recruitment.offers.letter', [$requisition, $offer]))->assertOk();
 
     expect($offer->refresh()->start_on->toDateString())->toBe('2026-12-01');
+});
+
+it('keeps HR from turning down or removing a candidate while an offer is out to them', function () {
+    [$requisition, $offer] = approvedLetterOffer();
+    $candidate = $offer->candidate;
+    setLetterTerms($requisition, $offer, ['start_on' => '2026-12-01', 'probation_months' => 3]);
+
+    // Approved but not sent: the candidate has nothing yet, so these still work (and take the offer back with them).
+    $flags = fn () => $this->actingAs($this->hr)->get(route('recruitment.show', $requisition))->viewData('page')['props']['requisition']['shortlist'][0];
+    expect($flags())->toMatchArray(['canReject' => true, 'canRemove' => true]);
+
+    $this->actingAs($this->hr)->post(route('recruitment.offers.send', [$requisition, $offer]));
+
+    expect($flags())->toMatchArray(['canReject' => false, 'canRemove' => false]);
+
+    $this->actingAs($this->hr)->post(route('recruitment.candidates.reject', [$requisition, $candidate]), ['note' => 'Tidak cocok'])->assertForbidden();
+    $this->actingAs($this->hr)->delete(route('recruitment.candidates.destroy', [$requisition, $candidate]))->assertForbidden();
+
+    expect($offer->refresh()->stage())->toBe(OfferStage::Sent)->and(Candidate::query()->count())->toBe(1);
+});
+
+it('lets HR take a sent offer back with a reason, emailing the candidate only when ticked, and then turn the candidate down', function () {
+    [$requisition, $offer] = approvedLetterOffer();
+    setLetterTerms($requisition, $offer, ['start_on' => '2026-12-01', 'probation_months' => 3]);
+    $this->actingAs($this->hr)->post(route('recruitment.offers.send', [$requisition, $offer]));
+    $withdraw = route('recruitment.offers.withdraw', [$requisition, $offer]);
+
+    $this->actingAs($this->management)->delete($withdraw, ['note' => 'Tidak jadi'])->assertForbidden();
+    $this->actingAs($this->hr)->delete($withdraw)->assertSessionHasErrors('note');
+    expect($offer->refresh()->stage())->toBe(OfferStage::Sent);
+
+    $this->actingAs($this->hr)->delete($withdraw, ['note' => 'Anggaran dipotong', 'notify_candidate' => '1'])
+        ->assertRedirect()->assertSessionDoesntHaveErrors()
+        ->assertInertiaFlash('toast', ['type' => 'success', 'message' => 'Penawaran Budi ditarik dan kandidat dikabari lewat email.']);
+
+    expect($offer->refresh()->stage())->toBe(OfferStage::Withdrawn)
+        ->and(Activity::query()->where('description', 'Penawaran ditarik')->latest('id')->first()->properties['reason'])->toBe('Anggaran dipotong');
+
+    Mail::assertQueued(CandidateOfferWithdrawn::class, fn (CandidateOfferWithdrawn $mail): bool => $mail->hasTo('budi@example.com') && ! str_contains($mail->body, 'Anggaran dipotong'));
+
+    // Nothing is out any more, so the candidate can be turned down again.
+    $this->actingAs($this->hr)->post(route('recruitment.candidates.reject', [$requisition, $offer->candidate]), ['note' => 'Tidak cocok'])->assertRedirect()->assertSessionDoesntHaveErrors();
 });
 
 it('shows HR what they may do with the offer on the Penawaran tab', function () {

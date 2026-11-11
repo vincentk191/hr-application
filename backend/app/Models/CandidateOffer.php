@@ -30,6 +30,8 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $sent_at
  * @property int|null $sent_by_user_id
  * @property Carbon|null $emailed_at
+ * @property Carbon|null $responded_at
+ * @property string|null $decline_reason
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -45,6 +47,8 @@ use Illuminate\Support\Carbon;
     'sent_at',
     'sent_by_user_id',
     'emailed_at',
+    'responded_at',
+    'decline_reason',
 ])]
 class CandidateOffer extends Model
 {
@@ -63,6 +67,7 @@ class CandidateOffer extends Model
             'proposed_at' => 'datetime',
             'sent_at' => 'datetime',
             'emailed_at' => 'datetime',
+            'responded_at' => 'datetime',
         ];
     }
 
@@ -95,7 +100,60 @@ class CandidateOffer extends Model
     #[Scope]
     protected function live(Builder $query): void
     {
-        $query->whereHas('workflow', fn (Builder $workflow) => $workflow->whereIn('current_stage', array_map(fn (OfferStage $stage): string => $stage->value, OfferStage::live())));
+        $this->inStages($query, OfferStage::live());
+    }
+
+    /**
+     * Offers the candidate has: sent or accepted.
+     *
+     * @param  Builder<CandidateOffer>  $query
+     */
+    #[Scope]
+    protected function out(Builder $query): void
+    {
+        $this->inStages($query, OfferStage::out());
+    }
+
+    /**
+     * Offers that still hold their candidate: live or accepted.
+     *
+     * @param  Builder<CandidateOffer>  $query
+     */
+    #[Scope]
+    protected function standing(Builder $query): void
+    {
+        $this->inStages($query, OfferStage::standing());
+    }
+
+    /**
+     * Offers the candidate accepted: the hires.
+     *
+     * @param  Builder<CandidateOffer>  $query
+     */
+    #[Scope]
+    protected function accepted(Builder $query): void
+    {
+        $this->inStages($query, [OfferStage::Accepted]);
+    }
+
+    /**
+     * Offers the candidate turned down.
+     *
+     * @param  Builder<CandidateOffer>  $query
+     */
+    #[Scope]
+    protected function declined(Builder $query): void
+    {
+        $this->inStages($query, [OfferStage::Declined]);
+    }
+
+    /**
+     * @param  Builder<CandidateOffer>  $query
+     * @param  list<OfferStage>  $stages
+     */
+    private function inStages(Builder $query, array $stages): void
+    {
+        $query->whereHas('workflow', fn (Builder $workflow) => $workflow->whereIn('current_stage', array_map(fn (OfferStage $stage): string => $stage->value, $stages)));
     }
 
     /**

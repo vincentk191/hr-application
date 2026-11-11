@@ -69,6 +69,39 @@ left uncommitted for review.
 
 ## Change log (latest first)
 
+- **2026-11-11 (recruitment: the candidate's answer and filling the position; Phase 5 of the Offer plan, and two fixes to Phase 4, branch `feature/recruitement`).**
+  Migration `add_response_to_candidate_offers_and_takedown_to_postings` (`responded_at`, `decline_reason` on offers;
+  `taken_down_at` on postings); run `php artisan migrate` on every environment.
+  - **Fix to Phase 4: nobody is turned down or removed while an offer is out.** Found on the live screen: after "Tandai terkirim"
+    Tolak and Hapus kandidat were still open and quietly withdrew a letter the candidate already had. `rejectCandidate` and the new
+    `removeCandidate` policy are shut while an offer is **sent or accepted** (`OfferStage::out()`), and the screens hide the
+    buttons (`canRemove`). `unselectCandidate` is shut for accepted offers too (`OfferStage::standing()`), and an accepted
+    candidate is not proposed again.
+  - **Fix to Phase 4: HR can take a sent offer back.** "Tarik" is open for a sent offer, and asks for a **reason** (internal)
+    with an **opt-in email** to the candidate (`WithdrawOffer::handleSent`, `CandidateOfferWithdrawn`). Until the candidate answers
+    this is the way out; a candidate can then be turned down or removed as before.
+  - **Tandai Diterima (REC-OFS-004).** `RespondToOffer::accept`, route `recruitment.offers.accept`, policy `respondToOffer` (HR, a
+    **sent** offer, requisition at Penawaran): stage Accepted, counts toward the quota, **refused once the quota is full** (error
+    "Kuota sudah terpenuhi", checked under a lock on the requisition). The superior and the requester are told. The requisition
+    list's "Kuota" (`filled`) is now the accepted offers, and the Penawaran status line reads "n dari m diterima".
+  - **Menolak (REC-OFS-008).** `RespondToOffer::decline`, route `recruitment.offers.decline`: a reason is required (internal, shown
+    to HR only), the offer ends as Declined, **the superior's choice is cleared** so the place is open, and the candidate **cannot be
+    chosen again** (`selectCandidate` is shut for someone with a declined offer). The superior and the requester are told.
+  - **Tandai Selesai (REC-FIL-001/003).** `MarkRequisitionFilled`, route `recruitment.filled`, policy `markFilled` (HR, at Penawaran),
+    guard `QuotaFilled` on the Terisi stage (**accepted offers at least the quota**; no quota never fills). Closing also: withdraws
+    the offers still out (the places are gone), **ends the form links** of candidates who have not used them, and writes
+    "Lowongan terisi" on the audit trail. The requester, the direct superior and Management are told. The button sits beside the
+    other stage actions, disabled with the reason until the quota is filled.
+  - **"Position filled" email (REC-OFS-009).** A tick box in the Tandai Selesai dialog, unticked, shown with how many it would reach:
+    interviewed candidates still in the process, not hired, with an email (`CandidatePositionFilled`).
+  - **Penutupan (REC-FIL-005).** The Terisi tab lists who accepted (start date, salary; the requester sees a count) and the listings
+    HR put up, each ticked off as taken down ("Sudah diturunkan", with Batal), route `recruitment.postings.takedown`, HR only. The
+    automatic parts (offers withdrawn, links ended) are done on closing.
+  - **Not done:** converting the hire to an employee (Phase 6); an automatic reminder to take listings down; interviews already
+    scheduled are not cancelled one by one (their links are ended, and the dashboard counts only running requisitions).
+  - **Checked:** new `RequisitionFilledTest` (7) and two tests added to `RequisitionOfferLetterTest`; Pint, PHPStan, TypeScript and
+    the formatter clean. Not seen in a browser.
+
 - **2026-11-11 (recruitment: the offer's terms, letter and sending; Phase 4 of the Offer plan, branch `feature/recruitement`).**
   Migration `add_terms_and_sending_to_candidate_offers_table` (`start_on`, `probation_months`, `sent_at`, `sent_by_user_id`,
   `emailed_at`); run `php artisan migrate` on every environment.
@@ -1760,7 +1793,7 @@ platform accounts above (no career page, manual posting, nothing public except t
      probation; Posisi and Departemen filled in; one set of terms may apply to several candidates (`OFR-003`, P2). The
      letter is generated from a template with fields pulled in and a print page for the rest. Sending marks the offer
      "Penawaran Terkirim" with an opt-in email.
-  5. **The response, and filling** (`REC-OFS-004/005/008/009`, `FIL-001/002/003/005`). "Tandai Diterima" (hired, filled
+  5. **The response, and filling** (`REC-OFS-004/005/008/009`, `FIL-001/002/003/005`). **Built 2026-11-11** (change log above). "Tandai Diterima" (hired, filled
      +1, refused if the quota is already full), "Menolak" with a reason (the candidate leaves, the slot stays open),
      `RequisitionPresenter`'s hard-coded `filled => 0` replaced by the accepted offers, a gated "Tandai Selesai" when the
      quota is full that moves the requisition to Filled, a close checklist (manual: take the listings down; automatic: end
@@ -1783,8 +1816,8 @@ platform accounts above (no career page, manual posting, nothing public except t
 | `REC-PST`                         | Stage 02 Posting            | 7   | 4   | ✅     | Built 11-04 (revised plan: manual, no cmp-api push): copy buttons (Judul, Deskripsi, Persyaratan, Semua), "Tandai sudah diposting" per platform with date and optional link, correct/remove, "Lanjut ke Screening" once one is recorded, "Batalkan lowongan" with a reason (PST-004) |
 | `REC-SCR`                         | Stage 03 Screening          | 8   | 4   | ✅     | Built 11-04 (revised plan): total-applicants count, quick-add of shortlisted candidates (duplicate warning, paste-to-autofill, optional CV), shortlist list, "Lanjut ke Interview". No ranking. Candidate list is HR-only |
 | `REC-INT`                         | Stage 04 Interview          | 8   | 3   | ✅     | Built 11-04 (revised plan): invitation (time, online/in person, Meet link or address) by email with the same text for WhatsApp, single-use link, open only on the interview day, to the public in-app candidate form (Ya/Tidak on the checklist, salary, start date), answers shown to HR. Built 11-06: feedback by HR and the direct superior, reminders (candidate the day before, HR and superior on the day). Built 11-09: a notice to HR and the superior for interviews still without an evaluation; the CSV for mail merge (one row per interviewee with an email, the invitation's note included, every download on the audit trail); cancelling warns HR of candidates already scheduled and tells the superior. Candidate rescheduling stays with HR by decision. Google Meet creation waits on the account test |
-| `REC-OFS`                         | Stage 05 Offer              | 9   | 8   | 🟡     | Built 11-11: the chosen list with ticks and "Direkomendasikan oleh n", "Ajukan ke Manajemen" (001/002), Management's approval with the starting salary or a rejection that returns the candidate to Interview (006), withdrawing an offer. Built 11-11 (Phase 4): the letter as a print page (007) and "Tandai terkirim" with an opt-in email (003). Not built: accepted and declined (004/008), "position filled" email (009) |
-| `REC-FIL`                         | Stage 06 Filled             | 7   | 6   | ⬜     | Convert-to-employee (L). Creates the profile the hire then registers against (`CORE-REG`); until this exists HR creates profiles by hand or CSV |
+| `REC-OFS`                         | Stage 05 Offer              | 9   | 8   | 🟡     | Built 11-11: the chosen list with ticks and "Direkomendasikan oleh n", "Ajukan ke Manajemen" (001/002), Management's approval with the starting salary or a rejection that returns the candidate to Interview (006), withdrawing an offer. Built 11-11 (Phase 4): the letter as a print page (007) and "Tandai terkirim" with an opt-in email (003). Built 11-11 (Phase 5): Tandai Diterima (004) and Menolak (008), the "position filled" email (009), Tarik for a sent offer. Not built: nothing in this stage |
+| `REC-FIL`                         | Stage 06 Filled             | 7   | 6   | 🟡     | Built 11-11: the filled count from accepted offers, "Tandai Selesai" gated on the quota (001/003), the close (offers withdrawn, links ended), the Terisi tab with the hires and the listings to take down (005). Not built: convert-to-employee (006/007, L). Creates the profile the hire then registers against (`CORE-REG`); until this exists HR creates profiles by hand or CSV |
 | `REC-CAN` · `REC-CDT` · `REC-CRV` | Candidate detail + tabs     | 11  | 8   | 🟡     | The candidate is a side drawer, not a page (by decision): Ringkasan (answers of the form), Dokumen (CV), Interview (schedule, invitation, evaluations). Built 11-10: Tolak with a reason and an opt-in email, and Pulihkan (`CAN-002/003`, the "Ditolak" banner of `CDT-001`); Pilih and Batalkan pilihan for the direct superior, with the "Dipilih" banner. The stage-dependent actions for Siap Ditawari and Penawaran Terkirim come with the Offer phases |
 | `REC-OFR`                         | Send offer form             | 6   | 4   | 🟡     | Built 11-11: start date (after today) and probation (0 to 3 months) with the salary from Management, the letter from the requisition and the offer. Not built: one set of terms for several candidates (003) |
 | `REC-EDI`                         | Post-interview form builder | 1   | 0   | ⬜     | P5 — backlog                                                |

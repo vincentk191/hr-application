@@ -2,10 +2,12 @@
 
 namespace App\Support\Recruitment;
 
+use App\Actions\Recruitment\MarkRequisitionFilled;
 use App\Enums\CandidateSource;
 use App\Enums\EmploymentStatus;
 use App\Enums\EvaluationRecommendation;
 use App\Enums\JobPlatform;
+use App\Enums\OfferStage;
 use App\Enums\Permission;
 use App\Enums\RequisitionStage;
 use App\Enums\Role;
@@ -45,8 +47,8 @@ class RequisitionPresenter
             'department' => $requisition->department?->name,
             'branch' => $requisition->branch?->name,
             'quota' => $requisition->quota,
-            // Nobody is hired yet: offers come with stage 05. Candidates are the shortlist, from stage 03 on.
-            'filled' => 0,
+            // The accepted offers (REC-FIL-001). Candidates are the shortlist, from stage 03 on.
+            'filled' => $this->filledOf($requisition),
             'candidates' => $this->reachedScreening($stage) ? $requisition->candidates->count() : null,
             'stage' => $stage->value,
             'stageLabel' => $stage->label(),
@@ -60,6 +62,17 @@ class RequisitionPresenter
             // The date the latest stage was reached; a draft has none ("Belum diajukan", REC-DSH-004).
             'lastUpdate' => $stage === RequisitionStage::Draft ? null : $requisition->workflow?->stage_entered_at->toDateString(),
         ];
+    }
+
+    /**
+     * How many candidates have accepted: counted from the offers already loaded, so a list of requisitions costs no query
+     * per row.
+     */
+    private function filledOf(Requisition $requisition): int
+    {
+        $requisition->loadMissing('offers.workflow');
+
+        return $requisition->offers->filter(fn (CandidateOffer $offer): bool => $offer->stage() === OfferStage::Accepted)->count();
     }
 
     /**
@@ -123,6 +136,7 @@ class RequisitionPresenter
                 'url' => $posting->url,
                 'postedOn' => $posting->posted_on->toDateString(),
                 'postedBy' => $posting->postedBy?->name,
+                'takenDownOn' => $posting->taken_down_at?->copy()->setTimezone((string) config('attendance.device_timezone'))->toDateString(),
             ])->values()->all(),
             'applicantsCount' => $requisition->applicants_count,
             'shortlistedCount' => $requisition->candidates->count(),
@@ -144,6 +158,14 @@ class RequisitionPresenter
             'canProposeOffers' => $viewer->can('proposeOffers', $requisition),
             // The offers to chosen candidates: HR, the direct superior and Management only (REC-OFS).
             'offers' => $this->offers($requisition, $viewer),
+            // "Tandai Selesai" (REC-FIL-001): open to HR at Penawaran, shut by the stage's guard until the quota is filled.
+            'canMarkFilled' => $viewer->can('markFilled', $requisition),
+            'filledBlockers' => $stage === RequisitionStage::Offer
+                ? $this->engine->blockingReasons($requisition->workflow, RequisitionStage::Filled)
+                : [],
+            // Interviewed candidates who could be told by email that the position is filled.
+            'emailableOthers' => $viewer->can('markFilled', $requisition) ? app(MarkRequisitionFilled::class)->emailable($requisition) : 0,
+            'canCloseFilled' => $viewer->can('closeFilled', $requisition),
             'canChangeSuperior' => $viewer->can('changeSuperior', $requisition),
             'superiorChoices' => $viewer->can('changeSuperior', $requisition) ? $this->superiorChoices($requisition) : [],
             // Who is out when, for placing interviews: the Interview tab's calendar, for those who see the candidates.
@@ -373,6 +395,7 @@ class RequisitionPresenter
             'rejectedBy' => $isHr ? $candidate->rejectedBy?->name : null,
             'canReject' => $viewer !== null && $viewer->can('rejectCandidate', [$requisition, $candidate]),
             'canRestore' => $viewer !== null && $viewer->can('restoreCandidate', [$requisition, $candidate]),
+            'canRemove' => $viewer !== null && $viewer->can('removeCandidate', [$requisition, $candidate]),
         ];
     }
 
@@ -448,6 +471,10 @@ class RequisitionPresenter
             'sentOn' => $offer->sent_at?->copy()->setTimezone($timezone)->toDateString(),
             'sentBy' => $offer->sentBy?->name,
             'emailed' => $offer->emailed_at !== null,
+            'respondedOn' => $offer->responded_at?->copy()->setTimezone($timezone)->toDateString(),
+            // Why the candidate said no: HR's, like their phone and email.
+            'declineReason' => $viewer->can('viewCandidates', $requisition) ? $offer->decline_reason : null,
+            'canRespond' => $viewer->can('respondToOffer', [$requisition, $offer]),
             'canDecide' => $viewer->can('decideOffer', [$requisition, $offer]),
             'canWithdraw' => $viewer->can('withdrawOffer', [$requisition, $offer]),
             'canSetTerms' => $viewer->can('setOfferTerms', [$requisition, $offer]),
@@ -528,6 +555,7 @@ class RequisitionPresenter
                 RequisitionStage::Draft => $requisition->submitted_at === null ? 'Draft' : 'Dikembalikan ke pemohon',
                 RequisitionStage::Posting => $this->postingStatus($requisition),
                 RequisitionStage::Screening => ($requisition->applicants_count === null ? '—' : $requisition->applicants_count).' pelamar · '.$requisition->candidates->count().' shortlist',
+                RequisitionStage::Offer => $this->filledOf($requisition).' dari '.($requisition->quota ?? '—').' diterima',
                 default => $stage->label(),
             };
         }

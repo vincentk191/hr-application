@@ -170,6 +170,22 @@ class Requisition extends Model
         return $this->hasMany(CandidateOffer::class)->orderBy('id');
     }
 
+    /**
+     * How many candidates have accepted an offer for this requisition (REC-FIL-001), counted from the database.
+     */
+    public function filledCount(): int
+    {
+        return $this->offers()->accepted()->count();
+    }
+
+    /**
+     * Every place asked for is taken. A requisition without a quota never is.
+     */
+    public function isQuotaFilled(): bool
+    {
+        return $this->quota !== null && $this->filledCount() >= $this->quota;
+    }
+
     public function reference(): string
     {
         return 'REQ-'.str_pad((string) $this->id, 4, '0', STR_PAD_LEFT);

@@ -128,6 +128,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('recruitment/{requisition}/offers/{offer}/send', [RequisitionOfferController::class, 'send'])->scopeBindings()->name('recruitment.offers.send');
     Route::get('recruitment/{requisition}/offers/{offer}/letter', [RequisitionOfferController::class, 'letter'])->scopeBindings()->name('recruitment.offers.letter');
     Route::post('recruitment/{requisition}/offer', [RequisitionController::class, 'advanceToOffer'])->name('recruitment.offer');
+    Route::post('recruitment/{requisition}/filled', [RequisitionController::class, 'markFilled'])->name('recruitment.filled');
+    Route::put('recruitment/{requisition}/postings/{posting}/takedown', [RequisitionController::class, 'takeDownPosting'])->scopeBindings()->name('recruitment.postings.takedown');
+    Route::post('recruitment/{requisition}/offers/{offer}/accept', [RequisitionOfferController::class, 'accept'])->scopeBindings()->name('recruitment.offers.accept');
+    Route::put('recruitment/{requisition}/offers/{offer}/decline', [RequisitionOfferController::class, 'decline'])->scopeBindings()->name('recruitment.offers.decline');
     Route::post('recruitment/{requisition}/cancel', [RequisitionController::class, 'cancel'])->name('recruitment.cancel');
     Route::post('recruitment/{requisition}/comments', [RequisitionController::class, 'comment'])->name('recruitment.comments.store');
     Route::post('recruitment/{requisition}/comments/read', [RequisitionController::class, 'markCommentsRead'])->name('recruitment.comments.read');

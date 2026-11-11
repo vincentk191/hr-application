@@ -20,11 +20,12 @@ use Illuminate\Support\Carbon;
  * @property string|null $platform_name
  * @property string|null $url
  * @property Carbon $posted_on
+ * @property Carbon|null $taken_down_at
  * @property int|null $posted_by_user_id
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['requisition_id', 'platform', 'platform_name', 'url', 'posted_on', 'posted_by_user_id'])]
+#[Fillable(['requisition_id', 'platform', 'platform_name', 'url', 'posted_on', 'taken_down_at', 'posted_by_user_id'])]
 class RequisitionPosting extends Model
 {
     /** @use HasFactory<RequisitionPostingFactory> */
@@ -38,6 +39,7 @@ class RequisitionPosting extends Model
         return [
             'platform' => JobPlatform::class,
             'posted_on' => 'date',
+            'taken_down_at' => 'datetime',
         ];
     }
 

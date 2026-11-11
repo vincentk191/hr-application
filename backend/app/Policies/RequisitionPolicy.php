@@ -200,19 +200,21 @@ class RequisitionPolicy
             && $candidate->selected_at === null
             && $candidate->inviteState() !== 'none'
             && $candidate->interview_at !== null
-            && $candidate->interview_at->isPast();
+            && $candidate->interview_at->isPast()
+            && ! $candidate->offers()->declined()->exists();
     }
 
     /**
      * Taking the choice back is the direct superior's, for a candidate they chose and who is still in the process, and
-     * only while no offer is live for them: once HR has put the candidate to Management it is HR who pulls it back.
+     * only while no offer holds the candidate (live, or accepted): once HR has put the candidate to Management it is HR who
+     * pulls it back.
      */
     public function unselectCandidate(User $user, Requisition $requisition, Candidate $candidate): bool
     {
         return $this->viewInterviewees($user, $requisition)
             && $candidate->requisition_id === $requisition->id
             && $candidate->isSelected()
-            && ! $candidate->offers()->live()->exists();
+            && ! $candidate->offers()->standing()->exists();
     }
 
     /**
@@ -259,13 +261,41 @@ class RequisitionPolicy
     }
 
     /**
-     * Pulling an offer back is HR's, until it is sent.
+     * Pulling an offer back is HR's, until the candidate has answered: before it is sent, and after it with a reason (the
+     * candidate has the letter, so it is a deliberate step).
      */
     public function withdrawOffer(User $user, Requisition $requisition, CandidateOffer $offer): bool
     {
         return $offer->requisition_id === $requisition->id
-            && in_array($offer->stage(), [OfferStage::Proposed, OfferStage::Approved], true)
+            && in_array($offer->stage(), [OfferStage::Proposed, OfferStage::Approved, OfferStage::Sent], true)
             && $this->viewCandidates($user, $requisition);
+    }
+
+    /**
+     * The candidate's answer to a sent offer is HR's to record (REC-OFS-004/008), while the requisition is at Penawaran.
+     */
+    public function respondToOffer(User $user, Requisition $requisition, CandidateOffer $offer): bool
+    {
+        return $offer->requisition_id === $requisition->id
+            && $requisition->stage() === RequisitionStage::Offer
+            && $offer->stage() === OfferStage::Sent
+            && $this->viewCandidates($user, $requisition);
+    }
+
+    /**
+     * "Tandai Selesai" is HR's, at Penawaran; the stage's guard keeps it shut until the quota is filled (REC-FIL-001).
+     */
+    public function markFilled(User $user, Requisition $requisition): bool
+    {
+        return $requisition->stage() === RequisitionStage::Offer && $this->viewCandidates($user, $requisition);
+    }
+
+    /**
+     * Closing the loose ends of a filled requisition, such as taking its listings down, is HR's (REC-FIL-005).
+     */
+    public function closeFilled(User $user, Requisition $requisition): bool
+    {
+        return $requisition->stage() === RequisitionStage::Filled && $this->viewCandidates($user, $requisition);
     }
 
     /**
@@ -309,13 +339,26 @@ class RequisitionPolicy
     }
 
     /**
-     * Turning a candidate down is HR's, from Screening to Offer, for someone still in the process (REC-CAN-003).
+     * Turning a candidate down is HR's, from Screening to Offer, for someone still in the process (REC-CAN-003), and not
+     * while an offer is out to them: the candidate has the letter, so HR withdraws the offer first, or records the answer.
      */
     public function rejectCandidate(User $user, Requisition $requisition, Candidate $candidate): bool
     {
         return $this->manageScreening($user, $requisition)
             && $candidate->requisition_id === $requisition->id
-            && ! $candidate->isRejected();
+            && ! $candidate->isRejected()
+            && ! $candidate->offers()->out()->exists();
+    }
+
+    /**
+     * Taking someone off the shortlist is HR's, like turning them down, and shut on the same ground: not while an offer is
+     * out to them, and never for someone who accepted.
+     */
+    public function removeCandidate(User $user, Requisition $requisition, Candidate $candidate): bool
+    {
+        return $this->manageScreening($user, $requisition)
+            && $candidate->requisition_id === $requisition->id
+            && ! $candidate->offers()->out()->exists();
     }
 
     /**
