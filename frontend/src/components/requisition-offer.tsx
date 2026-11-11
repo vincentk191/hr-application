@@ -47,6 +47,13 @@ function recommendation(candidate: Candidate): string | null {
     );
 }
 
+/** How an earlier offer to someone chosen again ended: "Ditolak Manajemen “reason”", or nothing if there was none. */
+function earlierOutcome(offer: CandidateOffer | undefined): string | null {
+    return offer
+        ? `penawaran sebelumnya: ${offer.stageLabel}${offer.decisionNote ? ` “${offer.decisionNote}”` : ''}`
+        : null;
+}
+
 /** The name and the line under it, which opens the candidate's card. */
 function Person({
     name,
@@ -294,6 +301,16 @@ export function OfferTab({ item }: { item: Requisition }) {
     const ready = (item.shortlist ?? []).filter(
         (candidate) => candidate.isSelected && !liveIds.has(candidate.id),
     );
+    // A candidate appears once. Offers come oldest first, so the last one of each candidate is where they stand now, and
+    // someone chosen again after a rejection or a withdrawal is in the list above, with how the earlier offer ended.
+    const latestOffer = new Map<number, CandidateOffer>();
+    offers.forEach((offer) => latestOffer.set(offer.candidateId, offer));
+    const readyIds = new Set(ready.map((candidate) => candidate.id));
+    const shownOffers = offers.filter(
+        (offer) =>
+            latestOffer.get(offer.candidateId) === offer &&
+            !readyIds.has(offer.candidateId),
+    );
     const candidates: Candidate[] = [
         ...(item.shortlist ?? []),
         ...offers.flatMap((offer) =>
@@ -385,6 +402,11 @@ export function OfferTab({ item }: { item: Requisition }) {
                                                 candidate.selectedOn
                                                     ? `dipilih ${shortDate(candidate.selectedOn)}`
                                                     : null,
+                                                earlierOutcome(
+                                                    latestOffer.get(
+                                                        candidate.id,
+                                                    ),
+                                                ),
                                             ]
                                                 .filter(Boolean)
                                                 .join(' · ') || '—'
@@ -419,16 +441,16 @@ export function OfferTab({ item }: { item: Requisition }) {
                         <Check className="size-4" aria-hidden />
                         Penawaran
                     </h2>
-                    <span className="label-mono">{offers.length}</span>
+                    <span className="label-mono">{shownOffers.length}</span>
                 </header>
 
-                {offers.length === 0 ? (
+                {shownOffers.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
                         Belum ada penawaran.
                     </p>
                 ) : (
                     <ul className="space-y-2.5">
-                        {offers.map((offer) => (
+                        {shownOffers.map((offer) => (
                             <OfferRow
                                 key={offer.id}
                                 item={item}
