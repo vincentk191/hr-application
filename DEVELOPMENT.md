@@ -69,6 +69,15 @@ left uncommitted for review.
 
 ## Change log (latest first)
 
+- **2026-11-11 (recruitment: the post-interview evaluation redesigned for the phone, REC-INT).** \`candidate-evaluations.tsx\`: a summary
+  (the average large, how many said Lanjut, Pertimbangkan and Tidak lanjut with their colours, and a bar split by those
+  shares), the signed-in person's own card ("Anda", score, recommendation pill, note, "Ubah penilaian") or a dashed
+  "Anda belum menilai" prompt with "Beri penilaian", then "Penilai lain" as cards. The form is a **bottom sheet**: the rating as
+  five large buttons (Kurang to Sangat baik), the recommendation as three cards (Lanjut, Pertimbangkan, Tidak lanjut, each in its
+  colour once chosen), an optional note, Batal and Simpan penilaian. The choices are still radio buttons underneath, so both
+  are still required and the keyboard works. From tablet width up the same sheet floats at the bottom of the screen. Frontend
+  only, no change to what is saved. Not seen in a browser.
+
 - **2026-11-11 (recruitment: scheduling from a free slot of the Interview calendar).** A free cell of the week calendar (and "Jadwalkan"
   on the phone's day list) opens the invitation form straight away, with the **date and time of the slot filled in** and a
   **"Kandidat" field** to choose who, from the candidates still without a schedule (filled in when there is only one). It
