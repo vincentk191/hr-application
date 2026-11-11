@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { STATUS_TILE } from '@/lib/attendance-status';
 import { cn } from '@/lib/utils';
 import type {
+    CalendarSource,
     StatusCounts,
     StatusFilterKey,
     StatusOption,
@@ -55,6 +56,44 @@ export function statusEntries(
     }
 
     return entries;
+}
+
+const SOURCES: { value: CalendarSource; label: string }[] = [
+    { value: 'all', label: 'Semua' },
+    { value: 'scanner', label: 'Scanner' },
+    { value: 'rekap', label: 'Rekapitulasi' },
+];
+
+/**
+ * Where the month and year views take their people from: everyone, those with a scanner, or those of a Cabang that
+ * sends a rekapitulasi. The day and week views hold everyone, so they have no such switch.
+ */
+export function SourceToggle({
+    source,
+    onChange,
+}: {
+    source: CalendarSource;
+    onChange: (source: CalendarSource) => void;
+}) {
+    return (
+        <div
+            role="group"
+            aria-label="Sumber data"
+            className="seg text-sm tracking-normal normal-case"
+        >
+            {SOURCES.map((item) => (
+                <button
+                    key={item.value}
+                    type="button"
+                    aria-pressed={source === item.value}
+                    data-on={source === item.value}
+                    onClick={() => onChange(item.value)}
+                >
+                    {item.label}
+                </button>
+            ))}
+        </div>
+    );
 }
 
 export function tileOf(key: StatusFilterKey): string {

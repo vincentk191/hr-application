@@ -5,6 +5,8 @@ use App\Enums\AttendanceSource;
 use App\Enums\Role;
 use App\Models\AttendanceEnrolMap;
 use App\Models\AttendancePunch;
+use App\Models\AttendanceRekap;
+use App\Models\AttendanceRekapRow;
 use App\Models\Branch;
 use App\Models\CalendarEvent;
 use App\Models\Company;
@@ -646,4 +648,123 @@ it('reads the Cabang\'s source even when the Cabang was loaded for its name alon
 
     expect($partial->attendsViaRekap())->toBeTrue()
         ->and(Employee::query()->with('branch:id,name')->findOrFail($this->budi->id)->attendsViaRekap())->toBeFalse();
+});
+
+// --- Month and year: scanner or rekapitulasi, and one line per person ---
+
+/**
+ * A rekapitulasi file of the employee's Cabang, with the counts the Cabang reported for them.
+ *
+ * @param  array<string, int>  $counts
+ */
+function rekapFileFor(Employee $employee, string $from, string $to, array $counts, string $status = AttendanceRekap::STATUS_CONFIRMED): void
+{
+    $file = AttendanceRekap::create([
+        'company_id' => $employee->company_id, 'branch_id' => $employee->branch_id, 'status' => $status, 'period_start' => $from, 'period_end' => $to,
+    ]);
+
+    AttendanceRekapRow::create([
+        'attendance_rekap_id' => $file->id, 'employee_id' => $employee->id, 'row_number' => 1, 'name' => strtoupper($employee->full_name),
+        'match_status' => 'matched', ...$counts,
+    ]);
+}
+
+/** Budi came on the 5th, late on the 6th and missed the 7th, a day somebody else scanned on. */
+function budiAttendedTwoDaysAndMissedOne(): void
+{
+    $other = Employee::factory()->forCompany(test()->company)->create(['joined_on' => '2020-01-01']);
+    scan(test()->budi, '2026-10-05 08:00:00');
+    scan(test()->budi, '2026-10-06 08:30:00');
+    scan($other, '2026-10-07 08:00:00');
+}
+
+it('narrows the month and year views to the people with a scanner, or to those of a rekapitulasi Cabang', function () {
+    $rina = rekapEmployee();
+    scan($this->budi, '2026-10-05 08:00:00');
+
+    foreach (['month', 'year'] as $view) {
+        $scanner = calendar("?view={$view}&date=2026-10-05&source=scanner")->viewData('page')['props'];
+        $rekap = calendar("?view={$view}&date=2026-10-05&source=rekap")->viewData('page')['props'];
+        $all = calendar("?view={$view}&date=2026-10-05&source=all")->viewData('page')['props'];
+
+        expect($scanner['summary']['employees'])->toBe(1)->and($scanner['summary']['rekapEmployees'])->toBe(0)
+            ->and($rekap['summary']['employees'])->toBe(0)->and($rekap['summary']['rekapEmployees'])->toBe(1)
+            ->and($all['summary']['employees'])->toBe(1)->and($all['summary']['rekapEmployees'])->toBe(1)
+            ->and($rekap['filters']['source'])->toBe('rekap');
+    }
+
+    expect(collect(calendar('?view=month&date=2026-10-05&source=scanner')->viewData('page')['props']['rows'])->pluck('id')->all())->toBe([$this->budi->id])
+        ->and(collect(calendar('?view=month&date=2026-10-05&source=rekap')->viewData('page')['props']['rows'])->pluck('id')->all())->toBe([$rina->id]);
+});
+
+it('holds everyone in the day and week views whatever the source asks for', function () {
+    $rina = rekapEmployee();
+
+    foreach (['day', 'week'] as $view) {
+        $rows = calendar("?view={$view}&date=2026-10-05&source=scanner")->viewData('page')['props']['rows'];
+
+        expect(collect($rows)->pluck('id')->all())->toContain($rina->id, $this->budi->id);
+    }
+});
+
+it('falls back to everyone for a source it does not know', function () {
+    rekapEmployee();
+
+    $props = calendar('?view=month&date=2026-10-05&source=bogus')->viewData('page')['props'];
+
+    expect($props['filters']['source'])->toBe('all')->and($props['rows'])->toHaveCount(2);
+});
+
+it('gives the month view one line of figures per person, from days or from the rekapitulasi that ends in the month', function () {
+    $rina = rekapEmployee();
+    budiAttendedTwoDaysAndMissedOne();
+    // 21 Sep to 20 Oct is October's file: 22 working days, 3 of them Izin or Sakit, 1 Alpa, 3 Telat.
+    rekapFileFor($rina, '2026-09-21', '2026-10-20', ['alpa' => 1, 'izin' => 2, 'sakit' => 1, 'telat' => 3]);
+    // Counted for nothing: a draft, a file that ends in another month, and one too long to be a month's.
+    rekapFileFor($rina, '2026-09-21', '2026-10-20', ['alpa' => 9], AttendanceRekap::STATUS_DRAFT);
+    rekapFileFor($rina, '2026-08-21', '2026-09-20', ['alpa' => 8]);
+    rekapFileFor($rina, '2026-01-01', '2026-10-31', ['alpa' => 7]);
+
+    $figures = collect(calendar('?view=month&date=2026-10-05')->viewData('page')['props']['employeeFigures'])->keyBy('id');
+
+    // Budi's October has 22 working days; two attended (one late), one absent, the rest not yet in the log.
+    expect($figures[$this->budi->id])->toMatchArray([
+        'viaRekap' => false, 'period' => null, 'hasData' => true, 'rate' => 66.7, 'workdays' => 22, 'leaveDays' => 0, 'late' => 1, 'absent' => 1,
+    ])
+        ->and($figures[$rina->id])->toMatchArray([
+            'viaRekap' => true, 'period' => '21 Sep – 20 Okt', 'hasData' => true, 'rate' => 94.7, 'workdays' => 22, 'leaveDays' => 3, 'late' => 3, 'absent' => 1,
+        ]);
+});
+
+it('has no data for a rekapitulasi person with no file ending in the month, and sends no per-person lines outside the month view', function () {
+    $rina = rekapEmployee();
+
+    $figures = collect(calendar('?view=month&date=2026-10-05')->viewData('page')['props']['employeeFigures'])->firstWhere('id', $rina->id);
+
+    expect($figures)->toMatchArray(['hasData' => false, 'rate' => null, 'workdays' => null, 'period' => null])
+        ->and(calendar('?view=week&date=2026-10-05')->viewData('page')['props']['employeeFigures'])->toBe([])
+        ->and(calendar('?view=year&date=2026-10-05')->viewData('page')['props']['employeeFigures'])->toBe([]);
+});
+
+it('adds the rekapitulasi to the month of the year view, and leaves it out when only scanners are asked for', function () {
+    $rina = rekapEmployee();
+    budiAttendedTwoDaysAndMissedOne();
+    rekapFileFor($rina, '2026-09-21', '2026-10-20', ['alpa' => 1, 'izin' => 2, 'sakit' => 1, 'telat' => 3]);
+
+    $october = fn (string $source): array => collect(calendar("?view=year&date=2026-10-05&source={$source}")->viewData('page')['props']['months'])->firstWhere('month', 10);
+
+    // Rina: 22 working days less 3 of leave is 19 expected, 18 of them attended. On the scanner side, Budi
+    // came twice and missed once, and the person who scanned on the 7th missed the 5th and 6th.
+    expect($october('all'))->toMatchArray(['attended' => 21, 'absent' => 4, 'leaveDays' => 3, 'late' => 4, 'rate' => 84.0])
+        ->and($october('scanner'))->toMatchArray(['attended' => 3, 'absent' => 3, 'leaveDays' => 0, 'late' => 1])
+        ->and($october('rekap'))->toMatchArray(['attended' => 18, 'absent' => 1, 'leaveDays' => 3, 'late' => 3, 'rate' => 94.7]);
+});
+
+it('exports the people the source leaves', function () {
+    rekapEmployee();
+    scan($this->budi, '2026-10-05 08:00:00');
+
+    $csv = $this->actingAs($this->hr)->get('/attendance/calendar/export?view=month&date=2026-10-05&source=rekap')->streamedContent();
+
+    expect($csv)->toContain('Rina')->and($csv)->not->toContain('Budi');
 });

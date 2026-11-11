@@ -259,6 +259,12 @@ export type EventFormOptions = {
 
 export type StatusOption = { value: DayStatus; label: string; code: string };
 
+/**
+ * Where the month and year views take their people from: everyone, those with a scanner, or those of a Cabang that
+ * sends a rekapitulasi. The day and week views always hold everyone.
+ */
+export type CalendarSource = 'all' | 'scanner' | 'rekap';
+
 export type CalendarFilters = {
     branches: string[];
     departments: string[];
@@ -266,6 +272,30 @@ export type CalendarFilters = {
     search: string;
     team: number | null;
     leaveType: string | null;
+    source: CalendarSource;
+};
+
+/** One person's line of the month view's table: the same figures as a month of the year view. */
+export type CalendarEmployeeFigures = {
+    id: number;
+    name: string;
+    number: string;
+    /** Counted from a Cabang's rekapitulasi rather than from scanned days. */
+    viaRekap: boolean;
+    /** The dates the rekapitulasi covers ("21 Sep – 20 Okt"), when there is one for the month. */
+    period: string | null;
+    /** There is something to count: days from the log, or a rekapitulasi that ends in the month. */
+    hasData: boolean;
+    /** Attendance rate in percent, null while there is nothing to judge. */
+    rate: number | null;
+    /** The days behind the rate, so a total can be a rate over everyone's days rather than an average of rates. */
+    attended: number;
+    expected: number;
+    /** Null for a rekapitulasi person without a file for the month. */
+    workdays: number | null;
+    leaveDays: number;
+    late: number;
+    absent: number;
 };
 
 export type TimesheetScan = {

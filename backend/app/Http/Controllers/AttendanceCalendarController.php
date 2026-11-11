@@ -16,6 +16,7 @@ use App\Models\RequestType;
 use App\Support\Attendance\CaptureStatus;
 use App\Support\Attendance\DailyAttendance;
 use App\Support\Attendance\EmployeeRoster;
+use App\Support\Attendance\RekapMonthFigures;
 use App\Support\Attendance\WorkSchedule;
 use App\Support\CompanyContext;
 use App\Support\CsvDownload;
@@ -51,14 +52,20 @@ class AttendanceCalendarController extends Controller
     private const REKAP = 'rekap';
 
     /**
+     * Where the month and year views take their people from: everyone, only those with a scanner, or only those of
+     * a Cabang that sends a rekapitulasi. The day and week views always hold everyone.
+     */
+    private const SOURCES = ['all', 'scanner', self::REKAP];
+
+    /**
      * The leave list in the side panel is cut off here and says how many more there are: a year
      * can hold more leave than a panel can show.
      */
     private const ON_LEAVE_LIMIT = 50;
 
-    public function index(Request $request, DailyAttendance $attendance, WorkSchedule $schedule, CaptureStatus $capture, EmployeeRoster $roster): Response
+    public function index(Request $request, DailyAttendance $attendance, WorkSchedule $schedule, CaptureStatus $capture, EmployeeRoster $roster, RekapMonthFigures $rekapFigures): Response
     {
-        $data = $this->gather($request, $attendance, $roster);
+        $data = $this->gather($request, $attendance, $roster, $rekapFigures);
 
         return Inertia::render('attendance/calendar', [
             'view' => $data['view'],
@@ -71,7 +78,10 @@ class AttendanceCalendarController extends Controller
             'daily' => in_array($data['view'], ['week', 'month'], true)
                 ? $this->daily($data['records'], $data['result']['dates'], $data['result']['dataThrough'], $schedule, $this->requestsPerDate($data['requests'], $data['result']['dates']))
                 : [],
-            'months' => $data['view'] === 'year' ? $this->months($data['records'], $data['result']['dates'], $data['result']['dataThrough'], $schedule, $attendance) : [],
+            'months' => $data['view'] === 'year' ? $this->months($data['records'], $data['result']['dates'], $data['result']['dataThrough'], $schedule, $attendance, $data['rekapByMonth']) : [],
+            'employeeFigures' => $data['view'] === 'month'
+                ? $this->employeeFigures(array_slice($data['rows'], 0, self::MAX_ROWS), $data['employees'], $data['result']['dates'], $schedule, $data['rekapByMonth'][$data['from']->format('Y-m')] ?? [])
+                : [],
             'summary' => $this->summary(
                 $attendance->tally($data['allRecords'], $data['result']['dates']),
                 $data['people'] - $data['rekapPeople'],
@@ -112,9 +122,9 @@ class AttendanceCalendarController extends Controller
      * derivation as the page, so the file is exactly what was being looked at. PDF is not offered:
      * the browser's own "print to PDF" covers it without another dependency.
      */
-    public function export(Request $request, DailyAttendance $attendance, EmployeeRoster $roster, WorkSchedule $schedule): StreamedResponse
+    public function export(Request $request, DailyAttendance $attendance, EmployeeRoster $roster, WorkSchedule $schedule, RekapMonthFigures $rekapFigures): StreamedResponse
     {
-        $data = $this->gather($request, $attendance, $roster);
+        $data = $this->gather($request, $attendance, $roster, $rekapFigures);
         $label = $this->navigation($data['view'], $data['anchor'], $data['timezone'])['label'];
 
         /** @var list<array<int, string|int|float|null>> $lines */
@@ -126,7 +136,7 @@ class AttendanceCalendarController extends Controller
         if ($data['view'] === 'year') {
             $lines[] = ['Bulan', 'Hadir', 'Terlambat', 'Pulang cepat', 'Tidak hadir', 'Cuti', 'Tingkat kehadiran (%)', 'Hari kerja'];
 
-            foreach ($this->months($data['records'], $data['result']['dates'], $data['result']['dataThrough'], $schedule, $attendance) as $month) {
+            foreach ($this->months($data['records'], $data['result']['dates'], $data['result']['dataThrough'], $schedule, $attendance, $data['rekapByMonth']) as $month) {
                 $counts = $month['counts'];
                 $lines[] = [$month['label'], $counts['present'], $counts['late'], $counts['early_leave'], $counts['absent'], $counts['leave'], $month['rate'], $month['workdays']];
             }
@@ -187,10 +197,12 @@ class AttendanceCalendarController extends Controller
      *     filters: array<string, mixed>, result: array<string, mixed>, rows: list<array<string, mixed>>,
      *     records: array<int, array<string, array{status: string, in: string|null, out: string|null, punches: int, minutes: int|null, duplicate: bool, event: string|null}>>,
      *     allRecords: array<int, array<string, array{status: string, in: string|null, out: string|null, punches: int, minutes: int|null, duplicate: bool, event: string|null}>>, people: int, rekapPeople: int,
-     *     requests: array<int, list<array{id: int, type: string, from: string, to: string, timeframe: string|null, status: string, statusLabel: string}>>
+     *     requests: array<int, list<array{id: int, type: string, from: string, to: string, timeframe: string|null, status: string, statusLabel: string}>>,
+     *     rekapByMonth: array<string, array<int, array{from: string, to: string, workdays: int, alpa: int, izin: int, sakit: int, telat: int, leave: int, expected: int, attended: int}>>,
+     *     employees: Collection<int, Employee>
      * }
      */
-    private function gather(Request $request, DailyAttendance $attendance, EmployeeRoster $roster): array
+    private function gather(Request $request, DailyAttendance $attendance, EmployeeRoster $roster, RekapMonthFigures $rekapFigures): array
     {
         abort_unless($request->user()->can(Permission::ViewAttendance->value), 403);
 
@@ -213,9 +225,16 @@ class AttendanceCalendarController extends Controller
             'search' => trim((string) $request->string('search')),
             'team' => $request->integer('team') ?: null,
             'leaveType' => $leaveType,
+            'source' => in_array($request->string('source')->toString(), self::SOURCES, true) ? $request->string('source')->toString() : 'all',
         ];
 
         $employees = $roster->between($from, $to, $filters['departments'], $filters['search'], $filters['team'], $filters['leaveType'], $request->user(), $filters['branches']);
+
+        // Only the month and year views, which mix the two kinds of people, can be narrowed to one of them.
+        if (in_array($view, ['month', 'year'], true) && $filters['source'] !== 'all') {
+            $wantsRekap = $filters['source'] === self::REKAP;
+            $employees = $employees->filter(fn (Employee $employee): bool => $employee->attendsViaRekap() === $wantsRekap)->values();
+        }
 
         // The roster leaves out people of a Cabang that sends a rekapitulasi: no scanner, so no daily
         // attendance to derive. They stay on the calendar, with their Pengajuan, outside its figures.
@@ -223,6 +242,11 @@ class AttendanceCalendarController extends Controller
         $withScannerId = AttendanceEnrolMap::acrossCompanies()->pluck('employee_id')->flip();
         $requests = $this->requestsByEmployee($employees, $from, $to, $filters['leaveType']);
         $rows = $this->rowsWithStatus($employees, $result['records'], $filters['statuses'], $withScannerId, $requests);
+
+        // What the Cabang's rekapitulasi say, put on the months they end in: the people of those Cabang have no days.
+        $rekapByMonth = in_array($view, ['month', 'year'], true)
+            ? $rekapFigures->between($from, $to, $employees->whereIn('id', array_column($rows, 'id')))
+            : [];
 
         return [
             'view' => $view,
@@ -240,6 +264,8 @@ class AttendanceCalendarController extends Controller
             'records' => collect($rows)->mapWithKeys(fn (array $row): array => [$row['id'] => $row['days']])->all(),
             // Only for the people the grid shows, so every filter narrows them too.
             'requests' => array_intersect_key($requests, array_flip(array_column($rows, 'id'))),
+            'rekapByMonth' => $rekapByMonth,
+            'employees' => $employees->keyBy('id'),
         ];
     }
 
@@ -587,36 +613,142 @@ class AttendanceCalendarController extends Controller
      * disaster.
      *
      * @param  array<int, array<string, array{status: string, in: string|null, out: string|null, punches: int, minutes: int|null, duplicate: bool, event: string|null}>>  $records
+     *                                                                                                                                                                              The people of a Cabang that sends a rekapitulasi have no days, so their figures are the Cabang's own counts
+     *                                                                                                                                                                              (RekapMonthFigures), added to the month the file ends in.
      * @param  list<string>  $dates
+     * @param  array<string, array<int, array{from: string, to: string, workdays: int, alpa: int, izin: int, sakit: int, telat: int, leave: int, expected: int, attended: int}>>  $rekapByMonth  by "YYYY-MM", then employee id
      * @return list<array<string, mixed>>
      */
-    private function months(array $records, array $dates, ?string $dataThrough, WorkSchedule $schedule, DailyAttendance $attendance): array
+    private function months(array $records, array $dates, ?string $dataThrough, WorkSchedule $schedule, DailyAttendance $attendance, array $rekapByMonth = []): array
     {
         $daily = collect($this->daily($records, $dates, $dataThrough, $schedule));
         $months = [];
 
         foreach ($daily->groupBy(fn (array $day): int => (int) substr($day['date'], 5, 2)) as $month => $days) {
-            $attended = $days->sum('attended');
-            $absent = $days->sum('absent');
-            $leave = $days->sum('leave');
+            $rekap = collect($rekapByMonth[substr($days->first()['date'], 0, 7)] ?? []);
+            $counts = $attendance->tally($records, array_values(array_map(strval(...), $days->pluck('date')->all())));
+
+            // A rekapitulasi does not say who was on time: the days attended less the late ones are taken as present.
+            $counts['present'] += max(0, $rekap->sum('attended') - $rekap->sum('telat'));
+            $counts['late'] += $rekap->sum('telat');
+            $counts['absent'] += $rekap->sum('alpa');
+            $counts['leave'] += $rekap->sum('leave');
+
+            $attended = $days->sum('attended') + $rekap->sum('attended');
+            $absent = $days->sum('absent') + $rekap->sum('alpa');
+            $leave = $days->sum('leave') + $rekap->sum('leave');
             $expected = $attended + $absent;
 
             $months[] = [
                 'month' => $month,
                 'label' => $this->indonesian(CarbonImmutable::create(2000, $month, 1), 'F'),
                 'firstDate' => $days->first()['date'],
-                'counts' => $attendance->tally($records, array_values(array_map(strval(...), $days->pluck('date')->all()))),
+                'counts' => $counts,
                 'attended' => $attended,
                 'expected' => $expected,
                 'rate' => $expected === 0 ? null : round($attended / $expected * 100, 1),
                 'workdays' => $days->filter(fn (array $day): bool => $day['isWorkday'] && $day['holiday'] === null)->count(),
                 'leaveDays' => $leave,
-                'late' => $days->sum('late'),
+                'late' => $days->sum('late') + $rekap->sum('telat'),
                 'absent' => $absent,
             ];
         }
 
         return $months;
+    }
+
+    /**
+     * One line per person for the month view's table: the same figures as a month of the year view, for one
+     * person. A scanner's person is counted from their days; one of a Cabang that sends a rekapitulasi, from the
+     * file that ends in the month, with the period it covers. Someone with nothing to count yet has no data.
+     *
+     * A working day of a person is a weekday without a holiday or event that falls inside their employment.
+     *
+     * @param  list<array<string, mixed>>  $rows  the people the grid shows
+     * @param  Collection<int, Employee>  $employees  by id, for the dates each was employed
+     * @param  list<string>  $dates
+     * @param  array<int, array{from: string, to: string, workdays: int, alpa: int, izin: int, sakit: int, telat: int, leave: int, expected: int, attended: int}>  $rekap  by employee id, for the month
+     * @return list<array<string, mixed>>
+     */
+    private function employeeFigures(array $rows, Collection $employees, array $dates, WorkSchedule $schedule, array $rekap): array
+    {
+        $workdays = collect($this->dateHeaders($dates, $schedule))->where('isWorkday', true)->pluck('date')->flip();
+
+        return array_map(function (array $row) use ($employees, $dates, $workdays, $rekap): array {
+            $joined = $employees[$row['id']]->joined_on?->toDateString();
+            $exited = $employees[$row['id']]->exited_on?->toDateString();
+
+            $filed = $row['viaRekap'] ? ($rekap[$row['id']] ?? null) : null;
+
+            if ($row['viaRekap']) {
+                $attended = $filed['attended'] ?? 0;
+                $absent = $filed['alpa'] ?? 0;
+                $leave = $filed['leave'] ?? 0;
+                $late = $filed['telat'] ?? 0;
+                $workdayCount = $filed['workdays'] ?? null;
+                $hasData = $filed !== null;
+                $period = $filed === null ? null : $this->indonesian(CarbonImmutable::parse($filed['from']), 'j M').' – '.$this->indonesian(CarbonImmutable::parse($filed['to']), 'j M');
+            } else {
+                $counts = ['attended' => 0, 'absent' => 0, 'leave' => 0, 'late' => 0];
+                $workdayCount = 0;
+
+                foreach ($dates as $date) {
+                    $day = $row['days'][$date] ?? null;
+
+                    if ($day === null) {
+                        continue;
+                    }
+
+                    $employed = ($joined === null || $date >= $joined) && ($exited === null || $date <= $exited);
+
+                    if ($employed && $workdays->has($date) && $day['event'] === null) {
+                        $workdayCount++;
+                    }
+
+                    $status = AttendanceDayStatus::from($day['status']);
+
+                    if (in_array($status, [AttendanceDayStatus::Present, AttendanceDayStatus::Late, AttendanceDayStatus::EarlyLeave], true)) {
+                        $counts['attended']++;
+                    }
+
+                    if ($status === AttendanceDayStatus::Late) {
+                        $counts['late']++;
+                    }
+
+                    if ($status === AttendanceDayStatus::Absent) {
+                        $counts['absent']++;
+                    }
+
+                    if ($status === AttendanceDayStatus::Leave) {
+                        $counts['leave']++;
+                    }
+                }
+
+                ['attended' => $attended, 'absent' => $absent, 'leave' => $leave, 'late' => $late] = $counts;
+                $hasData = $attended + $absent + $leave > 0;
+                $period = null;
+            }
+
+            $expected = $attended + $absent;
+
+            return [
+                'id' => $row['id'],
+                'name' => $row['name'],
+                'number' => $row['number'],
+                'viaRekap' => $row['viaRekap'],
+                // The dates a rekapitulasi covers, when it is not the month itself.
+                'period' => $period,
+                'hasData' => $hasData,
+                'rate' => $hasData && $expected > 0 ? round($attended / $expected * 100, 1) : null,
+                // Kept for the table's total row, which is a rate over everyone's days, not an average of rates.
+                'attended' => $attended,
+                'expected' => $expected,
+                'workdays' => $workdayCount,
+                'leaveDays' => $leave,
+                'late' => $late,
+                'absent' => $absent,
+            ];
+        }, $rows);
     }
 
     /**

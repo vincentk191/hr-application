@@ -17,7 +17,11 @@ import {
     GroupToggle,
     unitCount,
 } from '@/components/attendance-day-view';
-import { FilterBar, statusEntries } from '@/components/attendance-filter-bar';
+import {
+    FilterBar,
+    SourceToggle,
+    statusEntries,
+} from '@/components/attendance-filter-bar';
 import { StatusPanel } from '@/components/attendance-status-panel';
 import { WeekGrid } from '@/components/attendance-week-grid';
 import { CalendarEvents } from '@/components/calendar-events';
@@ -54,6 +58,7 @@ import type { BreadcrumbItem } from '@/types';
 import type {
     CalendarDate,
     CalendarDaySummary,
+    CalendarEmployeeFigures,
     CalendarEventRow,
     EventFormOptions,
     CalendarFilters,
@@ -77,6 +82,8 @@ type Props = {
     daily: CalendarDaySummary[];
     truncated: boolean;
     months: CalendarMonth[];
+    /** One line per person, for the month view's table. */
+    employeeFigures: CalendarEmployeeFigures[];
     summary: {
         counts: StatusCounts;
         attended: number;
@@ -334,6 +341,7 @@ export default function AttendanceCalendar(props: Props) {
         daily,
         truncated,
         months,
+        employeeFigures,
         summary,
         onLeave,
         range,
@@ -371,6 +379,7 @@ export default function AttendanceCalendar(props: Props) {
                 search: next.search,
                 team: next.team ?? '',
                 leave_type: next.leaveType ?? '',
+                source: next.source,
             },
             { preserveState: true, preserveScroll: true, replace: true },
         );
@@ -425,6 +434,7 @@ export default function AttendanceCalendar(props: Props) {
         ['search', filters.search],
         ['team', filters.team === null ? '' : String(filters.team)],
         ['leave_type', filters.leaveType ?? ''],
+        ['source', filters.source],
     ]).toString()}`;
 
     // Only a primitive goes through setLayoutProps (see AppLayoutProps): the overflow menu below is built
@@ -629,6 +639,13 @@ export default function AttendanceCalendar(props: Props) {
                                 onChange={setGrouped}
                                 units={unitCount(rows)}
                             />
+                        ) : view === 'month' || view === 'year' ? (
+                            <SourceToggle
+                                source={filters.source}
+                                onChange={(source) =>
+                                    go({ filters: { source } })
+                                }
+                            />
                         ) : undefined
                     }
                 />
@@ -670,6 +687,8 @@ export default function AttendanceCalendar(props: Props) {
                                 days={daily}
                                 today={nav.today}
                                 onOpen={(date) => go({ view: 'day', date })}
+                                people={employeeFigures}
+                                source={filters.source}
                             />
                         )}
 

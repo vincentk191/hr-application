@@ -6,7 +6,6 @@ import {
     LogOut,
     ScanLine,
     User,
-    Users,
 } from 'lucide-react';
 import { STATUS_LABEL, STATUS_TILE } from '@/lib/attendance-status';
 import { cn } from '@/lib/utils';
@@ -25,10 +24,15 @@ import type {
  *
  * People of a Cabang that sends a rekapitulasi have no daily attendance, only their Pengajuan, so they carry an R
  * rather than a status.
+ *
+ * The list lays itself out by the width it is given, not the screen's (container queries): next to the side panel
+ * it has far less room than the screen suggests. Wide enough, every column; a little narrower, without Unit and
+ * Atasan (the unit moves under the name); narrower still, the phone's rows. No column has a minimum width, so the
+ * list always fits and never scrolls sideways; what does not fit wraps or is cut, with its full text on hover.
  */
 
 const GRID =
-    'grid grid-cols-[auto_minmax(0,1fr)_auto] md:grid-cols-[4rem_minmax(12rem,1.5fr)_minmax(8rem,1fr)_minmax(7rem,1fr)_5.5rem_5.5rem_minmax(9rem,1.2fr)]';
+    'grid grid-cols-[auto_minmax(0,1fr)_auto] @xl:grid-cols-[3rem_minmax(0,1.6fr)_3.75rem_3.75rem_minmax(0,1.4fr)] @3xl:grid-cols-[3rem_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_3.75rem_3.75rem_minmax(0,1.5fr)]';
 
 /** "Design · Jakarta": the department and the Cabang, whichever the person has. */
 function unitOf(row: CalendarRow): string {
@@ -69,10 +73,10 @@ function RequestPills({ requests }: { requests: CalendarRequest[] }) {
                     key={request.id}
                     data-test="request-chip"
                     title={requestTitle(request)}
-                    className="inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-1 text-sm"
+                    className="inline-flex max-w-full items-center gap-2 rounded-2xl border px-3 py-1 text-sm leading-tight"
                 >
                     <RequestDot status={request.status} />
-                    <span className="truncate">{request.type}</span>
+                    <span className="min-w-0 break-words">{request.type}</span>
                 </span>
             ))}
         </div>
@@ -133,18 +137,12 @@ function PersonRow({
     const requests = coveringOn(row, date);
     const holiday =
         record?.status === 'off' && record.event ? record.event : null;
-    const note = row.viaRekap ? (
-        <span className="inline-flex items-center gap-1 text-muted-foreground">
-            <Users className="size-3.5 shrink-0" aria-hidden />
-            Lewat rekapitulasi cabang
+    // A rekapitulasi person has no scanner ID by design, so only someone who should have one is flagged.
+    const note = !row.viaRekap && !row.hasScannerId && (
+        <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-300">
+            <ScanLine className="size-3.5 shrink-0" aria-hidden />
+            ID belum dipetakan
         </span>
-    ) : (
-        !row.hasScannerId && (
-            <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-300">
-                <ScanLine className="size-3.5 shrink-0" aria-hidden />
-                ID belum dipetakan
-            </span>
-        )
     );
 
     return (
@@ -152,14 +150,14 @@ function PersonRow({
             role="row"
             className={cn(
                 GRID,
-                'items-center gap-x-3 border-t px-4 py-3 md:gap-x-4 md:pr-4 md:pl-0',
+                'items-center gap-x-3 border-t px-4 py-3 @xl:pl-0',
             )}
         >
             <span
                 role="cell"
                 title={holiday ?? STATUS_LABEL[status]}
                 className={cn(
-                    'flex size-10 items-center justify-center rounded-lg border text-sm font-bold md:mx-auto md:size-9',
+                    'flex size-10 items-center justify-center rounded-lg border text-sm font-bold @xl:mx-auto @xl:size-9',
                     row.viaRekap ? STATUS_TILE.off : STATUS_TILE[status],
                 )}
             >
@@ -174,29 +172,40 @@ function PersonRow({
                     {row.name}
                 </Link>
                 <div className="flex min-w-0 flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
-                    <span className="hidden truncate md:inline">
-                        {row.position ?? row.number}
-                    </span>
-                    <span className="truncate md:hidden">
+                    <span className="truncate @xl:hidden">
                         {note || unitOf(row)}
                     </span>
-                    <span className="hidden md:inline">{note}</span>
+                    <span className="hidden truncate @xl:inline @3xl:hidden">
+                        {unitOf(row)}
+                    </span>
+                    <span className="hidden truncate @3xl:inline">
+                        {row.position ?? row.number}
+                    </span>
+                    <span className="hidden @3xl:inline">{note}</span>
                 </div>
             </div>
 
-            <span role="cell" className="hidden truncate text-sm md:block">
+            <span
+                role="cell"
+                title={unitOf(row)}
+                className="hidden truncate text-sm @3xl:block"
+            >
                 {unitOf(row)}
             </span>
-            <span role="cell" className="hidden truncate text-sm md:block">
+            <span
+                role="cell"
+                title={row.manager ?? undefined}
+                className="hidden truncate text-sm @3xl:block"
+            >
                 {row.manager ?? '—'}
             </span>
-            <span role="cell" className="hidden text-sm md:block">
+            <span role="cell" className="hidden text-sm @xl:block">
                 <Time value={record?.in} warn={status === 'late'} />
             </span>
-            <span role="cell" className="hidden text-sm md:block">
+            <span role="cell" className="hidden text-sm @xl:block">
                 <Time value={record?.out} warn={status === 'early_leave'} />
             </span>
-            <div role="cell" className="hidden min-w-0 md:block">
+            <div role="cell" className="hidden min-w-0 @xl:block">
                 {requests.length > 0 ? (
                     <RequestPills requests={requests} />
                 ) : (
@@ -208,7 +217,7 @@ function PersonRow({
 
             <div
                 role="cell"
-                className="flex flex-col items-end gap-1 text-sm md:hidden"
+                className="flex flex-col items-end gap-1 text-sm @xl:hidden"
             >
                 <span className="inline-flex items-center gap-2">
                     <Time value={record?.in} warn={status === 'late'} />
@@ -316,23 +325,29 @@ export function DayView({
     }
 
     return (
-        <div className="surface overflow-hidden">
-            <div role="table" className="md:min-w-[56rem]">
+        <div className="surface @container overflow-hidden">
+            <div role="table">
                 <div
                     role="row"
                     className={cn(
                         GRID,
-                        'hidden items-center gap-x-4 py-4 pr-4 md:grid',
+                        'hidden items-center gap-x-3 py-4 pr-4 @xl:grid',
                     )}
                 >
                     <span role="columnheader" aria-hidden />
                     <span role="columnheader" className="label-mono">
                         Karyawan
                     </span>
-                    <span role="columnheader" className="label-mono">
+                    <span
+                        role="columnheader"
+                        className="label-mono hidden @3xl:block"
+                    >
                         Unit
                     </span>
-                    <span role="columnheader" className="label-mono">
+                    <span
+                        role="columnheader"
+                        className="label-mono hidden @3xl:block"
+                    >
                         Atasan
                     </span>
                     <span role="columnheader" className="label-mono">
