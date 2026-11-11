@@ -171,29 +171,42 @@ export function FormLinkResult({
     );
 }
 
-/** The invite form: when, online or in person, where, and an optional word to the candidate. */
+/**
+ * The invite form: who, when, online or in person, where, and an optional word to the candidate. Opened for one candidate
+ * (from their card) the name is fixed in the title; opened from a free slot of the calendar there is a "Kandidat" field to
+ * choose from the people who have no schedule yet, and the date and time come filled in from the slot.
+ */
 export function InviteDialog({
     item,
-    candidate,
+    candidate: fixed,
+    choices = [],
     defaultAt,
     availability,
     onClose,
 }: {
     item: Pick<Requisition, 'id'>;
-    candidate: Candidate;
+    /** The candidate to invite, when the dialog was opened for one. */
+    candidate?: Candidate;
+    /** Who the "Kandidat" field offers, when the dialog was opened from a slot with nobody chosen yet. */
+    choices?: Candidate[];
     /** A datetime-local value to start from, when the dialog was opened from a slot of the calendar. */
     defaultAt?: string;
     /** Holidays and leave, to warn when the chosen day is one. */
     availability?: InterviewAvailability | null;
     onClose: () => void;
 }) {
+    // With one person to choose there is nothing to choose: the field comes filled in.
+    const [pickedId, setPickedId] = useState<number | ''>(
+        choices.length === 1 ? choices[0].id : '',
+    );
+    const candidate = fixed ?? choices.find((entry) => entry.id === pickedId);
     const [when, setWhen] = useState(
-        candidate.interviewAtInput ?? defaultAt ?? '',
+        candidate?.interviewAtInput ?? defaultAt ?? '',
     );
     const [mode, setMode] = useState<string>(
-        candidate.interviewMode ?? 'online',
+        candidate?.interviewMode ?? 'online',
     );
-    const again = candidate.inviteState !== 'none';
+    const again = candidate !== undefined && candidate.inviteState !== 'none';
 
     return (
         <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -205,12 +218,12 @@ export function InviteDialog({
                     <DialogTitle>
                         {again
                             ? 'Ubah jadwal & kirim ulang'
-                            : 'Undang interview'}{' '}
-                        — {candidate.name}
+                            : 'Undang interview'}
+                        {fixed ? ` — ${fixed.name}` : ''}
                     </DialogTitle>
                     <DialogDescription>
-                        {candidate.email
-                            ? 'Undangan dikirim lewat email, dan teksnya juga bisa disalin untuk WhatsApp.'
+                        {candidate === undefined || candidate.email
+                            ? 'Undangan dikirim lewat email jika kandidat punya email, dan teksnya juga bisa disalin untuk WhatsApp.'
                             : 'Kandidat ini tidak punya email: teks undangan disiapkan untuk disalin ke WhatsApp.'}
                         {again && candidate.inviteState !== 'submitted'
                             ? ' Tautan formulir lama berhenti berlaku dan diganti yang baru.'
@@ -221,7 +234,7 @@ export function InviteDialog({
                 <Form
                     {...invite.form({
                         requisition: item.id,
-                        candidate: candidate.id,
+                        candidate: candidate?.id ?? choices[0]?.id ?? 0,
                     })}
                     options={{ preserveScroll: true }}
                     onSuccess={onClose}
@@ -229,6 +242,41 @@ export function InviteDialog({
                 >
                     {({ processing, errors }) => (
                         <>
+                            {fixed === undefined && (
+                                <div className="grid gap-1">
+                                    <Label htmlFor="interview-candidate">
+                                        Kandidat
+                                    </Label>
+                                    <select
+                                        id="interview-candidate"
+                                        value={pickedId}
+                                        onChange={(event) =>
+                                            setPickedId(
+                                                event.target.value === ''
+                                                    ? ''
+                                                    : Number(
+                                                          event.target.value,
+                                                      ),
+                                            )
+                                        }
+                                        className={selectClasses}
+                                        required
+                                        data-test="interview-candidate"
+                                    >
+                                        <option value="" disabled>
+                                            Pilih kandidat
+                                        </option>
+                                        {choices.map((entry) => (
+                                            <option
+                                                key={entry.id}
+                                                value={entry.id}
+                                            >
+                                                {entry.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
                             <div className="grid gap-1">
                                 <Label htmlFor="interview-at">
                                     Tanggal dan jam (WIB)
@@ -238,7 +286,7 @@ export function InviteDialog({
                                     name="interview_at"
                                     type="datetime-local"
                                     defaultValue={
-                                        candidate.interviewAtInput ??
+                                        candidate?.interviewAtInput ??
                                         defaultAt ??
                                         ''
                                     }
@@ -279,7 +327,7 @@ export function InviteDialog({
                                     id="interview-place"
                                     name="interview_place"
                                     defaultValue={
-                                        candidate.interviewPlace ?? ''
+                                        candidate?.interviewPlace ?? ''
                                     }
                                     placeholder={
                                         mode === 'online'
@@ -301,7 +349,7 @@ export function InviteDialog({
                                     rows={2}
                                     maxLength={1000}
                                     defaultValue={
-                                        candidate.invitationNote ?? ''
+                                        candidate?.invitationNote ?? ''
                                     }
                                     className="w-full rounded-xl border border-input bg-card px-3 py-2 text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
                                 />
@@ -1165,60 +1213,21 @@ function WeekCalendar({
     );
 }
 
-/** Which unscheduled candidate a clicked slot is for. */
-function PickCandidate({
-    candidates,
-    onPick,
-    onClose,
-}: {
-    candidates: Candidate[];
-    onPick: (candidate: Candidate) => void;
-    onClose: () => void;
-}) {
-    return (
-        <Dialog open onOpenChange={(open) => !open && onClose()}>
-            <DialogContent
-                className="gap-4 sm:max-w-md"
-                data-test="pick-candidate"
-            >
-                <DialogHeader>
-                    <DialogTitle>Jadwalkan siapa?</DialogTitle>
-                    <DialogDescription>
-                        Pilih kandidat yang belum punya jadwal untuk slot ini.
-                    </DialogDescription>
-                </DialogHeader>
-                <ul className="space-y-2">
-                    {candidates.map((candidate) => (
-                        <li key={candidate.id}>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="w-full justify-start"
-                                onClick={() => onPick(candidate)}
-                            >
-                                {candidate.name}
-                            </Button>
-                        </li>
-                    ))}
-                </ul>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
 /**
  * Stage 04 · Interview (REC-INT). A summary line, the week as a calendar, and a side list of the candidates in three
- * groups: scheduled, already past, not yet scheduled. HR schedules by clicking an empty slot or "+ Jadwalkan"; the
+ * groups: scheduled, already past, not yet scheduled. HR schedules by clicking an empty slot, which opens the invitation
+ * form with that date and time filled in and a field to choose the candidate, or from a candidate's own card; the
  * invitation is emailed and its text and personal link handed over for WhatsApp too. The candidate's answers to the
  * checklist show under their name once they send their form. Screening stays open on its own tab for more candidates.
  */
 export function InterviewTab({ item }: { item: Requisition }) {
     const [now] = useState(() => new Date());
+    // Who is being invited and from which slot: from a candidate's card the person is known; from a free slot of the
+    // calendar the dialog asks for them, and the date and time are the slot's.
     const [inviting, setInviting] = useState<{
-        candidate: Candidate;
+        candidate?: Candidate;
         at?: string;
     } | null>(null);
-    const [slot, setSlot] = useState<string | null>(null);
     // The candidate whose drawer is open, by id so it follows the page's data after a re-invite; always on Interview.
     const [viewingId, setViewingId] = useState<number | null>(null);
     const [drawerTab, setDrawerTab] = useState<CandidateTab>('interview');
@@ -1308,16 +1317,7 @@ export function InterviewTab({ item }: { item: Requisition }) {
                     availability={item.availability}
                     canSchedule={canManage && unscheduled.length > 0}
                     onOpenEntry={(candidate) => openDrawer(candidate.id)}
-                    onPickSlot={(value) => {
-                        if (unscheduled.length === 1) {
-                            setInviting({
-                                candidate: unscheduled[0],
-                                at: value,
-                            });
-                        } else {
-                            setSlot(value);
-                        }
-                    }}
+                    onPickSlot={(value) => setInviting({ at: value })}
                 />
 
                 <aside
@@ -1407,20 +1407,11 @@ export function InterviewTab({ item }: { item: Requisition }) {
                     setInviting({ candidate: chosen });
                 }}
             />
-            {slot !== null && (
-                <PickCandidate
-                    candidates={unscheduled}
-                    onClose={() => setSlot(null)}
-                    onPick={(candidate) => {
-                        setInviting({ candidate, at: slot });
-                        setSlot(null);
-                    }}
-                />
-            )}
             {inviting && (
                 <InviteDialog
                     item={item}
                     candidate={inviting.candidate}
+                    choices={unscheduled}
                     defaultAt={inviting.at}
                     availability={item.availability}
                     onClose={() => setInviting(null)}

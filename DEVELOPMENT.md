@@ -69,6 +69,12 @@ left uncommitted for review.
 
 ## Change log (latest first)
 
+- **2026-11-11 (recruitment: scheduling from a free slot of the Interview calendar).** A free cell of the week calendar (and "Jadwalkan"
+  on the phone's day list) opens the invitation form straight away, with the **date and time of the slot filled in** and a
+  **"Kandidat" field** to choose who, from the candidates still without a schedule (filled in when there is only one). It
+  replaces the separate "Jadwalkan siapa?" step. The form opened from a candidate's own card is as before, with the name
+  in its title. Frontend only. Not seen in a browser.
+
 - **2026-11-11 (attendance calendar: who the day and week views list).** The **week** view now has the Semua / Scanner / Rekapitulasi
   switch the month and year views have (\`source\`), so HR can look at the people of a rekapitulasi Cabang apart from the
   scanner's. The **day** view lists only people with a scanner, whatever the source or status says: a rekapitulasi has no
