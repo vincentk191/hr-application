@@ -1,6 +1,7 @@
 import { Head, Link, setLayoutProps } from '@inertiajs/react';
 import { Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { printReport, usePrintPage } from '@/lib/print';
 import { show } from '@/routes/recruitment';
 import type { BreadcrumbItem } from '@/types';
 import type { OfferLetter as Letter } from '@/types/recruitment';
@@ -41,6 +42,7 @@ export default function OfferLetter({
     ];
 
     setLayoutProps({ breadcrumbs });
+    usePrintPage('portrait');
 
     return (
         <>
@@ -53,15 +55,16 @@ export default function OfferLetter({
                             Kembali ke lowongan
                         </Link>
                     </Button>
-                    <Button onClick={() => window.print()} data-test="print">
+                    <Button onClick={printReport} data-test="print">
                         <Printer className="size-4" aria-hidden />
                         Cetak / PDF
                     </Button>
                 </div>
 
                 <article
-                    className="space-y-6 bg-card p-8 text-sm leading-relaxed print:bg-white print:p-0 print:text-black"
+                    className="space-y-6 bg-card p-8 text-sm leading-relaxed print:space-y-5 print:bg-white print:p-0 print:text-[11pt] print:text-black"
                     data-test="offer-letter-body"
+                    data-print-area
                 >
                     <header className="space-y-1 border-b-2 border-foreground pb-4">
                         <p className="text-xl font-extrabold tracking-wide uppercase">
@@ -131,7 +134,7 @@ export default function OfferLetter({
                         bersama {letter.company}.
                     </p>
 
-                    <section className="grid gap-8 pt-4 sm:grid-cols-2">
+                    <section className="grid break-inside-avoid gap-8 pt-4 sm:grid-cols-2">
                         <div className="space-y-2">
                             <p>Hormat kami,</p>
                             <p className="font-semibold">{letter.company}</p>

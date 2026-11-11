@@ -69,6 +69,15 @@ left uncommitted for review.
 
 ## Change log (latest first)
 
+- **2026-11-11 (printing: Cetak / PDF of the offer letter, the berita acara and the rekap absensi).** Found on the live screen: the
+  offer letter printed landscape over two pages with the page title and, with the browser's default margins (a narrower
+  viewport, so the phone layout), the bottom tab bar in the middle of the text. Cause: the print stylesheet only isolated a
+  page that marked its report with \`data-print-area\` (the attendance calendar), and set every page landscape. Now the letter, the
+  berita acara and the **recap** (which had no marker, so it printed the whole page) mark their report \`data-print-area\`; the two
+  letters ask for A4 **portrait** with 20 mm margins through \`usePrintPage()\` (\`lib/print.ts\`), print in the light theme
+  (\`printReport\`), and keep the signatures together. The recap and the calendar stay landscape. Picking "None" for margins in the
+  browser's dialog still removes the margin: that is the browser's choice, not the page's. Not seen in a browser.
+
 - **2026-11-11 (recruitment: the candidate's answer and filling the position; Phase 5 of the Offer plan, and two fixes to Phase 4, branch `feature/recruitement`).**
   Migration `add_response_to_candidate_offers_and_takedown_to_postings` (`responded_at`, `decline_reason` on offers;
   `taken_down_at` on postings); run `php artisan migrate` on every environment.

@@ -1,3 +1,25 @@
+import { useEffect } from 'react';
+
+/**
+ * Sets the paper for the page that is open: reports are landscape (the app's default, for the wide month grid), but a letter
+ * is A4 portrait with room around the text. A `@page` rule cannot be chosen by a selector, so the page adds its own for as long
+ * as it is shown; being later in the document than the stylesheet's, it wins.
+ */
+export function usePrintPage(
+    orientation: 'portrait' | 'landscape',
+    margin = '20mm',
+): void {
+    useEffect(() => {
+        const style = document.createElement('style');
+
+        style.dataset.printPage = orientation;
+        style.textContent = `@media print { @page { size: A4 ${orientation}; margin: ${margin}; } }`;
+        document.head.append(style);
+
+        return () => style.remove();
+    }, [orientation, margin]);
+}
+
 /**
  * Print the current page as a report, in the light theme whatever the screen is using.
  *

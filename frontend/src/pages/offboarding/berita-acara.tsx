@@ -1,6 +1,7 @@
 import { Head, Link, setLayoutProps } from '@inertiajs/react';
 import { Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { printReport, usePrintPage } from '@/lib/print';
 import { show } from '@/routes/offboarding';
 import type { BreadcrumbItem } from '@/types';
 import type { OffboardingCase } from '@/types/offboarding';
@@ -37,6 +38,7 @@ export default function BeritaAcara({ case: item }: { case: OffboardingCase }) {
     ];
 
     setLayoutProps({ breadcrumbs });
+    usePrintPage('portrait');
 
     const exit = item.signoff?.exitInterview;
 
@@ -49,13 +51,16 @@ export default function BeritaAcara({ case: item }: { case: OffboardingCase }) {
                     <Button asChild variant="outline">
                         <Link href={show(item.id).url}>Kembali ke kasus</Link>
                     </Button>
-                    <Button onClick={() => window.print()} data-test="print">
+                    <Button onClick={printReport} data-test="print">
                         <Printer className="size-4" aria-hidden />
                         Cetak / PDF
                     </Button>
                 </div>
 
-                <article className="space-y-6 bg-card p-8 text-sm print:bg-white print:p-0 print:text-black">
+                <article
+                    className="space-y-6 bg-card p-8 text-sm print:space-y-4 print:bg-white print:p-0 print:text-[11pt] print:text-black"
+                    data-print-area
+                >
                     <header className="space-y-1 border-b-2 border-foreground pb-4">
                         <p className="text-xs tracking-widest uppercase">
                             Berita acara serah terima
@@ -161,7 +166,7 @@ export default function BeritaAcara({ case: item }: { case: OffboardingCase }) {
                         )}
                     </section>
 
-                    <section className="space-y-2">
+                    <section className="break-inside-avoid space-y-2">
                         <h2 className="text-xs font-bold tracking-widest uppercase">
                             Tanda tangan
                         </h2>

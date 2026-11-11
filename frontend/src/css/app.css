@@ -385,9 +385,10 @@ html[data-keyboard='open'] [data-hide-on-keyboard] {
 }
 
 /*
- * Printing a report (the attendance calendar and recap use window.print() for "PDF"). Only the
- * report should come out: the navigation and the page header around it are hidden, and the page is
- * landscape because the month grid is wide.
+ * Printing a report or a letter (the attendance calendar and recap, the berita acara and the offer letter: "Cetak / PDF").
+ * Only the report should come out: the navigation, the page header and the bars along the bottom around it are hidden
+ * (everything outside the element marked data-print-area), and the page is landscape because the month grid is wide. A
+ * letter marks its page portrait with usePrintPage().
  */
 @media print {
     @page {
@@ -404,6 +405,7 @@ html[data-keyboard='open'] [data-hide-on-keyboard] {
 
     [data-slot='sidebar-inset'] {
         margin: 0 !important;
+        padding: 0 !important;
         box-shadow: none !important;
     }
 

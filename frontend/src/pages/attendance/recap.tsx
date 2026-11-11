@@ -742,89 +742,108 @@ export default function AttendanceRecap({
                     </div>
                 </div>
 
-                {shownViews.map((item) => {
-                    const cut = cuts[item.value];
+                {/* Cetak / PDF prints only this: the tables under the period they cover, as the calendar's does. */}
+                <div data-print-area className="flex flex-col gap-4">
+                    <p className="hidden text-base font-semibold print:block">
+                        Rekap absensi · {filters.from} s/d {filters.to}
+                    </p>
 
-                    return (
-                        <section key={item.value} className="surface">
-                            <p className="px-3 pt-3 text-sm text-muted-foreground md:hidden print:hidden">
-                                {item.label} ({cut.hint})
-                            </p>
+                    {shownViews.map((item) => {
+                        const cut = cuts[item.value];
 
-                            <div className="hidden items-center gap-2 p-3 md:flex print:flex">
-                                <h2 className="font-medium">
-                                    {printing ? (
-                                        item.label
-                                    ) : (
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger className="-mx-2 flex items-center gap-1.5 rounded-md px-2 py-1 hover:bg-muted">
-                                                {item.label}
-                                                <ChevronDown
-                                                    aria-hidden
-                                                    className="size-4 text-muted-foreground"
-                                                />
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="start">
-                                                <DropdownMenuRadioGroup
-                                                    value={view}
-                                                    onValueChange={(value) =>
-                                                        setView(value as View)
-                                                    }
-                                                >
-                                                    {VIEWS.map((option) => (
-                                                        <DropdownMenuRadioItem
-                                                            key={option.value}
-                                                            value={option.value}
-                                                        >
-                                                            {option.label}
-                                                        </DropdownMenuRadioItem>
-                                                    ))}
-                                                </DropdownMenuRadioGroup>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    )}
-                                </h2>
-                                <span className="text-sm text-muted-foreground">
-                                    ({cut.hint})
-                                </span>
-                            </div>
+                        return (
+                            <section
+                                key={item.value}
+                                className="surface print:break-inside-auto"
+                            >
+                                <p className="px-3 pt-3 text-sm text-muted-foreground md:hidden print:hidden">
+                                    {item.label} ({cut.hint})
+                                </p>
 
-                            <div className="hidden overflow-x-auto md:block print:block">
-                                <RecapTable
-                                    column={item.column}
+                                <div className="hidden items-center gap-2 p-3 md:flex print:flex">
+                                    <h2 className="font-medium">
+                                        {printing ? (
+                                            item.label
+                                        ) : (
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger className="-mx-2 flex items-center gap-1.5 rounded-md px-2 py-1 hover:bg-muted">
+                                                    {item.label}
+                                                    <ChevronDown
+                                                        aria-hidden
+                                                        className="size-4 text-muted-foreground"
+                                                    />
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="start">
+                                                    <DropdownMenuRadioGroup
+                                                        value={view}
+                                                        onValueChange={(
+                                                            value,
+                                                        ) =>
+                                                            setView(
+                                                                value as View,
+                                                            )
+                                                        }
+                                                    >
+                                                        {VIEWS.map((option) => (
+                                                            <DropdownMenuRadioItem
+                                                                key={
+                                                                    option.value
+                                                                }
+                                                                value={
+                                                                    option.value
+                                                                }
+                                                            >
+                                                                {option.label}
+                                                            </DropdownMenuRadioItem>
+                                                        ))}
+                                                    </DropdownMenuRadioGroup>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        )}
+                                    </h2>
+                                    <span className="text-sm text-muted-foreground">
+                                        ({cut.hint})
+                                    </span>
+                                </div>
+
+                                <div className="hidden overflow-x-auto md:block print:block">
+                                    <RecapTable
+                                        column={item.column}
+                                        rows={cut.rows}
+                                        total={total}
+                                        totalLabel={cut.totalLabel}
+                                        empty={cut.empty}
+                                    />
+                                </div>
+
+                                <RecapCards
                                     rows={cut.rows}
                                     total={total}
                                     totalLabel={cut.totalLabel}
                                     empty={cut.empty}
                                 />
-                            </div>
 
-                            <RecapCards
-                                rows={cut.rows}
-                                total={total}
-                                totalLabel={cut.totalLabel}
-                                empty={cut.empty}
-                            />
+                                {item.value === 'employee' && !printing && (
+                                    <Pagination pagination={pagination} />
+                                )}
 
-                            {item.value === 'employee' && !printing && (
-                                <Pagination pagination={pagination} />
-                            )}
+                                {item.value === 'employee' && truncated && (
+                                    <p className="border-t p-3 text-sm text-muted-foreground">
+                                        Hanya 500 karyawan pertama yang
+                                        ditampilkan; subtotal departemen dan
+                                        total mencakup semuanya. Persempit
+                                        dengan filter, atau unduh CSV.
+                                    </p>
+                                )}
+                            </section>
+                        );
+                    })}
 
-                            {item.value === 'employee' && truncated && (
-                                <p className="border-t p-3 text-sm text-muted-foreground">
-                                    Hanya 500 karyawan pertama yang ditampilkan;
-                                    subtotal departemen dan total mencakup
-                                    semuanya. Persempit dengan filter, atau
-                                    unduh CSV.
-                                </p>
-                            )}
-                        </section>
-                    );
-                })}
-
-                <p className="text-xs text-muted-foreground">
-                    Angka dalam hari-orang. Data sampai {dataThrough ?? '—'}.
-                </p>
+                    <p className="text-xs text-muted-foreground">
+                        Angka dalam hari-orang. Data sampai {dataThrough ?? '—'}
+                        .
+                    </p>
+                </div>
             </div>
 
             <FilterSheet
