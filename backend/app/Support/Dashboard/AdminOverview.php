@@ -8,6 +8,7 @@ use App\Enums\RequisitionStage;
 use App\Enums\Role;
 use App\Models\CalendarEvent;
 use App\Models\Candidate;
+use App\Models\CandidateOffer;
 use App\Models\LeaveRequest;
 use App\Models\OffboardingCase;
 use App\Models\ProfileChangeRequest;
@@ -80,6 +81,14 @@ class AdminOverview
                 'detail' => $requisition->department?->name,
                 'subdetail' => null,
                 'href' => route('recruitment.show', $requisition->id, absolute: false),
+            ]),
+            $this->stepItem('offer', 'Penawaran', WorkflowStep::waitingOn($user, CandidateOffer::class), fn (CandidateOffer $offer): array => [
+                'id' => $offer->id,
+                'title' => (string) $offer->candidate?->name,
+                'chip' => $offer->requisition?->reference(),
+                'detail' => $offer->requisition?->position_name,
+                'subdetail' => null,
+                'href' => route('recruitment.show', $offer->requisition_id, absolute: false),
             ]),
             $this->stepItem('offboarding', 'Offboarding', WorkflowStep::waitingOn($user, OffboardingCase::class), fn (OffboardingCase $case): array => [
                 'id' => $case->id,

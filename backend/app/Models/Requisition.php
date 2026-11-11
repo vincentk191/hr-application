@@ -160,6 +160,16 @@ class Requisition extends Model
         return $this->hasMany(Candidate::class)->orderBy('id');
     }
 
+    /**
+     * The offers made for this requisition (REC-OFS), oldest first.
+     *
+     * @return HasMany<CandidateOffer, $this>
+     */
+    public function offers(): HasMany
+    {
+        return $this->hasMany(CandidateOffer::class)->orderBy('id');
+    }
+
     public function reference(): string
     {
         return 'REQ-'.str_pad((string) $this->id, 4, '0', STR_PAD_LEFT);

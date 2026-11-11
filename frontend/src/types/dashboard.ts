@@ -95,7 +95,7 @@ export type AdminWaitingEntry = {
 export type AdminWaiting = {
     total: number;
     items: {
-        key: 'leave' | 'requisition' | 'offboarding' | 'profile';
+        key: 'leave' | 'requisition' | 'offer' | 'offboarding' | 'profile';
         label: string;
         /** All of them; `entries` holds only the first few. */
         count: number;

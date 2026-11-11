@@ -14,6 +14,7 @@ use App\Support\Attendance\WorkSchedule;
 use App\Support\Features;
 use App\Workflows\Definitions\LeaveRequestWorkflow;
 use App\Workflows\Definitions\OffboardingCaseWorkflow;
+use App\Workflows\Definitions\OfferWorkflow;
 use App\Workflows\Definitions\RequisitionWorkflow;
 use App\Workflows\WorkflowRegistry;
 use Carbon\CarbonImmutable;
@@ -167,6 +168,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(WorkflowRegistry::class, fn (): WorkflowRegistry => new WorkflowRegistry([
             new LeaveRequestWorkflow,
+            new OfferWorkflow,
             new OffboardingCaseWorkflow,
             new RequisitionWorkflow,
         ]));

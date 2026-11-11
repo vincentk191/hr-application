@@ -39,6 +39,17 @@ class RequisitionApprovers
         ];
     }
 
+    /**
+     * The one step an offer needs (REC-OFS-006): Management, the same person who would approve the requisition itself, or
+     * any Management account of the company when there is none above the requester.
+     *
+     * @return list<StepBlueprint>
+     */
+    public function offerChainFor(Requisition $requisition): array
+    {
+        return [$this->chainFor($requisition)[0]];
+    }
+
     private function nearestManagement(Requisition $requisition): ?User
     {
         $requester = $requisition->creator;

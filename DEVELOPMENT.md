@@ -69,6 +69,42 @@ left uncommitted for review.
 
 ## Change log (latest first)
 
+- **2026-11-11 (recruitment: Management's approval of an offer; Phase 3 of the Offer plan, branch `feature/recruitement`).**
+  Migration `create_candidate_offers_table`; run `php artisan migrate` on every environment. **Decided with the user:**
+  Management sees only the candidates who have an offer, never the whole shortlist.
+  - **The model.** `CandidateOffer` (requisition, candidate, `salary`, who proposed and when) on the workflow engine: `OfferWorkflow`
+    (key `candidate-offer`), stages `OfferStage` (Proposed, Approved, Rejected, Withdrawn; Sent, Accepted, Declined are declared for
+    the later phases), one instance per offer with a one-step Management chain (`RequisitionApprovers::offerChainFor`, the same
+    approver as the requisition's). A candidate can have several offers over time and at most one live
+    (`OfferStage::live()`: Proposed, Approved, Sent). Factory: `CandidateOfferFactory`.
+  - **Ajukan ke Manajemen (REC-OFS-001/002).** `ProposeOffers`, route `recruitment.offers.store`: HR ticks the candidates the direct
+    superior chose and presses it (at least one, or "Pilih setidaknya satu kandidat."); each becomes an offer waiting on Management,
+    who is told once in the app with the names. A refinement of the plan, which said "each pick becomes a proposal": HR is the
+    gate, not an automatic step, so HR can hold a pick back.
+  - **Setujui / Tolak (REC-OFS-006).** `DecideOffer`, route `recruitment.offers.decide`, policy `decideOffer` (the open Management step
+    of that offer). **Approving needs the starting salary** (the number the letter will carry) and takes an optional note; the dialog
+    shows the role's salary expectation and what the candidate asked for. **Rejecting needs a reason and clears the superior's
+    choice**, so the candidate is back on the interview list and can be chosen again, after which HR can propose anew. HR, whoever
+    proposed it, and (on a rejection) the direct superior are told. Notes are also written as comments on the offer's instance.
+  - **Tarik.** `WithdrawOffer`, route `recruitment.offers.withdraw`: HR pulls an offer back until it is sent; the candidate stays chosen.
+    A step still waiting is locked, so it leaves Management's queue and the badge. Offers are also withdrawn when the candidate is
+    turned down or removed, and when the requisition is cancelled. While an offer is live the superior can no longer take back their
+    choice (HR pulls the offer back first).
+  - **Who sees what.** `viewOffers`: HR, the direct superior and Management; everyone else a count (`selectedCount`). Management sees
+    each offered candidate through the same drawer (Ringkasan, Dokumen, Interview with the evaluations) with **phone, email and
+    note left out**, and may open the CV of a candidate who has an offer and no other (`viewOfferedCandidate`). The requester sees
+    neither the offers nor who they are for.
+  - **Dashboard and badge.** "Menunggu keputusan" has a new "Penawaran" line (`AdminOverview`), and the Rekrutmen menu badge counts offers
+    waiting on the person as well as requisitions (`RecruitmentTodo`).
+  - **Screen.** The Penawaran tab (`requisition-offer.tsx`): "Dipilih atasan langsung" with checkboxes and "Ajukan ke Manajemen" for
+    HR, and "Penawaran" with each offer's status, "Direkomendasikan oleh n dari m pewawancara", the salary once set, the decision
+    and its note, and the buttons that are the viewer's (Setujui, Tolak, Tarik).
+  - **Not done:** a comment thread **per offer** (the plan listed one). Decision notes are kept as comments on the offer, and the
+    requisition's own thread, which the same people can already write in, carries the conversation; a per-offer thread would need
+    its own drawer and polling and is left until it is asked for.
+  - **Checked:** new `RequisitionOfferTest` (10); the full suite; Pint, PHPStan on the touched files, TypeScript and the formatter
+    clean. `AdminDashboardTest` now expects the new "offer" line. Not seen in a browser.
+
 - **2026-11-11 (recruitment: HR can name a different direct superior; found while testing Phase 2, branch `feature/recruitement`).**
   The superior of REC-0010 could not choose because the login used was not the one linked to the employee named as Atasan
   langsung (the app ties the choice to the employee record's own account, not to a name), and nothing allowed correcting it
@@ -1692,7 +1728,7 @@ platform accounts above (no career page, manual posting, nothing public except t
      who raised the requisition, so always has an account); a guard `HasSelectedCandidate`; HR's "Lanjut ke Penawaran"
      (`AdvanceToOffer`); the Offer tab replaces the placeholder. Screening and interviews stay open at Offer, as already
      decided.
-  3. **Management's approval** (`REC-OFS-001/002/006`). `CandidateOffer` and `OfferWorkflow`. Each pick becomes a proposal
+  3. **Management's approval** (`REC-OFS-001/002/006`). **Built 2026-11-11** (change log above). `CandidateOffer` and `OfferWorkflow`. Each pick becomes a proposal
      showing "Direkomendasikan oleh n pewawancara" (from the evaluations). Management approves and sets the starting
      salary, or rejects with a reason and the candidate returns to the Interview list. Notices to Management and back, the
      dashboard card and the badge count offers, and each offer has the comment thread.
@@ -1723,7 +1759,7 @@ platform accounts above (no career page, manual posting, nothing public except t
 | `REC-PST`                         | Stage 02 Posting            | 7   | 4   | ✅     | Built 11-04 (revised plan: manual, no cmp-api push): copy buttons (Judul, Deskripsi, Persyaratan, Semua), "Tandai sudah diposting" per platform with date and optional link, correct/remove, "Lanjut ke Screening" once one is recorded, "Batalkan lowongan" with a reason (PST-004) |
 | `REC-SCR`                         | Stage 03 Screening          | 8   | 4   | ✅     | Built 11-04 (revised plan): total-applicants count, quick-add of shortlisted candidates (duplicate warning, paste-to-autofill, optional CV), shortlist list, "Lanjut ke Interview". No ranking. Candidate list is HR-only |
 | `REC-INT`                         | Stage 04 Interview          | 8   | 3   | ✅     | Built 11-04 (revised plan): invitation (time, online/in person, Meet link or address) by email with the same text for WhatsApp, single-use link, open only on the interview day, to the public in-app candidate form (Ya/Tidak on the checklist, salary, start date), answers shown to HR. Built 11-06: feedback by HR and the direct superior, reminders (candidate the day before, HR and superior on the day). Built 11-09: a notice to HR and the superior for interviews still without an evaluation; the CSV for mail merge (one row per interviewee with an email, the invitation's note included, every download on the audit trail); cancelling warns HR of candidates already scheduled and tells the superior. Candidate rescheduling stays with HR by decision. Google Meet creation waits on the account test |
-| `REC-OFS`                         | Stage 05 Offer              | 9   | 8   | ⬜     | Management final approval + offer letter                    |
+| `REC-OFS`                         | Stage 05 Offer              | 9   | 8   | 🟡     | Built 11-11: the chosen list with ticks and "Direkomendasikan oleh n", "Ajukan ke Manajemen" (001/002), Management's approval with the starting salary or a rejection that returns the candidate to Interview (006), withdrawing an offer. Not built: the letter (007), sent list (003), accepted and declined (004/008), "position filled" email (009) |
 | `REC-FIL`                         | Stage 06 Filled             | 7   | 6   | ⬜     | Convert-to-employee (L). Creates the profile the hire then registers against (`CORE-REG`); until this exists HR creates profiles by hand or CSV |
 | `REC-CAN` · `REC-CDT` · `REC-CRV` | Candidate detail + tabs     | 11  | 8   | 🟡     | The candidate is a side drawer, not a page (by decision): Ringkasan (answers of the form), Dokumen (CV), Interview (schedule, invitation, evaluations). Built 11-10: Tolak with a reason and an opt-in email, and Pulihkan (`CAN-002/003`, the "Ditolak" banner of `CDT-001`); Pilih and Batalkan pilihan for the direct superior, with the "Dipilih" banner. The stage-dependent actions for Siap Ditawari and Penawaran Terkirim come with the Offer phases |
 | `REC-OFR`                         | Send offer form             | 6   | 4   | ⬜     |                                                             |

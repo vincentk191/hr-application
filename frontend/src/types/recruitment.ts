@@ -194,6 +194,39 @@ export type InterviewAvailability = {
     }[];
 };
 
+/**
+ * An offer to a candidate the direct superior chose (REC-OFS): HR proposes it, Management approves it with a starting
+ * salary or rejects it with a reason. The candidate is the one the viewer may see: only HR sees phone, email and note.
+ */
+export type CandidateOffer = {
+    id: number;
+    candidateId: number;
+    name: string | null;
+    stage:
+        | 'proposed'
+        | 'approved'
+        | 'rejected'
+        | 'withdrawn'
+        | 'sent'
+        | 'accepted'
+        | 'declined';
+    stageLabel: string;
+    /** Still in play: proposed, approved or out with the candidate. */
+    isLive: boolean;
+    salary: number | null;
+    proposedOn: string | null;
+    proposedBy: string | null;
+    /** "Direkomendasikan oleh n pewawancara": how many of the evaluators said Lanjut, and how many evaluated. */
+    recommendedBy: number;
+    evaluators: number;
+    decidedBy: string | null;
+    decidedOn: string | null;
+    decisionNote: string | null;
+    canDecide: boolean;
+    canWithdraw: boolean;
+    candidate: Candidate | null;
+};
+
 /** One interviewer's evaluation of a candidate: a 1 to 5 rating, a recommendation and a note. */
 export type CandidateEvaluation = {
     id: number;
@@ -293,6 +326,10 @@ export type Requisition = RequisitionRow & {
     /** HR may enter the total and shortlist: at Screening, and still at Interview. */
     canManageScreening: boolean;
     canAdvanceToInterview: boolean;
+    /** HR may put the chosen candidates to Management, at Penawaran. */
+    canProposeOffers: boolean;
+    /** The offers to chosen candidates; null for anyone but HR, the direct superior and Management. */
+    offers: CandidateOffer[] | null;
     /** HR may name a different direct superior, and from whom: active employees with an active account. */
     canChangeSuperior: boolean;
     superiorChoices: { id: number; name: string; number: string | null }[];

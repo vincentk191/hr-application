@@ -2,10 +2,12 @@
 
 namespace App\Policies;
 
+use App\Enums\OfferStage;
 use App\Enums\Permission;
 use App\Enums\RequisitionStage;
 use App\Enums\Role;
 use App\Models\Candidate;
+use App\Models\CandidateOffer;
 use App\Models\Employee;
 use App\Models\Requisition;
 use App\Models\User;
@@ -202,13 +204,68 @@ class RequisitionPolicy
     }
 
     /**
-     * Taking the choice back is the direct superior's, for a candidate they chose and who is still in the process.
+     * Taking the choice back is the direct superior's, for a candidate they chose and who is still in the process, and
+     * only while no offer is live for them: once HR has put the candidate to Management it is HR who pulls it back.
      */
     public function unselectCandidate(User $user, Requisition $requisition, Candidate $candidate): bool
     {
         return $this->viewInterviewees($user, $requisition)
             && $candidate->requisition_id === $requisition->id
-            && $candidate->isSelected();
+            && $candidate->isSelected()
+            && ! $candidate->offers()->live()->exists();
+    }
+
+    /**
+     * Who sees the offers of a requisition (REC-OFS): HR, the direct superior, and Management. Everyone else sees how many
+     * were chosen and nothing more.
+     */
+    public function viewOffers(User $user, Requisition $requisition): bool
+    {
+        return $user->canAccessCompany($requisition->company_id)
+            && ($this->viewCandidates($user, $requisition) || $this->viewInterviewees($user, $requisition) || $user->isA(Role::Management));
+    }
+
+    /**
+     * Management sees the candidates who have an offer, and only those: no phone, email or note, but the form they filled
+     * in, the CV and the evaluations, which is what an approval rests on.
+     */
+    public function viewOfferedCandidate(User $user, Requisition $requisition, Candidate $candidate): bool
+    {
+        return $user->isA(Role::Management)
+            && $user->canAccessCompany($requisition->company_id)
+            && $candidate->requisition_id === $requisition->id
+            && $candidate->offers()->exists();
+    }
+
+    /**
+     * "Ajukan ke Manajemen" is HR's, at 05 Penawaran (REC-OFS-002).
+     */
+    public function proposeOffers(User $user, Requisition $requisition): bool
+    {
+        return $requisition->stage() === RequisitionStage::Offer && $this->viewCandidates($user, $requisition);
+    }
+
+    /**
+     * Deciding an offer is its approver's (REC-OFS-006): the Management step of its own chain, while it is open.
+     */
+    public function decideOffer(User $user, Requisition $requisition, CandidateOffer $offer): bool
+    {
+        $step = $offer->workflow?->steps()->where('status', 'pending')->first();
+
+        return $offer->requisition_id === $requisition->id
+            && $user->canAccessCompany($requisition->company_id)
+            && $step instanceof WorkflowStep
+            && $step->canBeDecidedBy($user);
+    }
+
+    /**
+     * Pulling an offer back is HR's, until it is sent.
+     */
+    public function withdrawOffer(User $user, Requisition $requisition, CandidateOffer $offer): bool
+    {
+        return $offer->requisition_id === $requisition->id
+            && in_array($offer->stage(), [OfferStage::Proposed, OfferStage::Approved], true)
+            && $this->viewCandidates($user, $requisition);
     }
 
     /**

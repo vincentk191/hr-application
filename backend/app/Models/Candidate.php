@@ -190,6 +190,17 @@ class Candidate extends Model
     }
 
     /**
+     * The offers made to this candidate, oldest first: a rejected proposal can be made again, so there can be several, at
+     * most one of them live.
+     *
+     * @return HasMany<CandidateOffer, $this>
+     */
+    public function offers(): HasMany
+    {
+        return $this->hasMany(CandidateOffer::class)->orderBy('id');
+    }
+
+    /**
      * HR turned this candidate down (REC-CAN-003): they are out of the process, but the record stays.
      */
     public function isRejected(): bool

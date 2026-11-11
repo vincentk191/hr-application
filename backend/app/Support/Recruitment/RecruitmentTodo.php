@@ -2,6 +2,7 @@
 
 namespace App\Support\Recruitment;
 
+use App\Models\CandidateOffer;
 use App\Models\Requisition;
 use App\Models\User;
 use App\Models\WorkflowStep;
@@ -26,6 +27,7 @@ class RecruitmentTodo
             return 0;
         }
 
-        return WorkflowStep::waitingOn($user, Requisition::class)->count();
+        return WorkflowStep::waitingOn($user, Requisition::class)->count()
+            + WorkflowStep::waitingOn($user, CandidateOffer::class)->count();
     }
 }

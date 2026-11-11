@@ -117,7 +117,7 @@ it('counts what waits on this person the same way the approval queue does', func
     $items = collect(dashboardProps($this->hr)['waiting']['items'])->keyBy('key');
 
     expect($items['leave']['count'])->toBe(WorkflowStep::waitingOn($this->hr, LeaveRequest::class)->count())
-        ->and($items->keys()->all())->toBe(['leave', 'requisition', 'offboarding', 'profile']);
+        ->and($items->keys()->all())->toBe(['leave', 'requisition', 'offer', 'offboarding', 'profile']);
 });
 
 it('lists what waits on this person with its kind, size, how long it has waited and where to open it', function () {

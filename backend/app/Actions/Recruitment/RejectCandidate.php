@@ -12,11 +12,13 @@ use Illuminate\Support\Facades\Mail;
 /**
  * HR turns a candidate down (REC-CAN-003): the reason is required and kept with who and when, and the candidate is out of
  * the process (no reminders, no form, left out of the lists and the mail-merge file) while the record stays. The reason
- * is internal. HR may also choose to email the candidate, which only makes sense for someone who was invited, since the
+ * is internal. Any offer still live for them is withdrawn. HR may also choose to email the candidate, which only makes sense for someone who was invited, since the
  * others never knew they were in the running.
  */
 class RejectCandidate
 {
+    public function __construct(private WithdrawOffer $withdraw) {}
+
     /**
      * @return bool whether the candidate was emailed
      */
@@ -33,6 +35,8 @@ class RejectCandidate
             ->causedBy($by)
             ->withProperties(['candidate' => $candidate->name, 'reason' => trim($reason)])
             ->log('Kandidat ditolak');
+
+        $this->withdraw->forCandidate($candidate, $by);
 
         if (! $notify || blank($candidate->email) || $candidate->invited_at === null) {
             return false;

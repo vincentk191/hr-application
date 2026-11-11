@@ -480,7 +480,7 @@ class RequisitionController extends Controller
     {
         $this->authorize('manageScreening', $requisition);
 
-        $remove->handle($candidate);
+        $remove->handle($candidate, request()->user());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Kandidat dihapus dari shortlist.']);
 
@@ -663,7 +663,9 @@ class RequisitionController extends Controller
 
         // HR opens any CV; the direct superior only that of a candidate who was invited to interview.
         abort_unless(
-            $user->can('viewCandidates', $requisition) || ($user->can('viewInterviewees', $requisition) && $candidate->inviteState() !== 'none'),
+            $user->can('viewCandidates', $requisition)
+                || ($user->can('viewInterviewees', $requisition) && $candidate->inviteState() !== 'none')
+                || $user->can('viewOfferedCandidate', [$requisition, $candidate]),
             403,
         );
 

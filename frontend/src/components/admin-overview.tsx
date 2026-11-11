@@ -21,6 +21,7 @@ import type {
 const WAITING_LINKS: Record<AdminWaiting['items'][number]['key'], string> = {
     leave: leaveIndex({ query: { status: 'waiting' } }).url,
     requisition: recruitmentIndex().url,
+    offer: recruitmentIndex().url,
     offboarding: offboardingIndex().url,
     profile: profileChangesIndex().url,
 };

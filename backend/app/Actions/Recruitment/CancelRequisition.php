@@ -15,11 +15,11 @@ use Illuminate\Support\Facades\Mail;
 /**
  * HR calls off a requisition that is out of approval (REC-PST-004): the position was filled another way, or is no
  * longer needed. The reason is kept on the requisition and written into the thread under the stage it was in, and
- * the requester is told. Cancelling is final.
+ * the requester is told. Offers still live are withdrawn, so none stays waiting on Management. Cancelling is final.
  */
 class CancelRequisition
 {
-    public function __construct(private WorkflowEngine $engine) {}
+    public function __construct(private WorkflowEngine $engine, private WithdrawOffer $withdraw) {}
 
     /**
      * @param  bool  $notifyCandidates  email the candidates whose interview is still ahead and who have an email; the
@@ -36,6 +36,7 @@ class CancelRequisition
             $requisition->update(['cancel_reason' => $reason]);
             $this->engine->comment($instance, $by, $reason);
             $this->engine->transitionTo($instance->refresh(), RequisitionStage::Cancelled, $by);
+            $this->withdraw->forRequisition($requisition, $by);
         });
 
         app(Notifier::class)->requisitionCancelled($requisition->refresh(), $reason, $by);

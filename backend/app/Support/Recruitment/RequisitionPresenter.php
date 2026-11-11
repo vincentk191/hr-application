@@ -4,6 +4,7 @@ namespace App\Support\Recruitment;
 
 use App\Enums\CandidateSource;
 use App\Enums\EmploymentStatus;
+use App\Enums\EvaluationRecommendation;
 use App\Enums\JobPlatform;
 use App\Enums\Permission;
 use App\Enums\RequisitionStage;
@@ -11,6 +12,7 @@ use App\Enums\Role;
 use App\Http\Requests\SaveRequisitionRequest;
 use App\Models\Candidate;
 use App\Models\CandidateEvaluation;
+use App\Models\CandidateOffer;
 use App\Models\Employee;
 use App\Models\Requisition;
 use App\Models\RequisitionPosting;
@@ -139,6 +141,9 @@ class RequisitionPresenter
             // How many the direct superior has chosen: a count anyone who sees the requisition may see.
             'selectedCount' => $requisition->candidates->filter(fn (Candidate $candidate): bool => $candidate->isSelected())->count(),
             'canManageInterview' => $viewer->can('manageInterview', $requisition),
+            'canProposeOffers' => $viewer->can('proposeOffers', $requisition),
+            // The offers to chosen candidates: HR, the direct superior and Management only (REC-OFS).
+            'offers' => $this->offers($requisition, $viewer),
             'canChangeSuperior' => $viewer->can('changeSuperior', $requisition),
             'superiorChoices' => $viewer->can('changeSuperior', $requisition) ? $this->superiorChoices($requisition) : [],
             // Who is out when, for placing interviews: the Interview tab's calendar, for those who see the candidates.
@@ -384,6 +389,63 @@ class RequisitionPresenter
             'selectedBy' => $candidate->isSelected() ? $candidate->selectedBy?->name : null,
             'canSelect' => $viewer !== null && $viewer->can('selectCandidate', [$requisition, $candidate]),
             'canUnselect' => $viewer !== null && $viewer->can('unselectCandidate', [$requisition, $candidate]),
+        ];
+    }
+
+    /**
+     * The offers of a requisition for those who may see them, oldest first; null for everyone else.
+     *
+     * @return list<array<string, mixed>>|null
+     */
+    private function offers(Requisition $requisition, User $viewer): ?array
+    {
+        if (! $viewer->can('viewOffers', $requisition)) {
+            return null;
+        }
+
+        $requisition->loadMissing('offers.workflow.steps.decidedBy:id,name', 'offers.candidate.evaluations.author:id,name', 'offers.proposedBy:id,name');
+
+        return array_values($requisition->offers->map(fn (CandidateOffer $offer): array => $this->offer($requisition, $offer, $viewer))->all());
+    }
+
+    /**
+     * One offer: who it is for, where it stands, what Management decided, and the candidate as this person may see them.
+     * Only HR sees the candidate's phone, email and note.
+     *
+     * @return array<string, mixed>
+     */
+    private function offer(Requisition $requisition, CandidateOffer $offer, User $viewer): array
+    {
+        $candidate = $offer->candidate;
+        $stage = $offer->stage();
+        $step = $offer->workflow?->steps->first();
+        $timezone = (string) config('attendance.device_timezone');
+        $evaluations = $candidate->evaluations;
+        $data = $this->candidate($requisition, $candidate, $viewer);
+
+        if (! $viewer->can('viewCandidates', $requisition)) {
+            $data = [...$data, 'phone' => null, 'email' => null, 'note' => null];
+        }
+
+        return [
+            'id' => $offer->id,
+            'candidateId' => $offer->candidate_id,
+            'name' => $candidate->name,
+            'stage' => $stage->value,
+            'stageLabel' => $stage->label(),
+            'isLive' => $offer->isLive(),
+            'salary' => $offer->salary,
+            'proposedOn' => $offer->proposed_at?->copy()->setTimezone($timezone)->toDateString(),
+            'proposedBy' => $offer->proposedBy?->name,
+            // "Direkomendasikan oleh n pewawancara" (REC-OFS-001).
+            'recommendedBy' => $evaluations->filter(fn (CandidateEvaluation $evaluation): bool => $evaluation->recommendation === EvaluationRecommendation::Continue)->count(),
+            'evaluators' => $evaluations->count(),
+            'decidedBy' => $step?->status->isDecided() ? $step->decidedBy?->name : null,
+            'decidedOn' => $step?->status->isDecided() ? $step->decided_at?->copy()->setTimezone($timezone)->toDateString() : null,
+            'decisionNote' => $step?->status->isDecided() ? $step->note : null,
+            'canDecide' => $viewer->can('decideOffer', [$requisition, $offer]),
+            'canWithdraw' => $viewer->can('withdrawOffer', [$requisition, $offer]),
+            'candidate' => $data,
         ];
     }
 

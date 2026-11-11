@@ -29,6 +29,7 @@ use App\Http\Controllers\OffboardingSignOffController;
 use App\Http\Controllers\ProfileChangeRequestController;
 use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\RequisitionController;
+use App\Http\Controllers\RequisitionOfferController;
 use App\Http\Controllers\SearchController;
 use Illuminate\Support\Facades\Route;
 
@@ -120,6 +121,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('recruitment/{requisition}/candidates/{candidate}/evaluation', [RequisitionController::class, 'saveEvaluation'])->scopeBindings()->name('recruitment.candidates.evaluation');
     Route::post('recruitment/{requisition}/interview', [RequisitionController::class, 'advanceToInterview'])->name('recruitment.interview');
     Route::put('recruitment/{requisition}/superior', [RequisitionController::class, 'changeSuperior'])->name('recruitment.superior');
+    Route::post('recruitment/{requisition}/offers', [RequisitionOfferController::class, 'store'])->name('recruitment.offers.store');
+    Route::put('recruitment/{requisition}/offers/{offer}/decision', [RequisitionOfferController::class, 'decide'])->scopeBindings()->name('recruitment.offers.decide');
+    Route::delete('recruitment/{requisition}/offers/{offer}', [RequisitionOfferController::class, 'withdraw'])->scopeBindings()->name('recruitment.offers.withdraw');
     Route::post('recruitment/{requisition}/offer', [RequisitionController::class, 'advanceToOffer'])->name('recruitment.offer');
     Route::post('recruitment/{requisition}/cancel', [RequisitionController::class, 'cancel'])->name('recruitment.cancel');
     Route::post('recruitment/{requisition}/comments', [RequisitionController::class, 'comment'])->name('recruitment.comments.store');

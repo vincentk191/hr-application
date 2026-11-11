@@ -4,6 +4,7 @@ namespace App\Support\Notifications;
 
 use App\Enums\Permission;
 use App\Models\Candidate;
+use App\Models\CandidateOffer;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
 use App\Models\LeaveRequest;
@@ -427,6 +428,61 @@ class Notifier
         foreach ($this->hrAdmins($requisition->company_id) as $hr) {
             $hr->notify($notice);
         }
+    }
+
+    /**
+     * HR put offers to Management (REC-OFS): tell whoever decides, once, with the names of the candidates.
+     *
+     * @param  list<CandidateOffer>  $offers
+     */
+    public function offersProposed(Requisition $requisition, array $offers, User $actor): void
+    {
+        $offers = collect($offers)->each(fn (CandidateOffer $offer) => $offer->loadMissing('candidate', 'workflow.steps'));
+        $step = $offers->first()?->workflow?->steps->first();
+
+        if (! $step instanceof WorkflowStep) {
+            return;
+        }
+
+        $notice = new InAppNotice(
+            'recruitment',
+            "{$offers->count()} penawaran menunggu persetujuan: {$requisition->position_name}",
+            "{$requisition->reference()} · ".$offers->map(fn (CandidateOffer $offer): string => (string) $offer->candidate?->name)->implode(', '),
+            route('recruitment.show', $requisition, absolute: false),
+        );
+
+        $this->approversOf($step, $requisition->company_id)
+            ->reject(fn (User $user): bool => $user->is($actor))
+            ->each(fn (User $user) => $user->notify($notice));
+    }
+
+    /**
+     * Management decided an offer (REC-OFS-006): tell HR, who carry it on, and whoever proposed it. A rejection also goes
+     * to the direct superior, whose choice it sends back to the interview list.
+     */
+    public function offerDecided(Requisition $requisition, CandidateOffer $offer, bool $approved, ?string $note, User $actor): void
+    {
+        $offer->loadMissing('candidate', 'proposedBy');
+        $name = (string) $offer->candidate?->name;
+
+        $notice = new InAppNotice(
+            'recruitment',
+            $approved ? "Penawaran {$name} disetujui: {$requisition->position_name}" : "Penawaran {$name} ditolak: {$requisition->position_name}",
+            $approved
+                ? "{$requisition->reference()} · gaji awal Rp ".number_format((int) $offer->salary, 0, ',', '.').'. Lanjutkan ke surat penawaran.'
+                : "{$requisition->reference()} · alasan: {$note}",
+            route('recruitment.show', $requisition, absolute: false),
+        );
+
+        $proposer = $offer->proposedBy;
+        $superior = $approved ? null : $this->directSuperiorOf($requisition);
+
+        $this->hrAdmins($requisition->company_id)
+            ->when($proposer instanceof User && $proposer->is_active, fn (Collection $users) => $users->push($proposer))
+            ->when($superior instanceof User && $superior->is_active, fn (Collection $users) => $users->push($superior))
+            ->unique('id')
+            ->reject(fn (User $user): bool => $user->is($actor))
+            ->each(fn (User $user) => $user->notify($notice));
     }
 
     /**
