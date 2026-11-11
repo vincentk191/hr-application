@@ -35,16 +35,12 @@ export function expectedOf(day: CalendarDaySummary): number {
 }
 
 /**
- * The day's filed requests, as a line of its own: it is never added to the attendance counts, so the
- * two can be compared. Empty when nobody filed one for the day.
+ * The requests still waiting for the day, as a line of its own: a waiting request is not yet leave, so it is not in the
+ * "cuti" count beside it. An approved one is left out here, since it already is that count and showed the same person
+ * twice ("1 cuti · 1 pengajuan"); the week and day views still show each approved request by name. Empty when none waits.
  */
 function requestsLine(day: CalendarDaySummary): string {
-    return [
-        day.requestsApproved > 0 ? `${day.requestsApproved} pengajuan` : null,
-        day.requestsWaiting > 0 ? `${day.requestsWaiting} menunggu` : null,
-    ]
-        .filter(Boolean)
-        .join(' · ');
+    return day.requestsWaiting > 0 ? `${day.requestsWaiting} menunggu` : '';
 }
 
 /** A working day inside the data where someone was expected; the rest say nothing about attendance. */

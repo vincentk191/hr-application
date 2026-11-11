@@ -230,8 +230,13 @@ class AttendanceCalendarController extends Controller
 
         $employees = $roster->between($from, $to, $filters['departments'], $filters['search'], $filters['team'], $filters['leaveType'], $request->user(), $filters['branches']);
 
-        // Only the month and year views, which mix the two kinds of people, can be narrowed to one of them.
-        if (in_array($view, ['month', 'year'], true) && $filters['source'] !== 'all') {
+        // The week, month and year views mix the two kinds of people, so they can be narrowed to one of them. The day is the
+        // scanner's alone: people of a Cabang that sends a rekapitulasi have no check-ins to list for a day, so they are not
+        // in it, and the "rekap" status means nothing there.
+        if ($view === 'day') {
+            $employees = $employees->reject(fn (Employee $employee): bool => $employee->attendsViaRekap())->values();
+            $filters['statuses'] = array_values(array_diff($filters['statuses'], [self::REKAP]));
+        } elseif ($filters['source'] !== 'all') {
             $wantsRekap = $filters['source'] === self::REKAP;
             $employees = $employees->filter(fn (Employee $employee): bool => $employee->attendsViaRekap() === $wantsRekap)->values();
         }

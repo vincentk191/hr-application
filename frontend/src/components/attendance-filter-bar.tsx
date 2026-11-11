@@ -65,8 +65,9 @@ const SOURCES: { value: CalendarSource; label: string }[] = [
 ];
 
 /**
- * Where the month and year views take their people from: everyone, those with a scanner, or those of a Cabang that
- * sends a rekapitulasi. The day and week views hold everyone, so they have no such switch.
+ * Where the week, month and year views take their people from: everyone, those with a scanner, or those of a Cabang that
+ * sends a rekapitulasi. The day view has no such switch: it lists only the people with a scanner, since a rekapitulasi has
+ * no check-ins for a day.
  */
 export function SourceToggle({
     source,

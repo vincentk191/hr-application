@@ -639,7 +639,9 @@ export default function AttendanceCalendar(props: Props) {
                                 onChange={setGrouped}
                                 units={unitCount(rows)}
                             />
-                        ) : view === 'month' || view === 'year' ? (
+                        ) : view === 'week' ||
+                          view === 'month' ||
+                          view === 'year' ? (
                             <SourceToggle
                                 source={filters.source}
                                 onChange={(source) =>

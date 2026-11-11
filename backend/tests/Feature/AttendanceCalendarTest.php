@@ -567,12 +567,12 @@ it('picks the people of a rekapitulasi Cabang with the "rekap" status, and keeps
     $rina = rekapEmployee();
     scan($this->budi, '2026-10-05 08:00:00');
 
-    calendar('?view=day&date=2026-10-05&statuses[]=rekap')
+    calendar('?view=week&date=2026-10-05&statuses[]=rekap')
         ->assertInertia(fn (Assert $page) => $page->has('rows', 1)->where('rows.0.id', $rina->id));
 
     // Choosing Hadir leaves the figures as they were: the panel is where the next status is picked from.
-    $all = calendar('?view=day&date=2026-10-05')->viewData('page')['props']['summary'];
-    $picked = calendar('?view=day&date=2026-10-05&statuses[]=present')->viewData('page')['props']['summary'];
+    $all = calendar('?view=week&date=2026-10-05')->viewData('page')['props']['summary'];
+    $picked = calendar('?view=week&date=2026-10-05&statuses[]=present')->viewData('page')['props']['summary'];
 
     expect($picked)->toBe($all)->and($all['counts']['present'])->toBe(1)->and($all['rekapEmployees'])->toBe(1);
 });
@@ -697,14 +697,32 @@ it('narrows the month and year views to the people with a scanner, or to those o
         ->and(collect(calendar('?view=month&date=2026-10-05&source=rekap')->viewData('page')['props']['rows'])->pluck('id')->all())->toBe([$rina->id]);
 });
 
-it('holds everyone in the day and week views whatever the source asks for', function () {
+it('narrows the week view to the people with a scanner, or to those of a rekapitulasi Cabang', function () {
     $rina = rekapEmployee();
+    scan($this->budi, '2026-10-05 08:00:00');
 
-    foreach (['day', 'week'] as $view) {
-        $rows = calendar("?view={$view}&date=2026-10-05&source=scanner")->viewData('page')['props']['rows'];
+    $ids = fn (string $source): array => collect(calendar("?view=week&date=2026-10-05&source={$source}")->viewData('page')['props']['rows'])->pluck('id')->all();
 
-        expect(collect($rows)->pluck('id')->all())->toContain($rina->id, $this->budi->id);
+    expect($ids('scanner'))->toBe([$this->budi->id])
+        ->and($ids('rekap'))->toBe([$rina->id])
+        ->and($ids('all'))->toContain($rina->id, $this->budi->id);
+});
+
+it('keeps the day view to the people with a scanner, whatever the source or the status asks for', function () {
+    $rina = rekapEmployee();
+    scan($this->budi, '2026-10-05 08:00:00');
+
+    foreach (['all', 'scanner', 'rekap'] as $source) {
+        $props = calendar("?view=day&date=2026-10-05&source={$source}")->viewData('page')['props'];
+
+        expect(collect($props['rows'])->pluck('id')->all())->toBe([$this->budi->id])
+            ->and($props['summary']['rekapEmployees'])->toBe(0);
     }
+
+    // A "rekap" status carried over from another view picks nobody here, and does not hide the scanner's people.
+    $carried = calendar('?view=day&date=2026-10-05&statuses[]=rekap')->viewData('page')['props'];
+
+    expect(collect($carried['rows'])->pluck('id')->all())->toBe([$this->budi->id])->and($carried['filters']['statuses'])->toBe([]);
 });
 
 it('falls back to everyone for a source it does not know', function () {

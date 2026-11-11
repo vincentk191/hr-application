@@ -22,8 +22,8 @@ import type {
  * chips above it are the calendar's own row, shared with the other views (attendance-filter-bar); the list shows
  * whoever they leave.
  *
- * People of a Cabang that sends a rekapitulasi have no daily attendance, only their Pengajuan, so they carry an R
- * rather than a status.
+ * Only people with a scanner are listed: those of a Cabang that sends a rekapitulasi have no daily attendance, so
+ * they are in the week, month and year views and not here.
  *
  * The list lays itself out by the width it is given, not the screen's (container queries): next to the side panel
  * it has far less room than the screen suggests. Wide enough, every column; a little narrower, without Unit and
@@ -137,8 +137,7 @@ function PersonRow({
     const requests = coveringOn(row, date);
     const holiday =
         record?.status === 'off' && record.event ? record.event : null;
-    // A rekapitulasi person has no scanner ID by design, so only someone who should have one is flagged.
-    const note = !row.viaRekap && !row.hasScannerId && (
+    const note = !row.hasScannerId && (
         <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-300">
             <ScanLine className="size-3.5 shrink-0" aria-hidden />
             ID belum dipetakan
@@ -158,10 +157,10 @@ function PersonRow({
                 title={holiday ?? STATUS_LABEL[status]}
                 className={cn(
                     'flex size-10 items-center justify-center rounded-lg border text-sm font-bold @xl:mx-auto @xl:size-9',
-                    row.viaRekap ? STATUS_TILE.off : STATUS_TILE[status],
+                    STATUS_TILE[status],
                 )}
             >
-                {row.viaRekap ? 'R' : codeOf[status]}
+                {codeOf[status]}
             </span>
 
             <div role="rowheader" className="min-w-0">

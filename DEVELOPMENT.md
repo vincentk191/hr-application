@@ -69,6 +69,13 @@ left uncommitted for review.
 
 ## Change log (latest first)
 
+- **2026-11-11 (attendance calendar: who the day and week views list).** The **week** view now has the Semua / Scanner / Rekapitulasi
+  switch the month and year views have (\`source\`), so HR can look at the people of a rekapitulasi Cabang apart from the
+  scanner's. The **day** view lists only people with a scanner, whatever the source or status says: a rekapitulasi has no
+  check-ins for a day, so those people (and the "R" chip) are not in it, and a \`rekap\` status carried over from another view
+  is ignored there. The month cell no longer shows "n pengajuan" for approved requests (it duplicated "n cuti"); "n menunggu"
+  stays. Not seen in a browser.
+
 - **2026-11-11 (printing: Cetak / PDF of the offer letter, the berita acara and the rekap absensi).** Found on the live screen: the
   offer letter printed landscape over two pages with the page title and, with the browser's default margins (a narrower
   viewport, so the phone layout), the bottom tab bar in the middle of the text. Cause: the print stylesheet only isolated a
