@@ -69,6 +69,30 @@ left uncommitted for review.
 
 ## Change log (latest first)
 
+- **2026-11-11 (recruitment: the offer's terms, letter and sending; Phase 4 of the Offer plan, branch `feature/recruitement`).**
+  Migration `add_terms_and_sending_to_candidate_offers_table` (`start_on`, `probation_months`, `sent_at`, `sent_by_user_id`,
+  `emailed_at`); run `php artisan migrate` on every environment.
+  - **Terms (REC-OFR-001/002/006).** `SetOfferTerms`, route `recruitment.offers.terms`, policy `setOfferTerms` (HR, an approved
+    offer, until it is sent): the **start date** (a real date **after today**) and the **probation** (0 to 3 months, 0 = none). The
+    salary is Management's figure and is shown, not editable. Posisi, Departemen, Cabang, Atasan langsung and the contract
+    type come from the requisition. `CandidateOffer::hasTerms()` is salary, start date and probation all set.
+  - **The letter (REC-OFS-007).** A print page, `recruitment.offers.letter` (`pages/recruitment/offer-letter.tsx`, Cetak / PDF like the
+    berita acara), HR only, once the terms are set, before and after sending; always built from the offer as it is now.
+    `RequisitionPresenter::offerLetter` supplies the fields. **The wording is the app's own template in the page, not reviewed
+    by anyone who signs such letters:** Surat penawaran kerja, the terms, a request to sign and return it, and two signature
+    blocks (the company's HR, and the candidate's acceptance with a date). It has no letter number, city or deadline.
+  - **Tandai terkirim (REC-OFS-003).** `SendOffer`, route `recruitment.offers.send`, policy `sendOffer` (HR, approved, terms
+    complete): stage **Sent** ("Penawaran terkirim"), with who and when. **Emailing the candidate the terms is an opt-in tick
+    box, unticked**, and only offered when the candidate has an email (`CandidateOfferSent`, text from `InvitationMessage::offer`:
+    the terms and a request to reply; no attachment, since the letter is a print page). Once sent, the terms are locked and
+    HR can no longer pull the offer back (a candidate turned down, or the requisition cancelled, still withdraws it). A sent offer
+    stays live, so the candidate cannot be proposed again and the superior cannot take back the choice.
+  - **Screen.** On an approved offer HR gets "Atur ketentuan" (or "Ubah ketentuan"), "Surat penawaran" and "Tandai terkirim"; the row
+    shows "mulai … · percobaan …" and, once sent, "Terkirim … oleh …". `DecisionDialog` can now be used without a note field.
+  - **Not done:** one set of terms for several candidates (`REC-OFR-003`, P2); the candidate's answer (Phase 5).
+  - **Checked:** new `RequisitionOfferLetterTest` (9); Pint, PHPStan on the touched files, TypeScript and the formatter clean. Not
+    seen in a browser.
+
 - **2026-11-11 (recruitment: Management's approval of an offer; Phase 3 of the Offer plan, branch `feature/recruitement`).**
   Migration `create_candidate_offers_table`; run `php artisan migrate` on every environment. **Decided with the user:**
   Management sees only the candidates who have an offer, never the whole shortlist.
@@ -1732,7 +1756,7 @@ platform accounts above (no career page, manual posting, nothing public except t
      showing "Direkomendasikan oleh n pewawancara" (from the evaluations). Management approves and sets the starting
      salary, or rejects with a reason and the candidate returns to the Interview list. Notices to Management and back, the
      dashboard card and the badge count offers, and each offer has the comment thread.
-  4. **Terms, letter and sending** (`REC-OFR-001..006`, `OFS-003/007`). Start date, salary (from Management's figure),
+  4. **Terms, letter and sending** (`REC-OFR-001..006`, `OFS-003/007`). **Built 2026-11-11** (change log above). Start date, salary (from Management's figure),
      probation; Posisi and Departemen filled in; one set of terms may apply to several candidates (`OFR-003`, P2). The
      letter is generated from a template with fields pulled in and a print page for the rest. Sending marks the offer
      "Penawaran Terkirim" with an opt-in email.
@@ -1759,10 +1783,10 @@ platform accounts above (no career page, manual posting, nothing public except t
 | `REC-PST`                         | Stage 02 Posting            | 7   | 4   | ✅     | Built 11-04 (revised plan: manual, no cmp-api push): copy buttons (Judul, Deskripsi, Persyaratan, Semua), "Tandai sudah diposting" per platform with date and optional link, correct/remove, "Lanjut ke Screening" once one is recorded, "Batalkan lowongan" with a reason (PST-004) |
 | `REC-SCR`                         | Stage 03 Screening          | 8   | 4   | ✅     | Built 11-04 (revised plan): total-applicants count, quick-add of shortlisted candidates (duplicate warning, paste-to-autofill, optional CV), shortlist list, "Lanjut ke Interview". No ranking. Candidate list is HR-only |
 | `REC-INT`                         | Stage 04 Interview          | 8   | 3   | ✅     | Built 11-04 (revised plan): invitation (time, online/in person, Meet link or address) by email with the same text for WhatsApp, single-use link, open only on the interview day, to the public in-app candidate form (Ya/Tidak on the checklist, salary, start date), answers shown to HR. Built 11-06: feedback by HR and the direct superior, reminders (candidate the day before, HR and superior on the day). Built 11-09: a notice to HR and the superior for interviews still without an evaluation; the CSV for mail merge (one row per interviewee with an email, the invitation's note included, every download on the audit trail); cancelling warns HR of candidates already scheduled and tells the superior. Candidate rescheduling stays with HR by decision. Google Meet creation waits on the account test |
-| `REC-OFS`                         | Stage 05 Offer              | 9   | 8   | 🟡     | Built 11-11: the chosen list with ticks and "Direkomendasikan oleh n", "Ajukan ke Manajemen" (001/002), Management's approval with the starting salary or a rejection that returns the candidate to Interview (006), withdrawing an offer. Not built: the letter (007), sent list (003), accepted and declined (004/008), "position filled" email (009) |
+| `REC-OFS`                         | Stage 05 Offer              | 9   | 8   | 🟡     | Built 11-11: the chosen list with ticks and "Direkomendasikan oleh n", "Ajukan ke Manajemen" (001/002), Management's approval with the starting salary or a rejection that returns the candidate to Interview (006), withdrawing an offer. Built 11-11 (Phase 4): the letter as a print page (007) and "Tandai terkirim" with an opt-in email (003). Not built: accepted and declined (004/008), "position filled" email (009) |
 | `REC-FIL`                         | Stage 06 Filled             | 7   | 6   | ⬜     | Convert-to-employee (L). Creates the profile the hire then registers against (`CORE-REG`); until this exists HR creates profiles by hand or CSV |
 | `REC-CAN` · `REC-CDT` · `REC-CRV` | Candidate detail + tabs     | 11  | 8   | 🟡     | The candidate is a side drawer, not a page (by decision): Ringkasan (answers of the form), Dokumen (CV), Interview (schedule, invitation, evaluations). Built 11-10: Tolak with a reason and an opt-in email, and Pulihkan (`CAN-002/003`, the "Ditolak" banner of `CDT-001`); Pilih and Batalkan pilihan for the direct superior, with the "Dipilih" banner. The stage-dependent actions for Siap Ditawari and Penawaran Terkirim come with the Offer phases |
-| `REC-OFR`                         | Send offer form             | 6   | 4   | ⬜     |                                                             |
+| `REC-OFR`                         | Send offer form             | 6   | 4   | 🟡     | Built 11-11: start date (after today) and probation (0 to 3 months) with the salary from Management, the letter from the requisition and the offer. Not built: one set of terms for several candidates (003) |
 | `REC-EDI`                         | Post-interview form builder | 1   | 0   | ⬜     | P5 — backlog                                                |
 | `REC-CAR`                         | Career page (public)        | 3   | 0   | ➖     | Dropped 2026-11-04: no public career page; only invited, shortlisted candidates reach a form (inside this app) |
 

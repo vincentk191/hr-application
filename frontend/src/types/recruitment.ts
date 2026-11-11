@@ -222,9 +222,35 @@ export type CandidateOffer = {
     decidedBy: string | null;
     decidedOn: string | null;
     decisionNote: string | null;
+    /** The terms HR fills in once the offer is approved (REC-OFR); the salary above is Management's. */
+    startOn: string | null;
+    probationMonths: number | null;
+    sentOn: string | null;
+    sentBy: string | null;
+    /** Whether the candidate was also emailed when the offer was marked sent. */
+    emailed: boolean;
     canDecide: boolean;
     canWithdraw: boolean;
+    canSetTerms: boolean;
+    canSend: boolean;
+    canViewLetter: boolean;
     candidate: Candidate | null;
+};
+
+/** What the offer letter is built from (the print page). */
+export type OfferLetter = {
+    company: string;
+    date: string;
+    candidate: string;
+    position: string;
+    department: string | null;
+    branch: string | null;
+    manager: string | null;
+    contract: string | null;
+    startOn: string | null;
+    probation: string | null;
+    salary: string | null;
+    sent: boolean;
 };
 
 /** One interviewer's evaluation of a candidate: a 1 to 5 rating, a recommendation and a note. */

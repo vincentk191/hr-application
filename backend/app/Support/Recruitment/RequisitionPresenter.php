@@ -403,7 +403,7 @@ class RequisitionPresenter
             return null;
         }
 
-        $requisition->loadMissing('offers.workflow.steps.decidedBy:id,name', 'offers.candidate.evaluations.author:id,name', 'offers.proposedBy:id,name');
+        $requisition->loadMissing('offers.workflow.steps.decidedBy:id,name', 'offers.candidate.evaluations.author:id,name', 'offers.proposedBy:id,name', 'offers.sentBy:id,name');
 
         return array_values($requisition->offers->map(fn (CandidateOffer $offer): array => $this->offer($requisition, $offer, $viewer))->all());
     }
@@ -443,9 +443,44 @@ class RequisitionPresenter
             'decidedBy' => $step?->status->isDecided() ? $step->decidedBy?->name : null,
             'decidedOn' => $step?->status->isDecided() ? $step->decided_at?->copy()->setTimezone($timezone)->toDateString() : null,
             'decisionNote' => $step?->status->isDecided() ? $step->note : null,
+            'startOn' => $offer->start_on?->toDateString(),
+            'probationMonths' => $offer->probation_months,
+            'sentOn' => $offer->sent_at?->copy()->setTimezone($timezone)->toDateString(),
+            'sentBy' => $offer->sentBy?->name,
+            'emailed' => $offer->emailed_at !== null,
             'canDecide' => $viewer->can('decideOffer', [$requisition, $offer]),
             'canWithdraw' => $viewer->can('withdrawOffer', [$requisition, $offer]),
+            'canSetTerms' => $viewer->can('setOfferTerms', [$requisition, $offer]),
+            'canSend' => $viewer->can('sendOffer', [$requisition, $offer]),
+            'canViewLetter' => $viewer->can('viewOfferLetter', [$requisition, $offer]),
             'candidate' => $data,
+        ];
+    }
+
+    /**
+     * What the offer letter is built from (REC-OFR): the company, the candidate, the role and the terms, as the letter reads
+     * them. The letter is dated the day it was sent, or today while it is still a draft.
+     *
+     * @return array<string, mixed>
+     */
+    public function offerLetter(Requisition $requisition, CandidateOffer $offer): array
+    {
+        $requisition->loadMissing('company', 'department', 'branch', 'manager');
+        $offer->loadMissing('candidate', 'sentBy:id,name');
+
+        return [
+            'company' => $requisition->company->name,
+            'date' => InvitationMessage::dayLabel($offer->sent_at ?? now(), false),
+            'candidate' => $offer->candidate->name,
+            'position' => $requisition->position_name,
+            'department' => $requisition->department?->name,
+            'branch' => $requisition->branch?->name,
+            'manager' => $requisition->manager?->full_name,
+            'contract' => $requisition->contractLabel(),
+            'startOn' => $offer->start_on === null ? null : InvitationMessage::dayLabel($offer->start_on, false),
+            'probation' => $offer->probation_months === null ? null : InvitationMessage::probationLabel($offer->probation_months),
+            'salary' => $offer->salary === null ? null : InvitationMessage::rupiah($offer->salary),
+            'sent' => $offer->sent_at !== null,
         ];
     }
 

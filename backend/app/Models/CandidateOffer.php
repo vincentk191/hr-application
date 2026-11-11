@@ -23,8 +23,13 @@ use Illuminate\Support\Carbon;
  * @property int $requisition_id
  * @property int $candidate_id
  * @property int|null $salary
+ * @property Carbon|null $start_on
+ * @property int|null $probation_months
  * @property int|null $proposed_by_user_id
  * @property Carbon|null $proposed_at
+ * @property Carbon|null $sent_at
+ * @property int|null $sent_by_user_id
+ * @property Carbon|null $emailed_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -33,8 +38,13 @@ use Illuminate\Support\Carbon;
     'requisition_id',
     'candidate_id',
     'salary',
+    'start_on',
+    'probation_months',
     'proposed_by_user_id',
     'proposed_at',
+    'sent_at',
+    'sent_by_user_id',
+    'emailed_at',
 ])]
 class CandidateOffer extends Model
 {
@@ -48,8 +58,20 @@ class CandidateOffer extends Model
     {
         return [
             'salary' => 'integer',
+            'start_on' => 'date',
+            'probation_months' => 'integer',
             'proposed_at' => 'datetime',
+            'sent_at' => 'datetime',
+            'emailed_at' => 'datetime',
         ];
+    }
+
+    /**
+     * The terms the letter needs are all there: the salary from Management, and the start date and probation from HR.
+     */
+    public function hasTerms(): bool
+    {
+        return $this->salary !== null && $this->start_on !== null && $this->probation_months !== null;
     }
 
     public function stage(): OfferStage
@@ -98,5 +120,13 @@ class CandidateOffer extends Model
     public function proposedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'proposed_by_user_id');
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function sentBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'sent_by_user_id');
     }
 }

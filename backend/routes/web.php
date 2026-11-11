@@ -124,6 +124,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('recruitment/{requisition}/offers', [RequisitionOfferController::class, 'store'])->name('recruitment.offers.store');
     Route::put('recruitment/{requisition}/offers/{offer}/decision', [RequisitionOfferController::class, 'decide'])->scopeBindings()->name('recruitment.offers.decide');
     Route::delete('recruitment/{requisition}/offers/{offer}', [RequisitionOfferController::class, 'withdraw'])->scopeBindings()->name('recruitment.offers.withdraw');
+    Route::put('recruitment/{requisition}/offers/{offer}/terms', [RequisitionOfferController::class, 'terms'])->scopeBindings()->name('recruitment.offers.terms');
+    Route::post('recruitment/{requisition}/offers/{offer}/send', [RequisitionOfferController::class, 'send'])->scopeBindings()->name('recruitment.offers.send');
+    Route::get('recruitment/{requisition}/offers/{offer}/letter', [RequisitionOfferController::class, 'letter'])->scopeBindings()->name('recruitment.offers.letter');
     Route::post('recruitment/{requisition}/offer', [RequisitionController::class, 'advanceToOffer'])->name('recruitment.offer');
     Route::post('recruitment/{requisition}/cancel', [RequisitionController::class, 'cancel'])->name('recruitment.cancel');
     Route::post('recruitment/{requisition}/comments', [RequisitionController::class, 'comment'])->name('recruitment.comments.store');

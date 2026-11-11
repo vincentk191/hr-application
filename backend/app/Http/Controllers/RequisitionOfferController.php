@@ -4,12 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Actions\Recruitment\DecideOffer;
 use App\Actions\Recruitment\ProposeOffers;
+use App\Actions\Recruitment\SendOffer;
+use App\Actions\Recruitment\SetOfferTerms;
 use App\Actions\Recruitment\WithdrawOffer;
 use App\Models\CandidateOffer;
 use App\Models\Requisition;
+use App\Support\Recruitment\RequisitionPresenter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Inertia\Response;
 
 /**
  * Offers to the candidates the direct superior chose (REC-OFS): HR puts them to Management, Management approves each with
@@ -70,6 +74,61 @@ class RequisitionOfferController extends Controller
         }
 
         return back();
+    }
+
+    /**
+     * HR fills in the start date and the probation of an approved offer (REC-OFR). The start date must be after today and
+     * the probation at most three months, 0 meaning none.
+     */
+    public function terms(Request $request, Requisition $requisition, CandidateOffer $offer, SetOfferTerms $setTerms): RedirectResponse
+    {
+        $this->authorize('setOfferTerms', [$requisition, $offer]);
+
+        $today = now()->setTimezone((string) config('attendance.device_timezone'))->toDateString();
+
+        $validated = $request->validate([
+            'start_on' => ['required', 'date_format:Y-m-d', 'after:'.$today],
+            'probation_months' => ['required', 'integer', 'min:0', 'max:3'],
+        ], [
+            'start_on.required' => 'Isi tanggal mulai kerja.',
+            'start_on.date_format' => 'Tanggal mulai kerja harus berupa tanggal yang sah.',
+            'start_on.after' => 'Tanggal mulai kerja harus setelah hari ini.',
+            'probation_months.required' => 'Pilih masa percobaan.',
+            'probation_months.max' => 'Masa percobaan maksimal 3 bulan.',
+        ]);
+
+        $setTerms->handle($requisition, $offer, $request->user(), $validated['start_on'], (int) $validated['probation_months']);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "Ketentuan penawaran {$offer->candidate?->name} disimpan."]);
+
+        return back();
+    }
+
+    /**
+     * "Tandai terkirim": the letter has gone to the candidate. The candidate is emailed the terms only if HR ticked it.
+     */
+    public function send(Request $request, Requisition $requisition, CandidateOffer $offer, SendOffer $sendOffer): RedirectResponse
+    {
+        $this->authorize('sendOffer', [$requisition, $offer]);
+
+        $emailed = $sendOffer->handle($requisition, $offer, $request->user(), $request->boolean('notify_candidate'));
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "Penawaran {$offer->candidate?->name} ditandai terkirim".($emailed ? ' dan dikabarkan lewat email.' : '.')]);
+
+        return back();
+    }
+
+    /**
+     * The offer letter as a print page (REC-OFR), built from the offer as it is now so it can be printed again.
+     */
+    public function letter(Request $request, Requisition $requisition, CandidateOffer $offer, RequisitionPresenter $presenter): Response
+    {
+        $this->authorize('viewOfferLetter', [$requisition, $offer]);
+
+        return Inertia::render('recruitment/offer-letter', [
+            'requisition' => ['id' => $requisition->id, 'reference' => $requisition->reference(), 'positionName' => $requisition->position_name],
+            'letter' => $presenter->offerLetter($requisition, $offer),
+        ]);
     }
 
     /**

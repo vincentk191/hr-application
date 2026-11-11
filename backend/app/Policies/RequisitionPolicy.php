@@ -269,6 +269,38 @@ class RequisitionPolicy
     }
 
     /**
+     * The start date and probation are HR's to fill in once Management has approved, and to change until the offer is sent.
+     */
+    public function setOfferTerms(User $user, Requisition $requisition, CandidateOffer $offer): bool
+    {
+        return $offer->requisition_id === $requisition->id
+            && $offer->stage() === OfferStage::Approved
+            && $this->viewCandidates($user, $requisition);
+    }
+
+    /**
+     * The letter is HR's to print once the terms are set, before and after it is sent.
+     */
+    public function viewOfferLetter(User $user, Requisition $requisition, CandidateOffer $offer): bool
+    {
+        return $offer->requisition_id === $requisition->id
+            && in_array($offer->stage(), [OfferStage::Approved, OfferStage::Sent], true)
+            && $offer->hasTerms()
+            && $this->viewCandidates($user, $requisition);
+    }
+
+    /**
+     * Marking an offer as sent is HR's, for an approved offer whose terms are complete.
+     */
+    public function sendOffer(User $user, Requisition $requisition, CandidateOffer $offer): bool
+    {
+        return $offer->requisition_id === $requisition->id
+            && $offer->stage() === OfferStage::Approved
+            && $offer->hasTerms()
+            && $this->viewCandidates($user, $requisition);
+    }
+
+    /**
      * "Lanjut ke Penawaran" is HR's, once, from 04 Interview; the stage's guard keeps it shut until a candidate is chosen.
      */
     public function advanceToOffer(User $user, Requisition $requisition): bool

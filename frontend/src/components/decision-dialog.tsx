@@ -42,7 +42,8 @@ export function DecisionDialog({
     decision: string;
     title: string;
     subtitle: string;
-    fieldLabel: string;
+    /** The note's label; without it the dialog has no note field and only the fields in `extra`. */
+    fieldLabel?: string;
     hint?: string;
     required?: boolean;
     confirmLabel: string;
@@ -84,23 +85,29 @@ export function DecisionDialog({
                                     value={decision}
                                 />
                                 {extra?.(errors)}
-                                <label
-                                    htmlFor="decision-note"
-                                    className="text-sm font-semibold text-muted-foreground"
-                                >
-                                    {fieldLabel}
-                                </label>
-                                <textarea
-                                    id="decision-note"
-                                    name="note"
-                                    rows={5}
-                                    required={required}
-                                    autoFocus
-                                    className="w-full rounded-xl border border-input bg-card px-3 py-2 text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
-                                    data-test="decision-note"
-                                />
-                                {hint && <p className="label-mono">{hint}</p>}
-                                <InputError message={errors.note} />
+                                {fieldLabel !== undefined && (
+                                    <>
+                                        <label
+                                            htmlFor="decision-note"
+                                            className="text-sm font-semibold text-muted-foreground"
+                                        >
+                                            {fieldLabel}
+                                        </label>
+                                        <textarea
+                                            id="decision-note"
+                                            name="note"
+                                            rows={5}
+                                            required={required}
+                                            autoFocus
+                                            className="w-full rounded-xl border border-input bg-card px-3 py-2 text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+                                            data-test="decision-note"
+                                        />
+                                        {hint && (
+                                            <p className="label-mono">{hint}</p>
+                                        )}
+                                        <InputError message={errors.note} />
+                                    </>
+                                )}
                             </div>
 
                             <DialogFooter className="items-center border-t bg-muted/40 p-5 sm:justify-between">

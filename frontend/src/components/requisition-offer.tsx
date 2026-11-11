@@ -1,5 +1,16 @@
-import { router } from '@inertiajs/react';
-import { Check, Send, Undo2, UserCheck, Users, X } from 'lucide-react';
+import { Link, router } from '@inertiajs/react';
+import {
+    CalendarCheck,
+    Check,
+    CheckCheck,
+    Mail,
+    Printer,
+    Send,
+    Undo2,
+    UserCheck,
+    Users,
+    X,
+} from 'lucide-react';
 import { useState } from 'react';
 import { CandidateDrawer } from '@/components/candidate-drawer';
 import type { CandidateTab } from '@/components/candidate-drawer';
@@ -9,7 +20,14 @@ import InputError from '@/components/input-error';
 import { shortDate } from '@/components/requisition-summary';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { decide, store, withdraw } from '@/routes/recruitment/offers';
+import {
+    decide,
+    letter,
+    send as sendOffer,
+    store,
+    terms,
+    withdraw,
+} from '@/routes/recruitment/offers';
 import type {
     Candidate,
     CandidateOffer,
@@ -177,6 +195,164 @@ function RejectOffer({
     );
 }
 
+const PROBATION_OPTIONS = [
+    { value: 0, label: 'Tidak ada' },
+    { value: 1, label: '1 bulan' },
+    { value: 2, label: '2 bulan' },
+    { value: 3, label: '3 bulan' },
+] as const;
+
+/** "mulai 1 Des 2026 · percobaan 3 bulan": the terms HR set, once there are any. */
+function termsLabel(offer: CandidateOffer): string | null {
+    const parts = [
+        offer.startOn ? `mulai ${shortDate(offer.startOn)}` : null,
+        offer.probationMonths !== null
+            ? offer.probationMonths === 0
+                ? 'tanpa masa percobaan'
+                : `percobaan ${offer.probationMonths} bulan`
+            : null,
+    ].filter(Boolean);
+
+    return parts.length > 0 ? parts.join(' · ') : null;
+}
+
+/**
+ * HR's part of an approved offer: the start date and the probation, beside the salary Management set (shown, not
+ * editable). The letter and "Tandai terkirim" wait for these.
+ */
+function OfferTerms({
+    item,
+    offer,
+}: {
+    item: Requisition;
+    offer: CandidateOffer;
+}) {
+    return (
+        <DecisionDialog
+            form={terms.form({ requisition: item.id, offer: offer.id })}
+            decision="terms"
+            title={`Ketentuan penawaran — ${offer.name}`}
+            subtitle={`${item.reference} · ${item.positionName}`}
+            confirmLabel="Simpan"
+            extra={(errors) => (
+                <div className="space-y-4">
+                    <p className="label-mono">
+                        Gaji awal Rp {rupiah.format(offer.salary ?? 0)} · dari
+                        Manajemen
+                    </p>
+                    <div className="space-y-1">
+                        <label
+                            htmlFor="offer-start-on"
+                            className="text-sm font-semibold text-muted-foreground"
+                        >
+                            Tanggal mulai kerja
+                        </label>
+                        <input
+                            id="offer-start-on"
+                            name="start_on"
+                            type="date"
+                            required
+                            defaultValue={
+                                offer.startOn ?? item.targetStartOn ?? ''
+                            }
+                            className="h-10 w-full rounded-xl border border-input bg-card px-3 text-sm"
+                            data-test="offer-start-on"
+                        />
+                        <InputError message={errors.start_on} />
+                    </div>
+                    <div className="space-y-1">
+                        <label
+                            htmlFor="offer-probation"
+                            className="text-sm font-semibold text-muted-foreground"
+                        >
+                            Masa percobaan
+                        </label>
+                        <select
+                            id="offer-probation"
+                            name="probation_months"
+                            required
+                            defaultValue={offer.probationMonths ?? ''}
+                            className="h-10 w-full rounded-xl border border-input bg-card px-3 text-sm"
+                            data-test="offer-probation"
+                        >
+                            <option value="" disabled>
+                                Pilih
+                            </option>
+                            {PROBATION_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                        <InputError message={errors.probation_months} />
+                    </div>
+                </div>
+            )}
+            trigger={
+                <Button size="sm" variant="outline" data-test="offer-terms">
+                    <CalendarCheck className="size-4" aria-hidden />
+                    {offer.startOn ? 'Ubah ketentuan' : 'Atur ketentuan'}
+                </Button>
+            }
+        />
+    );
+}
+
+/**
+ * "Tandai terkirim": the letter has gone to the candidate. Emailing them the terms is a tick box, unticked, and only
+ * offered when the candidate has an address.
+ */
+function SendOffer({
+    item,
+    offer,
+}: {
+    item: Requisition;
+    offer: CandidateOffer;
+}) {
+    return (
+        <DecisionDialog
+            form={sendOffer.form({ requisition: item.id, offer: offer.id })}
+            decision="send"
+            title={`Tandai terkirim — ${offer.name}`}
+            subtitle={`${item.reference} · surat sudah diberikan ke kandidat`}
+            confirmLabel="Tandai terkirim"
+            extra={
+                offer.candidate?.email
+                    ? () => (
+                          <label
+                              className="flex items-center gap-2 text-sm font-medium"
+                              data-test="notify-candidate"
+                          >
+                              <input
+                                  type="checkbox"
+                                  name="notify_candidate"
+                                  value="1"
+                                  className="size-4 accent-primary"
+                              />
+                              <Mail
+                                  className="size-4 text-muted-foreground"
+                                  aria-hidden
+                              />
+                              Kabari kandidat lewat email
+                          </label>
+                      )
+                    : () => (
+                          <p className="text-sm text-muted-foreground">
+                              Kandidat belum punya email, jadi tidak ada email
+                              yang dikirim.
+                          </p>
+                      )
+            }
+            trigger={
+                <Button size="sm" data-test="send-offer">
+                    <CheckCheck className="size-4" aria-hidden />
+                    Tandai terkirim
+                </Button>
+            }
+        />
+    );
+}
+
 /** One offer: who, where it stands, what Management decided, and the actions that are this person's. */
 function OfferRow({
     item,
@@ -193,6 +369,7 @@ function OfferRow({
         offer.salary !== null
             ? `gaji awal Rp ${rupiah.format(offer.salary)}`
             : null,
+        termsLabel(offer),
     ]
         .filter(Boolean)
         .join(' · ');
@@ -200,6 +377,9 @@ function OfferRow({
         offer.decidedBy !== null
             ? `${offer.decidedBy}${offer.decidedOn ? ` · ${shortDate(offer.decidedOn)}` : ''}`
             : null;
+    const sent = offer.sentOn
+        ? `Terkirim ${shortDate(offer.sentOn)}${offer.sentBy ? ` oleh ${offer.sentBy}` : ''}${offer.emailed ? ' · dikabari lewat email' : ''}`
+        : null;
 
     return (
         <li
@@ -228,7 +408,13 @@ function OfferRow({
                 </p>
             )}
 
-            {(offer.canDecide || offer.canWithdraw) && (
+            {sent && <p className="text-sm text-muted-foreground">{sent}</p>}
+
+            {(offer.canDecide ||
+                offer.canWithdraw ||
+                offer.canSetTerms ||
+                offer.canViewLetter ||
+                offer.canSend) && (
                 <div className="flex flex-wrap gap-2">
                     {offer.canDecide && (
                         <>
@@ -236,6 +422,28 @@ function OfferRow({
                             <RejectOffer item={item} offer={offer} />
                         </>
                     )}
+                    {offer.canSetTerms && (
+                        <OfferTerms item={item} offer={offer} />
+                    )}
+                    {offer.canViewLetter && (
+                        <Button
+                            asChild
+                            size="sm"
+                            variant="outline"
+                            data-test="offer-letter"
+                        >
+                            <Link
+                                href={letter.url({
+                                    requisition: item.id,
+                                    offer: offer.id,
+                                })}
+                            >
+                                <Printer className="size-4" aria-hidden />
+                                Surat penawaran
+                            </Link>
+                        </Button>
+                    )}
+                    {offer.canSend && <SendOffer item={item} offer={offer} />}
                     {offer.canWithdraw && (
                         <Button
                             size="sm"
