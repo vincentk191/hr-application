@@ -207,10 +207,17 @@ class AdminOverview
      * One month of what HR plans around: leave (waiting and approved, on working days), interviews, and the holidays
      * and company events this person may see. Each entry is one person, or one event, on one date.
      *
-     * @return array{month: string, label: string, prev: string, next: string, entries: list<array<string, mixed>>}
+     * A person who is also an employee can switch it to their own: `$scope` "me" keeps the holidays and events and only
+     * their own leave, with no interviews, so one calendar serves both what they plan around and what is theirs.
+     *
+     * @param  int|null  $ownEmployeeId  the person's own employee record, when they have one
+     * @param  string|null  $scope  "me" for their own leave, anything else for everyone's
+     * @return array{month: string, label: string, prev: string, next: string, scope: string, canSwitch: bool, entries: list<array<string, mixed>>}
      */
-    public function calendar(User $user, ?string $asked = null): array
+    public function calendar(User $user, ?string $asked = null, ?int $ownEmployeeId = null, ?string $scope = null): array
     {
+        $personal = $ownEmployeeId !== null && $scope === 'me';
+
         $timezone = (string) config('attendance.device_timezone');
         $month = $asked !== null && preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $asked) === 1
             ? CarbonImmutable::createFromFormat('Y-m-d', $asked.'-01', $timezone)->startOfDay()
@@ -220,8 +227,8 @@ class AdminOverview
 
         $entries = [
             ...$this->events($user, $from, $to),
-            ...$this->leaveEntries($user, $from, $to),
-            ...($user->can(Permission::ManageRecruitment->value) ? $this->interviewEntries($from, $to, $timezone) : []),
+            ...$this->leaveEntries($user, $from, $to, $personal ? $ownEmployeeId : null),
+            ...(! $personal && $user->can(Permission::ManageRecruitment->value) ? $this->interviewEntries($from, $to, $timezone) : []),
         ];
 
         usort($entries, fn (array $a, array $b): int => [$a['date'], $a['order'], $a['time'] ?? '', $a['title']] <=> [$b['date'], $b['order'], $b['time'] ?? '', $b['title']]);
@@ -231,6 +238,8 @@ class AdminOverview
             'label' => $month->settings(['locale' => 'id'])->translatedFormat('F Y'),
             'prev' => $month->subMonth()->format('Y-m'),
             'next' => $month->addMonth()->format('Y-m'),
+            'scope' => $personal ? 'me' : 'team',
+            'canSwitch' => $ownEmployeeId !== null,
             'entries' => array_map(function (array $entry): array {
                 unset($entry['order']);
 
@@ -345,15 +354,17 @@ class AdminOverview
      * Leave still waiting or approved, through the same visibility as the leave queue, on the working days it
      * covers (a leave over a weekend does not fill the weekend). Rejected leave asks for nothing, so it is left out.
      *
+     * @param  int|null  $onlyEmployeeId  keep one employee's leave, for the person's own view
      * @return list<array<string, mixed>>
      */
-    private function leaveEntries(User $user, CarbonImmutable $from, CarbonImmutable $to): array
+    private function leaveEntries(User $user, CarbonImmutable $from, CarbonImmutable $to, ?int $onlyEmployeeId = null): array
     {
         $schedule = WorkSchedule::current();
         $entries = [];
 
         LeaveRequest::query()
             ->visibleTo($user)
+            ->when($onlyEmployeeId !== null, fn (Builder $query) => $query->where('employee_id', $onlyEmployeeId))
             ->with(['type', 'workflow', 'employee:id,full_name'])
             ->whereHas('workflow', fn (Builder $query) => $query->whereIn('current_stage', [LeaveRequestStage::Submitted->value, LeaveRequestStage::Approved->value]))
             ->whereDate('start_on', '<=', $to->toDateString())

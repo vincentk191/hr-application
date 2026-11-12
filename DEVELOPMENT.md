@@ -69,6 +69,13 @@ left uncommitted for review.
 
 ## Change log (latest first)
 
+- **2026-11-12 (dashboard: one calendar for managers).** A manager (HR or Management) who is also an employee had two month calendars on
+  the dashboard: the shared "Kalender" and their own "Hari sakit". Now there is the one shared calendar with a **Saya /
+  Manajemen** switch (\`scope=me\` on the dashboard URL): Manajemen is as before (everyone's leave, interviews, holidays and
+  events); Saya keeps the holidays and events and shows only their own leave, waiting or approved, with no interviews. The
+  switch appears only for someone with an employee record, and their separate "Hari sakit" card is left out (their sick leave is
+  among their own leave). Everyone else's dashboard is unchanged. Not seen in a browser.
+
 - **2026-11-11 (recruitment: the post-interview evaluation redesigned for the phone, REC-INT).** \`candidate-evaluations.tsx\`: a summary
   (the average large, how many said Lanjut, Pertimbangkan and Tidak lanjut with their colours, and a bar split by those
   shares), the signed-in person's own card ("Anda", score, recommendation pill, note, "Ubah penilaian") or a dashed

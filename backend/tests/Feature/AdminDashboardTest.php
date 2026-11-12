@@ -197,6 +197,35 @@ it('shows interviews and holidays on the calendar, and moves by month', function
     expect(dashboardProps($this->hr)['adminCalendar']['month'])->toBe('2026-10');
 });
 
+it('switches the one calendar to the person\'s own leave, keeping holidays and dropping interviews and everyone else\'s leave', function () {
+    $requisition = adminRequisition(RequisitionStage::Interview);
+    Candidate::factory()->create(['requisition_id' => $requisition->id, 'name' => 'Sari', 'interview_at' => CarbonImmutable::parse('2026-11-10 10:00', 'Asia/Jakarta')->utc()]);
+    CalendarEvent::create(['title' => 'Cuti bersama', 'kind' => 'holiday', 'starts_on' => '2026-11-11', 'ends_on' => '2026-11-11']);
+    adminLeave('2026-11-12', '2026-11-12');
+
+    $boss = adminUser(Role::HrAdmin, $this->company);
+    $bossEmployee = Employee::factory()->forCompany($this->company)->create(['user_id' => $boss->id, 'full_name' => 'Bu Bos', 'joined_on' => '2020-01-01']);
+    $this->actingAs($boss)->post(route('leave-requests.store'), [
+        'employee_id' => $bossEmployee->id, 'leave_type' => 'annual', 'start_on' => '2026-11-13', 'end_on' => '2026-11-13', 'reason' => 'Perlu',
+    ])->assertSessionHasNoErrors();
+
+    $team = dashboardProps($boss, '?calendar=2026-11')['adminCalendar'];
+    $mine = dashboardProps($boss, '?calendar=2026-11&scope=me')['adminCalendar'];
+
+    expect($team['scope'])->toBe('team')->and($team['canSwitch'])->toBeTrue()
+        ->and(collect($team['entries'])->pluck('kind')->unique()->sort()->values()->all())->toBe(['holiday', 'interview', 'leave'])
+        ->and($mine['scope'])->toBe('me')
+        ->and(collect($mine['entries'])->pluck('kind')->unique()->sort()->values()->all())->toBe(['holiday', 'leave'])
+        ->and(collect($mine['entries'])->where('kind', 'leave')->pluck('title')->unique()->all())->toBe(['Bu Bos'])
+        ->and(collect($mine['entries'])->where('kind', 'leave')->pluck('date')->all())->toBe(['2026-11-13']);
+});
+
+it('has no personal view for someone without an employee record, who stays on the management one', function () {
+    $props = dashboardProps($this->hr, '?calendar=2026-11&scope=me');
+
+    expect($props['adminCalendar']['canSwitch'])->toBeFalse()->and($props['adminCalendar']['scope'])->toBe('team');
+});
+
 it('leaves interviews off the calendar of someone who does not recruit', function () {
     $requisition = adminRequisition(RequisitionStage::Interview);
     Candidate::factory()->create(['requisition_id' => $requisition->id, 'interview_at' => CarbonImmutable::parse('2026-11-10 10:00', 'Asia/Jakarta')->utc()]);

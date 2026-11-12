@@ -123,6 +123,10 @@ export type AdminCalendar = {
     label: string;
     prev: string;
     next: string;
+    /** "team": everyone's leave and the interviews; "me": only the person's own leave. */
+    scope: 'team' | 'me';
+    /** The person is also an employee, so the calendar can be switched between the two. */
+    canSwitch: boolean;
     entries: AdminCalendarEntry[];
 };
 

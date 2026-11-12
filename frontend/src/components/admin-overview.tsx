@@ -176,16 +176,38 @@ export function AdminCalendarCard({ data }: { data: AdminCalendar }) {
     const selected = picked?.startsWith(data.month) ? picked : fallback;
     const agenda = byDate.get(selected) ?? [];
 
-    const go = (target: string) =>
+    const personal = data.scope === 'me';
+    const go = (target: string, scope: AdminCalendar['scope'] = data.scope) =>
         router.reload({
             only: ['adminCalendar'],
-            data: { calendar: target },
+            data: { calendar: target, scope },
         });
 
     return (
         <section className="surface space-y-3 p-4" data-test="admin-calendar">
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="font-semibold">Kalender {data.label}</h2>
+                {/* A person who is also an employee has this one calendar for both: their own leave, or everyone's. */}
+                {data.canSwitch && (
+                    <div className="seg" data-test="admin-calendar-scope">
+                        {(
+                            [
+                                { value: 'me', label: 'Saya' },
+                                { value: 'team', label: 'Manajemen' },
+                            ] as const
+                        ).map((option) => (
+                            <button
+                                key={option.value}
+                                type="button"
+                                data-on={data.scope === option.value}
+                                onClick={() => go(data.month, option.value)}
+                                className="px-3 text-sm"
+                            >
+                                {option.label}
+                            </button>
+                        ))}
+                    </div>
+                )}
                 <div className="flex items-center gap-1">
                     <Button
                         type="button"
@@ -287,16 +309,17 @@ export function AdminCalendarCard({ data }: { data: AdminCalendar }) {
             />
 
             <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                {(['leave', 'interview', 'event', 'holiday'] as const).map(
-                    (kind) => (
-                        <li key={kind} className="flex items-center gap-1.5">
-                            <span
-                                className={`size-3 rounded-sm ${KIND_STYLE[kind]}`}
-                            />
-                            {KIND_LABEL[kind]}
-                        </li>
-                    ),
-                )}
+                {(personal
+                    ? (['leave', 'event', 'holiday'] as const)
+                    : (['leave', 'interview', 'event', 'holiday'] as const)
+                ).map((kind) => (
+                    <li key={kind} className="flex items-center gap-1.5">
+                        <span
+                            className={`size-3 rounded-sm ${KIND_STYLE[kind]}`}
+                        />
+                        {KIND_LABEL[kind]}
+                    </li>
+                ))}
                 <li className="flex items-center gap-1.5">
                     <span className="size-3 rounded-sm border border-dashed border-sky-500" />
                     Cuti menunggu persetujuan
@@ -309,7 +332,9 @@ export function AdminCalendarCard({ data }: { data: AdminCalendar }) {
                 </p>
                 {agenda.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
-                        Tidak ada cuti, interview, atau acara.
+                        {personal
+                            ? 'Tidak ada cuti atau acara.'
+                            : 'Tidak ada cuti, interview, atau acara.'}
                     </p>
                 ) : (
                     <ul className="space-y-1.5">

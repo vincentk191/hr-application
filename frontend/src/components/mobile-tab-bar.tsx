@@ -53,8 +53,10 @@ function Count({ count }: { count?: number }) {
  *
  * When everything this person can open fits in the four slots beside home (an employee on the public entrance, say,
  * who has only their own pages), all of it goes on the bar, with the notifications to fill a free slot, and there is
- * no "Lainnya". Otherwise it keeps the three most used places and "Lainnya" opens a sheet with the rest, under the
- * same category headings as the side menu, so no screen is out of reach.
+ * no "Lainnya". Otherwise it keeps three places and "Lainnya" opens a sheet with the rest, under the same category
+ * headings as the side menu, so no screen is out of reach. The three are the most used places this person may open (leave
+ * requests, the directory, the attendance calendar), and where they may open fewer, the bar is filled with their other
+ * places, then their profile and settings, rather than left with empty slots.
  * From tablet width up the side menu is used and this is hidden.
  */
 export function MobileTabBar() {
@@ -92,6 +94,18 @@ export function MobileTabBar() {
     const extras: NavItem[] = [...profile, settings];
 
     const compact = others.length + extras.length <= SIDE_SLOTS;
+
+    // When "Lainnya" is needed it takes one of the four slots, so three places are on the bar. They are the most used
+    // ones this person may open; if they may open fewer than three of those, the rest of the bar is filled from their
+    // other places in menu order, then their profile and settings, so no slot is left empty while a page waits in "Lainnya".
+    const preferred = SIDE_TAB_URLS.map((url) =>
+        others.find((item) => toUrl(item.href) === url),
+    ).filter((item): item is NavItem => item !== undefined);
+    const fill: NavItem[] = [
+        ...preferred,
+        ...others.filter((item) => !preferred.includes(item)),
+        ...extras,
+    ];
     const sideTabs: NavItem[] = compact
         ? [
               ...others,
@@ -99,9 +113,7 @@ export function MobileTabBar() {
               ...(others.length + extras.length < SIDE_SLOTS ? [bell] : []),
               settings,
           ]
-        : SIDE_TAB_URLS.map((url) =>
-              others.find((item) => toUrl(item.href) === url),
-          ).filter((item): item is NavItem => item !== undefined);
+        : fill.slice(0, SIDE_SLOTS - 1);
     const tabs = home ? [home, ...sideTabs] : sideTabs;
     const more = compact ? [] : others.filter((item) => !tabs.includes(item));
 
@@ -132,8 +144,12 @@ export function MobileTabBar() {
                 items: section.items.filter((item) => more.includes(item)),
             }))
             .filter((section) => section.items.length > 0),
-        { title: 'Akun', items: extras },
-    ];
+        // Profile and settings, unless they already fill a slot of the bar.
+        {
+            title: 'Akun',
+            items: extras.filter((item) => !sideTabs.includes(item)),
+        },
+    ].filter((section) => section.items.length > 0);
     const sheetItems = sheetSections.flatMap((section) => section.items);
     const moreCount = more.reduce((sum, item) => sum + (item.badge ?? 0), 0);
     const moreActive = sheetItems.some((item) => isActive(item));

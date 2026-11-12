@@ -702,10 +702,13 @@ export function EmployeeOverview({
     overview,
     canCreateRequest,
     now,
+    withSickCalendar = true,
 }: {
     overview: Overview;
     canCreateRequest: boolean;
     now: number;
+    /** Left out for a person whose dashboard already has the shared calendar, switched to their own leave. */
+    withSickCalendar?: boolean;
 }) {
     return (
         <>
@@ -732,9 +735,11 @@ export function EmployeeOverview({
                     <div className="order-4 md:order-none">
                         <MonthSummary overview={overview} />
                     </div>
-                    <div className="order-5 md:order-none">
-                        <SickCalendar sick={overview.sickDays} />
-                    </div>
+                    {withSickCalendar && (
+                        <div className="order-5 md:order-none">
+                            <SickCalendar sick={overview.sickDays} />
+                        </div>
+                    )}
                 </div>
             </div>
         </>

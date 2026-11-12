@@ -191,6 +191,7 @@ export default function Dashboard({
                         overview={overview}
                         canCreateRequest={canCreateRequest}
                         now={now}
+                        withSickCalendar={adminCalendar === null}
                     />
                 )}
             </div>
