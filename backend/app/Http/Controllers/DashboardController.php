@@ -50,9 +50,10 @@ class DashboardController extends Controller
             // The cards for the people who run HR. Each is null for everyone else, who sees no card.
             'waiting' => fn (): ?array => $admin->waiting($user),
             // A closure, so moving the month reloads only the calendar (`?calendar=YYYY-MM`). A person with an employee record
-            // may switch it to their own leave (`&scope=me`), so they have one calendar, not a second one for themselves.
-            'adminCalendar' => fn (): ?array => AdminOverview::seesCalendar($user)
-                ? $admin->calendar($user, $request->string('calendar')->toString() ?: null, $own?->id, $request->string('scope')->toString() ?: null)
+            // may switch it to their own leave (`&scope=me`), so they have one calendar, not a second one for themselves. Anyone
+            // else with an employee record has that own view alone: their requests, waiting or approved, and the holidays and events.
+            'adminCalendar' => fn (): ?array => AdminOverview::seesCalendar($user) || $own !== null
+                ? $admin->calendar($user, $request->string('calendar')->toString() ?: null, $own, $request->string('scope')->toString() ?: null)
                 : null,
             'recruitment' => fn (): ?array => $admin->recruitment($user),
             // A request opened over the dashboard (`?request=ID`) rather than on the Pengajuan page: the same panel, read the

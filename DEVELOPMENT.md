@@ -69,6 +69,17 @@ left uncommitted for review.
 
 ## Change log (latest first)
 
+- **2026-11-12 (dashboard: the employee's own calendar shows their requests and the holidays).** An employee, and anyone on the
+  public entrance (where a manager is one), had only the "Hari sakit" calendar: approved sick days, none of their other
+  requests, no waiting ones, no holidays or company events. Now everyone with an employee record gets the one shared calendar
+  (\`AdminOverview::calendar\`, prop \`adminCalendar\`) in its own view: their requests, waiting (dashed) and approved, on working
+  days, and the holidays and events that cover their company, department and Cabang (\`CalendarEvent::appliesTo\`; HR and
+  Management's team view is unchanged and still filters by company only). No Saya / Manajemen switch for them (\`canSwitch\` is
+  only for the people who run HR), no interviews. A request on the calendar opens in the side panel over the dashboard
+  (\`requestId\`, \`href\` null), since the employee page is not served on the public entrance. For these people the calendar sits
+  below today's attendance and requests; "Hari sakit" is no longer shown (its data is still in \`overview.sickDays\`). Tests in
+  \`AdminDashboardTest\`: own requests and covering events on both entrances, and the public manager's calendar.
+
 - **2026-11-12 (public entrance: one rule for the menus and the bell).** Found while testing: a Management login on the public
   domain still showed "Rekrutmen". The route layer was already right (\`PublicRoutes\`: \`recruitment.\` is private, so the page is 403
   there), but the menu flags (\`auth.canViewRecruitment\` and the others) came from policies whose non-role branches (heads a

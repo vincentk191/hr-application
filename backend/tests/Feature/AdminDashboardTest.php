@@ -230,12 +230,47 @@ it('holds a manager on the public entrance to the employee\'s own dashboard and 
     expect($page['entrance'])->toBe(['public' => true, 'limited' => true])
         // None of the cards for the people who run HR, and none of the menus that come with the role.
         ->and($page['waiting'])->toBeNull()
-        ->and($page['adminCalendar'])->toBeNull()
         ->and($page['recruitment'])->toBeNull()
+        // The calendar is the employee's own: no switch to everyone's leave, and nobody else's request on it.
+        ->and($page['adminCalendar'])->toMatchArray(['scope' => 'me', 'canSwitch' => false])
+        ->and($page['adminCalendar']['entries'])->toBeEmpty()
         ->and($page['overview'])->not->toBeNull()
         ->and(collect($page['auth'])->only(['canAccessAdminPanel', 'canViewAttendance', 'canManageAttendance', 'canViewOffboarding', 'canViewRecruitment', 'canReviewProfileChanges', 'canViewEmployees'])->filter()->all())->toBe([])
         ->and($page['pendingForMe'])->toBe(0);
 })->with([Role::Management, Role::HrAdmin]);
+
+it('shows an employee their own requests, waiting and approved, with the holidays and events that cover them', function (string $entrance) {
+    $other = Department::factory()->create(['company_id' => $this->company->id]);
+    $user = adminUser(Role::Employee, $this->company);
+    $me = Employee::factory()->forCompany($this->company)->create(['user_id' => $user->id, 'department_id' => $this->department->id, 'full_name' => 'Sari', 'joined_on' => '2020-01-01']);
+
+    foreach ([['2026-11-03', 'approve'], ['2026-11-04', null]] as [$day, $decision]) {
+        $this->actingAs($user)->post(route('leave-requests.store'), ['employee_id' => $me->id, 'leave_type' => 'annual', 'start_on' => $day, 'end_on' => $day, 'reason' => 'Perlu'])->assertSessionHasNoErrors();
+        $leave = LeaveRequest::query()->latest('id')->firstOrFail();
+
+        if ($decision !== null) {
+            $this->actingAs($this->hr)->put(route('leave-requests.decision', $leave), ['decision' => $decision, 'note' => null])->assertRedirect();
+        }
+    }
+
+    adminLeave('2026-11-05', '2026-11-05');
+    CalendarEvent::create(['title' => 'Cuti bersama', 'kind' => 'holiday', 'starts_on' => '2026-11-11', 'ends_on' => '2026-11-11']);
+    CalendarEvent::create(['title' => 'Rapat perusahaan', 'kind' => 'event', 'starts_on' => '2026-11-12', 'ends_on' => '2026-11-12', 'company_id' => $this->company->id]);
+    CalendarEvent::create(['title' => 'Acara departemen lain', 'kind' => 'event', 'starts_on' => '2026-11-13', 'ends_on' => '2026-11-13', 'department_id' => $other->id]);
+    CalendarEvent::create(['title' => 'Acara departemen saya', 'kind' => 'event', 'starts_on' => '2026-11-16', 'ends_on' => '2026-11-16', 'department_id' => $this->department->id]);
+
+    $props = $this->withHeaders(['X-Entrance' => $entrance])->actingAs($user)->get('/dashboard?calendar=2026-11')->assertOk()->viewData('page')['props'];
+    $entries = collect($props['adminCalendar']['entries']);
+
+    expect($props['adminCalendar'])->toMatchArray(['scope' => 'me', 'canSwitch' => false])
+        ->and($entries->where('kind', 'leave')->map(fn (array $entry): array => [$entry['date'], $entry['status']])->values()->all())->toBe([['2026-11-03', 'approved'], ['2026-11-04', 'submitted']])
+        ->and($entries->where('kind', 'leave')->pluck('title')->unique()->all())->toBe(['Sari'])
+        // Opened over the dashboard, not on a page this entrance may not serve.
+        ->and($entries->where('kind', 'leave')->pluck('href')->unique()->all())->toBe([null])
+        ->and($entries->where('kind', 'leave')->every(fn (array $entry): bool => is_int($entry['requestId'])))->toBeTrue()
+        ->and($entries->whereIn('kind', ['holiday', 'event'])->pluck('title')->sort()->values()->all())->toBe(['Acara departemen saya', 'Cuti bersama', 'Rapat perusahaan'])
+        ->and($entries->where('kind', 'interview'))->toBeEmpty();
+})->with(['private', 'public']);
 
 it('opens a leave request over the dashboard with the panel the Pengajuan page uses, for those who may see it only', function () {
     $leave = adminLeave('2026-11-12', '2026-11-12', decision: null);

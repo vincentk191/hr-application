@@ -173,7 +173,14 @@ const longDay = new Intl.DateTimeFormat('id-ID', {
  * One month of leave, interviews and holidays on the shared month grid. Each day shows how many people are on leave
  * and how many interviews there are; choosing a day lists them underneath. Moving the month reloads only this card.
  */
-export function AdminCalendarCard({ data }: { data: AdminCalendar }) {
+export function AdminCalendarCard({
+    data,
+    onOpenLeave,
+}: {
+    data: AdminCalendar;
+    /** Opens the person's own request over the dashboard, for the leave on their own view. */
+    onOpenLeave?: (id: number) => void;
+}) {
     const today = localToday();
     const [year, month] = data.month.split('-').map(Number);
     const days = daysOfMonth(year, month - 1);
@@ -380,9 +387,23 @@ export function AdminCalendarCard({ data }: { data: AdminCalendar }) {
                                 </>
                             );
 
+                            const requestId = entry.requestId;
+
                             return (
                                 <li key={`${entry.kind}-${position}`}>
-                                    {entry.href ? (
+                                    {personal &&
+                                    requestId !== undefined &&
+                                    onOpenLeave ? (
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                onOpenLeave(requestId)
+                                            }
+                                            className="flex items-start gap-2 text-left text-sm hover:underline"
+                                        >
+                                            {body}
+                                        </button>
+                                    ) : entry.href ? (
                                         <Link
                                             href={entry.href}
                                             className="flex items-start gap-2 text-sm hover:underline"

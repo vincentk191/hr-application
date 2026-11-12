@@ -114,9 +114,11 @@ export type AdminCalendarEntry = {
     /** For leave: still waiting, or approved. */
     status: 'submitted' | 'approved' | null;
     href: string | null;
+    /** For leave: the request, to open over the dashboard. */
+    requestId?: number;
 };
 
-/** A month of leave, interviews and holidays, for the people who run HR. */
+/** A month of leave, interviews and holidays; for someone who does not run HR, their own leave and the holidays. */
 export type AdminCalendar = {
     /** "YYYY-MM". */
     month: string;

@@ -9,6 +9,7 @@ use App\Enums\Role;
 use App\Models\CalendarEvent;
 use App\Models\Candidate;
 use App\Models\CandidateOffer;
+use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\OffboardingCase;
 use App\Models\ProfileChangeRequest;
@@ -22,6 +23,7 @@ use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -208,15 +210,19 @@ class AdminOverview
      * and company events this person may see. Each entry is one person, or one event, on one date.
      *
      * A person who is also an employee can switch it to their own: `$scope` "me" keeps the holidays and events and only
-     * their own leave, with no interviews, so one calendar serves both what they plan around and what is theirs.
+     * their own leave, with no interviews, so one calendar serves both what they plan around and what is theirs. Someone
+     * who does not run HR (an employee, or anyone on the public entrance) has only that own view, with the holidays and
+     * events that cover their company, department and Cabang, and no switch.
      *
-     * @param  int|null  $ownEmployeeId  the person's own employee record, when they have one
+     * @param  Employee|null  $own  the person's own employee record, when they have one
      * @param  string|null  $scope  "me" for their own leave, anything else for everyone's
      * @return array{month: string, label: string, prev: string, next: string, scope: string, canSwitch: bool, entries: list<array<string, mixed>>}
      */
-    public function calendar(User $user, ?string $asked = null, ?int $ownEmployeeId = null, ?string $scope = null): array
+    public function calendar(User $user, ?string $asked = null, ?Employee $own = null, ?string $scope = null): array
     {
-        $personal = $ownEmployeeId !== null && $scope === 'me';
+        $runsHr = self::seesCalendar($user);
+        $personal = $own !== null && ($scope === 'me' || ! $runsHr);
+        $ownEmployeeId = $own?->id;
 
         $timezone = (string) config('attendance.device_timezone');
         $month = $asked !== null && preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $asked) === 1
@@ -226,7 +232,7 @@ class AdminOverview
         $to = $month->endOfMonth()->startOfDay();
 
         $entries = [
-            ...$this->events($user, $from, $to),
+            ...$this->events($user, $from, $to, $personal ? $own : null),
             ...$this->leaveEntries($user, $from, $to, $personal ? $ownEmployeeId : null),
             ...(! $personal && $user->can(Permission::ManageRecruitment->value) ? $this->interviewEntries($from, $to, $timezone) : []),
         ];
@@ -239,7 +245,7 @@ class AdminOverview
             'prev' => $month->subMonth()->format('Y-m'),
             'next' => $month->addMonth()->format('Y-m'),
             'scope' => $personal ? 'me' : 'team',
-            'canSwitch' => $ownEmployeeId !== null,
+            'canSwitch' => $ownEmployeeId !== null && $runsHr,
             'entries' => array_map(function (array $entry): array {
                 unset($entry['order']);
 
@@ -318,9 +324,10 @@ class AdminOverview
      * Holidays and company events in the month, among those this person may see: group-wide ones and those for the
      * company being viewed (or their own, if they are bound to one). One entry per date covered.
      *
+     * @param  Employee|null  $for  for one employee's own view: only what covers their company, department and Cabang
      * @return list<array<string, mixed>>
      */
-    private function events(User $user, CarbonImmutable $from, CarbonImmutable $to): array
+    private function events(User $user, CarbonImmutable $from, CarbonImmutable $to, ?Employee $for = null): array
     {
         $company = app(CompanyContext::class)->companyId() ?? ($user->isParentWide() ? null : $user->company_id);
         $entries = [];
@@ -328,10 +335,13 @@ class AdminOverview
         CalendarEvent::query()
             ->whereDate('starts_on', '<=', $to->toDateString())
             ->whereDate('ends_on', '>=', $from->toDateString())
-            ->when($company !== null, fn (Builder $query) => $query->where(
+            ->when($for === null && $company !== null, fn (Builder $query) => $query->where(
                 fn (Builder $inner) => $inner->whereNull('company_id')->orWhere('company_id', $company),
             ))
             ->get()
+            ->when($for !== null, fn (Collection $events) => $events->filter(
+                fn (CalendarEvent $event): bool => $event->appliesTo($for?->company_id, $for?->department_id, $for?->branch_id),
+            ))
             ->each(function (CalendarEvent $event) use (&$entries, $from, $to): void {
                 foreach ($this->dates($event->starts_on->toDateString(), $event->ends_on->toDateString(), $from, $to) as $date) {
                     $entries[] = [
@@ -370,7 +380,7 @@ class AdminOverview
             ->whereDate('start_on', '<=', $to->toDateString())
             ->whereDate('end_on', '>=', $from->toDateString())
             ->get()
-            ->each(function (LeaveRequest $leave) use (&$entries, $from, $to, $schedule): void {
+            ->each(function (LeaveRequest $leave) use (&$entries, $from, $to, $schedule, $onlyEmployeeId): void {
                 $stage = LeaveRequestStage::from((string) $leave->workflow?->current_stage);
 
                 foreach ($this->dates($leave->start_on->toDateString(), $leave->end_on->toDateString(), $from, $to) as $date) {
@@ -385,7 +395,9 @@ class AdminOverview
                         'detail' => $leave->typeLabel().($leave->timeframe() !== null ? ' · '.$leave->timeframe() : ''),
                         'time' => null,
                         'status' => $stage->value,
-                        'href' => route('employees.show', ['employee' => $leave->employee_id, 'tab' => 'requests'], absolute: false),
+                        // Someone's own request opens over the dashboard; the employee page is for those who run HR.
+                        'requestId' => $leave->id,
+                        'href' => $onlyEmployeeId !== null ? null : route('employees.show', ['employee' => $leave->employee_id, 'tab' => 'requests'], absolute: false),
                         'order' => 2,
                     ];
                 }

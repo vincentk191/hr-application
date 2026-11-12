@@ -192,6 +192,11 @@ export default function Dashboard({
         });
     };
 
+    const calendar = adminCalendar && (
+        <AdminCalendarCard data={adminCalendar} onOpenLeave={showRequest} />
+    );
+    const ownOnly = adminCalendar?.scope === 'me' && !adminCalendar.canSwitch;
+
     return (
         <>
             <Head title="Dashboard" />
@@ -216,7 +221,7 @@ export default function Dashboard({
                         {recruitment && <RecruitmentCard data={recruitment} />}
                     </div>
                 )}
-                {adminCalendar && <AdminCalendarCard data={adminCalendar} />}
+                {!ownOnly && calendar}
                 {expiringDocuments && (
                     <ExpiringDocumentsCard data={expiringDocuments} />
                 )}
@@ -229,6 +234,8 @@ export default function Dashboard({
                         onOpenRequest={showRequest}
                     />
                 )}
+                {/* Someone who only has their own: it comes after today's attendance and requests, not before. */}
+                {ownOnly && calendar}
             </div>
 
             <LeaveDecisionDialog
