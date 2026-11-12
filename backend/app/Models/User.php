@@ -201,7 +201,12 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         $notices = $this->notifications();
 
         if (app(Entrance::class)->isPublic()) {
-            $notices->whereNotIn('data->kind', PublicRoutes::PRIVATE_NOTICE_KINDS);
+            // `data` is a text column holding the notice as JSON, so a JSON path ("data->kind") works on SQLite and MySQL but
+            // not on PostgreSQL, which has no such operator for text. A LIKE on the compact JSON Laravel writes
+            // (`"kind":"recruitment"`) answers the same on all of them.
+            foreach (PublicRoutes::PRIVATE_NOTICE_KINDS as $kind) {
+                $notices->where('data', 'not like', '%"kind":"'.$kind.'"%');
+            }
         }
 
         return $notices;
