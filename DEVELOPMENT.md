@@ -69,6 +69,19 @@ left uncommitted for review.
 
 ## Change log (latest first)
 
+- **2026-11-12 (public entrance: one rule for the menus and the bell).** Found while testing: a Management login on the public
+  domain still showed "Rekrutmen". The route layer was already right (\`PublicRoutes\`: \`recruitment.\` is private, so the page is 403
+  there), but the menu flags (\`auth.canViewRecruitment\` and the others) came from policies whose non-role branches (heads a
+  department, raised a requisition, is the direct superior) ignore the entrance. **Decision: the public entrance is the same
+  for everyone, admins, HR, managers and heads of department included; anyone who wants more uses the private one.** Now
+  \`HandleInertiaRequests\` makes every \`auth.can…\` flag, and the Rekrutmen, Offboarding and Perubahan data badges, false on the
+  public entrance, so the menus show only Beranda, Pengajuan, Profil saya and Pengaturan. The bell and the notifications list
+  also leave out notices of a private module there (\`PublicRoutes::PRIVATE_NOTICE_KINDS\`: recruitment, offboarding,
+  attendance, profile; \`User::visibleNotifications()\`), since their links would be refused. The global search already offered no
+  private page there. New \`PublicEntranceMenuTest\` (5): a Management user who is also a department head, a requester and a
+  direct superior, on both entrances. Policies are unchanged; a new private module needs nothing beyond classing its routes
+  private. Not seen in a browser.
+
 - **2026-11-12 (recruitment: an interview as a calendar event, \`.ics\`).** Migration \`add_interview_minutes_to_candidates_table\`
   (\`interview_minutes\`) and \`set_interview_minutes_default_to_sixty\` (the default is **60 minutes**, an hour; the first migration
   gave 10, so the second changes the default and turns the 10s that were only ever that default into 60); run \`php artisan

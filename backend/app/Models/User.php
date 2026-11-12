@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\Permission;
 use App\Enums\Role;
 use App\Support\Access\Entrance;
+use App\Support\Access\PublicRoutes;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
@@ -16,7 +17,9 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -184,6 +187,24 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
             // checkPermissionTo, not hasPermissionTo: it must answer false rather than throw
             // while the permission does not exist yet.
             && $this->checkPermissionTo(Permission::AccessAdminPanel->value);
+    }
+
+    /**
+     * The person's in-app notifications as this entrance may show them. On the public entrance, which serves only the
+     * employee's own pages, a notice about a private module (recruitment, offboarding, attendance, profile changes) is left
+     * out: it would only lead to a page that entrance refuses.
+     *
+     * @return MorphMany<DatabaseNotification, $this>
+     */
+    public function visibleNotifications(): MorphMany
+    {
+        $notices = $this->notifications();
+
+        if (app(Entrance::class)->isPublic()) {
+            $notices->whereNotIn('data->kind', PublicRoutes::PRIVATE_NOTICE_KINDS);
+        }
+
+        return $notices;
     }
 
     /**

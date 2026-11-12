@@ -51,6 +51,13 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        // The public entrance is the employee's own self-service for everyone who signs in (CORE-ACC-002), however much their
+        // post would otherwise let them see: a department head, a requester or a direct superior included. So nothing that
+        // opens a private module is offered there, and the menus show only the person's own pages. (The routes are refused
+        // there anyway; this keeps the links from pointing at them.)
+        $private = ! app(Entrance::class)->isPublic();
+        $can = fn (string $ability, mixed $arguments = []): bool => $private && ($request->user()?->can($ability, $arguments) ?? false);
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
@@ -58,17 +65,17 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
                 // Drives the sidebar's link to the admin panel; the panel enforces access itself.
-                'canAccessAdminPanel' => $request->user()?->canAccessAdminPanel() ?? false,
+                'canAccessAdminPanel' => $private && ($request->user()?->canAccessAdminPanel() ?? false),
                 // The role under the name in the header, e.g. "Admin HR".
                 'roleLabel' => $this->roleLabel($request),
                 // What the sidebar offers: the directory only to roles that may open it, and a
                 // link to the signed-in person's own profile if they have one.
-                'canViewAttendance' => $request->user()?->can(Permission::ViewAttendance->value) ?? false,
-                'canManageAttendance' => $request->user()?->can('manage-attendance-device') ?? false,
-                'canViewOffboarding' => $request->user()?->can('viewAny', OffboardingCase::class) ?? false,
-                'canViewRecruitment' => $request->user()?->can('viewAny', Requisition::class) ?? false,
-                'canReviewProfileChanges' => $request->user()?->can('viewAny', ProfileChangeRequest::class) ?? false,
-                'canViewEmployees' => $request->user()?->can('viewAny', Employee::class) ?? false,
+                'canViewAttendance' => $can(Permission::ViewAttendance->value),
+                'canManageAttendance' => $can('manage-attendance-device'),
+                'canViewOffboarding' => $can('viewAny', OffboardingCase::class),
+                'canViewRecruitment' => $can('viewAny', Requisition::class),
+                'canReviewProfileChanges' => $can('viewAny', ProfileChangeRequest::class),
+                'canViewEmployees' => $can('viewAny', Employee::class),
                 'employeeId' => $request->user() === null
                     ? null
                     : Employee::acrossCompanies()->where('user_id', $request->user()->id)->value('id'),
@@ -85,17 +92,17 @@ class HandleInertiaRequests extends Middleware
             // The colour and logo for the company being viewed (or the group colour when viewing all).
             // How many requests wait on this person: the badge on the "Pengajuan" menu item.
             // Profile change requests HR has to decide: the badge on the review link (EMP-CHG-003).
-            'pendingProfileChanges' => fn (): int => $request->user()?->can('viewAny', ProfileChangeRequest::class)
+            'pendingProfileChanges' => fn (): int => $can('viewAny', ProfileChangeRequest::class)
                 ? ProfileChangeRequest::query()->pending()
                     ->whereHas('employee', fn ($employee) => $employee->where('user_id', '!=', $request->user()->id)->orWhereNull('user_id'))
                     ->count()
                 : 0,
             // Open offboarding cases this person may see: the badge on "Offboarding" (OFF-DSH-010).
-            'openOffboarding' => fn (): int => $request->user()?->can('viewAny', OffboardingCase::class)
+            'openOffboarding' => fn (): int => $can('viewAny', OffboardingCase::class)
                 ? OffboardingCase::openCountFor($request->user())
                 : 0,
             // What in Rekrutmen waits on this person: the badge on "Rekrutmen" (REC-DSH-008).
-            'recruitmentTodo' => fn (): int => $request->user()?->can('viewAny', Requisition::class)
+            'recruitmentTodo' => fn (): int => $can('viewAny', Requisition::class)
                 ? app(RecruitmentTodo::class)->countFor($request->user())
                 : 0,
             'pendingForMe' => fn (): int => $request->user() === null ? 0 : WorkflowStep::waitingOn($request->user(), LeaveRequest::class)->count(),
@@ -128,8 +135,8 @@ class HandleInertiaRequests extends Middleware
         }
 
         return [
-            'unread' => $user->unreadNotifications()->count(),
-            'recent' => $user->notifications()->limit(8)->get()
+            'unread' => $user->visibleNotifications()->whereNull('read_at')->count(),
+            'recent' => $user->visibleNotifications()->limit(8)->get()
                 ->map(fn ($notification): array => NotificationController::present($notification))
                 ->values()
                 ->all(),

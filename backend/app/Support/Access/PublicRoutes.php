@@ -49,6 +49,12 @@ class PublicRoutes
         'user-password.',
     ];
 
+    /**
+     * The kinds of in-app notification (`InAppNotice`) whose pages are private: not shown on the public entrance, where the link
+     * would be refused. The others (leave, account, document, system) lead to pages that are served there.
+     */
+    public const PRIVATE_NOTICE_KINDS = ['recruitment', 'offboarding', 'attendance', 'profile'];
+
     /** URI prefixes (for routes with no name) that are private. */
     public const PRIVATE_URIS = ['admin', 'livewire', '_boost', 'filament', 'storage', 'sanctum', 'api', 'email', 'forgot-password', 'reset-password'];
 

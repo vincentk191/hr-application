@@ -21,7 +21,8 @@ class NotificationController extends Controller
         $filter = $request->string('filter')->toString() === 'unread' ? 'unread' : 'all';
         $user = $request->user();
 
-        $notifications = ($filter === 'unread' ? $user->unreadNotifications() : $user->notifications())
+        $notifications = $user->visibleNotifications()
+            ->when($filter === 'unread', fn ($notices) => $notices->whereNull('read_at'))
             ->paginate(self::PER_PAGE)
             ->withQueryString();
 
@@ -42,7 +43,7 @@ class NotificationController extends Controller
      */
     public function open(Request $request, string $notification): RedirectResponse
     {
-        $found = $request->user()->notifications()->whereKey($notification)->firstOrFail();
+        $found = $request->user()->visibleNotifications()->whereKey($notification)->firstOrFail();
         $found->markAsRead();
 
         $url = (string) ($found->data['url'] ?? '');
