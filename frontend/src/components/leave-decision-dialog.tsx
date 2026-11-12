@@ -3,15 +3,12 @@ import {
     ArrowRight,
     Check,
     Clock,
-    DoorOpen,
     Lock,
     MessageSquare,
     Paperclip,
-    Plane,
     RefreshCw,
     Send,
     Shield,
-    Stethoscope,
     X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -21,6 +18,7 @@ import { DecisionDialog } from '@/components/decision-dialog';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import { LeaveAttachments } from '@/components/leave-request-detail';
 import { Button } from '@/components/ui/button';
+import { requestTypeIcon } from '@/lib/request-type-icons';
 import {
     Sheet,
     SheetContent,
@@ -67,14 +65,9 @@ function briefName(name: string | null): string {
         : `${first} ${rest[rest.length - 1][0].toUpperCase()}.`;
 }
 
-/** The icon of a request's type, picked from its name: sick, permission, and leave for anything else. */
-function TypeIcon({ label }: { label: string }) {
-    const name = label.toLowerCase();
-    const Icon = name.includes('sakit')
-        ? Stethoscope
-        : name.includes('izin')
-          ? DoorOpen
-          : Plane;
+/** The icon of a request's type: the one picked in the admin panel, else guessed from its name. */
+function TypeIcon({ label, picked }: { label: string; picked: string | null }) {
+    const Icon = requestTypeIcon(picked, label);
 
     return <Icon className="size-7" />;
 }
@@ -379,7 +372,10 @@ export function LeaveDecisionDialog({
                                 aria-hidden
                                 className="flex size-16 shrink-0 items-center justify-center rounded-2xl border bg-muted/40"
                             >
-                                <TypeIcon label={request.type} />
+                                <TypeIcon
+                                    label={request.type}
+                                    picked={request.typeIcon}
+                                />
                             </span>
                             <div className="min-w-0 space-y-1">
                                 <SheetTitle className="flex flex-wrap items-baseline gap-x-2 text-2xl font-extrabold tracking-tight uppercase">

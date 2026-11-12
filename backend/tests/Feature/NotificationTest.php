@@ -51,10 +51,10 @@ function notifTitles(User $user): array
     return $user->notifications()->reorder('created_at')->get()->map(fn (DatabaseNotification $n): string => $n->data['title'])->all();
 }
 
-function notifFileLeave(User $as, Employee $employee): LeaveRequest
+function notifFileLeave(User $as, Employee $employee, string $from = '2026-11-02', string $to = '2026-11-03'): LeaveRequest
 {
     test()->actingAs($as)->post(route('leave-requests.store'), [
-        'employee_id' => $employee->id, 'leave_type' => 'annual', 'start_on' => '2026-11-02', 'end_on' => '2026-11-03', 'reason' => 'Perlu',
+        'employee_id' => $employee->id, 'leave_type' => 'annual', 'start_on' => $from, 'end_on' => $to, 'reason' => 'Perlu',
     ])->assertRedirect();
 
     return LeaveRequest::query()->latest('id')->firstOrFail();
@@ -307,7 +307,8 @@ it('never follows a stored link that leaves the application', function () {
 
 it('marks everything read in one go', function () {
     notifFileLeave($this->staffUser, $this->staff);
-    notifFileLeave($this->staffUser, $this->staff);
+    // Other days: the same ones twice would be a double booking.
+    notifFileLeave($this->staffUser, $this->staff, '2026-11-04', '2026-11-05');
 
     expect($this->boss->unreadNotifications()->count())->toBe(2);
 

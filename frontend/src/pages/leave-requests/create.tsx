@@ -2,6 +2,7 @@ import { Form, Head } from '@inertiajs/react';
 import { Send } from 'lucide-react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
+import { LeaveConflictNotice } from '@/components/leave-conflict-notice';
 import LimitedFileInput from '@/components/limited-file-input';
 import { TimeframeFields } from '@/components/timeframe-fields';
 import { Button } from '@/components/ui/button';
@@ -163,6 +164,7 @@ export default function LeaveRequestCreate({
                                 </div>
                             </div>
                             <TimeframeFields errors={errors} />
+                            <LeaveConflictNotice />
 
                             <p className="-mt-3 text-xs text-muted-foreground">
                                 Yang dihitung hanya hari kerja: akhir pekan dan

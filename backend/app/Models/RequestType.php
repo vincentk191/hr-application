@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\AbsenceKind;
+use App\Enums\RequestTypeIcon;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
@@ -23,6 +24,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string $code
  * @property string $label
  * @property AbsenceKind $absence_kind
+ * @property RequestTypeIcon|null $icon the icon an administrator picked; null leaves it to the screen to guess from the name
  * @property int|null $max_days
  * @property int|null $max_back_days
  * @property bool $is_active
@@ -30,7 +32,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['code', 'label', 'absence_kind', 'max_days', 'max_back_days', 'is_active', 'sort_order'])]
+#[Fillable(['code', 'label', 'absence_kind', 'icon', 'max_days', 'max_back_days', 'is_active', 'sort_order'])]
 class RequestType extends Model
 {
     use LogsActivity;
@@ -55,6 +57,7 @@ class RequestType extends Model
     {
         return [
             'absence_kind' => AbsenceKind::class,
+            'icon' => RequestTypeIcon::class,
             'is_active' => 'boolean',
             'max_days' => 'integer',
             'max_back_days' => 'integer',
@@ -109,7 +112,7 @@ class RequestType extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['code', 'label', 'absence_kind', 'max_days', 'max_back_days', 'is_active', 'sort_order'])
+            ->logOnly(['code', 'label', 'absence_kind', 'icon', 'max_days', 'max_back_days', 'is_active', 'sort_order'])
             ->logOnlyDirty()
             ->dontLogEmptyChanges()
             ->useLogName('request-types');

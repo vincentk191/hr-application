@@ -5,6 +5,7 @@ namespace App\Filament\Resources\RequestTypes;
 use App\Enums\AbsenceKind;
 use App\Enums\AdminNavigationGroup;
 use App\Enums\Permission;
+use App\Enums\RequestTypeIcon;
 use App\Filament\Resources\RequestTypes\Pages\CreateRequestType;
 use App\Filament\Resources\RequestTypes\Pages\EditRequestType;
 use App\Filament\Resources\RequestTypes\Pages\ListRequestTypes;
@@ -99,6 +100,12 @@ class RequestTypeResource extends Resource
                 ->required()
                 ->live()
                 ->native(false),
+            Select::make('icon')
+                ->label('Ikon')
+                ->helperText('Tampil di panel pengajuan. Kosongkan agar dipilih otomatis dari nama (sakit, izin, atau pesawat).')
+                ->options(RequestTypeIcon::options())
+                ->placeholder('Otomatis dari nama')
+                ->native(false),
             TextInput::make('max_back_days')
                 ->label('Boleh mundur (hari)')
                 ->helperText('Berapa hari kalender ke belakang pengajuan jenis ini boleh dimulai, mis. 3 untuk cuti sakit. Kosongkan jika tidak boleh mundur. Admin HR dan Manajemen tidak dibatasi. Wajib diisi untuk jenis Sakit, karena sakit selalu diajukan setelah harinya lewat.')
@@ -128,6 +135,7 @@ class RequestTypeResource extends Resource
                 TextColumn::make('label')->label('Nama')->searchable()->sortable(),
                 TextColumn::make('code')->label('Kode')->color('gray'),
                 TextColumn::make('absence_kind')->label('Dihitung sebagai')->formatStateUsing(fn (AbsenceKind $state): string => $state->label()),
+                TextColumn::make('icon')->label('Ikon')->formatStateUsing(fn (?RequestTypeIcon $state): string => $state?->label() ?? 'Otomatis')->color('gray'),
                 TextColumn::make('max_days')->label('Maks. hari kerja')->placeholder('Tanpa batas')->sortable(),
                 TextColumn::make('max_back_days')->label('Boleh mundur')->placeholder('Tidak')->suffix(' hari')->sortable(),
                 TextColumn::make('requests_count')

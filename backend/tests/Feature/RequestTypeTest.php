@@ -164,6 +164,37 @@ it('sets the maximum days on the kind itself', function () {
         ->assertSessionHasErrors('end_on');
 });
 
+it('lets HR pick an icon for a kind, which the request panel is given, and none by default', function () {
+    fileTyped($this->staffUser, $this->staff)->assertSessionHasNoErrors();
+    $leave = LeaveRequest::latest('id')->firstOrFail();
+
+    $panelIcon = fn () => $this->actingAs($this->hr)->get(route('leave-requests.index'))->viewData('page')['props']['requests'][0]['typeIcon'];
+
+    // Nothing picked: the screen guesses from the name, as before.
+    expect($panelIcon())->toBeNull();
+
+    $this->actingAs($this->hr);
+    Livewire::test(EditRequestType::class, ['record' => RequestType::where('code', 'annual')->value('id')])
+        ->fillForm(['icon' => 'briefcase'])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($panelIcon())->toBe('briefcase');
+
+    // Only the icons on offer; and clearing it goes back to the guess.
+    Livewire::test(EditRequestType::class, ['record' => RequestType::where('code', 'annual')->value('id')])
+        ->fillForm(['icon' => 'rocket'])
+        ->call('save')
+        ->assertHasFormErrors(['icon']);
+
+    Livewire::test(EditRequestType::class, ['record' => RequestType::where('code', 'annual')->value('id')])
+        ->fillForm(['icon' => null])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($panelIcon())->toBeNull()->and($leave->fresh()->type->icon)->toBeNull();
+});
+
 it('tags the seeded Cuti sakit as sakit and leaves the other kinds untagged', function () {
     expect(RequestType::ordered()->get()->mapWithKeys(fn (RequestType $type): array => [$type->code => $type->absence_kind->value])->all())->toBe([
         'sick' => 'sakit', 'annual' => 'none', 'maternity' => 'none',

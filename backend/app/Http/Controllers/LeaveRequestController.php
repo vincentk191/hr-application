@@ -16,15 +16,18 @@ use App\Models\User;
 use App\Models\WorkflowStep;
 use App\Support\Access\Entrance;
 use App\Support\CsvDownload;
+use App\Support\Leave\LeaveConflicts;
 use App\Support\Leave\LeaveLimits;
 use App\Support\Leave\LeaveRequestPresenter;
 use App\Support\OrganisationNames;
 use App\Support\ReportingLine;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -175,6 +178,41 @@ class LeaveRequestController extends Controller
     }
 
     /**
+     * The requests a new one would double-book, for the form to warn before it is sent. The same check refuses the request
+     * when it is sent, so this only saves the trip. Anything it cannot answer (a missing or unfileable employee, dates not
+     * yet filled in) is "no clashes" rather than an error, since the form asks as the person types.
+     */
+    public function conflicts(Request $request, LeaveConflicts $conflicts): JsonResponse
+    {
+        $this->authorize('create', LeaveRequest::class);
+
+        $validator = Validator::make($request->query(), [
+            'employee_id' => ['required', 'integer'],
+            'start_on' => ['required', 'date'],
+            'end_on' => ['required', 'date', 'after_or_equal:start_on'],
+            'start_time' => ['nullable', 'date_format:H:i'],
+            'end_time' => ['nullable', 'date_format:H:i', 'after:start_time'],
+            'except' => ['nullable', 'integer'],
+        ]);
+        $employee = $validator->fails() ? null : Employee::find($request->integer('employee_id'));
+
+        if ($employee === null || $request->user()->cannot('fileFor', [LeaveRequest::class, $employee])) {
+            return response()->json(['conflicts' => []]);
+        }
+
+        $clashes = $conflicts->for(
+            $employee,
+            CarbonImmutable::parse($request->string('start_on')->toString()),
+            CarbonImmutable::parse($request->string('end_on')->toString()),
+            $request->filled('start_time') && $request->filled('end_time') ? $request->string('start_time')->toString() : null,
+            $request->filled('start_time') && $request->filled('end_time') ? $request->string('end_time')->toString() : null,
+            $request->filled('except') ? $request->integer('except') : null,
+        );
+
+        return response()->json(['conflicts' => $clashes->map(fn (LeaveRequest $clash): array => $conflicts->describe($clash))->all()]);
+    }
+
+    /**
      * Narrow a query to the employees this person may file for: HR Admin, everyone in the company;
      * Management, themselves and their downline; anyone else, only themselves.
      *
@@ -242,6 +280,7 @@ class LeaveRequestController extends Controller
             'request' => [
                 ...LeaveRequestPresenter::row($leaveRequest, $request->user()),
                 'leaveType' => $leaveRequest->leave_type,
+                'employeeId' => $leaveRequest->employee_id,
                 'startTime' => $leaveRequest->start_time,
                 'endTime' => $leaveRequest->end_time,
             ],

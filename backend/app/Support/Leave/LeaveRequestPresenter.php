@@ -53,6 +53,7 @@ class LeaveRequestPresenter
             'branch' => $leave->employee?->branch?->name,
             'department' => $leave->employee?->department?->name,
             'type' => $leave->typeLabel(),
+            'typeIcon' => $leave->type?->icon?->value,
             'timeframe' => $leave->timeframe(),
             'startOn' => $leave->start_on->toDateString(),
             'endOn' => $leave->end_on->toDateString(),

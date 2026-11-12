@@ -216,6 +216,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('leave-requests', [LeaveRequestController::class, 'index'])->name('leave-requests.index');
     Route::get('leave-requests/export', [LeaveRequestController::class, 'export'])->name('leave-requests.export');
     Route::get('leave-requests/create', [LeaveRequestController::class, 'create'])->name('leave-requests.create');
+    Route::get('leave-requests/conflicts', [LeaveRequestController::class, 'conflicts'])->name('leave-requests.conflicts');
     Route::post('leave-requests', [LeaveRequestController::class, 'store'])->name('leave-requests.store');
     Route::get('leave-requests/{leaveRequest}/edit', [LeaveRequestController::class, 'edit'])->name('leave-requests.edit');
     Route::put('leave-requests/{leaveRequest}', [LeaveRequestController::class, 'update'])->name('leave-requests.update');

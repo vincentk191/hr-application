@@ -6,6 +6,7 @@ use App\Enums\AbsenceKind;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\RequestType;
+use App\Support\Leave\LeaveConflicts;
 use App\Support\Leave\LeaveLimits;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -140,6 +141,67 @@ trait ValidatesLeaveRequestFields
 
         if ($kind === AbsenceKind::Sakit && $keptAttachments + count((array) $this->file('attachments', [])) === 0) {
             $validator->errors()->add('attachments', 'Lampirkan bukti sakit, mis. surat dokter.');
+        }
+    }
+
+    /**
+     * Refuse a request that would double-book the person: it shares a working day (and, when both name hours, those hours)
+     * with another of theirs that is waiting or approved. A rejected one asks for nothing, so it does not count; a request
+     * being corrected leaves itself out.
+     */
+    protected function checkDoubleBooking(Validator $validator, ?int $exceptId = null): void
+    {
+        foreach (['leave_type', 'start_on', 'end_on', 'start_time', 'end_time'] as $field) {
+            if ($validator->errors()->has($field)) {
+                return;
+            }
+        }
+
+        $employee = $this->leaveEmployee();
+
+        if ($employee === null) {
+            return;
+        }
+
+        $conflicts = app(LeaveConflicts::class);
+        $clashes = $conflicts->for(
+            $employee,
+            CarbonImmutable::parse((string) $this->input('start_on')),
+            CarbonImmutable::parse((string) $this->input('end_on')),
+            $this->timeframe()['start_time'],
+            $this->timeframe()['end_time'],
+            $exceptId,
+        );
+
+        if ($clashes->isNotEmpty()) {
+            $validator->errors()->add('start_on', $conflicts->message($clashes));
+        }
+    }
+
+    /**
+     * Refuse days outside the time the person works here: before they joined, or after they left.
+     */
+    protected function checkEmployment(Validator $validator): void
+    {
+        foreach (['start_on', 'end_on'] as $field) {
+            if ($validator->errors()->has($field)) {
+                return;
+            }
+        }
+
+        $employee = $this->leaveEmployee();
+
+        if ($employee === null) {
+            return;
+        }
+
+        $start = CarbonImmutable::parse((string) $this->input('start_on'))->startOfDay();
+        $end = CarbonImmutable::parse((string) $this->input('end_on'))->startOfDay();
+
+        if ($employee->joined_on !== null && $start->lt($employee->joined_on->startOfDay())) {
+            $validator->errors()->add('start_on', 'Hari pertama sebelum karyawan bergabung ('.$employee->joined_on->locale('id')->translatedFormat('j M Y').').');
+        } elseif ($employee->exited_on !== null && $end->gt($employee->exited_on->startOfDay())) {
+            $validator->errors()->add('end_on', 'Hari terakhir setelah karyawan keluar ('.$employee->exited_on->locale('id')->translatedFormat('j M Y').').');
         }
     }
 

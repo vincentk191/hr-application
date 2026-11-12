@@ -67,7 +67,13 @@ class StoreLeaveRequestRequest extends FormRequest
                         'employee_id',
                         'Anda tidak dapat mengajukan pengajuan untuk karyawan ini.',
                     );
+
+                    return;
                 }
+
+                // After the permission check, so what is already filed for someone is not revealed to a person who may not file for them.
+                $this->checkEmployment($validator);
+                $this->checkDoubleBooking($validator);
             },
         ];
     }

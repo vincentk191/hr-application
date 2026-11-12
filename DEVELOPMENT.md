@@ -69,6 +69,19 @@ left uncommitted for review.
 
 ## Change log (latest first)
 
+- **2026-11-12 (pengajuan: an icon per jenis, and double booking).** The plane in the request side panel was a guess from the
+  type's name (`TypeIcon`: "sakit" a stethoscope, "izin" a door, anything else a plane). Migration `add_icon_to_request_types_table`
+  (nullable `icon`) and the `RequestTypeIcon` enum (12 icons); the admin panel's Jenis pengajuan has an "Ikon" select, empty
+  meaning the old guess, so nothing changes until someone picks. `LeaveRequestPresenter::row` sends `typeIcon`;
+  `lib/request-type-icons.ts` maps the key to a lucide icon (a case added to the enum needs one added there). The dashboard's
+  Ajukan cepat tiles are not per jenis and keep their "+". **Double booking:** `LeaveConflicts` finds the person's other
+  requests, waiting or approved, that share a working day with the new one; when both name hours, only if the hours overlap
+  (a whole-day request clashes with any). Rejected ones, and a stretch that is only a weekend or holiday, do not count. It
+  refuses the request on filing and on correcting a rejected one (which leaves itself out), and `leave-requests.conflicts`
+  (public too) feeds an amber notice under the dates in both forms (`LeaveConflictNotice`, reading the form as it changes). Also
+  refused: days before the person joined or after they left (`joined_on` / `exited_on`). Tests: new `LeaveDoubleBookingTest`
+  (10), an icon test in `RequestTypeTest`; `NotificationTest` filed the same dates twice and now uses different ones.
+
 - **2026-11-12 (dashboard: the employee's own calendar shows their requests and the holidays).** An employee, and anyone on the
   public entrance (where a manager is one), had only the "Hari sakit" calendar: approved sick days, none of their other
   requests, no waiting ones, no holidays or company events. Now everyone with an employee record gets the one shared calendar

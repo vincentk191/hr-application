@@ -38,6 +38,8 @@ export type LeaveRequestRow = {
     branch: string | null;
     department: string | null;
     type: string;
+    /** The icon an administrator picked for the type, or null to guess one from its name. */
+    typeIcon: string | null;
     startOn: string;
     endOn: string;
     days: number;

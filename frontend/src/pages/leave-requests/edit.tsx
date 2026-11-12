@@ -3,6 +3,7 @@ import { Send, Undo2, X } from 'lucide-react';
 import { useState } from 'react';
 import { FileLink, useFilePreview } from '@/components/file-preview';
 import InputError from '@/components/input-error';
+import { LeaveConflictNotice } from '@/components/leave-conflict-notice';
 import LimitedFileInput from '@/components/limited-file-input';
 import { TimeframeFields } from '@/components/timeframe-fields';
 import { LeaveHistory } from '@/components/leave-request-detail';
@@ -28,6 +29,7 @@ export default function LeaveRequestEdit({
     leaveTypes: LeaveTypeOption[];
     request: LeaveRequestRow & {
         leaveType: string;
+        employeeId: number;
         startTime: string | null;
         endTime: string | null;
     };
@@ -149,6 +151,10 @@ export default function LeaveRequestEdit({
                                 errors={errors}
                                 defaultStart={request.startTime}
                                 defaultEnd={request.endTime}
+                            />
+                            <LeaveConflictNotice
+                                employeeId={request.employeeId}
+                                exceptId={request.id}
                             />
 
                             <p className="-mt-3 text-xs text-muted-foreground">
