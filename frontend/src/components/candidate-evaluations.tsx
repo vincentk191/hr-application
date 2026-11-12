@@ -1,7 +1,6 @@
 import { Form } from '@inertiajs/react';
-import { Check, Minus, Pencil, X } from 'lucide-react';
+import { Check, Minus, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { useState } from 'react';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import InputError from '@/components/input-error';
 import { shortDate } from '@/components/requisition-summary';
@@ -13,6 +12,7 @@ import {
     SheetDescription,
     SheetTitle,
 } from '@/components/ui/sheet';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { evaluation } from '@/routes/recruitment/candidates';
 import type {
@@ -104,6 +104,13 @@ export function leadingRecommendations(
     const most = Math.max(0, ...ORDER.map(count));
 
     return most === 0 ? [] : ORDER.filter((value) => count(value) === most);
+}
+
+/** The signed-in person's own evaluation of the candidate, if they have written one. */
+export function myEvaluation(
+    candidate: Candidate,
+): CandidateEvaluation | undefined {
+    return candidate.evaluations.find((entry) => entry.isMine);
 }
 
 /** "4 /5": the rating as the cards show it. */
@@ -221,14 +228,11 @@ function Note({ text }: { text: string | null }) {
     ) : null;
 }
 
-/** The signed-in person's own evaluation, with the button that changes it. */
-function MyCard({
-    entry,
-    onEdit,
-}: {
-    entry: CandidateEvaluation;
-    onEdit: (() => void) | null;
-}) {
+/**
+ * The signed-in person's own evaluation. Changing it is the "Ubah penilaian" button in the bar at the foot of the
+ * candidate's panel, beside Tolak and Hapus kandidat, so it is not repeated here.
+ */
+function MyCard({ entry }: { entry: CandidateEvaluation }) {
     return (
         <div
             className="space-y-3 rounded-3xl border bg-card p-4"
@@ -264,18 +268,6 @@ function MyCard({
                 {entry.recommendationLabel}
             </span>
             <Note text={entry.note} />
-            {onEdit && (
-                <Button
-                    type="button"
-                    variant="outline"
-                    className="h-12 w-full rounded-full text-base"
-                    onClick={onEdit}
-                    data-test="edit-evaluation"
-                >
-                    <Pencil className="size-4" aria-hidden />
-                    Ubah penilaian
-                </Button>
-            )}
         </div>
     );
 }
@@ -347,30 +339,41 @@ function OtherCard({ entry }: { entry: CandidateEvaluation }) {
 }
 
 /**
- * The form to give or change one's evaluation, as a sheet from the bottom of the screen: the rating as five large
- * buttons, the recommendation as three cards, and an optional note. The choices are radio buttons underneath, so the
- * browser still asks for both before it sends, and the keyboard works.
+ * The form to give or change one's evaluation: the rating as five large buttons, the recommendation as three choices, and
+ * an optional note. The choices are radio buttons underneath, so the browser still asks for both before it sends, and the
+ * keyboard works.
+ *
+ * On a phone it is a sheet from the bottom of the screen, the recommendations side by side as cards. From tablet width up
+ * it is the same side panel the candidate's profile uses, sliding in from the right over it, the recommendations one to a
+ * row and the buttons at the right of the foot.
  */
-function EvaluationSheet({
+export function EvaluationSheet({
     item,
     candidate,
-    mine,
     open,
     onOpenChange,
 }: {
     item: Requisition;
     candidate: Candidate;
-    mine: CandidateEvaluation | undefined;
     open: boolean;
     onOpenChange: (open: boolean) => void;
 }) {
+    const phone = useIsMobile();
+    const mine = myEvaluation(candidate);
     const title = mine ? 'Ubah penilaian' : 'Beri penilaian';
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent
-                side="bottom"
-                className="max-h-[92dvh] gap-0 rounded-t-3xl p-0 md:inset-x-auto md:bottom-6 md:left-1/2 md:w-full md:max-w-lg md:-translate-x-1/2 md:rounded-3xl md:border [&>[data-slot=sheet-close]]:hidden"
+                side={phone ? 'bottom' : 'right'}
+                // The phone's sheet has a round close button of its own in the header.
+                showClose={!phone}
+                className={cn(
+                    'gap-0',
+                    phone
+                        ? 'max-h-[92dvh] rounded-t-3xl p-0'
+                        : 'w-full sm:max-w-xl',
+                )}
                 data-test="evaluation-sheet"
             >
                 <Form
@@ -385,41 +388,64 @@ function EvaluationSheet({
                 >
                     {({ processing, errors }) => (
                         <>
-                            <span
-                                aria-hidden
-                                className="mx-auto mt-3 h-1 w-10 shrink-0 rounded-full bg-muted-foreground/40"
-                            />
-                            <div className="flex items-center justify-between gap-3 px-5 pt-4">
-                                <SheetTitle className="text-2xl font-extrabold tracking-tight">
-                                    {title}
-                                </SheetTitle>
-                                <SheetClose asChild>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="icon"
-                                        className="size-12 shrink-0 rounded-full"
-                                        aria-label="Tutup"
-                                    >
-                                        <X className="size-5" aria-hidden />
-                                    </Button>
-                                </SheetClose>
-                            </div>
+                            {phone ? (
+                                <>
+                                    <span
+                                        aria-hidden
+                                        className="mx-auto mt-3 h-1 w-10 shrink-0 rounded-full bg-muted-foreground/40"
+                                    />
+                                    <div className="flex items-center justify-between gap-3 px-5 pt-4">
+                                        <SheetTitle className="text-2xl font-extrabold tracking-tight">
+                                            {title}
+                                        </SheetTitle>
+                                        <SheetClose asChild>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="icon"
+                                                className="size-12 shrink-0 rounded-full"
+                                                aria-label="Tutup"
+                                            >
+                                                <X
+                                                    className="size-5"
+                                                    aria-hidden
+                                                />
+                                            </Button>
+                                        </SheetClose>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="border-b p-4 pr-12">
+                                    <SheetTitle className="label-mono font-normal">
+                                        {title} Anda
+                                    </SheetTitle>
+                                </div>
+                            )}
                             <SheetDescription className="sr-only">
                                 Nilai 1 sampai 5, pilih rekomendasi, dan tulis
                                 catatan bila perlu.
                             </SheetDescription>
 
-                            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-5">
+                            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-5">
                                 <fieldset className="space-y-3">
-                                    <legend className="text-lg font-bold">
+                                    <legend
+                                        className={cn(
+                                            'font-bold',
+                                            phone ? 'text-lg' : 'text-base',
+                                        )}
+                                    >
                                         Nilai
                                     </legend>
                                     <div className="grid grid-cols-5 gap-2">
                                         {[1, 2, 3, 4, 5].map((value) => (
                                             <label
                                                 key={value}
-                                                className="flex h-16 cursor-pointer items-center justify-center rounded-2xl border bg-muted/30 text-2xl font-bold transition-colors has-[:checked]:border-foreground has-[:checked]:bg-foreground has-[:checked]:text-background has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
+                                                className={cn(
+                                                    'flex cursor-pointer items-center justify-center rounded-2xl border bg-muted/30 font-bold transition-colors has-[:checked]:border-foreground has-[:checked]:bg-foreground has-[:checked]:text-background has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring',
+                                                    phone
+                                                        ? 'h-16 text-2xl'
+                                                        : 'h-14 text-xl',
+                                                )}
                                             >
                                                 <input
                                                     type="radio"
@@ -443,10 +469,20 @@ function EvaluationSheet({
                                 </fieldset>
 
                                 <fieldset className="space-y-3">
-                                    <legend className="text-lg font-bold">
+                                    <legend
+                                        className={cn(
+                                            'font-bold',
+                                            phone ? 'text-lg' : 'text-base',
+                                        )}
+                                    >
                                         Rekomendasi
                                     </legend>
-                                    <div className="grid grid-cols-3 gap-2">
+                                    <div
+                                        className={cn(
+                                            'grid gap-2',
+                                            phone && 'grid-cols-3',
+                                        )}
+                                    >
                                         {ORDER.map((value) => {
                                             const style = STYLE[value];
                                             const Icon = style.icon;
@@ -455,7 +491,10 @@ function EvaluationSheet({
                                                 <label
                                                     key={value}
                                                     className={cn(
-                                                        'group flex min-h-28 cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border bg-muted/30 px-1 text-center text-sm font-bold transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring',
+                                                        'group flex cursor-pointer items-center rounded-2xl border bg-muted/30 font-bold transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring',
+                                                        phone
+                                                            ? 'min-h-28 flex-col justify-center gap-3 px-1 text-center text-sm'
+                                                            : 'min-h-14 gap-3 px-4 text-base',
                                                         style.card,
                                                     )}
                                                 >
@@ -472,7 +511,7 @@ function EvaluationSheet({
                                                     />
                                                     <span
                                                         className={cn(
-                                                            'flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors',
+                                                            'flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors',
                                                             style.badge,
                                                         )}
                                                     >
@@ -494,7 +533,10 @@ function EvaluationSheet({
                                 <div className="space-y-3">
                                     <label
                                         htmlFor={`note-${candidate.id}`}
-                                        className="block text-lg font-bold"
+                                        className={cn(
+                                            'block font-bold',
+                                            phone ? 'text-lg' : 'text-base',
+                                        )}
                                     >
                                         Catatan{' '}
                                         <span className="font-normal text-muted-foreground">
@@ -504,7 +546,7 @@ function EvaluationSheet({
                                     <textarea
                                         id={`note-${candidate.id}`}
                                         name="note"
-                                        rows={4}
+                                        rows={phone ? 4 : 5}
                                         maxLength={1000}
                                         defaultValue={mine?.note ?? ''}
                                         className="w-full rounded-2xl border border-input bg-muted/30 px-4 py-3 text-base focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
@@ -513,7 +555,12 @@ function EvaluationSheet({
                                 </div>
                             </div>
 
-                            <div className="flex gap-3 border-t px-5 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+                            <div
+                                className={cn(
+                                    'flex gap-3 border-t px-5 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))]',
+                                    !phone && 'justify-end',
+                                )}
+                            >
                                 <SheetClose asChild>
                                     <Button
                                         type="button"
@@ -526,7 +573,10 @@ function EvaluationSheet({
                                 <Button
                                     type="submit"
                                     disabled={processing}
-                                    className="h-14 flex-1 rounded-full text-base font-bold"
+                                    className={cn(
+                                        'h-14 rounded-full text-base font-bold',
+                                        phone ? 'flex-1' : 'px-8',
+                                    )}
                                     data-test="save-evaluation"
                                 >
                                     Simpan penilaian
@@ -543,17 +593,17 @@ function EvaluationSheet({
 /**
  * The evaluations of a candidate after the interview: the average and how the interviewers split, the signed-in person's
  * own card (or a prompt to give one), and what the others wrote. HR and the new hire's direct superior may evaluate once
- * the interview time has passed; everyone who sees the candidate sees what was written.
+ * the interview time has passed; everyone who sees the candidate sees what was written. The form itself is the
+ * EvaluationSheet, opened by `onEvaluate` here or by "Ubah penilaian" in the foot of the candidate's panel.
  */
 export function Evaluations({
-    item,
     candidate,
+    onEvaluate,
 }: {
-    item: Requisition;
     candidate: Candidate;
+    onEvaluate: () => void;
 }) {
-    const [open, setOpen] = useState(false);
-    const mine = candidate.evaluations.find((entry) => entry.isMine);
+    const mine = myEvaluation(candidate);
     const others = candidate.evaluations.filter((entry) => !entry.isMine);
     const hasOwnSpot = candidate.canEvaluate || mine !== undefined;
 
@@ -572,14 +622,9 @@ export function Evaluations({
             )}
 
             {mine ? (
-                <MyCard
-                    entry={mine}
-                    onEdit={candidate.canEvaluate ? () => setOpen(true) : null}
-                />
+                <MyCard entry={mine} />
             ) : (
-                candidate.canEvaluate && (
-                    <NotYetRated onStart={() => setOpen(true)} />
-                )
+                candidate.canEvaluate && <NotYetRated onStart={onEvaluate} />
             )}
 
             {others.length > 0 && (
@@ -597,16 +642,6 @@ export function Evaluations({
                         ))}
                     </ul>
                 </div>
-            )}
-
-            {candidate.canEvaluate && (
-                <EvaluationSheet
-                    item={item}
-                    candidate={candidate}
-                    mine={mine}
-                    open={open}
-                    onOpenChange={setOpen}
-                />
             )}
         </section>
     );

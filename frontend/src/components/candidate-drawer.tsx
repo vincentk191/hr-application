@@ -5,6 +5,7 @@ import {
     Clock,
     Mail,
     MapPin,
+    Pencil,
     Phone,
     RefreshCw,
     RotateCcw,
@@ -15,7 +16,11 @@ import {
     X,
 } from 'lucide-react';
 import { useState } from 'react';
-import { Evaluations } from '@/components/candidate-evaluations';
+import {
+    EvaluationSheet,
+    Evaluations,
+    myEvaluation,
+} from '@/components/candidate-evaluations';
 import { DecisionDialog } from '@/components/decision-dialog';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import { FileLink, useFilePreview } from '@/components/file-preview';
@@ -150,6 +155,11 @@ function DrawerBody({
     const [removing, setRemoving] = useState(false);
     const [restoring, setRestoring] = useState(false);
     const [choosing, setChoosing] = useState(false);
+    // The evaluation form is a panel of its own over this one, opened from the prompt in the Interview tab or from the
+    // "Ubah penilaian" button in the foot, whichever tab is showing.
+    const [evaluating, setEvaluating] = useState(false);
+    const changesOwnEvaluation =
+        candidate.canEvaluate && myEvaluation(candidate) !== undefined;
 
     return (
         <>
@@ -241,15 +251,36 @@ function DrawerBody({
                 {tab === 'documents' && <DocumentsTab candidate={candidate} />}
                 {tab === 'interview' && (
                     <InterviewSection
-                        item={item}
                         candidate={candidate}
+                        item={item}
                         onInvite={onInvite}
+                        onEvaluate={() => setEvaluating(true)}
                     />
                 )}
             </div>
 
-            {item.canManageScreening && (
+            {candidate.canEvaluate && (
+                <EvaluationSheet
+                    item={item}
+                    candidate={candidate}
+                    open={evaluating}
+                    onOpenChange={setEvaluating}
+                />
+            )}
+
+            {(item.canManageScreening || changesOwnEvaluation) && (
                 <div className="flex flex-wrap gap-2 border-t bg-card p-4">
+                    {changesOwnEvaluation && (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setEvaluating(true)}
+                            data-test="edit-evaluation"
+                        >
+                            <Pencil className="size-4" aria-hidden />
+                            Ubah penilaian
+                        </Button>
+                    )}
                     {candidate.canReject && (
                         <DecisionDialog
                             form={reject.form({
@@ -671,10 +702,12 @@ function InterviewSection({
     item,
     candidate,
     onInvite,
+    onEvaluate,
 }: {
     item: Requisition;
     candidate: Candidate;
     onInvite?: (candidate: Candidate) => void;
+    onEvaluate: () => void;
 }) {
     const state = INVITE_STATE[candidate.inviteState];
     const at = interviewMoment(candidate.interviewAtInput);
@@ -845,7 +878,7 @@ function InterviewSection({
 
             <InvitationEmail candidate={candidate} />
 
-            <Evaluations item={item} candidate={candidate} />
+            <Evaluations candidate={candidate} onEvaluate={onEvaluate} />
         </div>
     );
 }

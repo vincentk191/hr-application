@@ -75,8 +75,11 @@ left uncommitted for review.
   "Anda belum menilai" prompt with "Beri penilaian", then "Penilai lain" as cards. The form is a **bottom sheet**: the rating as
   five large buttons (Kurang to Sangat baik), the recommendation as three cards (Lanjut, Pertimbangkan, Tidak lanjut, each in its
   colour once chosen), an optional note, Batal and Simpan penilaian. The choices are still radio buttons underneath, so both
-  are still required and the keyboard works. From tablet width up the same sheet floats at the bottom of the screen. Frontend
-  only, no change to what is saved. Not seen in a browser.
+  are still required and the keyboard works. **From tablet width up it is the candidate profile's own side panel**, sliding in
+  from the right over it, with a small "UBAH PENILAIAN ANDA" caption, the recommendations one to a row and Batal and Simpan
+  penilaian at the right of the foot. **"Ubah penilaian" is a button in the bar at the foot of the profile**, level with Tolak
+  and Hapus kandidat, on every tab (it is no longer inside the "Anda" card; "Beri penilaian" stays in the dashed prompt).
+  Frontend only, no change to what is saved. Not seen in a browser.
 
 - **2026-11-11 (recruitment: scheduling from a free slot of the Interview calendar).** A free cell of the week calendar (and "Jadwalkan"
   on the phone's day list) opens the invitation form straight away, with the **date and time of the slot filled in** and a
