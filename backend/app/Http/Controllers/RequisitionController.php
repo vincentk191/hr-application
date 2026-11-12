@@ -47,6 +47,7 @@ use App\Models\User;
 use App\Support\CsvDownload;
 use App\Support\Files\InlineImage;
 use App\Support\Notifications\Notifier;
+use App\Support\Recruitment\InterviewCalendar;
 use App\Support\Recruitment\InvitationMessage;
 use App\Support\Recruitment\RequisitionDepartments;
 use App\Support\Recruitment\RequisitionPresenter;
@@ -58,6 +59,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -209,6 +211,29 @@ class RequisitionController extends Controller
         return CsvDownload::stream('undangan-interview-'.$requisition->reference().'-'.now()->format('Y-m-d').'.csv', [
             ['Nama', 'Email', 'Posisi', 'Hari dan tanggal', 'Jam (WIB)', 'Format', 'Tempat atau tautan', 'Subjek', 'Pesan', 'Sudah diemail aplikasi'],
             ...$rows,
+        ]);
+    }
+
+    /**
+     * "Tambah ke kalender": one candidate's interview as an `.ics` file (REC-INT). HR gets the candidate among the
+     * participants when they have an email; the direct superior, who is not shown candidates' emails, does not.
+     */
+    public function interviewEvent(Request $request, Requisition $requisition, Candidate $candidate, InterviewCalendar $calendar): HttpResponse
+    {
+        $this->authorize('exportInterviewEvent', [$requisition, $candidate]);
+
+        $user = $request->user();
+        $content = $calendar->forInterviewers($candidate, $requisition, $user, withCandidateEmail: $user->can('viewCandidates', $requisition));
+
+        activity('recruitment')
+            ->performedOn($requisition)
+            ->causedBy($user)
+            ->withProperties(['candidate' => $candidate->name])
+            ->log('Jadwal interview diunduh');
+
+        return response($content, 200, [
+            'Content-Type' => 'text/calendar; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="'.$calendar->filename($candidate).'"',
         ]);
     }
 

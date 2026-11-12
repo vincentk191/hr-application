@@ -6,6 +6,7 @@ use App\Mail\CandidateInvitation;
 use App\Models\Candidate;
 use App\Models\Requisition;
 use App\Models\User;
+use App\Support\Recruitment\InterviewCalendar;
 use App\Support\Recruitment\InvitationMessage;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Mail;
@@ -23,7 +24,7 @@ class InviteCandidate
     public const MASKED_LINK = '[tautan formulir pribadi — hanya tampil saat undangan dibuat]';
 
     /**
-     * @param  array{interview_at: string, interview_mode: string, interview_place: string, note: string|null}  $fields  `interview_at` is a local date and time in the company timezone
+     * @param  array{interview_at: string, interview_mode: string, interview_place: string, interview_minutes?: int|null, note: string|null}  $fields  `interview_at` is a local date and time in the company timezone; `interview_minutes` stays what it was (an hour at first) when left out
      * @return array{link: string|null, message: string, emailed: bool, expiresAt: CarbonImmutable|null}
      */
     public function handle(Requisition $requisition, Candidate $candidate, array $fields, User $by): array
@@ -42,6 +43,7 @@ class InviteCandidate
             'interview_at' => $interviewAt->utc(),
             'interview_mode' => $fields['interview_mode'],
             'interview_place' => trim($fields['interview_place']),
+            'interview_minutes' => $fields['interview_minutes'] ?? ($candidate->interview_minutes ?: InterviewCalendar::DEFAULT_MINUTES),
             // A new time is a new day to remind.
             'candidate_reminded_at' => null,
             'interviewers_reminded_at' => null,
@@ -55,7 +57,8 @@ class InviteCandidate
         $emailed = false;
 
         if (filled($candidate->email)) {
-            Mail::to($candidate->email)->queue(new CandidateInvitation($subject, $message));
+            // The email carries the interview as a calendar event the candidate can add to their own calendar.
+            Mail::to($candidate->email)->queue(new CandidateInvitation($subject, $message, app(InterviewCalendar::class)->forCandidate($candidate->refresh(), $requisition)));
             $emailed = true;
         }
 

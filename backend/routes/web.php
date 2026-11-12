@@ -127,6 +127,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('recruitment/{requisition}/offers/{offer}/terms', [RequisitionOfferController::class, 'terms'])->scopeBindings()->name('recruitment.offers.terms');
     Route::post('recruitment/{requisition}/offers/{offer}/send', [RequisitionOfferController::class, 'send'])->scopeBindings()->name('recruitment.offers.send');
     Route::get('recruitment/{requisition}/offers/{offer}/letter', [RequisitionOfferController::class, 'letter'])->scopeBindings()->name('recruitment.offers.letter');
+    Route::get('recruitment/{requisition}/candidates/{candidate}/calendar', [RequisitionController::class, 'interviewEvent'])->scopeBindings()->name('recruitment.candidates.calendar');
     Route::post('recruitment/{requisition}/offer', [RequisitionController::class, 'advanceToOffer'])->name('recruitment.offer');
     Route::post('recruitment/{requisition}/filled', [RequisitionController::class, 'markFilled'])->name('recruitment.filled');
     Route::put('recruitment/{requisition}/postings/{posting}/takedown', [RequisitionController::class, 'takeDownPosting'])->scopeBindings()->name('recruitment.postings.takedown');

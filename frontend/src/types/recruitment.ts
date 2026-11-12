@@ -146,6 +146,10 @@ export type Candidate = {
     interviewAtInput: string | null;
     interviewMode: 'online' | 'onsite' | null;
     interviewPlace: string | null;
+    /** How long the interview is, in minutes: an hour unless HR chose otherwise. */
+    interviewMinutes: number;
+    /** HR and the direct superior may download the interview as a calendar event (.ics). */
+    canExportEvent: boolean;
     /** What HR wrote to the candidate in the invitation; repeated when it is sent again. HR only. */
     invitationNote: string | null;
     /** HR may make a new link to the form now: invited, form not filled in, interview day not over. */

@@ -30,6 +30,8 @@ class InviteCandidateRequest extends FormRequest
             'interview_at' => ['required', 'date_format:Y-m-d\TH:i'],
             'interview_mode' => ['required', 'in:online,onsite'],
             'interview_place' => ['required', 'string', 'max:300'],
+            // How long it lasts, for the calendar event; left out it stays as it was, or an hour.
+            'interview_minutes' => ['nullable', 'integer', 'min:5', 'max:480'],
             'note' => ['nullable', 'string', 'max:1000'],
         ];
     }
@@ -46,6 +48,9 @@ class InviteCandidateRequest extends FormRequest
             'interview_mode.in' => 'Pilih online atau tatap muka.',
             'interview_place.required' => 'Isi tautan Meet atau alamat tempat interview.',
             'interview_place.max' => 'Tautan atau alamat terlalu panjang (maksimal 300 huruf).',
+            'interview_minutes.integer' => 'Durasi harus berupa angka menit.',
+            'interview_minutes.min' => 'Durasi minimal 5 menit.',
+            'interview_minutes.max' => 'Durasi maksimal 480 menit (8 jam).',
         ];
     }
 
@@ -72,7 +77,7 @@ class InviteCandidateRequest extends FormRequest
     }
 
     /**
-     * @return array{interview_at: string, interview_mode: string, interview_place: string, note: string|null}
+     * @return array{interview_at: string, interview_mode: string, interview_place: string, interview_minutes: int|null, note: string|null}
      */
     public function invitationFields(): array
     {
@@ -83,6 +88,7 @@ class InviteCandidateRequest extends FormRequest
             'interview_at' => (string) $validated['interview_at'],
             'interview_mode' => (string) $validated['interview_mode'],
             'interview_place' => (string) $validated['interview_place'],
+            'interview_minutes' => isset($validated['interview_minutes']) ? (int) $validated['interview_minutes'] : null,
             'note' => isset($validated['note']) ? (string) $validated['note'] : null,
         ];
     }

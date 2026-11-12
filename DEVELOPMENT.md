@@ -69,6 +69,22 @@ left uncommitted for review.
 
 ## Change log (latest first)
 
+- **2026-11-12 (recruitment: an interview as a calendar event, \`.ics\`).** Migration \`add_interview_minutes_to_candidates_table\`
+  (\`interview_minutes\`) and \`set_interview_minutes_default_to_sixty\` (the default is **60 minutes**, an hour; the first migration
+  gave 10, so the second changes the default and turns the 10s that were only ever that default into 60); run \`php artisan
+  migrate\` on every environment. **Per candidate only, no bulk file**, by
+  decision; the CSV for mail merge is as it was. (1) The invitation form has **"Durasi (menit)"**, 60 by default, 5 to 480; sending
+  again without it keeps what was set. (2) **"Tambah ke kalender"** in the candidate's panel (\`recruitment.candidates.calendar\`,
+  policy \`exportInterviewEvent\`: HR and the direct superior, for a candidate scheduled and not turned down) downloads the \`.ics\`
+  (\`InterviewCalendar\`): the title with the candidate's name; the time and length; **in person: the address as the location;
+  online: the Meet link in the description** (and as the event's address); the invitation note; the organiser (whoever invited)
+  and the participants (the direct superior, and the candidate when they have an email and the viewer may see it, so **not for the
+  superior**). A reminder 15 minutes before. Each download is on the audit trail. (3) **The invitation email carries the
+  candidate's own copy** as an attachment (\`interview.ics\`): the position and company as the title, when and where, the organiser,
+  and only the candidate as a participant. The event's ID stays the same for a candidate and its version rises with each new
+  invitation, so adding the file again after a new time updates the event instead of duplicating it. Not seen in a browser or
+  a calendar app.
+
 - **2026-11-12 (dashboard: a request opens over the dashboard, not on another page).** Clicking one of "Pengajuan berjalan", or a
   leave request in "Menunggu keputusan", used to go to the Pengajuan page and open its side panel there. It now opens **the same
   panel over the dashboard** and the person stays on it. The request is read from the server through \`?request=ID\` (a partial

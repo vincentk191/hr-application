@@ -2,6 +2,7 @@ import { router } from '@inertiajs/react';
 import {
     Ban,
     CalendarDays,
+    CalendarPlus,
     Clock,
     Mail,
     MapPin,
@@ -40,6 +41,7 @@ import {
     SheetTitle,
 } from '@/components/ui/sheet';
 import {
+    calendar as eventFile,
     destroy,
     formLink,
     invite,
@@ -755,6 +757,7 @@ function InterviewSection({
                 interview_at: candidate.interviewAtInput,
                 interview_mode: candidate.interviewMode ?? 'online',
                 interview_place: candidate.interviewPlace ?? '',
+                interview_minutes: candidate.interviewMinutes,
                 note: candidate.invitationNote ?? '',
             },
             {
@@ -790,7 +793,7 @@ function InterviewSection({
                                     <Clock className="size-4 text-muted-foreground" />
                                     {String(at.getHours()).padStart(2, '0')}:
                                     {String(at.getMinutes()).padStart(2, '0')}{' '}
-                                    WIB
+                                    WIB · {candidate.interviewMinutes} menit
                                 </span>
                                 <span className="inline-flex min-w-0 items-center gap-1.5">
                                     <MapPin className="size-4 shrink-0 text-muted-foreground" />
@@ -834,17 +837,37 @@ function InterviewSection({
                     </div>
                 )}
 
-                {canManage && (
+                {(canManage || candidate.canExportEvent) && (
                     <div className="flex flex-wrap gap-2 border-t p-4">
-                        <Button
-                            type="button"
-                            className="rounded-full"
-                            onClick={() => onInvite(candidate)}
-                            data-test="invite-candidate"
-                        >
-                            <CalendarDays className="size-4" />
-                            {at === null ? 'Jadwalkan' : 'Jadwalkan ulang'}
-                        </Button>
+                        {canManage && (
+                            <Button
+                                type="button"
+                                className="rounded-full"
+                                onClick={() => onInvite(candidate)}
+                                data-test="invite-candidate"
+                            >
+                                <CalendarDays className="size-4" />
+                                {at === null ? 'Jadwalkan' : 'Jadwalkan ulang'}
+                            </Button>
+                        )}
+                        {candidate.canExportEvent && (
+                            <Button
+                                asChild
+                                variant="outline"
+                                className="rounded-full"
+                                data-test="add-to-calendar"
+                            >
+                                <a
+                                    href={eventFile.url({
+                                        requisition: item.id,
+                                        candidate: candidate.id,
+                                    })}
+                                >
+                                    <CalendarPlus className="size-4" />
+                                    Tambah ke kalender
+                                </a>
+                            </Button>
+                        )}
                         {canResend && (
                             <Button
                                 type="button"

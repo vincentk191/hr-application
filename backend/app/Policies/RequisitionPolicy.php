@@ -362,6 +362,18 @@ class RequisitionPolicy
     }
 
     /**
+     * A candidate's interview as a calendar event to add (REC-INT): for HR and for the new hire's direct superior, for someone
+     * invited to a time and still in the process.
+     */
+    public function exportInterviewEvent(User $user, Requisition $requisition, Candidate $candidate): bool
+    {
+        return ($this->viewCandidates($user, $requisition) || $this->viewInterviewees($user, $requisition))
+            && $candidate->requisition_id === $requisition->id
+            && $candidate->interview_at !== null
+            && ! $candidate->isRejected();
+    }
+
+    /**
      * Taking a rejection back is HR's, while the requisition is still at a stage where candidates are handled.
      */
     public function restoreCandidate(User $user, Requisition $requisition, Candidate $candidate): bool

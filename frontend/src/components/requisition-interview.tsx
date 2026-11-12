@@ -302,6 +302,28 @@ export function InviteDialog({
                                 />
                             </div>
                             <div className="grid gap-1">
+                                <Label htmlFor="interview-minutes">
+                                    Durasi (menit)
+                                </Label>
+                                <Input
+                                    id="interview-minutes"
+                                    name="interview_minutes"
+                                    type="number"
+                                    inputMode="numeric"
+                                    min={5}
+                                    max={480}
+                                    step={5}
+                                    defaultValue={
+                                        candidate?.interviewMinutes ?? 60
+                                    }
+                                    required
+                                    data-test="interview-minutes"
+                                />
+                                <InputError
+                                    message={errors.interview_minutes}
+                                />
+                            </div>
+                            <div className="grid gap-1">
                                 <Label htmlFor="interview-mode">Format</Label>
                                 <select
                                     id="interview-mode"

@@ -306,6 +306,7 @@ class RequisitionPresenter
             'cvUrl' => $cvUrl,
             'cvPreviewUrl' => $cvUrl === null ? null : InlineImage::previewUrl($cvUrl, (string) $candidate->cv_name),
             ...$this->interviewFields($candidate),
+            'canExportEvent' => $viewer !== null && $viewer->can('exportInterviewEvent', [$requisition, $candidate]),
             ...$this->evaluationFields($requisition, $candidate, $viewer),
             'canRenewFormLink' => $viewer !== null && $viewer->can('renewFormLink', [$requisition, $candidate]),
             // What HR wrote to the candidate in the invitation: HR's own, kept so a re-send repeats it.
@@ -359,6 +360,7 @@ class RequisitionPresenter
             'interviewAtInput' => $when?->format('Y-m-d\TH:i'),
             'interviewMode' => $candidate->interview_mode,
             'interviewPlace' => $candidate->interview_place,
+            'interviewMinutes' => $candidate->interview_minutes ?: InterviewCalendar::DEFAULT_MINUTES,
             'invitation' => $candidate->invitation_message === null ? null : [
                 'subject' => $candidate->invitation_subject,
                 'message' => $candidate->invitation_message,
