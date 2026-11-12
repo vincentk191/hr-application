@@ -220,6 +220,40 @@ it('switches the one calendar to the person\'s own leave, keeping holidays and d
         ->and(collect($mine['entries'])->where('kind', 'leave')->pluck('date')->all())->toBe(['2026-11-13']);
 });
 
+it('holds a manager on the public entrance to the employee\'s own dashboard and menus', function (Role $role) {
+    $manager = adminUser($role, $this->company);
+    Employee::factory()->forCompany($this->company)->create(['user_id' => $manager->id, 'full_name' => 'Bu Bos', 'joined_on' => '2020-01-01']);
+    adminLeave('2026-11-12', '2026-11-12', decision: null);
+
+    $page = $this->withHeaders(['X-Entrance' => 'public'])->actingAs($manager)->get('/dashboard?calendar=2026-11')->assertOk()->viewData('page')['props'];
+
+    expect($page['entrance'])->toBe(['public' => true, 'limited' => true])
+        // None of the cards for the people who run HR, and none of the menus that come with the role.
+        ->and($page['waiting'])->toBeNull()
+        ->and($page['adminCalendar'])->toBeNull()
+        ->and($page['recruitment'])->toBeNull()
+        ->and($page['overview'])->not->toBeNull()
+        ->and(collect($page['auth'])->only(['canAccessAdminPanel', 'canViewAttendance', 'canManageAttendance', 'canViewOffboarding', 'canViewRecruitment', 'canReviewProfileChanges', 'canViewEmployees'])->filter()->all())->toBe([])
+        ->and($page['pendingForMe'])->toBe(0);
+})->with([Role::Management, Role::HrAdmin]);
+
+it('opens a leave request over the dashboard with the panel the Pengajuan page uses, for those who may see it only', function () {
+    $leave = adminLeave('2026-11-12', '2026-11-12', decision: null);
+
+    $opened = dashboardProps($this->hr, "?request={$leave->id}")['openedRequest'];
+
+    expect($opened)->toMatchArray(['id' => $leave->id, 'employee' => 'Budi', 'startOn' => '2026-11-12', 'canDecide' => true])
+        ->and($opened['steps'])->not->toBeEmpty()
+        ->and(dashboardProps($this->hr)['openedRequest'])->toBeNull()
+        ->and(dashboardProps($this->hr, '?request=999999')['openedRequest'])->toBeNull();
+
+    // Someone with no part in it opens nothing.
+    $stranger = adminUser(Role::Employee, $this->company);
+    Employee::factory()->forCompany($this->company)->create(['user_id' => $stranger->id, 'joined_on' => '2020-01-01']);
+
+    expect(dashboardProps($stranger, "?request={$leave->id}")['openedRequest'])->toBeNull();
+});
+
 it('has no personal view for someone without an employee record, who stays on the management one', function () {
     $props = dashboardProps($this->hr, '?calendar=2026-11&scope=me');
 

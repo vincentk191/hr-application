@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { MonthGrid } from '@/components/attendance-summary-views';
 import { daysOfMonth } from '@/components/dashboard-overview';
 import { Button } from '@/components/ui/button';
+import { openInPlace } from '@/lib/open-in-place';
 import { index as leaveIndex } from '@/routes/leave-requests';
 import { index as offboardingIndex } from '@/routes/offboarding';
 import { index as profileChangesIndex } from '@/routes/profile-changes';
@@ -30,7 +31,14 @@ const WAITING_LINKS: Record<AdminWaiting['items'][number]['key'], string> = {
  * What waits on this person's decision, in a group per kind: the kind's name and count opening the list it is decided in,
  * then the items that have waited longest, each opening itself, with what kind it is and how long it has waited.
  */
-export function WaitingCard({ data }: { data: AdminWaiting }) {
+export function WaitingCard({
+    data,
+    onOpenLeave,
+}: {
+    data: AdminWaiting;
+    /** Opens a leave request's panel over the dashboard; the other kinds still open where they are decided. */
+    onOpenLeave?: (id: number) => void;
+}) {
     return (
         <section className="surface overflow-hidden" data-test="admin-waiting">
             <div className="flex items-baseline justify-between gap-2 p-4">
@@ -70,6 +78,13 @@ export function WaitingCard({ data }: { data: AdminWaiting }) {
                                     <li key={entry.id}>
                                         <Link
                                             href={entry.href}
+                                            onClick={(event) =>
+                                                item.key === 'leave' &&
+                                                onOpenLeave &&
+                                                openInPlace(event, () =>
+                                                    onOpenLeave(entry.id),
+                                                )
+                                            }
                                             className="flex items-center gap-3 px-4 py-3 hover:bg-muted/40"
                                             data-test="waiting-entry"
                                         >

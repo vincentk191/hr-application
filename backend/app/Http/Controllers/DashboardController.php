@@ -11,6 +11,7 @@ use App\Support\Attendance\CaptureStatus;
 use App\Support\Dashboard\AdminOverview;
 use App\Support\Dashboard\EmployeeOverview;
 use App\Support\Features;
+use App\Support\Leave\LeaveRequestPresenter;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -54,6 +55,9 @@ class DashboardController extends Controller
                 ? $admin->calendar($user, $request->string('calendar')->toString() ?: null, $own?->id, $request->string('scope')->toString() ?: null)
                 : null,
             'recruitment' => fn (): ?array => $admin->recruitment($user),
+            // A request opened over the dashboard (`?request=ID`) rather than on the Pengajuan page: the same panel, read the
+            // same way, through the same visibility, so a request the person may not see opens nothing.
+            'openedRequest' => fn (): ?array => $this->openedRequest($request),
             // Only for the people who capture the scanner log; everyone else gets no card.
             'attendanceStatus' => $user->can('manage-attendance-device')
                 ? [...$status->resolve(), 'agentStale' => Features::attendanceAgents() && $agents->anyStale()]
@@ -70,5 +74,24 @@ class DashboardController extends Controller
                 ])->all(),
             ],
         ]);
+    }
+
+    /**
+     * The leave request the dashboard was asked to open, shaped as the Pengajuan page's panel wants it.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function openedRequest(Request $request): ?array
+    {
+        $id = $request->integer('request');
+        $user = $request->user();
+
+        if ($id <= 0 || $user === null) {
+            return null;
+        }
+
+        $leave = LeaveRequest::query()->visibleTo($user)->with(LeaveRequestPresenter::RELATIONS)->find($id);
+
+        return $leave === null ? null : LeaveRequestPresenter::row($leave, $user);
     }
 }

@@ -6,7 +6,6 @@ use App\Actions\Leave\ResubmitLeaveRequest;
 use App\Actions\Leave\SubmitLeaveRequest;
 use App\Enums\Permission;
 use App\Enums\Role;
-use App\Enums\WorkflowStepStatus;
 use App\Http\Requests\StoreLeaveRequestRequest;
 use App\Http\Requests\UpdateLeaveRequestRequest;
 use App\Models\Department;
@@ -118,7 +117,7 @@ class LeaveRequestController extends Controller
 
         return LeaveRequest::query()
             ->visibleTo($user)
-            ->with(['employee:id,full_name,employee_number,branch_id,department_id,user_id,company_id', 'employee.branch:id,name', 'employee.department:id,name', 'workflow.steps.decidedBy:id,name', 'workflow.comments.author:id,name', 'attachments', 'type'])
+            ->with(LeaveRequestPresenter::RELATIONS)
             ->when($filters['type'] !== null, fn (Builder $query) => $query->where('leave_type', $filters['type']))
             ->when($filters['branch'] !== null, fn (Builder $query) => $query->whereHas('employee', fn (Builder $employee) => $employee->whereHas('branch', fn (Builder $branch) => $branch->where('name', $filters['branch']))))
             ->when($filters['department'] !== null, fn (Builder $query) => $query->whereHas('employee', fn (Builder $employee) => $employee->whereHas('department', fn (Builder $department) => $department->where('name', $filters['department']))))
@@ -132,7 +131,7 @@ class LeaveRequestController extends Controller
             ))
             ->latest('id')
             ->get()
-            ->map(fn (LeaveRequest $leave): array => $this->present($leave, $user))
+            ->map(fn (LeaveRequest $leave): array => LeaveRequestPresenter::row($leave, $user))
             ->when($filters['status'] === 'mine', fn (Collection $rows) => $rows->filter(fn (array $row): bool => $row['canDecide'])->values())
             ->values()
             ->all();
@@ -241,7 +240,7 @@ class LeaveRequestController extends Controller
         return Inertia::render('leave-requests/edit', [
             'leaveTypes' => app(LeaveLimits::class)->options($leaveRequest->leave_type),
             'request' => [
-                ...$this->present($leaveRequest, $request->user()),
+                ...LeaveRequestPresenter::row($leaveRequest, $request->user()),
                 'leaveType' => $leaveRequest->leave_type,
                 'startTime' => $leaveRequest->start_time,
                 'endTime' => $leaveRequest->end_time,
@@ -272,45 +271,5 @@ class LeaveRequestController extends Controller
         ]);
 
         return to_route('leave-requests.index');
-    }
-
-    /**
-     * Shape one request for the queue and the decision dialog.
-     *
-     * @return array<string, mixed>
-     */
-    private function present(LeaveRequest $leave, User $user): array
-    {
-        $instance = $leave->workflow;
-        $openStep = $instance?->steps->firstWhere('status', WorkflowStepStatus::Pending);
-
-        return [
-            'id' => $leave->id,
-            'reference' => $leave->reference(),
-            'employee' => $leave->employee?->full_name,
-            'branch' => $leave->employee?->branch?->name,
-            'department' => $leave->employee?->department?->name,
-            'type' => $leave->typeLabel(),
-            'timeframe' => $leave->timeframe(),
-            'startOn' => $leave->start_on->toDateString(),
-            'endOn' => $leave->end_on->toDateString(),
-            'days' => $leave->days,
-            'reason' => $leave->reason,
-            'submittedAt' => $leave->created_at?->toDateString(),
-            'stage' => $instance?->stage()->value,
-            'stageLabel' => $instance?->stage()->label(),
-            // Who the request is waiting on, straight from the engine (CORE-WFL-008).
-            'waitingOn' => $openStep?->label,
-            'canDecide' => $openStep !== null && $openStep->canBeDecidedBy($user),
-            'steps' => $instance?->steps->map(fn (WorkflowStep $step): array => [
-                'label' => $step->label,
-                'status' => $step->status->value,
-                'statusLabel' => $step->status->label(),
-                'note' => $step->note,
-                'decidedBy' => $step->decidedBy?->name,
-                'decidedAt' => $step->decided_at?->toDateString(),
-            ])->values() ?? [],
-            ...LeaveRequestPresenter::extras($leave, $user),
-        ];
     }
 }

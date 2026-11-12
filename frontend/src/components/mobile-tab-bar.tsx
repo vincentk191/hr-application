@@ -52,15 +52,16 @@ function Count({ count }: { count?: number }) {
  * offers), the home button raised in the middle.
  *
  * When everything this person can open fits in the four slots beside home (an employee on the public entrance, say,
- * who has only their own pages), all of it goes on the bar, with the notifications to fill a free slot, and there is
- * no "Lainnya". Otherwise it keeps three places and "Lainnya" opens a sheet with the rest, under the same category
+ * who has only their own pages), all of it goes on the bar, and there is no "Lainnya". On the public entrance that is
+ * Pengajuan, Profil saya and Pengaturan, for a manager as for anyone (the server holds every account there to the
+ * employee's own screens); on the private one the notifications fill a free slot. Otherwise it keeps three places and "Lainnya" opens a sheet with the rest, under the same category
  * headings as the side menu, so no screen is out of reach. The three are the most used places this person may open (leave
  * requests, the directory, the attendance calendar), and where they may open fewer, the bar is filled with their other
  * places, then their profile and settings, rather than left with empty slots.
  * From tablet width up the side menu is used and this is hidden.
  */
 export function MobileTabBar() {
-    const { auth, version, notifications } = usePage().props;
+    const { auth, version, notifications, entrance } = usePage().props;
     const { isCurrentUrl } = useCurrentUrl();
     const [moreOpen, setMoreOpen] = useState(false);
     const sections = useNavSections();
@@ -106,13 +107,12 @@ export function MobileTabBar() {
         ...others.filter((item) => !preferred.includes(item)),
         ...extras,
     ];
+    // The public entrance is the employee's self-service, whoever signs in (a manager included): Pengajuan, Profil saya
+    // and Pengaturan and nothing else, so no notifications tab fills the spare slot there.
+    const fillsWithBell =
+        !entrance?.public && others.length + extras.length < SIDE_SLOTS;
     const sideTabs: NavItem[] = compact
-        ? [
-              ...others,
-              ...profile,
-              ...(others.length + extras.length < SIDE_SLOTS ? [bell] : []),
-              settings,
-          ]
+        ? [...others, ...profile, ...(fillsWithBell ? [bell] : []), settings]
         : fill.slice(0, SIDE_SLOTS - 1);
     const tabs = home ? [home, ...sideTabs] : sideTabs;
     const more = compact ? [] : others.filter((item) => !tabs.includes(item));

@@ -2,6 +2,7 @@ import { Link, router, usePage } from '@inertiajs/react';
 import { ArrowRight, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { MonthGrid } from '@/components/attendance-summary-views';
+import { openInPlace } from '@/lib/open-in-place';
 import { Button } from '@/components/ui/button';
 import { show as employeeShow } from '@/routes/employees';
 import { create, index as leaveRequestsIndex } from '@/routes/leave-requests';
@@ -351,7 +352,14 @@ function requestHref(request: OpenRequest): string {
  * screen gets the table, with who the request is waiting on as the status. Finished requests are on the
  * Pengajuan page.
  */
-export function OpenRequests({ requests }: { requests: OpenRequest[] }) {
+export function OpenRequests({
+    requests,
+    onOpen,
+}: {
+    requests: OpenRequest[];
+    /** Opens a request's panel over the dashboard; without it a request opens on the Pengajuan page. */
+    onOpen?: (id: number) => void;
+}) {
     return (
         <section
             className="md:surface space-y-3 md:space-y-0 md:rounded-2xl"
@@ -385,6 +393,12 @@ export function OpenRequests({ requests }: { requests: OpenRequest[] }) {
                             <li key={request.id}>
                                 <Link
                                     href={requestHref(request)}
+                                    onClick={(event) =>
+                                        onOpen &&
+                                        openInPlace(event, () =>
+                                            onOpen(request.id),
+                                        )
+                                    }
                                     className="surface block rounded-2xl p-5 transition-colors active:bg-muted/60"
                                     data-test="open-request"
                                 >
@@ -421,11 +435,19 @@ export function OpenRequests({ requests }: { requests: OpenRequest[] }) {
                                     role="link"
                                     tabIndex={0}
                                     onClick={() =>
-                                        router.visit(requestHref(request))
+                                        onOpen
+                                            ? onOpen(request.id)
+                                            : router.visit(requestHref(request))
                                     }
                                     onKeyDown={(event) => {
                                         if (event.key === 'Enter') {
-                                            router.visit(requestHref(request));
+                                            if (onOpen) {
+                                                onOpen(request.id);
+                                            } else {
+                                                router.visit(
+                                                    requestHref(request),
+                                                );
+                                            }
                                         }
                                     }}
                                     className="cursor-pointer transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none"
@@ -703,10 +725,13 @@ export function EmployeeOverview({
     canCreateRequest,
     now,
     withSickCalendar = true,
+    onOpenRequest,
 }: {
     overview: Overview;
     canCreateRequest: boolean;
     now: number;
+    /** Opens one of the person's requests over the dashboard instead of taking them to the Pengajuan page. */
+    onOpenRequest?: (id: number) => void;
     /** Left out for a person whose dashboard already has the shared calendar, switched to their own leave. */
     withSickCalendar?: boolean;
 }) {
@@ -723,7 +748,10 @@ export function EmployeeOverview({
                         </div>
                     )}
                     <div className="order-3 md:order-none">
-                        <OpenRequests requests={overview.openRequests} />
+                        <OpenRequests
+                            requests={overview.openRequests}
+                            onOpen={onOpenRequest}
+                        />
                     </div>
                 </div>
                 <div className="contents md:flex md:flex-col md:gap-6">

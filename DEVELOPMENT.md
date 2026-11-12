@@ -69,6 +69,16 @@ left uncommitted for review.
 
 ## Change log (latest first)
 
+- **2026-11-12 (dashboard: a request opens over the dashboard, not on another page).** Clicking one of "Pengajuan berjalan", or a
+  leave request in "Menunggu keputusan", used to go to the Pengajuan page and open its side panel there. It now opens **the same
+  panel over the dashboard** and the person stays on it. The request is read from the server through \`?request=ID\` (a partial
+  reload of the \`openedRequest\` prop, so the address can be shared and the panel survives a refresh), by the same visibility
+  rules as the Pengajuan page; a request the person may not see opens nothing. Setujui and Tolak work in it and leave it open.
+  A click with Ctrl, Cmd or Shift, or a middle click, still goes to the Pengajuan page (\`lib/open-in-place.ts\`). The request's
+  shape moved into \`LeaveRequestPresenter::row()\` so the Pengajuan page and the dashboard share it. Not done: the same for the
+  other panels (a search result, a notification, "Perubahan data", offboarding), which still open on their own pages. Not seen in a
+  browser.
+
 - **2026-11-12 (dashboard: one calendar for managers).** A manager (HR or Management) who is also an employee had two month calendars on
   the dashboard: the shared "Kalender" and their own "Hari sakit". Now there is the one shared calendar with a **Saya /
   Manajemen** switch (\`scope=me\` on the dashboard URL): Manajemen is as before (everyone's leave, interviews, holidays and

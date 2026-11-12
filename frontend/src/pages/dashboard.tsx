@@ -1,4 +1,5 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
+import { useState } from 'react';
 import {
     AdminCalendarCard,
     RecruitmentCard,
@@ -9,11 +10,13 @@ import {
     OverviewHeader,
     useScannerMinutes,
 } from '@/components/dashboard-overview';
+import { LeaveDecisionDialog } from '@/components/leave-decision-dialog';
 import { Badge } from '@/components/ui/badge';
 import { dashboard } from '@/routes';
 import { device } from '@/routes/attendance';
 import { show } from '@/routes/employees';
 import type { CaptureStatus } from '@/types/attendance';
+import type { LeaveRequestRow } from '@/types/leave';
 import type {
     AdminCalendar,
     AdminWaiting,
@@ -149,6 +152,7 @@ export default function Dashboard({
     waiting,
     adminCalendar,
     recruitment,
+    openedRequest,
 }: {
     intro: Intro;
     /** Null for an account with no employee record, which has no personal overview. */
@@ -160,8 +164,33 @@ export default function Dashboard({
     waiting: AdminWaiting | null;
     adminCalendar: AdminCalendar | null;
     recruitment: RecruitmentOverview | null;
+    /** The leave request asked for with `?request=ID`, to open its panel over the dashboard. */
+    openedRequest: LeaveRequestRow | null;
 }) {
     const now = useScannerMinutes(intro.nowMinutes);
+    // A request opens as the same side panel the Pengajuan page uses, on top of this page, so the person stays where they
+    // are. The panel's request is read from the server (`?request=ID`, a partial reload of that one prop, and the URL can
+    // be shared); closing hides it at once and then clears the address.
+    const [dismissed, setDismissed] = useState<number | null>(null);
+    const request = openedRequest?.id === dismissed ? null : openedRequest;
+
+    const showRequest = (id: number | null) => {
+        const params = new URLSearchParams(window.location.search);
+
+        if (id === null) {
+            params.delete('request');
+        } else {
+            params.set('request', String(id));
+            setDismissed(null);
+        }
+
+        router.get(dashboard().url, Object.fromEntries(params), {
+            only: ['openedRequest'],
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
+    };
 
     return (
         <>
@@ -178,7 +207,12 @@ export default function Dashboard({
                 )}
                 {(waiting || recruitment) && (
                     <div className="grid items-start gap-4 md:grid-cols-2 md:gap-6">
-                        {waiting && <WaitingCard data={waiting} />}
+                        {waiting && (
+                            <WaitingCard
+                                data={waiting}
+                                onOpenLeave={showRequest}
+                            />
+                        )}
                         {recruitment && <RecruitmentCard data={recruitment} />}
                     </div>
                 )}
@@ -192,9 +226,18 @@ export default function Dashboard({
                         canCreateRequest={canCreateRequest}
                         now={now}
                         withSickCalendar={adminCalendar === null}
+                        onOpenRequest={showRequest}
                     />
                 )}
             </div>
+
+            <LeaveDecisionDialog
+                request={request}
+                onClose={() => {
+                    setDismissed(openedRequest?.id ?? null);
+                    showRequest(null);
+                }}
+            />
         </>
     );
 }
