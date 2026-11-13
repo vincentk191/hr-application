@@ -47,7 +47,7 @@ security pass (Phase 7). What remains is listed in the checklist below. Recruitm
 | Phase 5         | Offboarding end to end: wizard, Management approval, checklist, sign-off, exit, berita acara, Cabang filter, phone action bar |
 | Phase 7         | Server stack, VPN, backups with an admin page, non-superuser database login, security headers and limits      |
 | Next            | **Recruitment Phase 7 of the Offer plan: the funnel figures (offered, filled) on the dashboard and a browser check**; plan under "Offer, Filled and the candidate's outcome" in Phase 4 |
-| Not built       | The recruitment funnel figures; the candidate's CV into the new employee's documents; candidate rescheduling (by decision, HR does it); Google Meet creation (waits on the Workspace answer); Home KPIs; employee app (Web Push, API); CSP, Ghostscript sandbox, narrowing `web`'s `storage` mount |
+| Not built       | The recruitment funnel figures; the candidate's CV into the new employee's documents; candidate rescheduling (by decision, HR does it); Google Meet creation is built (2026-11-13) but not yet proved against CMP's real Google account; Home KPIs; employee app (Web Push, API); CSP, Ghostscript sandbox, narrowing `web`'s `storage` mount |
 
 ---
 
@@ -615,7 +615,8 @@ security pass (Phase 7). What remains is listed in the checklist below. Recruitm
     time, in the future, within a year), online or in person, and the Google Meet link or the address, plus an optional
     note. It is **emailed first** (queued; nothing is sent when the candidate has no email), and the same text and the
     personal link are handed back **once** in a pop-up with "Salin pesan (WhatsApp)" as the fallback. The Meet link is
-    pasted by HR; there is no Google integration. Inviting again (a new time, or the message was lost) makes a new link
+    pasted by HR unless the company's Google account is connected (2026-11-13: then Google makes the Meet room and sends the
+    invitation; see "Google Meet automation: built" below). Inviting again (a new time, or the message was lost) makes a new link
     and the old one stops working; if the form is already filled, only the schedule is resent, without a link.
   - **Candidate form (public, no sign-in):** `/lamaran/{token}`. The token is 48 random characters; **only its SHA-256 is
     stored**, so a copy of the database holds no working link. **Revised the same day: it opens only on the day of the
@@ -1932,7 +1933,31 @@ Screening now happens inside the platforms, and the app only meets the people HR
   a **personal link**: a single-use, expiring token that opens the candidate form **hosted in this app**, on the public
   entrance, and nothing else on it is reachable. The yes/no checklist from the requisition moves into this form, so the
   candidate answers it before the interview. Google Meet scheduling and reschedule stay in this stage.
-- **Google Meet automation: phased plan (decided 2026-11-04, not built; checked against Google's documentation).** Today HR
+- **Google Meet automation: built 2026-11-13 (first slice; uncommitted, not yet run against Google itself).** Decisions
+  (the user, 2026-11-13): **one OAuth-connected Google account per company**, connected once by HR (not per user, and no
+  service account with domain-wide delegation, which cannot be tried with a Gmail account); **Google's invitation replaces
+  the app's email and `.ics`** to the candidate, and the personal form link sits in the event description; guests cannot see
+  each other (`guestsCanSeeOtherGuests` off), so the candidate never sees the interviewers' addresses. What exists:
+  - **Connecting:** "Hubungkan Google" in the Interview tab (`GoogleConnectionController`, routes `recruitment.google.*`,
+    private entrance only). Google sends HR back to **`/google/callback` on the private hostname**; the session-held state
+    ties the answer to the person who started it. Env: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`
+    (it must equal the OAuth client's authorised redirect URI exactly). Scope: `calendar.events` (+ `openid`, `email`). The
+    refresh token is kept encrypted in `google_connections`.
+  - **Inviting:** `InterviewEvent` makes the event with a Meet room (`conferenceData` `hangoutsMeet`, `sendUpdates=all`), with
+    an event ID of our own so a retried request cannot make two; inviting again **patches the same event**. The Meet link
+    replaces the pasted one in `interview_place`. If Google fails, the whole invitation is undone and HR sees why (no
+    silent fallback that could double-send); if Google refuses the token, the connection is marked and invitations go out
+    the old way until HR reconnects.
+  - **Cancelling:** turning a candidate down or removing one deletes the event without Google emailing anyone; closing the
+    position deletes the events, and where HR chose to tell the candidates Google's cancellation is the word they get.
+  - **Keeping in step:** `recruitment:sync-google-events` runs every 15 minutes (outbound only, so nothing about Google is
+    reachable from outside). A time changed on Google is **adopted** (reminders and the form's day follow, HR and those
+    chosen get an in-app notice); a **deleted event is only flagged** for HR; the Meet link and who accepted or declined are
+    kept up to date. A refused token pauses it and tells HR once.
+  - **Open:** how long a refresh token lives for CMP's real account. See the Phase 0 result below: the mail for `cmp.id` was
+    found at Niagahoster, not Google, so the account is probably a plain Google account; publish the OAuth app to **In
+    production** and prove it before relying on it. Tests: `GoogleInterviewTest`.
+- **Google Meet automation: the original phased plan (decided 2026-11-04), kept for its reasoning; checked against Google's documentation.** Today HR
   pastes the Meet link. Creating it automatically is possible through the Google Calendar API (an event inserted with
   `conferenceDataVersion=1` and `conferenceData.createRequest` of type `hangoutsMeet`; the link appears in `entryPoints`
   once the creation, which is asynchronous and may first read "pending", succeeds; `sendUpdates=all` makes Google email
