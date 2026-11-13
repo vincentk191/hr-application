@@ -290,6 +290,44 @@ function OfferTerms({
                         </select>
                         <InputError message={errors.probation_months} />
                     </div>
+                    <div className="space-y-1">
+                        <label
+                            htmlFor="offer-letter-number"
+                            className="text-sm font-semibold text-muted-foreground"
+                        >
+                            Nomor surat
+                        </label>
+                        <input
+                            id="offer-letter-number"
+                            name="letter_number"
+                            type="text"
+                            maxLength={60}
+                            defaultValue={offer.letterNumber ?? ''}
+                            className="h-10 w-full rounded-xl border border-input bg-card px-3 text-sm"
+                            data-test="offer-letter-number"
+                        />
+                        <p className="label-mono">Opsional</p>
+                        <InputError message={errors.letter_number} />
+                    </div>
+                    <div className="space-y-1">
+                        <label
+                            htmlFor="offer-letter-note"
+                            className="text-sm font-semibold text-muted-foreground"
+                        >
+                            Catatan surat
+                        </label>
+                        <textarea
+                            id="offer-letter-note"
+                            name="letter_note"
+                            rows={4}
+                            maxLength={1000}
+                            defaultValue={offer.letterNote ?? ''}
+                            className="w-full rounded-xl border border-input bg-card px-3 py-2 text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+                            data-test="offer-letter-note"
+                        />
+                        <p className="label-mono">Opsional</p>
+                        <InputError message={errors.letter_note} />
+                    </div>
                 </div>
             )}
             trigger={

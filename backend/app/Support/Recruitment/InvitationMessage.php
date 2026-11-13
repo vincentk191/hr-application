@@ -3,7 +3,6 @@
 namespace App\Support\Recruitment;
 
 use App\Models\Candidate;
-use App\Models\CandidateOffer;
 use App\Models\Requisition;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -173,31 +172,6 @@ class InvitationMessage
     public static function probationLabel(int $months): string
     {
         return $months === 0 ? 'Tidak ada' : "{$months} bulan";
-    }
-
-    /**
-     * The word to a candidate who is offered the job: the terms, and a request to say whether they accept. The signed
-     * letter is HR's to hand over, so it is not repeated here.
-     */
-    public static function offer(Candidate $candidate, Requisition $requisition, CandidateOffer $offer): string
-    {
-        $company = $requisition->company->name;
-
-        return implode("\n", array_filter([
-            "Halo {$candidate->name},",
-            '',
-            "Selamat! {$company} menawarkan Anda posisi {$requisition->position_name} dengan ketentuan berikut:",
-            '',
-            'Posisi            : '.$requisition->position_name,
-            $requisition->contractLabel() === null ? null : 'Status kerja      : '.$requisition->contractLabel(),
-            'Tanggal mulai     : '.($offer->start_on === null ? '-' : self::dayLabel($offer->start_on, false)),
-            'Masa percobaan    : '.($offer->probation_months === null ? '-' : self::probationLabel($offer->probation_months)),
-            'Gaji pokok/bulan  : '.($offer->salary === null ? '-' : self::rupiah($offer->salary)),
-            '',
-            'Mohon kabari kami dengan membalas pesan ini setelah Anda mempertimbangkan penawaran ini.',
-            '',
-            "HR {$company}",
-        ], fn (?string $line): bool => $line !== null));
     }
 
     /**

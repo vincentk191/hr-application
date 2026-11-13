@@ -477,6 +477,8 @@ class RequisitionPresenter
             'decisionNote' => $step?->status->isDecided() ? $step->note : null,
             'startOn' => $offer->start_on?->toDateString(),
             'probationMonths' => $offer->probation_months,
+            'letterNumber' => $offer->letter_number,
+            'letterNote' => $offer->letter_note,
             'sentOn' => $offer->sent_at?->copy()->setTimezone($timezone)->toDateString(),
             'sentBy' => $offer->sentBy?->name,
             'emailed' => $offer->emailed_at !== null,
@@ -494,33 +496,6 @@ class RequisitionPresenter
             'employeeId' => $offer->employee !== null && $viewer->can('view', $offer->employee) ? $offer->employee_id : null,
             'hasEmployee' => $offer->employee_id !== null,
             'candidate' => $data,
-        ];
-    }
-
-    /**
-     * What the offer letter is built from (REC-OFR): the company, the candidate, the role and the terms, as the letter reads
-     * them. The letter is dated the day it was sent, or today while it is still a draft.
-     *
-     * @return array<string, mixed>
-     */
-    public function offerLetter(Requisition $requisition, CandidateOffer $offer): array
-    {
-        $requisition->loadMissing('company', 'department', 'branch', 'manager');
-        $offer->loadMissing('candidate', 'sentBy:id,name');
-
-        return [
-            'company' => $requisition->company->name,
-            'date' => InvitationMessage::dayLabel($offer->sent_at ?? now(), false),
-            'candidate' => $offer->candidate->name,
-            'position' => $requisition->position_name,
-            'department' => $requisition->department?->name,
-            'branch' => $requisition->branch?->name,
-            'manager' => $requisition->manager?->full_name,
-            'contract' => $requisition->contractLabel(),
-            'startOn' => $offer->start_on === null ? null : InvitationMessage::dayLabel($offer->start_on, false),
-            'probation' => $offer->probation_months === null ? null : InvitationMessage::probationLabel($offer->probation_months),
-            'salary' => $offer->salary === null ? null : InvitationMessage::rupiah($offer->salary),
-            'sent' => $offer->sent_at !== null,
         ];
     }
 

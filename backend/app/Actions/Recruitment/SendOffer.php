@@ -7,18 +7,19 @@ use App\Mail\CandidateOfferSent;
 use App\Models\CandidateOffer;
 use App\Models\Requisition;
 use App\Models\User;
-use App\Support\Recruitment\InvitationMessage;
+use App\Support\Recruitment\OfferLetterComposer;
 use App\Workflows\WorkflowEngine;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 
 /**
  * HR marks an approved offer as sent (REC-OFS-003): the letter has gone to the candidate, by print, WhatsApp or email. The
- * app emails the candidate the terms only when HR ticks it and the candidate has an address.
+ * letter is saved as it reads at that moment, so a later change to the template leaves it alone. The app emails the
+ * candidate the terms only when HR ticks it and the candidate has an address.
  */
 class SendOffer
 {
-    public function __construct(private WorkflowEngine $engine) {}
+    public function __construct(private WorkflowEngine $engine, private OfferLetterComposer $letters) {}
 
     /**
      * @return bool whether the candidate was emailed
@@ -33,7 +34,8 @@ class SendOffer
                 'sent_at' => now(),
                 'sent_by_user_id' => $by->id,
                 'emailed_at' => $emailed ? now() : null,
-            ])->save();
+            ]);
+            $offer->forceFill(['letter_snapshot' => $this->letters->snapshot($requisition, $offer)])->save();
 
             $this->engine->transitionTo($offer->workflow, OfferStage::Sent, $by);
 
@@ -45,11 +47,11 @@ class SendOffer
         });
 
         if ($emailed) {
-            $requisition->loadMissing('company');
+            $offer->refresh();
 
             Mail::to((string) $candidate->email)->queue(new CandidateOfferSent(
-                'Penawaran kerja — '.$requisition->position_name,
-                InvitationMessage::offer($candidate, $requisition, $offer->refresh()),
+                $this->letters->emailSubject($requisition, $offer),
+                $this->letters->emailBody($requisition, $offer),
             ));
         }
 

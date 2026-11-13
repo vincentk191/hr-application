@@ -21,9 +21,24 @@ function Term({
     );
 }
 
+/** The paragraphs of HR's wording; a line break HR typed inside one is kept. */
+function Paragraphs({ lines }: { lines: string[] }) {
+    return (
+        <>
+            {lines.map((line, index) => (
+                <p key={`${index}-${line}`} className="whitespace-pre-line">
+                    {line}
+                </p>
+            ))}
+        </>
+    );
+}
+
 /**
- * The offer letter, surat penawaran kerja (REC-OFR): set up for printing (Cetak / PDF) and always built from the offer as
- * it is now, so it can be printed again at any time. The wording is the app's own template; HR signs it and hands it over.
+ * The offer letter, surat penawaran kerja (REC-OFR): set up for printing (Cetak / PDF). The wording (title, subject, the
+ * paragraphs before and after the terms, who signs) is what HR set in the admin panel under "Template surat penawaran",
+ * already filled in for this offer; the terms are always printed from the offer. Before the offer is sent the letter follows
+ * the template as it is now; once sent it is the letter as it was sent, so it can be printed again unchanged.
  */
 export default function OfferLetter({
     requisition,
@@ -66,20 +81,36 @@ export default function OfferLetter({
                     data-test="offer-letter-body"
                     data-print-area
                 >
-                    <header className="space-y-1 border-b-2 border-foreground pb-4">
-                        <p className="text-xl font-extrabold tracking-wide uppercase">
-                            {letter.company}
-                        </p>
-                        <p className="text-xs tracking-widest uppercase">
-                            Surat penawaran kerja
-                        </p>
+                    <header className="flex items-center gap-4 border-b-2 border-foreground pb-4">
+                        {letter.logoUrl && (
+                            <img
+                                src={letter.logoUrl}
+                                alt=""
+                                className="h-14 w-auto max-w-40 object-contain"
+                            />
+                        )}
+                        <div className="space-y-1">
+                            <p className="text-xl font-extrabold tracking-wide uppercase">
+                                {letter.company}
+                            </p>
+                            <p
+                                className="text-xs tracking-widest uppercase"
+                                data-test="letter-title"
+                            >
+                                {letter.title}
+                            </p>
+                        </div>
                     </header>
 
                     <div className="space-y-1">
+                        {letter.number && (
+                            <p data-test="letter-number">
+                                Nomor: {letter.number}
+                            </p>
+                        )}
                         <p>{letter.date}</p>
                         <p>
-                            Perihal: <strong>Penawaran kerja</strong> —{' '}
-                            {letter.position}
+                            Perihal: <strong>{letter.subject}</strong>
                         </p>
                     </div>
 
@@ -88,14 +119,9 @@ export default function OfferLetter({
                         <p className="font-bold">{letter.candidate}</p>
                     </div>
 
-                    <p>Dengan hormat,</p>
-                    <p>
-                        Berdasarkan proses seleksi yang telah Anda ikuti,{' '}
-                        {letter.company} dengan senang hati menawarkan Anda
-                        untuk bergabung sebagai{' '}
-                        <strong>{letter.position}</strong> dengan ketentuan
-                        sebagai berikut:
-                    </p>
+                    <div className="space-y-3" data-test="letter-opening">
+                        <Paragraphs lines={letter.opening} />
+                    </div>
 
                     <dl className="space-y-1.5">
                         <Term label="Posisi">{letter.position}</Term>
@@ -124,22 +150,33 @@ export default function OfferLetter({
                         </Term>
                     </dl>
 
-                    <p>
-                        Apabila Anda menyetujui penawaran ini, mohon
-                        menandatangani surat ini pada kolom yang tersedia dan
-                        mengembalikannya kepada kami.
-                    </p>
-                    <p>
-                        Kami berharap Anda dapat bergabung dan berkembang
-                        bersama {letter.company}.
-                    </p>
+                    {letter.note && (
+                        <p
+                            className="whitespace-pre-line"
+                            data-test="letter-note"
+                        >
+                            <strong>Catatan:</strong> {letter.note}
+                        </p>
+                    )}
+
+                    <div className="space-y-3" data-test="letter-closing">
+                        <Paragraphs lines={letter.closing} />
+                    </div>
 
                     <section className="grid break-inside-avoid gap-8 pt-4 sm:grid-cols-2">
                         <div className="space-y-2">
                             <p>Hormat kami,</p>
                             <p className="font-semibold">{letter.company}</p>
                             <div className="border-b border-foreground pt-16" />
-                            <p>HR</p>
+                            {letter.signer.name && (
+                                <p
+                                    className="font-semibold"
+                                    data-test="letter-signer"
+                                >
+                                    {letter.signer.name}
+                                </p>
+                            )}
+                            <p>{letter.signer.title}</p>
                         </div>
                         <div className="space-y-2">
                             <p>Setuju dan menerima,</p>

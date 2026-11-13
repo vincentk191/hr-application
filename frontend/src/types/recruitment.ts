@@ -242,6 +242,9 @@ export type CandidateOffer = {
     /** The terms HR fills in once the offer is approved (REC-OFR); the salary above is Management's. */
     startOn: string | null;
     probationMonths: number | null;
+    /** Optional, typed by HR with the terms: printed on the letter. */
+    letterNumber: string | null;
+    letterNote: string | null;
     sentOn: string | null;
     sentBy: string | null;
     /** Whether the candidate was also emailed when the offer was marked sent. */
@@ -286,6 +289,16 @@ export type HireDefaults = {
 /** What the offer letter is built from (the print page). */
 export type OfferLetter = {
     company: string;
+    logoUrl: string | null;
+    /** The wording HR set in the admin panel, already filled in for this offer; the paragraphs are plain text. */
+    title: string;
+    subject: string;
+    opening: string[];
+    closing: string[];
+    /** The letter number and the extra note HR typed for this offer, when they did. */
+    number: string | null;
+    note: string | null;
+    signer: { name: string | null; title: string };
     date: string;
     candidate: string;
     position: string;

@@ -25,6 +25,9 @@ use Illuminate\Support\Carbon;
  * @property int|null $salary
  * @property Carbon|null $start_on
  * @property int|null $probation_months
+ * @property string|null $letter_number
+ * @property string|null $letter_note
+ * @property array<string, mixed>|null $letter_snapshot
  * @property int|null $employee_id
  * @property int|null $proposed_by_user_id
  * @property Carbon|null $proposed_at
@@ -43,6 +46,9 @@ use Illuminate\Support\Carbon;
     'salary',
     'start_on',
     'probation_months',
+    'letter_number',
+    'letter_note',
+    'letter_snapshot',
     'employee_id',
     'proposed_by_user_id',
     'proposed_at',
@@ -69,6 +75,7 @@ class CandidateOffer extends Model
             'proposed_at' => 'datetime',
             'sent_at' => 'datetime',
             'emailed_at' => 'datetime',
+            'letter_snapshot' => 'array',
             'responded_at' => 'datetime',
         ];
     }

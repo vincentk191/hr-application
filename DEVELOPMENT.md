@@ -71,6 +71,30 @@ security pass (Phase 7). What remains is listed in the checklist below. Recruitm
 
 ## Change log (latest first)
 
+- **2026-11-13 (recruitment: the offer letter and its email can be edited; `REC-OFR`, branch `feature/recruitement`).** Until
+  now the letter's wording lived in `pages/recruitment/offer-letter.tsx` and the email in `InvitationMessage::offer`. Admin page
+  **Template surat penawaran** (`ManageOfferLetterTemplate`, Workflow group, same gate `manage-recruitment-template` and
+  parent-wide HR Admin as the other two template pages) holds: the **judul**, the **perihal**, the **pembuka** and **penutup**
+  (paragraphs, separated by a blank line, with `{placeholders}`: `nama`, `posisi`, `perusahaan`, `departemen`, `cabang`,
+  `atasan`, `status_kerja`, `tanggal_mulai`, `masa_percobaan`, `gaji`, `tanggal_surat`), the **penandatangan** (name and title
+  for each active company; none set prints "HR" as before), and the **email** (subject and body, which also understands
+  `{ketentuan}` and must contain it). Live previews with an example offer, "Kembalikan ke bawaan" (wording only, the signers
+  stay), audited ("Offer letter template changed"). It refuses a placeholder that does not exist. Stored in `app_settings`
+  (`recruitment.offer_letter`) through `Support/Recruitment/OfferLetterTemplate`, whose built-in text is the wording that used to
+  be in the page, so nothing changes until someone edits it. **The terms are not part of the wording:** Posisi, Departemen,
+  Cabang, Atasan langsung, Status kerja, Tanggal mulai, Masa percobaan and Gaji are always printed from the offer, so editing the
+  text cannot drop them. **Per offer,** "Atur ketentuan" gains **Nomor surat** (free text, no auto-numbering) and **Catatan surat**
+  (printed as "Catatan:" under the terms), both optional and locked once sent (migration `add_letter_details_to_candidate_offers_table`:
+  `letter_number`, `letter_note`, `letter_snapshot`). The letter shows the company's logo when it has one. **A sent letter keeps
+  its words:** `SendOffer` saves the letter as written at that moment into `letter_snapshot`; until then the letter follows the
+  template as it is now, and a sent offer prints that saved letter (only the logo is taken live). `Support/Recruitment/OfferLetterComposer`
+  builds the letter and the email (replacing `RequisitionPresenter::offerLetter` and `InvitationMessage::offer`), and
+  `PlaceholderText` is the filling and checking of `{placeholders}` that `InvitationTemplate` now shares. **Not done:** offers
+  already marked sent before this change have no saved letter, so they follow the template like an unsent one until it is edited
+  (the built-in text equals the old page, so nothing differs today); automatic letter numbering; a different wording per company.
+  Tests: new `OfferLetterTemplatePageTest` (5) and 5 added to `RequisitionOfferLetterTest`; the 239 recruitment tests, Pint, PHPStan,
+  TypeScript and the formatter pass. Not seen in a browser.
+
 - **2026-11-13 (recruitment: a hire becomes an employee; Phase 6 of the Offer plan, `REC-FIL-006/007`, branch
   `feature/recruitement`).** On the Terisi tab each accepted offer has **Jadikan karyawan** (HR with `manage-recruitment` and
   `create-employees`). It opens the form of any new employee (`pages/recruitment/hire-employee.tsx`, which renders

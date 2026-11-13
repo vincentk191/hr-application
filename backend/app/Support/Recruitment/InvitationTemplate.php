@@ -87,9 +87,7 @@ TEXT;
      */
     public static function render(string $template, array $values): string
     {
-        $text = preg_replace_callback('/\{([a-z_]+)\}/', fn (array $found): string => $values[$found[1]] ?? $found[0], $template) ?? $template;
-
-        return trim(preg_replace("/\n{3,}/", "\n\n", str_replace("\r\n", "\n", $text)) ?? $text);
+        return PlaceholderText::fill($template, $values);
     }
 
     /**
@@ -99,12 +97,7 @@ TEXT;
      */
     public static function unknownPlaceholders(string $text): array
     {
-        preg_match_all('/\{([^{}\s]*)\}/', $text, $found);
-
-        return array_values(array_unique(array_filter(
-            $found[1],
-            fn (string $name): bool => ! array_key_exists($name, self::PLACEHOLDERS),
-        )));
+        return PlaceholderText::unknown($text, array_keys(self::PLACEHOLDERS));
     }
 
     /**

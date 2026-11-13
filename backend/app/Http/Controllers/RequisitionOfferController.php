@@ -17,7 +17,7 @@ use App\Models\Employee;
 use App\Models\Requisition;
 use App\Support\Employees\EmployeeFormOptions;
 use App\Support\Recruitment\HireProfile;
-use App\Support\Recruitment\RequisitionPresenter;
+use App\Support\Recruitment\OfferLetterComposer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -97,15 +97,27 @@ class RequisitionOfferController extends Controller
         $validated = $request->validate([
             'start_on' => ['required', 'date_format:Y-m-d', 'after:'.$today],
             'probation_months' => ['required', 'integer', 'min:0', 'max:3'],
+            'letter_number' => ['nullable', 'string', 'max:60'],
+            'letter_note' => ['nullable', 'string', 'max:1000'],
         ], [
             'start_on.required' => 'Isi tanggal mulai kerja.',
             'start_on.date_format' => 'Tanggal mulai kerja harus berupa tanggal yang sah.',
             'start_on.after' => 'Tanggal mulai kerja harus setelah hari ini.',
             'probation_months.required' => 'Pilih masa percobaan.',
             'probation_months.max' => 'Masa percobaan maksimal 3 bulan.',
+            'letter_number.max' => 'Nomor surat maksimal 60 karakter.',
+            'letter_note.max' => 'Catatan surat maksimal 1000 karakter.',
         ]);
 
-        $setTerms->handle($requisition, $offer, $request->user(), $validated['start_on'], (int) $validated['probation_months']);
+        $setTerms->handle(
+            $requisition,
+            $offer,
+            $request->user(),
+            $validated['start_on'],
+            (int) $validated['probation_months'],
+            $validated['letter_number'] ?? null,
+            $validated['letter_note'] ?? null,
+        );
 
         Inertia::flash('toast', ['type' => 'success', 'message' => "Ketentuan penawaran {$offer->candidate?->name} disimpan."]);
 
@@ -129,13 +141,13 @@ class RequisitionOfferController extends Controller
     /**
      * The offer letter as a print page (REC-OFR), built from the offer as it is now so it can be printed again.
      */
-    public function letter(Request $request, Requisition $requisition, CandidateOffer $offer, RequisitionPresenter $presenter): Response
+    public function letter(Request $request, Requisition $requisition, CandidateOffer $offer, OfferLetterComposer $composer): Response
     {
         $this->authorize('viewOfferLetter', [$requisition, $offer]);
 
         return Inertia::render('recruitment/offer-letter', [
             'requisition' => ['id' => $requisition->id, 'reference' => $requisition->reference(), 'positionName' => $requisition->position_name],
-            'letter' => $presenter->offerLetter($requisition, $offer),
+            'letter' => $composer->letter($requisition, $offer),
         ]);
     }
 

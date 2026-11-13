@@ -14,6 +14,7 @@ use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Requisition;
 use App\Models\User;
+use App\Support\Recruitment\OfferLetterTemplate;
 use App\Workflows\Definitions\RequisitionWorkflow;
 use App\Workflows\WorkflowEngine;
 use Carbon\CarbonImmutable;
@@ -167,6 +168,145 @@ it('builds the letter for HR once the terms are set, from the requisition and th
     foreach ([$this->management, $this->boss, $this->requester] as $other) {
         $this->actingAs($other)->get($letter)->assertForbidden();
     }
+});
+
+/**
+ * The letter the print page is given, for HR.
+ *
+ * @return array<string, mixed>
+ */
+function printedLetter(Requisition $requisition, CandidateOffer $offer): array
+{
+    return test()->actingAs(test()->hr)->get(route('recruitment.offers.letter', [$requisition, $offer]))->assertOk()->viewData('page')['props']['letter'];
+}
+
+/**
+ * Saves wording for the letter and the email, leaving whatever is not named as it is.
+ *
+ * @param  array<string, mixed>  $wording
+ */
+function saveLetterWording(array $wording): void
+{
+    $template = app(OfferLetterTemplate::class);
+
+    $template->save([...$template->current(), ...$wording]);
+}
+
+it('prints the built-in wording until HR changes the template', function () {
+    [$requisition, $offer] = approvedLetterOffer();
+    setLetterTerms($requisition, $offer, ['start_on' => '2026-12-01', 'probation_months' => 3]);
+
+    $letter = printedLetter($requisition, $offer);
+
+    expect($letter)->toMatchArray([
+        'title' => 'Surat penawaran kerja',
+        'subject' => 'Penawaran kerja — Staf Gudang',
+        'number' => null,
+        'note' => null,
+        'logoUrl' => null,
+        'signer' => ['name' => null, 'title' => 'HR'],
+        'sent' => false,
+    ])
+        ->and($letter['opening'])->toHaveCount(2)
+        ->and($letter['opening'][0])->toBe('Dengan hormat,')
+        ->and($letter['opening'][1])->toContain('PT Maju Jaya')->toContain('sebagai Staf Gudang')
+        ->and($letter['closing'])->toHaveCount(2)
+        ->and($letter['closing'][1])->toBe('Kami berharap Anda dapat bergabung dan berkembang bersama PT Maju Jaya.');
+});
+
+it('prints the wording, the signer, the number and the note HR set, and always the terms', function () {
+    $this->company->forceFill(['logo_path' => 'logos/maju.png'])->save();
+    saveLetterWording([
+        'title' => 'Surat tawaran',
+        'subject' => 'Tawaran {posisi} di {cabang}{departemen}',
+        'opening' => "Yth. {nama},\n\nKami menawarkan {posisi} mulai {tanggal_mulai}, gaji {gaji}.",
+        'closing' => 'Salam dari {perusahaan}.',
+        'signers' => [$this->company->id => ['name' => 'Ratna Dewi', 'title' => 'Kepala HR']],
+    ]);
+    [$requisition, $offer] = approvedLetterOffer();
+
+    setLetterTerms($requisition, $offer, ['start_on' => '2026-12-01', 'probation_months' => 3, 'letter_number' => '  012/HR/XI/2026 ', 'letter_note' => "Tunjangan makan Rp 500.000.\nDiberikan setelah masa percobaan."])
+        ->assertSessionDoesntHaveErrors();
+
+    $letter = printedLetter($requisition, $offer);
+
+    expect($letter)->toMatchArray([
+        'title' => 'Surat tawaran',
+        'subject' => 'Tawaran Staf Gudang di Gudang',
+        'opening' => ['Yth. Budi,', 'Kami menawarkan Staf Gudang mulai 1 Desember 2026, gaji Rp 4.500.000.'],
+        'closing' => ['Salam dari PT Maju Jaya.'],
+        'number' => '012/HR/XI/2026',
+        'note' => "Tunjangan makan Rp 500.000.\nDiberikan setelah masa percobaan.",
+        'signer' => ['name' => 'Ratna Dewi', 'title' => 'Kepala HR'],
+        'startOn' => '1 Desember 2026',
+        'probation' => '3 bulan',
+        'salary' => 'Rp 4.500.000',
+    ])->and($letter['logoUrl'])->toEndWith('logos/maju.png');
+
+    // The Penawaran tab gives the dialog what HR typed, to change it.
+    $row = collect($this->actingAs($this->hr)->get(route('recruitment.show', $requisition))->viewData('page')['props']['requisition']['offers'])->sole();
+    expect($row)->toMatchArray(['letterNumber' => '012/HR/XI/2026', 'letterNote' => "Tunjangan makan Rp 500.000.\nDiberikan setelah masa percobaan."]);
+
+    // Emptied again, they are gone from the letter.
+    setLetterTerms($requisition, $offer, ['start_on' => '2026-12-01', 'probation_months' => 3, 'letter_number' => '', 'letter_note' => null]);
+
+    expect(printedLetter($requisition, $offer))->toMatchArray(['number' => null, 'note' => null]);
+});
+
+it('keeps the letter number and note short', function () {
+    [$requisition, $offer] = approvedLetterOffer();
+    $terms = ['start_on' => '2026-12-01', 'probation_months' => 3];
+
+    setLetterTerms($requisition, $offer, [...$terms, 'letter_number' => str_repeat('1', 61)])->assertSessionHasErrors('letter_number');
+    setLetterTerms($requisition, $offer, [...$terms, 'letter_note' => str_repeat('a', 1001)])->assertSessionHasErrors('letter_note');
+    setLetterTerms($requisition, $offer, [...$terms, 'letter_number' => str_repeat('1', 60), 'letter_note' => str_repeat('a', 1000)])->assertSessionDoesntHaveErrors();
+});
+
+it('follows the template until the offer is sent, and then keeps the letter as it was sent', function () {
+    saveLetterWording(['opening' => 'Pembuka pertama untuk {nama}.']);
+    [$requisition, $offer] = approvedLetterOffer();
+    setLetterTerms($requisition, $offer, ['start_on' => '2026-12-01', 'probation_months' => 3, 'letter_number' => '012/HR']);
+
+    expect(printedLetter($requisition, $offer)['opening'])->toBe(['Pembuka pertama untuk Budi.']);
+
+    saveLetterWording(['opening' => 'Pembuka kedua untuk {nama}.']);
+    expect(printedLetter($requisition, $offer)['opening'])->toBe(['Pembuka kedua untuk Budi.']);
+
+    $this->actingAs($this->hr)->post(route('recruitment.offers.send', [$requisition, $offer]));
+
+    saveLetterWording(['title' => 'Judul baru', 'opening' => 'Pembuka ketiga.', 'signers' => [$this->company->id => ['name' => 'Ratna Dewi', 'title' => 'Kepala HR']]]);
+    $this->company->forceFill(['name' => 'PT Maju Sentosa'])->save();
+
+    $letter = printedLetter($requisition, $offer->refresh());
+
+    expect($letter)->toMatchArray([
+        'company' => 'PT Maju Jaya',
+        'title' => 'Surat penawaran kerja',
+        'opening' => ['Pembuka kedua untuk Budi.'],
+        'number' => '012/HR',
+        'date' => '4 November 2026',
+        'signer' => ['name' => null, 'title' => 'HR'],
+        'sent' => true,
+    ])->and($offer->letter_snapshot)->not->toHaveKey('logoUrl');
+});
+
+it('emails the candidate the wording HR set for the email', function () {
+    saveLetterWording([
+        'email_subject' => 'Tawaran {posisi} dari {perusahaan}',
+        'email_body' => "Yth. {nama},\n\n{ketentuan}\n\nSalam, {perusahaan}",
+    ]);
+    [$requisition, $offer] = approvedLetterOffer();
+    setLetterTerms($requisition, $offer, ['start_on' => '2026-12-01', 'probation_months' => 0]);
+
+    $this->actingAs($this->hr)->post(route('recruitment.offers.send', [$requisition, $offer]), ['notify_candidate' => '1'])->assertRedirect();
+
+    Mail::assertQueued(CandidateOfferSent::class, fn (CandidateOfferSent $mail): bool => $mail->subjectLine === 'Tawaran Staf Gudang dari PT Maju Jaya'
+        && str_starts_with($mail->body, 'Yth. Budi,')
+        && str_contains($mail->body, "Posisi            : Staf Gudang\n")
+        && str_contains($mail->body, 'Tanggal mulai     : 1 Desember 2026')
+        && str_contains($mail->body, 'Masa percobaan    : Tidak ada')
+        && str_contains($mail->body, 'Gaji pokok/bulan  : Rp 4.500.000')
+        && str_ends_with($mail->body, 'Salam, PT Maju Jaya'));
 });
 
 it('marks an offer as sent without emailing the candidate unless HR ticks it', function () {
