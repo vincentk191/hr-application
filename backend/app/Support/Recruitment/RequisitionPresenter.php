@@ -158,9 +158,9 @@ class RequisitionPresenter
             'canManageInterview' => $viewer->can('manageInterview', $requisition),
             // Who the invitation's "Peserta" list offers: HR and Manajemen of the company, for those who may invite.
             'interviewerOptions' => $viewer->can('manageInterview', $requisition) ? app(InterviewParticipants::class)->options($requisition) : [],
-            // The Google account the company's invitations come from: for those who invite; only HR with the recruitment permission can change it.
+            // The Google account the company's invitations come from, for those who invite. An admin sets and connects it.
             'google' => $viewer->can('manageInterview', $requisition)
-                ? app(InterviewEvent::class)->status($requisition->company_id, $viewer->can(Permission::ManageRecruitment->value))
+                ? app(InterviewEvent::class)->status($requisition->company_id)
                 : null,
             'canProposeOffers' => $viewer->can('proposeOffers', $requisition),
             // The offers to chosen candidates: HR, the direct superior and Management only (REC-OFS).
@@ -320,6 +320,8 @@ class RequisitionPresenter
             'canExportEvent' => $viewer !== null && $viewer->can('exportInterviewEvent', [$requisition, $candidate]),
             ...$this->evaluationFields($requisition, $candidate, $viewer),
             'canRenewFormLink' => $viewer !== null && $viewer->can('renewFormLink', [$requisition, $candidate]),
+            // HR may delete the schedule of an invited candidate who has no evaluation yet.
+            'canCancelInterview' => $viewer !== null && $viewer->can('cancelInterview', [$requisition, $candidate]),
             // What HR wrote to the candidate in the invitation: HR's own, kept so a re-send repeats it.
             'invitationNote' => $viewer !== null && $viewer->can('viewCandidates', $requisition) ? $candidate->invitation_note : null,
             ...$this->rejectionFields($requisition, $candidate, $viewer),

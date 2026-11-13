@@ -1306,7 +1306,14 @@ function WeekCalendar({
  * invitation is emailed and its text and personal link handed over for WhatsApp too. The candidate's answers to the
  * checklist show under their name once they send their form. Screening stays open on its own tab for more candidates.
  */
-export function InterviewTab({ item }: { item: Requisition }) {
+export function InterviewTab({
+    item,
+    openCandidateId = null,
+}: {
+    item: Requisition;
+    /** A candidate whose panel is open from the start, when a link asked for it (the dashboard's calendar). */
+    openCandidateId?: number | null;
+}) {
     const [now] = useState(() => new Date());
     // Who is being invited and from which slot: from a candidate's card the person is known; from a free slot of the
     // calendar the dialog asks for them, and the date and time are the slot's.
@@ -1315,7 +1322,11 @@ export function InterviewTab({ item }: { item: Requisition }) {
         at?: string;
     } | null>(null);
     // The candidate whose drawer is open, by id so it follows the page's data after a re-invite; always on Interview.
-    const [viewingId, setViewingId] = useState<number | null>(null);
+    const [viewingId, setViewingId] = useState<number | null>(
+        item.shortlist?.some((candidate) => candidate.id === openCandidateId)
+            ? openCandidateId
+            : null,
+    );
     const [drawerTab, setDrawerTab] = useState<CandidateTab>('interview');
     const [invitation, setInvitation] = useState<Invitation | null>(null);
     const [formLink, setFormLink] = useState<FormLink | null>(null);
@@ -1397,10 +1408,7 @@ export function InterviewTab({ item }: { item: Requisition }) {
     return (
         <div className="space-y-5" data-test="interview-tab">
             {item.google !== null && (
-                <GoogleConnectionBar
-                    requisitionId={item.id}
-                    google={item.google}
-                />
+                <GoogleConnectionBar google={item.google} />
             )}
 
             <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_24rem]">

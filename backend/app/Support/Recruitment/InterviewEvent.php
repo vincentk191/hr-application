@@ -3,6 +3,7 @@
 namespace App\Support\Recruitment;
 
 use App\Models\Candidate;
+use App\Models\Company;
 use App\Models\GoogleConnection;
 use App\Models\Requisition;
 use App\Models\User;
@@ -34,13 +35,83 @@ class InterviewEvent
     public function __construct(private GoogleOAuth $oauth, private GoogleCalendar $calendar) {}
 
     /**
-     * The company's connection if invitations can go through it now: configured, connected, and not refused by Google.
+     * The company's connection if invitations can go through it now: configured, connected, not refused by Google, and the
+     * account is the sender address an admin set for the company (so nothing is ever sent from another account).
      */
     public function usableFor(int $companyId): ?GoogleConnection
     {
         $connection = $this->connectionFor($companyId);
 
-        return $connection?->isUsable() === true ? $connection : null;
+        return $connection?->isUsable() === true && $this->isTheSender($connection) ? $connection : null;
+    }
+
+    /**
+     * The address an admin set as the only one the company's invitations are sent from.
+     */
+    public function senderOf(int $companyId): ?string
+    {
+        $sender = Company::query()->whereKey($companyId)->value('google_sender_email');
+
+        return filled($sender) ? (string) $sender : null;
+    }
+
+    private function isTheSender(GoogleConnection $connection): bool
+    {
+        $sender = $this->senderOf($connection->company_id);
+
+        return $sender !== null && strcasecmp(trim($sender), trim($connection->google_email)) === 0;
+    }
+
+    /**
+     * Forgets the company's Google account: tells Google, and removes the connection. Events already on its calendar stay
+     * there; inviting goes back to the app's own email.
+     */
+    public function disconnect(int $companyId): void
+    {
+        $connection = GoogleConnection::acrossCompanies()->where('company_id', $companyId)->first();
+
+        if ($connection instanceof GoogleConnection) {
+            $this->oauth->revoke($connection);
+            $connection->delete();
+        }
+    }
+
+    /**
+     * Where the company's Google account stands, in one word: the server is not set up, no sender address is set, nothing is
+     * connected, Google refused the account, the account is not the sender address, or it is ready.
+     *
+     * @return 'unconfigured'|'no-sender'|'disconnected'|'refused'|'mismatch'|'ready'
+     */
+    public function stateOf(int $companyId): string
+    {
+        $connection = $this->connectionFor($companyId);
+
+        return match (true) {
+            ! $this->oauth->isConfigured() => 'unconfigured',
+            $this->senderOf($companyId) === null => 'no-sender',
+            $connection === null => 'disconnected',
+            ! $connection->isUsable() => 'refused',
+            ! $this->isTheSender($connection) => 'mismatch',
+            default => 'ready',
+        };
+    }
+
+    /**
+     * The state in words, for the admin screen.
+     */
+    public function describe(int $companyId): string
+    {
+        $connection = $this->connectionFor($companyId);
+        $sender = $this->senderOf($companyId);
+
+        return match ($this->stateOf($companyId)) {
+            'unconfigured' => 'Server belum menyiapkan Google: '.implode(', ', $this->oauth->missingSettings()).' kosong.',
+            'no-sender' => 'Isi alamat pengirim di atas dan simpan, lalu hubungkan Google.',
+            'disconnected' => "Belum terhubung. Klik Hubungkan Google dan masuk dengan {$sender}.",
+            'refused' => "Google menolak akun {$connection?->google_email}. Hubungkan ulang dengan {$sender}.",
+            'mismatch' => "Akun yang terhubung ({$connection?->google_email}) bukan alamat pengirim ({$sender}). Hubungkan ulang dengan akun yang benar.",
+            default => "Terhubung: {$connection?->google_email}.",
+        };
     }
 
     /**
@@ -56,23 +127,19 @@ class InterviewEvent
     }
 
     /**
-     * What the Interview tab shows about the company's Google account.
+     * What the Interview tab shows about the company's Google account: whether invitations go through it, and from which
+     * account. It cannot be changed there; an admin does that.
      *
-     * @return array{configured: bool, missing: list<string>, connected: bool, ready: bool, email: string|null, canManage: bool}
+     * @return array{state: string, ready: bool, email: string|null}
      */
-    public function status(int $companyId, bool $canManage): array
+    public function status(int $companyId): array
     {
-        $connection = $this->connectionFor($companyId);
+        $state = $this->stateOf($companyId);
 
         return [
-            'configured' => $this->oauth->isConfigured(),
-            // Which environment settings the server lacks, by name, for HR to pass on.
-            'missing' => $this->oauth->missingSettings(),
-            'connected' => $connection !== null,
-            // Invitations go through Google: connected, and Google has not refused the account.
-            'ready' => $connection?->isUsable() === true,
-            'email' => $connection?->google_email,
-            'canManage' => $canManage,
+            'state' => $state,
+            'ready' => $state === 'ready',
+            'email' => $state === 'ready' ? $this->connectionFor($companyId)?->google_email : null,
         ];
     }
 
@@ -142,6 +209,17 @@ class InterviewEvent
             return false;
         }
 
+        $this->forget($candidate);
+
+        return true;
+    }
+
+    /**
+     * Keeps nothing of the interview's event: the candidate no longer has one, whether it was deleted on Google or its
+     * schedule was cleared in the app.
+     */
+    public function forget(Candidate $candidate): void
+    {
         $candidate->forceFill([
             'google_event_id' => null,
             'google_etag' => null,
@@ -150,8 +228,6 @@ class InterviewEvent
             'google_missing_at' => null,
             'google_synced_at' => null,
         ])->save();
-
-        return true;
     }
 
     /**

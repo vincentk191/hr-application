@@ -1934,15 +1934,20 @@ Screening now happens inside the platforms, and the app only meets the people HR
   entrance, and nothing else on it is reachable. The yes/no checklist from the requisition moves into this form, so the
   candidate answers it before the interview. Google Meet scheduling and reschedule stay in this stage.
 - **Google Meet automation: built 2026-11-13 (first slice; uncommitted, not yet run against Google itself).** Decisions
-  (the user, 2026-11-13): **one OAuth-connected Google account per company**, connected once by HR (not per user, and no
-  service account with domain-wide delegation, which cannot be tried with a Gmail account); **Google's invitation replaces
+  (the user, 2026-11-13): **one OAuth-connected Google account per company**, connected once **by an admin** (not per user,
+  and no service account with domain-wide delegation, which cannot be tried with a Gmail account); **Google's invitation replaces
   the app's email and `.ics`** to the candidate, and the personal form link sits in the event description; guests cannot see
   each other (`guestsCanSeeOtherGuests` off), so the candidate never sees the interviewers' addresses. What exists:
-  - **Connecting:** "Hubungkan Google" in the Interview tab (`GoogleConnectionController`, routes `recruitment.google.*`,
-    private entrance only). Google sends HR back to **`/google/callback` on the private hostname**; the session-held state
-    ties the answer to the person who started it. Env: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`
-    (it must equal the OAuth client's authorised redirect URI exactly). Scope: `calendar.events` (+ `openid`, `email`). The
-    refresh token is kept encrypted in `google_connections`.
+  - **Connecting (admin panel only, changed 2026-11-13):** on the company's page under Perusahaan an admin
+    (`manage-companies`) sets the **sender address** (`companies.google_sender_email`) and clicks "Hubungkan Google" (or
+    "Putuskan Google"). Only that address can be connected: the callback compares the account Google approved with it, so
+    HR cannot send from another account, and `InterviewEvent::usableFor` also refuses a connection that is not the sender
+    address (changing it later disables sending until reconnected). HR's Interview tab only shows the state. Routes
+    `recruitment.google.connect` / `.callback` (`GoogleConnectionController`, private entrance). Google sends the admin back
+    to **`/google/callback` on the private hostname**; the session-held state ties the answer to the person who started it.
+    Env: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` (it must equal the OAuth client's authorised
+    redirect URI exactly). Scope: `calendar.events` (+ `openid`, `email`). The refresh token is kept encrypted in
+    `google_connections`. Connecting, disconnecting and changing the sender are written to the audit trail.
   - **Inviting:** `InterviewEvent` makes the event with a Meet room (`conferenceData` `hangoutsMeet`, `sendUpdates=all`), with
     an event ID of our own so a retried request cannot make two; inviting again **patches the same event**. The Meet link
     replaces the pasted one in `interview_place`. If Google fails, the whole invitation is undone and HR sees why (no
@@ -1954,6 +1959,14 @@ Screening now happens inside the platforms, and the app only meets the people HR
     reachable from outside). A time changed on Google is **adopted** (reminders and the form's day follow, HR and those
     chosen get an in-app notice); a **deleted event is only flagged** for HR; the Meet link and who accepted or declined are
     kept up to date. A refused token pauses it and tells HR once.
+  - **Deleting a schedule ("Hapus jadwal", 2026-11-13):** HR can delete an invited candidate's interview schedule (the
+    candidate stays shortlisted and their form answers are kept; the form link stops working; those who sat in are told).
+    On Google the event is deleted too and Google tells the candidate; an event already deleted on Google needs no call.
+    If Google cannot be reached the schedule is cleared anyway and HR is told to delete the event there. Not offered once
+    someone has evaluated the interview. This is how an event deleted on Google is cleared from the app (the flag stays
+    until HR acts; it never deletes by itself).
+  - **Dashboard calendar (2026-11-13):** an interview on the home calendar (and in "Interview mendatang") opens the
+    requisition on its Interview tab with that candidate's panel already open (`?tab=interview&candidate=…`).
   - **Open:** how long a refresh token lives for CMP's real account. See the Phase 0 result below: the mail for `cmp.id` was
     found at Niagahoster, not Google, so the account is probably a plain Google account; publish the OAuth app to **In
     production** and prove it before relying on it. Tests: `GoogleInterviewTest`.

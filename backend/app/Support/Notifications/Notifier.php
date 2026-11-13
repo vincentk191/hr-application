@@ -625,6 +625,28 @@ class Notifier
     }
 
     /**
+     * HR deleted a candidate's interview schedule (REC-INT): tell HR and the people who sat in on it, except whoever did it.
+     */
+    public function interviewCancelled(Requisition $requisition, Candidate $candidate, User $by): void
+    {
+        if ($candidate->interview_at === null) {
+            return;
+        }
+
+        $when = InvitationMessage::whenLabel(InvitationMessage::local($candidate->interview_at));
+        $notice = new InAppNotice(
+            'recruitment',
+            'Interview dibatalkan: '.$requisition->position_name,
+            "{$requisition->reference()} · {$candidate->name} · {$when}",
+            route('recruitment.show', $requisition, absolute: false),
+        );
+
+        $this->interviewTeam($requisition, $candidate)
+            ->reject(fn (User $user): bool => $user->is($by))
+            ->each(fn (User $user) => $user->notify($notice));
+    }
+
+    /**
      * The time of an interview was changed on Google Calendar itself, and the app followed (REC-INT): tell HR and the people
      * who sit in. Google has already emailed the candidate.
      */

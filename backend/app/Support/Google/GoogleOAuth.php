@@ -58,12 +58,14 @@ class GoogleOAuth
     }
 
     /**
-     * Where to send HR to approve the connection. `offline` and `consent` make Google hand back a refresh token every time,
-     * also when the account approved the app before.
+     * Where to send the admin to approve the connection. `offline` and `consent` make Google hand back a refresh token every
+     * time, also when the account approved the app before. The sender address is offered as the account to sign in with; the
+     * callback still checks that it is the account that was approved.
      */
-    public function authorizationUrl(string $state): string
+    public function authorizationUrl(string $state, ?string $loginHint = null): string
     {
         return self::AUTHORIZE_URL.'?'.http_build_query([
+            ...($loginHint === null ? [] : ['login_hint' => $loginHint]),
             'client_id' => config('services.google.client_id'),
             'redirect_uri' => config('services.google.redirect'),
             'response_type' => 'code',

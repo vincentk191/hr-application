@@ -557,6 +557,12 @@ export function RecruitmentCard({ data }: { data: RecruitmentOverview }) {
                                 <Link
                                     href={recruitmentShow(
                                         candidate.requisitionId,
+                                        {
+                                            query: {
+                                                tab: 'interview',
+                                                candidate: candidate.id,
+                                            },
+                                        },
                                     )}
                                     className="block py-1.5 hover:underline"
                                 >

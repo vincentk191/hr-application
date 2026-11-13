@@ -250,12 +250,24 @@ export default function RequisitionShow({
 
     const { errors } = usePage().props as { errors: Record<string, string> };
 
+    // A link can open the requisition on a stage, and on one candidate's panel there: the dashboard's calendar sends HR
+    // straight to an interview (?tab=interview&candidate=…) instead of to the stage the requisition is at.
+    const requested = new URLSearchParams(usePage().url.split('?')[1] ?? '');
+    const requestedCandidate = Number(requested.get('candidate')) || null;
+
     // A cancelled requisition has no current stage: open on the last one it reached.
     const current =
         item.tabs.find((tab) => tab.state === 'current')?.stage ??
         item.tabs.filter((tab) => tab.state === 'done').at(-1)?.stage ??
         'submitted';
-    const [tab, setTab] = useState<string>(current);
+    const requestedTab = requested.get('tab');
+    const [tab, setTab] = useState<string>(
+        item.tabs.some(
+            (entry) => entry.stage === requestedTab && entry.state !== 'locked',
+        )
+            ? (requestedTab as string)
+            : current,
+    );
 
     // "Lanjut ke …" takes the person to the stage it moved to, from the top of its page. Approving, which changes
     // no stage, leaves them where they are.
@@ -829,7 +841,10 @@ export default function RequisitionShow({
                 ) : tab === 'screening' ? (
                     <ScreeningTab item={item} />
                 ) : tab === 'interview' ? (
-                    <InterviewTab item={item} />
+                    <InterviewTab
+                        item={item}
+                        openCandidateId={requestedCandidate}
+                    />
                 ) : tab === 'offer' ? (
                     <OfferTab item={item} />
                 ) : tab === 'filled' ? (

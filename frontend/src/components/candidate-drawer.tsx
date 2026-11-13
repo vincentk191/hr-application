@@ -53,6 +53,7 @@ import {
     restore,
     select,
     unselect,
+    uninvite,
 } from '@/routes/recruitment/candidates';
 import type { Candidate, Requisition } from '@/types/recruitment';
 
@@ -719,6 +720,7 @@ function InterviewSection({
     const at = interviewMoment(candidate.interviewAtInput);
     const [resending, setResending] = useState(false);
     const [renewing, setRenewing] = useState(false);
+    const [deleting, setDeleting] = useState(false);
     const canManage =
         onInvite !== undefined &&
         item.canManageInterview &&
@@ -749,6 +751,28 @@ function InterviewSection({
         at > new Date() &&
         (candidate.inviteState === 'invited' ||
             candidate.inviteState === 'expired');
+
+    // Clears the schedule (and, on Google Calendar, deletes the event and lets Google tell the candidate).
+    const deleteSchedule = () => {
+        if (
+            !window.confirm(
+                candidate.googleEvent && !candidate.googleMissing
+                    ? `Hapus jadwal ${candidate.name}? Acaranya dihapus di Google Calendar dan Google memberi tahu kandidat.`
+                    : `Hapus jadwal ${candidate.name}? Kandidat tetap di daftar, tetapi tanpa jadwal. Kabari kandidat sendiri.`,
+            )
+        ) {
+            return;
+        }
+
+        router.delete(
+            uninvite.url({ requisition: item.id, candidate: candidate.id }),
+            {
+                preserveScroll: true,
+                onStart: () => setDeleting(true),
+                onFinish: () => setDeleting(false),
+            },
+        );
+    };
 
     const resend = () => {
         if (candidate.interviewAtInput === null) {
@@ -854,9 +878,9 @@ function InterviewSection({
                                         className="mt-0.5 size-4 shrink-0"
                                         aria-hidden
                                     />
-                                    Acara dihapus di Google Calendar. Ubah
-                                    jadwal &amp; kirim ulang untuk membuat yang
-                                    baru.
+                                    Acara dihapus di Google Calendar. Hapus
+                                    jadwal di sini, atau jadwalkan ulang untuk
+                                    membuat yang baru.
                                 </p>
                             )}
                             {candidate.googleResponse && (
@@ -938,6 +962,19 @@ function InterviewSection({
                             >
                                 <Send className="size-4" />
                                 Kirim ulang undangan
+                            </Button>
+                        )}
+                        {candidate.canCancelInterview && (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="rounded-full"
+                                disabled={deleting}
+                                onClick={deleteSchedule}
+                                data-test="delete-schedule"
+                            >
+                                <Trash2 className="size-4" aria-hidden />
+                                Hapus jadwal
                             </Button>
                         )}
                         {candidate.canRenewFormLink && (

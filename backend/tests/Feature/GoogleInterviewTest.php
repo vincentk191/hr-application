@@ -2,9 +2,11 @@
 
 use App\Enums\RequisitionStage;
 use App\Enums\Role;
+use App\Filament\Resources\Companies\Pages\EditCompany;
 use App\Mail\CandidateInterviewCancelled;
 use App\Mail\CandidateInvitation;
 use App\Models\Candidate;
+use App\Models\CandidateEvaluation;
 use App\Models\Company;
 use App\Models\Department;
 use App\Models\Employee;
@@ -25,6 +27,8 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Sleep;
 use Inertia\Testing\AssertableInertia as Assert;
+use Livewire\Livewire;
+use Spatie\Activitylog\Models\Activity;
 
 /**
  * Interviews made through the company's Google account (REC-INT): HR connects the account once, then inviting a candidate
@@ -52,6 +56,8 @@ beforeEach(function () {
     $this->department = Department::factory()->create(['company_id' => $this->company->id]);
 
     $this->hr = googleUser(Role::HrAdmin, $this->company, 'Hana HR');
+    $this->admin = User::factory()->create(['company_id' => null]);
+    $this->admin->assignRole(Role::SystemAdmin->value);
     $this->supervisor = googleUser(Role::Supervisor, $this->company, 'Rudi Pemohon');
     $this->boss = googleUser(Role::Supervisor, $this->company, 'Bu Atasan');
     $bossEmployee = Employee::factory()->forCompany($this->company)->create(['user_id' => $this->boss->id, 'full_name' => 'Bu Atasan']);
@@ -92,6 +98,8 @@ function fakeAgain(array $stubs): void
 /** The company's Google account, connected and with an access token that has not run out. */
 function connectedGoogle(array $overrides = []): GoogleConnection
 {
+    test()->company->update(['google_sender_email' => $overrides['google_email'] ?? 'recruitment@majujaya.test']);
+
     return GoogleConnection::factory()->forCompany(test()->company)->create([
         'google_email' => 'recruitment@majujaya.test',
         'access_token' => 'access-token',
@@ -191,103 +199,211 @@ function googleNoticeTitles(User $user): array
     return $user->notifications()->pluck('data')->map(fn (array $data): string => (string) $data['title'])->all();
 }
 
-// --- Connecting ---
+// --- Connecting (an admin does it, from the company's page) ---
 
-it('sends HR to Google with the narrow calendar permission and a one-off state', function () {
-    $this->actingAs($this->hr)->get(route('recruitment.google.connect', $this->requisition))
-        ->assertRedirectContains('https://accounts.google.com/o/oauth2/v2/auth?');
+/** What the admin panel told the person who was just sent back to it, by title. */
+function adminNotices(): array
+{
+    return collect(session('filament.notifications'))->pluck('title')->all();
+}
 
-    $state = session('google_oauth.state');
-    parse_str((string) parse_url($this->actingAs($this->hr)->get(route('recruitment.google.connect', $this->requisition))->headers->get('Location'), PHP_URL_QUERY), $query);
+it('sends an admin to Google with the narrow calendar permission, the sender address as the account to use, and a one-off state', function () {
+    $this->company->update(['google_sender_email' => 'recruitment@majujaya.test']);
+
+    $response = $this->actingAs($this->admin)->get(route('recruitment.google.connect', $this->company));
+    $response->assertRedirectContains('https://accounts.google.com/o/oauth2/v2/auth?');
+
+    parse_str((string) parse_url($response->headers->get('Location'), PHP_URL_QUERY), $query);
 
     expect($query['client_id'])->toBe('client-id.apps.googleusercontent.com')
         ->and($query['redirect_uri'])->toBe('https://hr-vpn.example.test/google/callback')
         ->and($query['access_type'])->toBe('offline')
         ->and($query['prompt'])->toBe('consent')
+        ->and($query['login_hint'])->toBe('recruitment@majujaya.test')
         ->and(explode(' ', $query['scope']))->toContain('https://www.googleapis.com/auth/calendar.events')
-        ->and(strlen((string) $state))->toBe(40);
+        ->and(session('google_oauth.state'))->toBe($query['state'])
+        ->and(strlen($query['state']))->toBe(40);
 });
 
-it('lets only those who run recruitment connect, and says so when the server is not set up', function () {
-    $this->actingAs($this->supervisor)->get(route('recruitment.google.connect', $this->requisition))->assertForbidden();
+it('lets only an admin connect: HR cannot, however the request is made', function () {
+    $this->company->update(['google_sender_email' => 'recruitment@majujaya.test']);
 
-    config(['services.google.client_id' => null, 'services.google.redirect' => '']);
-
-    $this->actingAs($this->hr)->get(route('recruitment.google.connect', $this->requisition))
-        ->assertRedirect()
-        ->assertInertiaFlash('toast.type', 'error')
-        // It names what is empty, never what the values are.
-        ->assertInertiaFlash('toast.message', 'Google belum disiapkan di server: GOOGLE_CLIENT_ID, GOOGLE_REDIRECT_URI kosong.');
-
-    $this->actingAs($this->hr)->get(route('recruitment.show', $this->requisition))
-        ->assertInertia(fn (Assert $page) => $page
-            ->where('requisition.google.configured', false)
-            ->where('requisition.google.missing', ['GOOGLE_CLIENT_ID', 'GOOGLE_REDIRECT_URI']));
+    $this->actingAs($this->hr)->get(route('recruitment.google.connect', $this->company))->assertForbidden();
+    $this->actingAs($this->supervisor)->get(route('recruitment.google.connect', $this->company))->assertForbidden();
 
     expect(session('google_oauth'))->toBeNull();
 });
 
-it('keeps the account Google sends HR back with, and stores the refresh token encrypted', function () {
-    Http::fake([
+it('does not send anyone to Google without a sender address, or when the server is not set up, and says what to fill in', function () {
+    $adminPage = "/admin/companies/{$this->company->id}/edit";
+
+    $this->actingAs($this->admin)->get(route('recruitment.google.connect', $this->company))->assertRedirect($adminPage);
+    expect(adminNotices())->toContain('Isi alamat pengirim undangan perusahaan ini dan simpan dulu.');
+
+    $this->company->update(['google_sender_email' => 'recruitment@majujaya.test']);
+    config(['services.google.client_id' => null, 'services.google.redirect' => '']);
+
+    $this->actingAs($this->admin)->get(route('recruitment.google.connect', $this->company))->assertRedirect($adminPage);
+    // It names what is empty, never what the values are.
+    expect(adminNotices())->toContain('Google belum disiapkan di server: GOOGLE_CLIENT_ID, GOOGLE_REDIRECT_URI kosong.')
+        ->and(session('google_oauth'))->toBeNull();
+});
+
+/** Google's answers to the code exchange, for the account that signed in. */
+function fakeGoogleSignIn(string $email = 'recruitment@majujaya.test', array $token = []): void
+{
+    fakeAgain([
         'oauth2.googleapis.com/token' => Http::response([
             'access_token' => 'access-1', 'refresh_token' => 'refresh-secret-1', 'expires_in' => 3599,
             'scope' => 'openid https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/calendar.events',
+            ...$token,
         ]),
-        'openidconnect.googleapis.com/v1/userinfo' => Http::response(['email' => 'recruitment@majujaya.test']),
+        'openidconnect.googleapis.com/v1/userinfo' => Http::response(['email' => $email]),
     ]);
+}
 
-    $this->actingAs($this->hr)
-        ->withSession(['google_oauth' => ['state' => 'abc', 'user' => $this->hr->id, 'requisition' => $this->requisition->id]])
-        ->get('/google/callback?state=abc&code=the-code')
-        ->assertRedirect(route('recruitment.show', $this->requisition));
+function comingBackFromGoogle(string $query = 'state=abc&code=the-code', ?User $as = null)
+{
+    return test()->actingAs($as ?? test()->admin)
+        ->withSession(['google_oauth' => ['state' => 'abc', 'user' => ($as ?? test()->admin)->id, 'company' => test()->company->id]])
+        ->get("/google/callback?{$query}");
+}
+
+it('keeps the account Google sends the admin back with, stores the refresh token encrypted, and writes it to the audit trail', function () {
+    $this->company->update(['google_sender_email' => 'recruitment@majujaya.test']);
+    fakeGoogleSignIn();
+
+    comingBackFromGoogle()->assertRedirect("/admin/companies/{$this->company->id}/edit");
 
     $connection = GoogleConnection::acrossCompanies()->where('company_id', $this->company->id)->firstOrFail();
 
     expect($connection->google_email)->toBe('recruitment@majujaya.test')
         ->and($connection->refresh_token)->toBe('refresh-secret-1')
         ->and($connection->needs_reconnect_at)->toBeNull()
-        ->and($connection->connected_by_user_id)->toBe($this->hr->id)
-        ->and(DB::table('google_connections')->value('refresh_token'))->not->toContain('refresh-secret-1');
+        ->and($connection->connected_by_user_id)->toBe($this->admin->id)
+        ->and(DB::table('google_connections')->value('refresh_token'))->not->toContain('refresh-secret-1')
+        ->and(adminNotices())->toContain('Google terhubung: recruitment@majujaya.test.')
+        ->and(Activity::query()->where('description', 'Google account connected')->exists())->toBeTrue();
 
     Http::assertSent(fn (Request $request): bool => str_contains($request->url(), 'oauth2.googleapis.com/token')
         && $request['code'] === 'the-code' && $request['grant_type'] === 'authorization_code');
 });
 
+it('connects nothing when the account chosen is not the sender address, whoever signs in', function () {
+    $this->company->update(['google_sender_email' => 'recruitment@majujaya.test']);
+    fakeGoogleSignIn('someone.else@gmail.com');
+
+    comingBackFromGoogle();
+
+    expect(GoogleConnection::acrossCompanies()->count())->toBe(0)
+        ->and(adminNotices())->toContain('Akun yang dipilih (someone.else@gmail.com) bukan alamat pengirim perusahaan ini (recruitment@majujaya.test). Tidak ada yang dihubungkan.');
+
+    // The address is compared without regard to case.
+    fakeGoogleSignIn('Recruitment@MajuJaya.test');
+    comingBackFromGoogle();
+
+    expect(GoogleConnection::acrossCompanies()->count())->toBe(1);
+});
+
 it('connects nothing when the state is wrong, the consent was refused, the calendar permission was unticked, or there is no refresh token', function () {
-    $pending = ['google_oauth' => ['state' => 'abc', 'user' => $this->hr->id, 'requisition' => $this->requisition->id]];
+    $this->company->update(['google_sender_email' => 'recruitment@majujaya.test']);
+    $pending = ['google_oauth' => ['state' => 'abc', 'user' => $this->admin->id, 'company' => $this->company->id]];
 
-    $this->actingAs($this->hr)->withSession($pending)->get('/google/callback?state=forged&code=x')->assertRedirect(route('recruitment.index'));
-    $this->actingAs($this->hr)->withSession($pending)->get('/google/callback?state=abc&error=access_denied')->assertRedirect(route('recruitment.show', $this->requisition));
+    $this->actingAs($this->admin)->withSession($pending)->get('/google/callback?state=forged&code=x')->assertRedirect('/admin/companies');
+    $this->actingAs($this->admin)->withSession($pending)->get('/google/callback?state=abc&error=access_denied')->assertRedirect("/admin/companies/{$this->company->id}/edit");
 
-    Http::fake([
-        'oauth2.googleapis.com/token' => Http::sequence()
-            ->push(['access_token' => 'a', 'refresh_token' => 'r', 'expires_in' => 3600, 'scope' => 'openid email'])
-            ->push(['access_token' => 'a', 'expires_in' => 3600, 'scope' => 'https://www.googleapis.com/auth/calendar.events']),
-        'openidconnect.googleapis.com/v1/userinfo' => Http::response(['email' => 'recruitment@majujaya.test']),
-    ]);
+    fakeGoogleSignIn(token: ['scope' => 'openid email']);
+    comingBackFromGoogle();
 
-    $this->actingAs($this->hr)->withSession($pending)->get('/google/callback?state=abc&code=x')->assertInertiaFlash('toast.type', 'error');
-    $this->actingAs($this->hr)->withSession($pending)->get('/google/callback?state=abc&code=x')->assertInertiaFlash('toast.type', 'error');
+    fakeGoogleSignIn(token: ['refresh_token' => null]);
+    comingBackFromGoogle();
 
     expect(GoogleConnection::acrossCompanies()->count())->toBe(0);
 });
 
-it('does not take a callback that someone else started', function () {
-    $pending = ['google_oauth' => ['state' => 'abc', 'user' => $this->hr->id, 'requisition' => $this->requisition->id]];
-    $other = googleUser(Role::HrAdmin, $this->company, 'Hari HR');
+it('does not take a callback that someone else started, or one from HR', function () {
+    $this->company->update(['google_sender_email' => 'recruitment@majujaya.test']);
+    fakeGoogleSignIn();
+    $otherAdmin = User::factory()->create(['company_id' => null]);
+    $otherAdmin->assignRole(Role::SystemAdmin->value);
 
-    $this->actingAs($other)->withSession($pending)->get('/google/callback?state=abc&code=x')->assertRedirect(route('recruitment.index'));
+    $this->actingAs($otherAdmin)
+        ->withSession(['google_oauth' => ['state' => 'abc', 'user' => $this->admin->id, 'company' => $this->company->id]])
+        ->get('/google/callback?state=abc&code=x')
+        ->assertRedirect('/admin/companies');
+
+    comingBackFromGoogle(as: $this->hr)->assertForbidden();
 
     expect(GoogleConnection::acrossCompanies()->count())->toBe(0);
 });
 
-it('disconnects: tells Google, forgets the account, and goes back to the app\'s own email', function () {
+it('shows the admin where the company\'s Google account stands, with the actions that fit', function () {
+    $this->actingAs($this->admin);
+    $page = fn () => Livewire::test(EditCompany::class, ['record' => $this->company->getKey()]);
+
+    $page()->assertSee('Isi alamat pengirim di atas dan simpan')->assertActionDisabled('connectGoogle')->assertActionHidden('disconnectGoogle');
+
+    $this->company->update(['google_sender_email' => 'recruitment@majujaya.test']);
+    $page()->assertSee('Belum terhubung. Klik Hubungkan Google dan masuk dengan recruitment@majujaya.test.')->assertActionEnabled('connectGoogle');
+
+    connectedGoogle();
+    $page()->assertSee('Terhubung: recruitment@majujaya.test.')->assertActionHidden('connectGoogle')->assertActionVisible('disconnectGoogle');
+
+    // The server forgetting its settings is the admin's to fix, and the page names what is empty.
+    config(['services.google.client_secret' => null]);
+    $page()->assertSee('Server belum menyiapkan Google: GOOGLE_CLIENT_SECRET kosong.');
+});
+
+it('lets the admin set the sender address, which is saved in lower case and written to the audit trail', function () {
+    $this->actingAs($this->admin);
+
+    Livewire::test(EditCompany::class, ['record' => $this->company->getKey()])
+        ->fillForm(['google_sender_email' => 'Recruitment@MajuJaya.test'])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($this->company->fresh()->google_sender_email)->toBe('recruitment@majujaya.test')
+        ->and(Activity::query()->where('description', 'Google sender address changed')->exists())->toBeTrue();
+
+    Livewire::test(EditCompany::class, ['record' => $this->company->getKey()])
+        ->fillForm(['google_sender_email' => 'bukan-email'])
+        ->call('save')
+        ->assertHasFormErrors(['google_sender_email']);
+});
+
+it('stops sending from an account that is no longer the sender address, and says so on the Interview tab', function () {
+    connectedGoogle();
+    $this->company->update(['google_sender_email' => 'lain@majujaya.test']);
+    Http::fake();
+
+    $candidate = googleCandidate();
+    googleInvite($candidate)->assertSessionHasErrors('interview_place');
+    expect(calendarCalls('POST'))->toBeEmpty();
+
+    $this->actingAs($this->hr)->get(route('recruitment.show', $this->requisition))
+        ->assertInertia(fn (Assert $page) => $page->where('requisition.google', ['state' => 'mismatch', 'ready' => false, 'email' => null]));
+});
+
+it('sends nothing through Google until an admin has set a sender address', function () {
+    connectedGoogle();
+    $this->company->update(['google_sender_email' => null]);
+
+    googleInvite(googleCandidate())->assertSessionHasErrors('interview_place');
+
+    expect(calendarCalls('POST'))->toBeEmpty();
+});
+
+it('disconnects from the admin panel: tells Google, forgets the account, and goes back to the app\'s own email', function () {
     connectedGoogle();
     Http::fake(['oauth2.googleapis.com/revoke' => Http::response('')]);
+    $this->actingAs($this->admin);
 
-    $this->actingAs($this->hr)->delete(route('recruitment.google.disconnect', $this->requisition))->assertRedirect();
+    Livewire::test(EditCompany::class, ['record' => $this->company->getKey()])
+        ->callAction('disconnectGoogle')
+        ->assertNotified('Google diputus.');
 
-    expect(GoogleConnection::acrossCompanies()->count())->toBe(0);
+    expect(GoogleConnection::acrossCompanies()->count())->toBe(0)
+        ->and(Activity::query()->where('description', 'Google account disconnected')->exists())->toBeTrue();
     Http::assertSent(fn (Request $request): bool => str_contains($request->url(), 'oauth2.googleapis.com/revoke'));
 
     $candidate = googleCandidate();
@@ -299,11 +415,8 @@ it('disconnects: tells Google, forgets the account, and goes back to the app\'s 
 it('shows HR whether Google is ready, and nobody else', function () {
     connectedGoogle();
 
-    $this->actingAs($this->hr)->get(route('recruitment.show', $this->requisition))->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
-            ->where('requisition.google.ready', true)
-            ->where('requisition.google.email', 'recruitment@majujaya.test')
-            ->where('requisition.google.canManage', true));
+    $this->actingAs($this->hr)->get(route('recruitment.show', $this->requisition))
+        ->assertInertia(fn (Assert $page) => $page->where('requisition.google', ['state' => 'ready', 'ready' => true, 'email' => 'recruitment@majujaya.test']));
 
     $this->actingAs($this->supervisor)->get(route('recruitment.show', $this->requisition))
         ->assertInertia(fn (Assert $page) => $page->where('requisition.google', null));
@@ -687,7 +800,112 @@ it('does nothing when the server is not set up for Google', function () {
 });
 
 it('is on the private entrance only', function () {
-    foreach (['recruitment.google.connect', 'recruitment.google.disconnect', 'recruitment.google.callback'] as $name) {
+    foreach (['recruitment.google.connect', 'recruitment.google.callback'] as $name) {
         expect(PublicRoutes::classify(Route::getRoutes()->getByName($name)))->toBe('private');
     }
+});
+
+// --- Deleting a schedule ---
+
+function deleteSchedule(Candidate $candidate, ?User $as = null)
+{
+    return test()->actingAs($as ?? test()->hr)->delete(route('recruitment.candidates.uninvite', [test()->requisition, $candidate]));
+}
+
+it('clears the schedule of an interview whose event was deleted on Google, without calling Google, and keeps the form answers', function () {
+    connectedGoogle();
+    Http::fake();
+    $candidate = googleInvitedCandidate([
+        'google_missing_at' => now(),
+        'invite_token_hash' => Candidate::hashToken('token'),
+        'form_submitted_at' => now(),
+        'form_data' => ['answers' => []],
+        'invitation_message' => 'Halo Budi',
+    ]);
+    $candidate->interviewers()->sync([$this->hr->id]);
+
+    deleteSchedule($candidate)->assertRedirect()->assertInertiaFlash('toast.type', 'success');
+
+    $candidate->refresh();
+    expect($candidate->interview_at)->toBeNull()
+        ->and($candidate->interview_place)->toBeNull()
+        ->and($candidate->invited_at)->toBeNull()
+        ->and($candidate->invite_token_hash)->toBeNull()
+        ->and($candidate->invitation_message)->toBeNull()
+        ->and($candidate->google_event_id)->toBeNull()
+        ->and($candidate->google_missing_at)->toBeNull()
+        ->and($candidate->interviewers()->count())->toBe(0)
+        ->and($candidate->isRejected())->toBeFalse()
+        // What the candidate answered is theirs to keep.
+        ->and($candidate->form_submitted_at)->not->toBeNull();
+    expect(calendarCalls('DELETE'))->toBeEmpty();
+});
+
+it('deletes the event on Google and lets Google tell the candidate when the schedule is deleted in the app', function () {
+    connectedGoogle();
+    fakeCalendar();
+    $candidate = googleInvitedCandidate();
+
+    deleteSchedule($candidate)->assertRedirect()->assertInertiaFlash('toast.type', 'success');
+
+    $deleted = calendarCalls('DELETE');
+    expect($deleted)->toHaveCount(1)
+        ->and($deleted[0]->url())->toContain('/events/evt123')->toContain('sendUpdates=all')
+        ->and($candidate->refresh()->interview_at)->toBeNull()
+        ->and($candidate->google_event_id)->toBeNull();
+});
+
+it('tells those who sat in on the interview, and not whoever deleted it', function () {
+    connectedGoogle();
+    fakeCalendar();
+    $other = googleUser(Role::HrAdmin, $this->company, 'Hari HR');
+    $candidate = googleInvitedCandidate();
+    $candidate->interviewers()->sync([$this->hr->id, $other->id]);
+
+    deleteSchedule($candidate);
+
+    expect(googleNoticeTitles($other))->toContain('Interview dibatalkan: Staf Gudang')
+        ->and(googleNoticeTitles($this->boss))->toContain('Interview dibatalkan: Staf Gudang')
+        ->and(googleNoticeTitles($this->hr))->not->toContain('Interview dibatalkan: Staf Gudang');
+});
+
+it('still clears the schedule when Google cannot be reached, and says the event is still there', function () {
+    connectedGoogle();
+    Http::fake(['www.googleapis.com/*' => Http::response('', 503)]);
+    $candidate = googleInvitedCandidate();
+
+    deleteSchedule($candidate)->assertRedirect()->assertInertiaFlash('toast.type', 'error');
+
+    expect($candidate->refresh()->interview_at)->toBeNull()->and($candidate->google_event_id)->toBeNull();
+});
+
+it('clears the schedule of an interview made without Google too', function () {
+    $candidate = googleCandidate([
+        'invited_at' => now(), 'interview_at' => now()->addDays(2), 'interview_mode' => 'online', 'interview_place' => 'https://meet.google.com/x',
+    ]);
+
+    deleteSchedule($candidate)->assertRedirect()->assertSessionDoesntHaveErrors();
+
+    expect($candidate->refresh()->interview_at)->toBeNull()->and($candidate->invited_at)->toBeNull();
+});
+
+it('does not delete the schedule of someone not invited, turned down or already evaluated, and only for HR', function () {
+    $notInvited = googleCandidate();
+    $rejected = googleInvitedCandidate(['name' => 'Ani', 'email' => 'ani@example.com', 'rejected_at' => now()]);
+    $evaluated = googleInvitedCandidate(['name' => 'Cici', 'email' => 'cici@example.com']);
+    CandidateEvaluation::factory()->create(['candidate_id' => $evaluated->id, 'user_id' => $this->hr->id]);
+    $plain = googleInvitedCandidate(['name' => 'Dedi', 'email' => 'dedi@example.com']);
+
+    foreach ([$notInvited, $rejected, $evaluated] as $candidate) {
+        deleteSchedule($candidate)->assertForbidden();
+    }
+
+    deleteSchedule($plain, $this->supervisor)->assertForbidden();
+    expect($plain->refresh()->interview_at)->not->toBeNull();
+
+    $this->actingAs($this->hr)->get(route('recruitment.show', $this->requisition))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('requisition.shortlist', fn ($shortlist) => collect($shortlist)->firstWhere('name', 'Dedi')['canCancelInterview'] === true
+                && collect($shortlist)->firstWhere('name', 'Cici')['canCancelInterview'] === false
+                && collect($shortlist)->firstWhere('name', 'Budi Santoso')['canCancelInterview'] === false));
 });

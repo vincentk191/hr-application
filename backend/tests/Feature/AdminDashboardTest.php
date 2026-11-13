@@ -182,7 +182,7 @@ it('puts leave on the working days it covers, waiting and approved, and leaves r
 
 it('shows interviews and holidays on the calendar, and moves by month', function () {
     $requisition = adminRequisition(RequisitionStage::Interview);
-    Candidate::factory()->create([
+    $sari = Candidate::factory()->create([
         'requisition_id' => $requisition->id, 'name' => 'Sari',
         'interview_at' => CarbonImmutable::parse('2026-11-10 10:00', 'Asia/Jakarta')->utc(), 'interview_mode' => 'online',
     ]);
@@ -196,6 +196,8 @@ it('shows interviews and holidays on the calendar, and moves by month', function
         ->and($calendar['prev'])->toBe('2026-10')
         ->and($calendar['next'])->toBe('2026-12')
         ->and($entries->firstWhere('kind', 'interview'))->toMatchArray(['date' => '2026-11-10', 'title' => 'Sari', 'time' => '10:00'])
+        // Clicking it opens the requisition on its Interview tab with this candidate's panel open.
+        ->and($entries->firstWhere('kind', 'interview')['href'])->toBe("/recruitment/{$requisition->id}?tab=interview&candidate={$sari->id}")
         ->and($entries->firstWhere('kind', 'holiday'))->toMatchArray(['date' => '2026-11-11', 'title' => 'Cuti bersama']);
 
     // Without a month asked for, it is this month, which has none of them.

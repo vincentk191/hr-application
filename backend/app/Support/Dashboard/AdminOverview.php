@@ -450,7 +450,8 @@ class AdminOverview
                     'detail' => $local->format('H:i').' · '.$candidate->requisition?->position_name.' · '.($candidate->interview_mode === 'online' ? 'Daring' : 'Tatap muka'),
                     'time' => $local->format('H:i'),
                     'status' => null,
-                    'href' => route('recruitment.show', $candidate->requisition_id, absolute: false),
+                    // Opens the requisition on its Interview tab with this candidate's panel already open.
+                    'href' => route('recruitment.show', ['requisition' => $candidate->requisition_id, 'tab' => 'interview', 'candidate' => $candidate->id], absolute: false),
                     'order' => 1,
                 ];
             })

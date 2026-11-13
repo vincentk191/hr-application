@@ -2,13 +2,17 @@
 
 namespace App\Filament\Resources\Companies\Schemas;
 
+use App\Models\Company;
 use App\Support\Branding;
+use App\Support\Recruitment\InterviewEvent;
 use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Text;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Str;
 
 class CompanyForm
 {
@@ -56,6 +60,15 @@ class CompanyForm
                     ->visibility('public')
                     ->acceptedFileTypes(['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'])
                     ->maxSize(2048),
+                TextInput::make('google_sender_email')
+                    ->label('Alamat pengirim undangan interview (Google)')
+                    ->helperText('Satu-satunya akun Google yang boleh mengirim undangan interview perusahaan ini; HR tidak bisa memilih atau menggantinya. Simpan dulu, lalu klik Hubungkan Google di kanan atas.')
+                    ->email()
+                    ->trim()
+                    ->maxLength(255)
+                    ->dehydrateStateUsing(fn (?string $state): ?string => filled($state) ? Str::lower(trim($state)) : null),
+                Text::make(fn (?Company $record): string => $record === null ? '' : app(InterviewEvent::class)->describe($record->getKey()))
+                    ->visibleOn('edit'),
                 Toggle::make('is_active')
                     ->label('Aktif')
                     ->helperText('Perusahaan tidak dihapus, hanya dinonaktifkan.')

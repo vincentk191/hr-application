@@ -127,18 +127,20 @@ export type InterviewerOption = {
 };
 
 /**
- * The Google account the company's interview invitations are sent from (REC-INT). `ready` means invitations go through it:
- * connected, and Google has not refused it. Only HR with the recruitment permission can connect or disconnect.
+ * The Google account the company's interview invitations are sent from (REC-INT): the one an admin set and connected.
+ * `ready` means invitations go through it; otherwise they go out as the app's own email. HR cannot change it.
  */
 export type GoogleStatus = {
-    /** The server has the Google client ID, secret and return address. */
-    configured: boolean;
-    /** The environment settings the server has no value for, by name. */
-    missing: string[];
-    connected: boolean;
+    state:
+        | 'unconfigured'
+        | 'no-sender'
+        | 'disconnected'
+        | 'refused'
+        | 'mismatch'
+        | 'ready';
     ready: boolean;
+    /** The connected account, when it is ready. */
     email: string | null;
-    canManage: boolean;
 };
 
 /** What a candidate answered to the Google Calendar invitation. */
@@ -179,6 +181,8 @@ export type Candidate = {
     interviewMinutes: number;
     /** The interview is an event on Google Calendar. */
     googleEvent: boolean;
+    /** HR may delete the interview's schedule: invited, and no evaluation yet. */
+    canCancelInterview: boolean;
     /** The event was deleted on Google; inviting again makes a new one. */
     googleMissing: boolean;
     /** What the candidate answered to Google's invitation; null when they have not or have no email. */

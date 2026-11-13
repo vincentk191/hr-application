@@ -7,6 +7,7 @@ use App\Actions\Recruitment\AdvanceToInterview;
 use App\Actions\Recruitment\AdvanceToOffer;
 use App\Actions\Recruitment\AdvanceToPosting;
 use App\Actions\Recruitment\AdvanceToScreening;
+use App\Actions\Recruitment\CancelInterview;
 use App\Actions\Recruitment\CancelRequisition;
 use App\Actions\Recruitment\ChangeDirectSuperior;
 use App\Actions\Recruitment\DecideRequisition;
@@ -690,6 +691,22 @@ class RequisitionController extends Controller
         $this->authorize('closeFilled', $requisition);
 
         $posting->forceFill(['taken_down_at' => $posting->taken_down_at === null ? now() : null])->save();
+
+        return back();
+    }
+
+    /**
+     * "Hapus jadwal": HR deletes a candidate's interview schedule (REC-INT). On Google Calendar the event is deleted too.
+     */
+    public function cancelInterview(Requisition $requisition, Candidate $candidate, CancelInterview $cancel): RedirectResponse
+    {
+        $this->authorize('cancelInterview', [$requisition, $candidate]);
+
+        $stillOnGoogle = $cancel->handle($requisition, $candidate, request()->user());
+
+        Inertia::flash('toast', $stillOnGoogle
+            ? ['type' => 'error', 'message' => "Jadwal {$candidate->name} dihapus, tetapi acaranya belum bisa dihapus di Google Calendar. Hapus sendiri di sana."]
+            : ['type' => 'success', 'message' => "Jadwal {$candidate->name} dihapus."]);
 
         return back();
     }

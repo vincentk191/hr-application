@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 
@@ -27,11 +28,12 @@ use Illuminate\Support\Facades\Storage;
  * @property string|null $logo_dark_path
  * @property string|null $npwp_15
  * @property string|null $npwp_22
+ * @property string|null $google_sender_email the one Google account interview invitations may be sent from
  * @property bool $is_active
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['code', 'name', 'brand_color', 'logo_path', 'logo_dark_path', 'npwp_15', 'npwp_22', 'is_active'])]
+#[Fillable(['code', 'name', 'brand_color', 'logo_path', 'logo_dark_path', 'npwp_15', 'npwp_22', 'google_sender_email', 'is_active'])]
 class Company extends Model
 {
     /** @use HasFactory<CompanyFactory> */
@@ -62,6 +64,16 @@ class Company extends Model
     public function logoDarkUrl(): ?string
     {
         return $this->logo_dark_path === null ? null : Storage::disk('public')->url($this->logo_dark_path);
+    }
+
+    /**
+     * The Google account connected for this company's interview invitations, if any.
+     *
+     * @return HasOne<GoogleConnection, $this>
+     */
+    public function googleConnection(): HasOne
+    {
+        return $this->hasOne(GoogleConnection::class)->withoutGlobalScopes();
     }
 
     /**

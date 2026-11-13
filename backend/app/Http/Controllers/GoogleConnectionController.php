@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Enums\Permission;
+use App\Models\Company;
 use App\Models\GoogleConnection;
-use App\Models\Requisition;
 use App\Models\User;
 use App\Support\Google\GoogleOAuth;
 use App\Support\Google\GoogleUnavailable;
+use App\Support\Recruitment\InterviewEvent;
+use Filament\Notifications\Notification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -15,12 +17,12 @@ use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Connecting the Google account a company's interview invitations are sent from (REC-INT). HR with the recruitment permission
- * does it once, from the Interview tab of a requisition: Google's consent screen, then back here with a code that is
- * exchanged for the tokens the app keeps (GoogleOAuth).
+ * Connecting the Google account a company's interview invitations are sent from (REC-INT). Only an admin does it, from the
+ * company's page in the admin panel, where the one allowed sender address is set. The account that Google's consent screen
+ * ends up approving has to be that address, so HR cannot send from another account, whoever signs in.
  *
- * All of it is on the private address, like the rest of recruitment: the return address is the VPN hostname, and the consent
- * is approved in the browser of the HR user who started it.
+ * All of it is on the private address, like the rest of recruitment and the admin panel: the return address is the VPN
+ * hostname. Disconnecting is the admin panel's own action (InterviewEvent::disconnect).
  */
 class GoogleConnectionController extends Controller
 {
@@ -28,16 +30,20 @@ class GoogleConnectionController extends Controller
     private const SESSION_KEY = 'google_oauth';
 
     /**
-     * "Hubungkan Google": send HR to Google's consent screen. The requisition only says which company, and where to come back to.
+     * "Hubungkan Google": send the admin to Google's consent screen, with the company's sender address offered as the account.
      */
-    public function connect(Request $request, Requisition $requisition, GoogleOAuth $oauth): Response|RedirectResponse
+    public function connect(Request $request, Company $company, GoogleOAuth $oauth): Response|RedirectResponse
     {
-        $this->authorizeFor($request->user(), $requisition->company_id);
+        $this->authorizeFor($request->user(), $company->id);
 
         if (! $oauth->isConfigured()) {
-            Inertia::flash('toast', ['type' => 'error', 'message' => 'Google belum disiapkan di server: '.implode(', ', $oauth->missingSettings()).' kosong.']);
+            return $this->failed($company, 'Google belum disiapkan di server: '.implode(', ', $oauth->missingSettings()).' kosong.');
+        }
 
-            return back();
+        $sender = app(InterviewEvent::class)->senderOf($company->id);
+
+        if ($sender === null) {
+            return $this->failed($company, 'Isi alamat pengirim undangan perusahaan ini dan simpan dulu.');
         }
 
         // The state ties the answer to this browser and this person, so a link someone else crafted cannot connect an account.
@@ -45,14 +51,15 @@ class GoogleConnectionController extends Controller
         $request->session()->put(self::SESSION_KEY, [
             'state' => $state,
             'user' => $request->user()->id,
-            'requisition' => $requisition->id,
+            'company' => $company->id,
         ]);
 
-        return Inertia::location($oauth->authorizationUrl($state));
+        return Inertia::location($oauth->authorizationUrl($state, $sender));
     }
 
     /**
-     * Where Google sends HR back to. Keeps the connection if everything needed was granted.
+     * Where Google sends the admin back to. Keeps the connection only if the account approved is the company's sender address
+     * and everything needed was granted.
      */
     public function callback(Request $request, GoogleOAuth $oauth): RedirectResponse
     {
@@ -60,17 +67,19 @@ class GoogleConnectionController extends Controller
         $asked = (string) $request->query('state');
 
         if (! is_array($pending) || $asked === '' || ! hash_equals((string) $pending['state'], $asked) || $pending['user'] !== $request->user()->id) {
-            return $this->failed(null, 'Permintaan menghubungkan Google tidak dikenali. Mulai lagi dari tombol Hubungkan Google.');
+            Notification::make()->title('Permintaan menghubungkan Google tidak dikenali. Mulai lagi dari tombol Hubungkan Google.')->danger()->send();
+
+            return redirect('/admin/companies');
         }
 
-        $requisition = Requisition::acrossCompanies()->find($pending['requisition']);
-        abort_unless($requisition instanceof Requisition, 404);
-        $this->authorizeFor($request->user(), $requisition->company_id);
+        $company = Company::query()->find($pending['company']);
+        abort_unless($company instanceof Company, 404);
+        $this->authorizeFor($request->user(), $company->id);
 
         $code = (string) $request->query('code');
 
         if ($request->query('error') !== null || $code === '') {
-            return $this->failed($requisition, 'Google tidak jadi dihubungkan: izin tidak diberikan.');
+            return $this->failed($company, 'Google tidak jadi dihubungkan: izin tidak diberikan.');
         }
 
         try {
@@ -78,19 +87,26 @@ class GoogleConnectionController extends Controller
         } catch (GoogleUnavailable $unavailable) {
             report($unavailable);
 
-            return $this->failed($requisition, 'Google tidak bisa dihubungi untuk menyelesaikan koneksi. Coba lagi sebentar lagi.');
+            return $this->failed($company, 'Google tidak bisa dihubungi untuk menyelesaikan koneksi. Coba lagi sebentar lagi.');
+        }
+
+        $sender = app(InterviewEvent::class)->senderOf($company->id);
+
+        // Whoever signed in, only the company's own sender address may be connected.
+        if ($sender === null || strcasecmp($tokens['email'], $sender) !== 0) {
+            return $this->failed($company, "Akun yang dipilih ({$tokens['email']}) bukan alamat pengirim perusahaan ini ({$sender}). Tidak ada yang dihubungkan.");
         }
 
         if (! $tokens['calendarGranted']) {
-            return $this->failed($requisition, 'Izin untuk mengelola acara kalender tidak dicentang di layar Google. Ulangi dan biarkan semua izin tercentang.');
+            return $this->failed($company, 'Izin untuk mengelola acara kalender tidak dicentang di layar Google. Ulangi dan biarkan semua izin tercentang.');
         }
 
         if ($tokens['refreshToken'] === null) {
-            return $this->failed($requisition, 'Google tidak memberi izin jangka panjang. Cabut akses aplikasi di akun Google tersebut, lalu hubungkan lagi.');
+            return $this->failed($company, 'Google tidak memberi izin jangka panjang. Cabut akses aplikasi di akun Google tersebut, lalu hubungkan lagi.');
         }
 
         GoogleConnection::acrossCompanies()->updateOrCreate(
-            ['company_id' => $requisition->company_id],
+            ['company_id' => $company->id],
             [
                 'google_email' => $tokens['email'],
                 'refresh_token' => $tokens['refreshToken'],
@@ -103,42 +119,38 @@ class GoogleConnectionController extends Controller
             ],
         );
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => "Google terhubung: {$tokens['email']}."]);
+        activity('settings')
+            ->causedBy($request->user())
+            ->performedOn($company)
+            ->withProperties(['account' => $tokens['email']])
+            ->log('Google account connected');
 
-        return redirect()->route('recruitment.show', $requisition);
+        Notification::make()->title("Google terhubung: {$tokens['email']}.")->success()->send();
+
+        return redirect(self::adminPage($company));
     }
 
     /**
-     * "Putuskan": forget the account. Events already on its calendar stay there; inviting goes back to the app's own email.
-     */
-    public function disconnect(Request $request, Requisition $requisition, GoogleOAuth $oauth): RedirectResponse
-    {
-        $this->authorizeFor($request->user(), $requisition->company_id);
-
-        $connection = GoogleConnection::acrossCompanies()->where('company_id', $requisition->company_id)->first();
-
-        if ($connection instanceof GoogleConnection) {
-            $oauth->revoke($connection);
-            $connection->delete();
-        }
-
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Google diputus. Undangan interview kembali dikirim lewat email aplikasi.']);
-
-        return back();
-    }
-
-    /**
-     * Who runs recruitment for the company: the same permission that raises and approves requisitions.
+     * Who runs the companies: the same permission as the Perusahaan screen of the admin panel.
      */
     private function authorizeFor(User $user, int $companyId): void
     {
-        abort_unless($user->can(Permission::ManageRecruitment->value) && $user->canAccessCompany($companyId), 403);
+        abort_unless($user->can(Permission::ManageCompanies->value) && $user->canAccessCompany($companyId), 403);
     }
 
-    private function failed(?Requisition $requisition, string $message): RedirectResponse
+    private function failed(Company $company, string $message): RedirectResponse
     {
-        Inertia::flash('toast', ['type' => 'error', 'message' => $message]);
+        Notification::make()->title($message)->danger()->send();
 
-        return $requisition === null ? redirect()->route('recruitment.index') : redirect()->route('recruitment.show', $requisition);
+        return redirect(self::adminPage($company));
+    }
+
+    /**
+     * The company's page in the admin panel. A path rather than the panel's route name: the panel's routes are only registered
+     * on its own requests, and this one is Google's return address.
+     */
+    public static function adminPage(Company $company): string
+    {
+        return "/admin/companies/{$company->getKey()}/edit";
     }
 }

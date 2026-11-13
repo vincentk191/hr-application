@@ -425,6 +425,19 @@ class RequisitionPolicy
     }
 
     /**
+     * Deleting a candidate's interview schedule: HR's, for a candidate who was invited and has no evaluation yet (an interview
+     * that was held and judged is part of the record).
+     */
+    public function cancelInterview(User $user, Requisition $requisition, Candidate $candidate): bool
+    {
+        return $this->manageInterview($user, $requisition)
+            && ! $candidate->isRejected()
+            && $candidate->requisition_id === $requisition->id
+            && $candidate->invited_at !== null
+            && $candidate->evaluations->isEmpty();
+    }
+
+    /**
      * A new link to a candidate's form, for one who asks for it again: HR's, for a candidate who was invited and has not
      * filled the form in, while the interview day has not ended (after that the link would be dead on arrival).
      */

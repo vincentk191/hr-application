@@ -114,6 +114,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('recruitment/{requisition}/candidates/{candidate}', [RequisitionController::class, 'destroyCandidate'])->scopeBindings()->name('recruitment.candidates.destroy');
     Route::get('recruitment/{requisition}/candidates/{candidate}/cv', [RequisitionController::class, 'candidateCv'])->scopeBindings()->name('recruitment.candidates.cv');
     Route::post('recruitment/{requisition}/candidates/{candidate}/invitation', [RequisitionController::class, 'inviteCandidate'])->scopeBindings()->name('recruitment.candidates.invite');
+    Route::delete('recruitment/{requisition}/candidates/{candidate}/invitation', [RequisitionController::class, 'cancelInterview'])->scopeBindings()->name('recruitment.candidates.uninvite');
     Route::post('recruitment/{requisition}/candidates/{candidate}/rejection', [RequisitionController::class, 'rejectCandidate'])->scopeBindings()->name('recruitment.candidates.reject');
     Route::delete('recruitment/{requisition}/candidates/{candidate}/rejection', [RequisitionController::class, 'restoreCandidate'])->scopeBindings()->name('recruitment.candidates.restore');
     Route::post('recruitment/{requisition}/candidates/{candidate}/selection', [RequisitionController::class, 'selectCandidate'])->scopeBindings()->name('recruitment.candidates.select');
@@ -131,10 +132,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('recruitment/{requisition}/offers/{offer}/employee', [RequisitionOfferController::class, 'employee'])->scopeBindings()->name('recruitment.offers.employee');
     Route::post('recruitment/{requisition}/offers/{offer}/employee', [RequisitionOfferController::class, 'convert'])->scopeBindings()->name('recruitment.offers.convert');
     Route::get('recruitment/{requisition}/candidates/{candidate}/calendar', [RequisitionController::class, 'interviewEvent'])->scopeBindings()->name('recruitment.candidates.calendar');
-    // The Google account a company's interview invitations are sent from (REC-INT). Private like the rest of recruitment;
-    // Google sends HR back to /google/callback on the private address.
-    Route::get('recruitment/{requisition}/google', [GoogleConnectionController::class, 'connect'])->name('recruitment.google.connect');
-    Route::delete('recruitment/{requisition}/google', [GoogleConnectionController::class, 'disconnect'])->name('recruitment.google.disconnect');
+    // The Google account a company's interview invitations are sent from (REC-INT). An admin connects it from the company's page
+    // in the admin panel (which also disconnects it). Private like the rest of recruitment; Google sends the admin back to
+    // /google/callback on the private address.
+    Route::get('google/connect/{company}', [GoogleConnectionController::class, 'connect'])->name('recruitment.google.connect');
     Route::get('google/callback', [GoogleConnectionController::class, 'callback'])->name('recruitment.google.callback');
     Route::post('recruitment/{requisition}/offer', [RequisitionController::class, 'advanceToOffer'])->name('recruitment.offer');
     Route::post('recruitment/{requisition}/filled', [RequisitionController::class, 'markFilled'])->name('recruitment.filled');
