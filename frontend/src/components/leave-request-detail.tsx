@@ -56,7 +56,7 @@ export function LeaveAttachments({ files }: { files: LeaveAttachmentRow[] }) {
 
 /**
  * What was said on earlier rounds, oldest first: each reviewer's note when they rejected (or
- * approved with a comment), and the requester's reply with what they changed when they sent it again.
+ * approved with a comment), and what the requester changed (worked out by comparing, field by field) when they sent it again.
  */
 export function LeaveHistory({ history }: { history: LeaveHistoryRow[] }) {
     if (history.length === 0) {
@@ -82,9 +82,16 @@ export function LeaveHistory({ history }: { history: LeaveHistoryRow[] }) {
                         {item.author}
                         {item.at ? ` · ${item.at}` : ''}
                     </span>
-                    <span className="ml-1 border-l-2 pl-3 text-sm whitespace-pre-line text-muted-foreground italic">
-                        “{item.note}”
-                    </span>
+                    {/* A reviewer's words are quoted; what the requester changed is worked out, so it is not. */}
+                    {item.stage === 'submitted' ? (
+                        <span className="ml-1 border-l-2 pl-3 text-sm whitespace-pre-line text-muted-foreground">
+                            {item.note}
+                        </span>
+                    ) : (
+                        <span className="ml-1 border-l-2 pl-3 text-sm whitespace-pre-line text-muted-foreground italic">
+                            “{item.note}”
+                        </span>
+                    )}
                 </li>
             ))}
         </ul>

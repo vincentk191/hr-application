@@ -298,7 +298,6 @@ class LeaveRequestController extends Controller
                 'reason' => $request->validated()['reason'] ?? null,
                 ...$request->timeframe(),
             ],
-            $request->validated('note'),
             array_values((array) $request->file('attachments', [])),
             array_map('intval', (array) $request->input('remove_attachments', [])),
             $request->user(),

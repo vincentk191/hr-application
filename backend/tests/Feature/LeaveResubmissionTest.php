@@ -153,7 +153,7 @@ it('lets the requester correct a rejected request and sends it for approval agai
 
     decideLeave($this->hr, $leave, 'reject', 'Bertabrakan dengan audit akhir tahun');
 
-    resubmitLeave($this->staffUser, $leave, ['end_on' => '2026-11-02', 'note' => 'Saya persingkat jadi satu hari'])
+    resubmitLeave($this->staffUser, $leave, ['end_on' => '2026-11-02'])
         ->assertRedirect(route('leave-requests.index'));
 
     $leave->refresh();
@@ -177,9 +177,9 @@ it('keeps what HR wrote, in order, across every round', function () {
     $leave = latestLeave();
 
     decideLeave($this->hr, $leave, 'reject', 'Pertama: tanggal bentrok');
-    resubmitLeave($this->staffUser, $leave, ['note' => 'Sudah digeser'])->assertSessionHasNoErrors();
+    resubmitLeave($this->staffUser, $leave)->assertSessionHasNoErrors();
     decideLeave($this->hr, $leave, 'reject', 'Kedua: lampirkan bukti');
-    resubmitLeave($this->staffUser, $leave, ['note' => 'Bukti terlampir'])->assertSessionHasNoErrors();
+    resubmitLeave($this->staffUser, $leave)->assertSessionHasNoErrors();
 
     $history = $this->actingAs($this->staffUser)->get(route('employees.show', $this->staff))
         ->viewData('page')['props']['requests'][0]['history'];
@@ -187,23 +187,67 @@ it('keeps what HR wrote, in order, across every round', function () {
     expect(collect($history)->pluck('stage')->all())->toBe(['rejected', 'submitted', 'rejected', 'submitted'])
         ->and($history[0]['note'])->toBe('Pertama: tanggal bentrok')
         ->and($history[0]['author'])->toBe($this->hr->name)
-        ->and($history[1]['note'])->toStartWith('Sudah digeser')
+        // The first round shortened the request; the second sent it as it was, which the history says plainly.
+        ->and($history[1]['note'])->toContain('Hari terakhir: 3 Nov 2026 → 2 Nov 2026')
         ->and($history[2]['note'])->toBe('Kedua: lampirkan bukti')
+        ->and($history[3]['note'])->toBe('Tidak ada perubahan pada data pengajuan.')
         ->and($history[3]['stageLabel'])->toBe('Diajukan ulang');
 });
 
-it('records what changed with the new submission', function () {
+it('works out what changed from the old request and the new, field by field', function () {
     fileOwnLeave($this->staffUser, $this->staff)->assertSessionHasNoErrors();
     $leave = latestLeave();
     decideLeave($this->hr, $leave, 'reject', 'Terlalu panjang');
 
-    resubmitLeave($this->staffUser, $leave, ['end_on' => '2026-11-02'])->assertSessionHasNoErrors();
+    resubmitLeave($this->staffUser, $leave, ['end_on' => '2026-11-02', 'leave_type' => 'marriage', 'reason' => 'Demam'])->assertSessionHasNoErrors();
 
     $comment = $leave->refresh()->workflow->comments->last();
 
     expect($comment->user_id)->toBe($this->staffUser->id)
-        ->and($comment->body)->toContain('Diubah dari Cuti tahunan, 2026-11-02 – 2026-11-03 (2 hari)')
-        ->and($comment->body)->toContain('2026-11-02 – 2026-11-02 (1 hari)');
+        ->and($comment->body)->toContain('Jenis: Cuti tahunan → Pernikahan / lamaran')
+        ->and($comment->body)->toContain('Hari terakhir: 3 Nov 2026 → 2 Nov 2026')
+        ->and($comment->body)->toContain('Hari kerja: 2 hari → 1 hari')
+        ->and($comment->body)->toContain('Catatan: “Keperluan keluarga” → “Demam”')
+        // Left as it was, a field is not mentioned.
+        ->and($comment->body)->not->toContain('Hari pertama')
+        ->and($comment->body)->not->toContain('Jam');
+});
+
+it('says when a field was added or removed, and which files', function () {
+    fileOwnLeave($this->staffUser, $this->staff, ['attachments' => [UploadedFile::fake()->create('lama.pdf', 10, 'application/pdf')]]);
+    $leave = latestLeave();
+    $old = $leave->attachments->first();
+    decideLeave($this->hr, $leave, 'reject', 'Lengkapi');
+
+    resubmitLeave($this->staffUser, $leave, [
+        'reason' => '',
+        'use_timeframe' => '1', 'start_time' => '08:00', 'end_time' => '10:00',
+        'end_on' => '2026-11-02',
+        'remove_attachments' => [$old->id],
+        'attachments' => [UploadedFile::fake()->create('baru.pdf', 10, 'application/pdf')],
+    ])->assertSessionHasNoErrors();
+
+    expect($leave->refresh()->workflow->comments->last()->body)
+        ->toContain('Jam: ditambahkan 08:00–10:00')
+        ->toContain('Catatan: dihapus (“Keperluan keluarga”)')
+        ->toContain('Lampiran ditambahkan: baru.pdf')
+        ->toContain('Lampiran dihapus: lama.pdf');
+
+    decideLeave($this->hr, $leave, 'reject', 'Lagi');
+    resubmitLeave($this->staffUser, $leave, ['end_on' => '2026-11-02'])->assertSessionHasNoErrors();
+
+    expect($leave->refresh()->workflow->comments->last()->body)->toContain('Jam: dihapus (08:00–10:00)')->not->toContain('Lampiran');
+});
+
+it('no longer asks the requester what they changed', function () {
+    fileOwnLeave($this->staffUser, $this->staff)->assertSessionHasNoErrors();
+    $leave = latestLeave();
+    decideLeave($this->hr, $leave, 'reject', 'Tidak');
+
+    // A note sent anyway is not kept: the history holds only what was worked out.
+    resubmitLeave($this->staffUser, $leave, ['note' => 'Saya ubah sedikit'])->assertSessionHasNoErrors();
+
+    expect($leave->refresh()->workflow->comments->last()->body)->not->toContain('Saya ubah sedikit');
 });
 
 it('applies the maximum days to a corrected request too', function () {

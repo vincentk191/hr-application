@@ -50,7 +50,7 @@ function FilePreviewDialog({
     return (
         <Dialog open onOpenChange={(open) => !open && onClose()}>
             <DialogContent
-                className="gap-0 overflow-hidden p-0 sm:max-w-4xl"
+                className="grid-cols-[minmax(0,1fr)] gap-0 overflow-hidden p-0 sm:max-w-4xl"
                 data-test="file-preview"
                 onKeyDown={(event) => {
                     if (images.length > 1 && event.key === 'ArrowLeft') {
@@ -62,9 +62,13 @@ function FilePreviewDialog({
                     }
                 }}
             >
-                <div className="flex items-center justify-between gap-3 border-b bg-muted/40 py-3 pr-12 pl-4">
-                    <div className="min-w-0">
-                        <DialogTitle className="truncate text-base font-bold">
+                {/* The buttons come first: a long name is cut with an ellipsis instead of pushing Unduh under the close button. */}
+                <div className="flex min-w-0 items-center justify-between gap-3 border-b bg-muted/40 py-3 pr-12 pl-4">
+                    <div className="min-w-0 flex-1">
+                        <DialogTitle
+                            className="truncate text-base font-bold"
+                            title={file.name}
+                        >
                             {file.name}
                         </DialogTitle>
                         <DialogDescription className="label-mono">
@@ -73,7 +77,12 @@ function FilePreviewDialog({
                                 : 'Pratinjau gambar'}
                         </DialogDescription>
                     </div>
-                    <Button asChild size="sm" variant="outline">
+                    <Button
+                        asChild
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0"
+                    >
                         <a href={file.downloadUrl}>
                             <Download /> Unduh
                         </a>

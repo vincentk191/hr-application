@@ -19,8 +19,8 @@ const selectClasses =
 
 /**
  * Correct a rejected leave request and send it for approval again. What the approvers wrote stays
- * in front of the requester while they edit, and stays in the request's history afterwards; the
- * note here says what changed and goes into that history with the new submission.
+ * in front of the requester while they edit, and stays in the request's history afterwards, where what they
+ * changed is added automatically (the old request compared with the new one) with the new submission.
  */
 export default function LeaveRequestEdit({
     leaveTypes,
@@ -259,22 +259,6 @@ export default function LeaveRequestEdit({
                                 />
                                 <InputError message={errors.attachments} />
                                 <InputError message={errors['attachments.0']} />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor="note">
-                                    Apa yang Anda ubah?{' '}
-                                    <span className="text-muted-foreground">
-                                        (opsional, dilihat HR)
-                                    </span>
-                                </Label>
-                                <textarea
-                                    id="note"
-                                    name="note"
-                                    rows={3}
-                                    className="rounded-xl border border-input bg-card px-3 py-2 text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
-                                />
-                                <InputError message={errors.note} />
                             </div>
 
                             <div className="flex gap-2">

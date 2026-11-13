@@ -282,5 +282,5 @@ it('lets a corrected request add, change or drop its timeframe, and says so in t
     ])->assertSessionHasNoErrors();
 
     expect($leave->refresh()->timeframe())->toBe('08:00–10:00')
-        ->and($leave->workflow->comments->last()->body)->toContain('jam 08:00–10:00');
+        ->and($leave->workflow->comments->last()->body)->toContain('Jam: ditambahkan 08:00–10:00');
 });

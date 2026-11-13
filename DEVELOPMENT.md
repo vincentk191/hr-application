@@ -69,6 +69,14 @@ left uncommitted for review.
 
 ## Change log (latest first)
 
+- **2026-11-13 (corrected pengajuan: what changed is worked out).** The "Apa yang Anda ubah?" box on the form for correcting a
+  rejected request is gone, with the `note` rule of `UpdateLeaveRequestRequest` and the `$note` argument of
+  `ResubmitLeaveRequest`. The action now takes a snapshot of the request before the changes and compares it with the one after
+  (Jenis, Hari pertama, Hari terakhir, Hari kerja, Jam, Catatan) and the files by id, and writes one line per difference into
+  the history: `Hari terakhir: 3 Nov 2026 → 2 Nov 2026`, `Jam: ditambahkan 08:00–10:00`, `Catatan: dihapus (“…”)`,
+  `Lampiran ditambahkan: …` / `Lampiran dihapus: …`, or "Tidak ada perubahan pada data pengajuan." A note sent anyway is
+  ignored. In the history the requester's entry is no longer drawn as a quote, since it is not their words.
+
 - **2026-11-13 (attendance calendar, phone row).** On a phone the search box shares the status row with the Semua / Scanner /
   Rekapitulasi toggle and the two overlapped, so `FilterBar` takes `searchOnPhone`: off for the week, month and year views (the
   filter sheet has its own search), on for the day, which has no toggle. The day view's building-icon "Kelompokkan per unit"

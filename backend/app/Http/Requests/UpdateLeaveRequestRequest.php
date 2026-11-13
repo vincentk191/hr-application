@@ -28,8 +28,6 @@ class UpdateLeaveRequestRequest extends FormRequest
     {
         return [
             ...$this->leaveFieldRules($this->currentLeave()->leave_type),
-            // What changed, for the approvers: kept in the request's history with the new submission.
-            'note' => ['nullable', 'string', 'max:2000'],
             'remove_attachments' => ['nullable', 'array'],
             'remove_attachments.*' => ['integer'],
         ];
