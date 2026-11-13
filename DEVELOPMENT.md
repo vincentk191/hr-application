@@ -30,22 +30,24 @@ tracks structure and progress; the workbook tracks requirements and tests.
 
 ## Status
 
-Phases 0, 1, 3 and 5 are built, Phase 2 (attendance) is built for manual capture, and the server stack has had a
-security pass (Phase 7). What remains is listed in the checklist below. Work is committed on `main`; new changes are
-left uncommitted for review.
+Phases 0, 1, 3 and 5 are built, Phase 2 (attendance) is built for manual capture, Phase 4 (recruitment) is built from the
+requisition to the filled position and lacks only converting the hire to an employee, and the server stack has had a
+security pass (Phase 7). What remains is listed in the checklist below. Recruitment is on the branch
+`feature/recruitement`, the rest on `main`; new changes are left uncommitted for review.
 
 |                 |                                                                                                              |
 | --------------- | ------------------------------------------------------------------------------------------------------------ |
-| Tests           | 902 (counted 2026-10-28, not run for this entry)                                                            |
-| Static analysis | PHPStan level 7; 14 known errors in the attendance-rekap files (2026-10-26), the rest clean                  |
+| Tests           | 1,244 (1,239 passed, 5 skipped; full suite run 2026-11-13 with `php -d memory_limit=2G vendor/bin/pest`; the later change to the correction form ran the related files only) |
+| Static analysis | PHPStan level 7; checked on the files touched since 2026-11-12, which are clean except 12 older errors in `AdminOverview` (`waiting()`, `dateRange()`); the 14 in the attendance-rekap files (2026-10-26) were not re-checked |
 | Phase 0         | **Complete**: company scoping, RBAC, workflow engine, account state and login rules, mandatory 2FA for elevated accounts |
 | Phase 1         | Directory (Cabang, CSV import/export, list/grid/org chart, phone layout), profile, add/edit, reactivation, documents, admin panel |
 | Phase 2         | Manual import of the Fingerspot export, branch rekap import, Zona and potongan, calendar, holidays/events, recap with Excel export, issues, timesheet corrections. The ingest API and on-site agents are built but switched off (`FEATURE_ATTENDANCE_AGENTS`) |
-| Phase 3         | Pengajuan end to end (types, timeframe, attachments, queue with filters/export/badge), leave on the calendar's side panel, in-app notices |
-| Phase 4         | First slice (2026-10-28, branch `feature/recruitement`): requisition dashboard, 3-step wizard, pipeline tracker, stage 01 approval (Management with the salary expectation, then HR), "Lanjut ke Posting". Stage 02 Posting (2026-11-04, manual): copy shortcuts, platform records, cancel. Stage 03 Screening (2026-11-04): applicant total, shortlist quick-add. Stage 04 Interview (2026-11-04): invitation by email/WhatsApp text, public single-use candidate form. Stages 05-06 not built |
+| Phase 3         | Pengajuan end to end (types with an icon each, timeframe, attachments, double-booking refusal and live warning, queue with filters/export/badge), correcting a rejected request with the changes worked out automatically, leave on the calendar's side panel, in-app notices |
+| Phase 4         | Branch `feature/recruitement`. Requisition dashboard, 3-step wizard, stage 01 approval (2026-10-28); 02 Posting, 03 Screening and 04 Interview with the invitation and the candidate form (2026-11-04); interview feedback, reminders, calendar events, duration and availability (11-06 to 11-12); **participants chosen per interview, HR and Manajemen besides the direct superior (11-13)**; the candidate's outcome (Tolak / Pulihkan) and the direct superior's Pilih (11-10); 05 Offer with Management's approval, terms, letter and sending (11-11); the response, Tandai Selesai and the Terisi tab (11-11). **Not built: converting the hire to an employee (`REC-FIL-006/007`), the funnel figures** |
 | Phase 5         | Offboarding end to end: wizard, Management approval, checklist, sign-off, exit, berita acara, Cabang filter, phone action bar |
 | Phase 7         | Server stack, VPN, backups with an admin page, non-superuser database login, security headers and limits      |
-| Not built       | Recruitment stages 05-06 and the rest of 04 (reschedule, feedback) (plan revised 2026-11-04: manual posting, shortlist quick-add, invitation to an in-app form; no public career page); Home KPIs; employee app (Web Push, API); CSP, Ghostscript sandbox, narrowing `web`'s `storage` mount |
+| Next            | **Recruitment Phase 6: convert the accepted hire to an employee**, then Phase 7 of that plan (funnel figures, a browser check); plan under "Offer, Filled and the candidate's outcome" in Phase 4 |
+| Not built       | Convert-to-employee and the recruitment funnel; candidate rescheduling (by decision, HR does it); Google Meet creation (waits on the Workspace answer); Home KPIs; employee app (Web Push, API); CSP, Ghostscript sandbox, narrowing `web`'s `storage` mount |
 
 ---
 
@@ -68,6 +70,15 @@ left uncommitted for review.
 ---
 
 ## Change log (latest first)
+
+- **2026-11-13 (documentation brought up to date before starting convert-to-employee).** The Status block (tests: the
+  full suite of this day, 1,244; static analysis; Phase 3 and 4 rows; "Next"; "Not built") now says what is built: Phase 4 runs
+  from the requisition to the filled position and lacks only converting the hire. The Phase 4 rows `REC-PIP` and `REC-INT`
+  no longer say stage 06 is a placeholder or leave out the calendar event, availability and participants; `REQ-WIZ`,
+  `ATT-CAL` and `DAS-MAI` carry the changes of 11-12 and 11-13; Phase 6 of the Offer plan is marked as the next piece. The
+  README's "Current release" and its scheduled-commands lines mention recruitment and the interview reminders. About
+  eighty backticks in older entries had a stray backslash in front and showed as plain text; they are code names again.
+  Nothing in the code changed.
 
 - **2026-11-13 (corrected pengajuan: what changed is worked out).** The "Apa yang Anda ubah?" box on the form for correcting a
   rejected request is gone, with the `note` rule of `UpdateLeaveRequestRequest` and the `$note` argument of
@@ -127,61 +138,61 @@ left uncommitted for review.
 - **2026-11-12 (dashboard: the employee's own calendar shows their requests and the holidays).** An employee, and anyone on the
   public entrance (where a manager is one), had only the "Hari sakit" calendar: approved sick days, none of their other
   requests, no waiting ones, no holidays or company events. Now everyone with an employee record gets the one shared calendar
-  (\`AdminOverview::calendar\`, prop \`adminCalendar\`) in its own view: their requests, waiting (dashed) and approved, on working
-  days, and the holidays and events that cover their company, department and Cabang (\`CalendarEvent::appliesTo\`; HR and
-  Management's team view is unchanged and still filters by company only). No Saya / Manajemen switch for them (\`canSwitch\` is
+  (`AdminOverview::calendar`, prop `adminCalendar`) in its own view: their requests, waiting (dashed) and approved, on working
+  days, and the holidays and events that cover their company, department and Cabang (`CalendarEvent::appliesTo`; HR and
+  Management's team view is unchanged and still filters by company only). No Saya / Manajemen switch for them (`canSwitch` is
   only for the people who run HR), no interviews. A request on the calendar opens in the side panel over the dashboard
-  (\`requestId\`, \`href\` null), since the employee page is not served on the public entrance. For these people the calendar sits
-  below today's attendance and requests; "Hari sakit" is no longer shown (its data is still in \`overview.sickDays\`). Tests in
-  \`AdminDashboardTest\`: own requests and covering events on both entrances, and the public manager's calendar.
+  (`requestId`, `href` null), since the employee page is not served on the public entrance. For these people the calendar sits
+  below today's attendance and requests; "Hari sakit" is no longer shown (its data is still in `overview.sickDays`). Tests in
+  `AdminDashboardTest`: own requests and covering events on both entrances, and the public manager's calendar.
 
 - **2026-11-12 (public entrance: one rule for the menus and the bell).** Found while testing: a Management login on the public
-  domain still showed "Rekrutmen". The route layer was already right (\`PublicRoutes\`: \`recruitment.\` is private, so the page is 403
-  there), but the menu flags (\`auth.canViewRecruitment\` and the others) came from policies whose non-role branches (heads a
+  domain still showed "Rekrutmen". The route layer was already right (`PublicRoutes`: `recruitment.` is private, so the page is 403
+  there), but the menu flags (`auth.canViewRecruitment` and the others) came from policies whose non-role branches (heads a
   department, raised a requisition, is the direct superior) ignore the entrance. **Decision: the public entrance is the same
   for everyone, admins, HR, managers and heads of department included; anyone who wants more uses the private one.** Now
-  \`HandleInertiaRequests\` makes every \`auth.can…\` flag, and the Rekrutmen, Offboarding and Perubahan data badges, false on the
+  `HandleInertiaRequests` makes every `auth.can…` flag, and the Rekrutmen, Offboarding and Perubahan data badges, false on the
   public entrance, so the menus show only Beranda, Pengajuan, Profil saya and Pengaturan. The bell and the notifications list
-  also leave out notices of a private module there (\`PublicRoutes::PRIVATE_NOTICE_KINDS\`: recruitment, offboarding,
-  attendance, profile; \`User::visibleNotifications()\`), since their links would be refused. The global search already offered no
-  private page there. New \`PublicEntranceMenuTest\` (5): a Management user who is also a department head, a requester and a
+  also leave out notices of a private module there (`PublicRoutes::PRIVATE_NOTICE_KINDS`: recruitment, offboarding,
+  attendance, profile; `User::visibleNotifications()`), since their links would be refused. The global search already offered no
+  private page there. New `PublicEntranceMenuTest` (5): a Management user who is also a department head, a requester and a
   direct superior, on both entrances. Policies are unchanged; a new private module needs nothing beyond classing its routes
   private. Not seen in a browser.
 
-- **2026-11-12 (recruitment: an interview as a calendar event, \`.ics\`).** Migration \`add_interview_minutes_to_candidates_table\`
-  (\`interview_minutes\`) and \`set_interview_minutes_default_to_sixty\` (the default is **60 minutes**, an hour; the first migration
-  gave 10, so the second changes the default and turns the 10s that were only ever that default into 60); run \`php artisan
-  migrate\` on every environment. **Per candidate only, no bulk file**, by
+- **2026-11-12 (recruitment: an interview as a calendar event, `.ics`).** Migration `add_interview_minutes_to_candidates_table`
+  (`interview_minutes`) and `set_interview_minutes_default_to_sixty` (the default is **60 minutes**, an hour; the first migration
+  gave 10, so the second changes the default and turns the 10s that were only ever that default into 60); run `php artisan
+  migrate` on every environment. **Per candidate only, no bulk file**, by
   decision; the CSV for mail merge is as it was. (1) The invitation form has **"Durasi (menit)"**, 60 by default, 5 to 480; sending
-  again without it keeps what was set. (2) **"Tambah ke kalender"** in the candidate's panel (\`recruitment.candidates.calendar\`,
-  policy \`exportInterviewEvent\`: HR and the direct superior, for a candidate scheduled and not turned down) downloads the \`.ics\`
-  (\`InterviewCalendar\`): the title with the candidate's name; the time and length; **in person: the address as the location;
+  again without it keeps what was set. (2) **"Tambah ke kalender"** in the candidate's panel (`recruitment.candidates.calendar`,
+  policy `exportInterviewEvent`: HR and the direct superior, for a candidate scheduled and not turned down) downloads the `.ics`
+  (`InterviewCalendar`): the title with the candidate's name; the time and length; **in person: the address as the location;
   online: the Meet link in the description** (and as the event's address); the invitation note; the organiser (whoever invited)
   and the participants (the direct superior, and the candidate when they have an email and the viewer may see it, so **not for the
   superior**). A reminder 15 minutes before. Each download is on the audit trail. (3) **The invitation email carries the
-  candidate's own copy** as an attachment (\`interview.ics\`): the position and company as the title, when and where, the organiser,
+  candidate's own copy** as an attachment (`interview.ics`): the position and company as the title, when and where, the organiser,
   and only the candidate as a participant. The event's ID stays the same for a candidate and its version rises with each new
   invitation, so adding the file again after a new time updates the event instead of duplicating it. Not seen in a browser or
   a calendar app.
 
 - **2026-11-12 (dashboard: a request opens over the dashboard, not on another page).** Clicking one of "Pengajuan berjalan", or a
   leave request in "Menunggu keputusan", used to go to the Pengajuan page and open its side panel there. It now opens **the same
-  panel over the dashboard** and the person stays on it. The request is read from the server through \`?request=ID\` (a partial
-  reload of the \`openedRequest\` prop, so the address can be shared and the panel survives a refresh), by the same visibility
+  panel over the dashboard** and the person stays on it. The request is read from the server through `?request=ID` (a partial
+  reload of the `openedRequest` prop, so the address can be shared and the panel survives a refresh), by the same visibility
   rules as the Pengajuan page; a request the person may not see opens nothing. Setujui and Tolak work in it and leave it open.
-  A click with Ctrl, Cmd or Shift, or a middle click, still goes to the Pengajuan page (\`lib/open-in-place.ts\`). The request's
-  shape moved into \`LeaveRequestPresenter::row()\` so the Pengajuan page and the dashboard share it. Not done: the same for the
+  A click with Ctrl, Cmd or Shift, or a middle click, still goes to the Pengajuan page (`lib/open-in-place.ts`). The request's
+  shape moved into `LeaveRequestPresenter::row()` so the Pengajuan page and the dashboard share it. Not done: the same for the
   other panels (a search result, a notification, "Perubahan data", offboarding), which still open on their own pages. Not seen in a
   browser.
 
 - **2026-11-12 (dashboard: one calendar for managers).** A manager (HR or Management) who is also an employee had two month calendars on
   the dashboard: the shared "Kalender" and their own "Hari sakit". Now there is the one shared calendar with a **Saya /
-  Manajemen** switch (\`scope=me\` on the dashboard URL): Manajemen is as before (everyone's leave, interviews, holidays and
+  Manajemen** switch (`scope=me` on the dashboard URL): Manajemen is as before (everyone's leave, interviews, holidays and
   events); Saya keeps the holidays and events and shows only their own leave, waiting or approved, with no interviews. The
   switch appears only for someone with an employee record, and their separate "Hari sakit" card is left out (their sick leave is
   among their own leave). Everyone else's dashboard is unchanged. Not seen in a browser.
 
-- **2026-11-11 (recruitment: the post-interview evaluation redesigned for the phone, REC-INT).** \`candidate-evaluations.tsx\`: a summary
+- **2026-11-11 (recruitment: the post-interview evaluation redesigned for the phone, REC-INT).** `candidate-evaluations.tsx`: a summary
   (the average large, how many said Lanjut, Pertimbangkan and Tidak lanjut with their colours, and a bar split by those
   shares), the signed-in person's own card ("Anda", score, recommendation pill, note, "Ubah penilaian") or a dashed
   "Anda belum menilai" prompt with "Beri penilaian", then "Penilai lain" as cards. The form is a **bottom sheet**: the rating as
@@ -200,19 +211,19 @@ left uncommitted for review.
   in its title. Frontend only. Not seen in a browser.
 
 - **2026-11-11 (attendance calendar: who the day and week views list).** The **week** view now has the Semua / Scanner / Rekapitulasi
-  switch the month and year views have (\`source\`), so HR can look at the people of a rekapitulasi Cabang apart from the
+  switch the month and year views have (`source`), so HR can look at the people of a rekapitulasi Cabang apart from the
   scanner's. The **day** view lists only people with a scanner, whatever the source or status says: a rekapitulasi has no
-  check-ins for a day, so those people (and the "R" chip) are not in it, and a \`rekap\` status carried over from another view
+  check-ins for a day, so those people (and the "R" chip) are not in it, and a `rekap` status carried over from another view
   is ignored there. The month cell no longer shows "n pengajuan" for approved requests (it duplicated "n cuti"); "n menunggu"
   stays. Not seen in a browser.
 
 - **2026-11-11 (printing: Cetak / PDF of the offer letter, the berita acara and the rekap absensi).** Found on the live screen: the
   offer letter printed landscape over two pages with the page title and, with the browser's default margins (a narrower
   viewport, so the phone layout), the bottom tab bar in the middle of the text. Cause: the print stylesheet only isolated a
-  page that marked its report with \`data-print-area\` (the attendance calendar), and set every page landscape. Now the letter, the
-  berita acara and the **recap** (which had no marker, so it printed the whole page) mark their report \`data-print-area\`; the two
-  letters ask for A4 **portrait** with 20 mm margins through \`usePrintPage()\` (\`lib/print.ts\`), print in the light theme
-  (\`printReport\`), and keep the signatures together. The recap and the calendar stay landscape. Picking "None" for margins in the
+  page that marked its report with `data-print-area` (the attendance calendar), and set every page landscape. Now the letter, the
+  berita acara and the **recap** (which had no marker, so it printed the whole page) mark their report `data-print-area`; the two
+  letters ask for A4 **portrait** with 20 mm margins through `usePrintPage()` (`lib/print.ts`), print in the light theme
+  (`printReport`), and keep the signatures together. The recap and the calendar stay landscape. Picking "None" for margins in the
   browser's dialog still removes the margin: that is the browser's choice, not the page's. Not seen in a browser.
 
 - **2026-11-11 (recruitment: the candidate's answer and filling the position; Phase 5 of the Offer plan, and two fixes to Phase 4, branch `feature/recruitement`).**
@@ -1770,7 +1781,7 @@ How the import behaves, so it is not surprised by:
 | Screen    | Name                      | f   | P1  | Status | Notes                                                            |
 | --------- | ------------------------- | --- | --- | ------ | ---------------------------------------------------------------- |
 | `ATT-DEV` | Device integration health | 6   | 5   | 🟡     | Manual import of Personnel's Excel export (scan log or Laporan harian), the branch rekap import, enrol-ID mapping (auto by NIP), capture status, the token-only ingest endpoint, agent registry/health and "sync now" done. The listener and agent (002, 006) are built in `fingerspot-toolkit` but switched off (`FEATURE_ATTENDANCE_AGENTS`). **Open items before switching them on: see the list under this table's section** (VPN peer, scanner ack, PIN mapping) |
-| `ATT-CAL` | Calendar ("Kalender")     | 5   | 5   | 🟡     | Day / week / month / year (the Day view is split into Hadir, which keeps Terlambat and Pulang cepat, and Tidak hadir for Cuti and absent, plus a Libur / belum ada data tab when someone is in it), department/team/leave-type filters, status rules, holidays and approved leave shown ahead of the data, CSV export, printable recap. A separate live board is covered by the Day view |
+| `ATT-CAL` | Calendar ("Kalender")     | 5   | 5   | 🟡     | Day / week / month / year (the Day view is split into Hadir, which keeps Terlambat and Pulang cepat, and Tidak hadir for Cuti and absent, plus a Libur / belum ada data tab when someone is in it), department/team/leave-type filters, status rules, holidays and approved leave shown ahead of the data, CSV export, printable recap. A separate live board is covered by the Day view. Since 11-13: "Rekapitulasi cabang" is no longer a status chip (the Semua / Scanner / Rekapitulasi toggle picks those people); on a phone the week, month and year views leave the search to the filter sheet; the Day view no longer groups by unit |
 | `ATT-SID` | Calendar side panel       | 6   | 3   | ✅     | Headcount summary, holidays and events, and the single on-leave panel (day / week / month / year, at-least-one-day rule), all from the same rows and filters as the grid |
 | `ATT-WIZ` | Calendar event wizard     | 1   | 1   | ✅     | Holidays and company/department events, with audit; the end date follows the start, and an event can repeat weekly, monthly or yearly until a date (one row per occurrence, deletable alone or as a series). `WorkingDays` feeds the leave day counts, so a holiday is not a leave day |
 | `EMP-ATT` | Profile — attendance tab  | 3   | 3   | ✅     | Timesheet (month and year), manual add/change/void with reason + audit, recompute, and totals by employee, department and period (the recap) |
@@ -1782,7 +1793,7 @@ unapproved-absence detection needs approved-leave data.
 
 | Screen     | Name                   | f   | P1  | Status | Notes                                                      |
 | ---------- | ---------------------- | --- | --- | ------ | ---------------------------------------------------------- |
-| `REQ-WIZ`  | New leave request      | 15  | 14  | 🟡     | Working-day count (weekends and calendar events excluded), optional attachments, per-type maximum days and resubmitting a rejected request are done. Since 10-14: Management files on behalf for their downline (002); no past dates except for HR / Management or within a kind's "Boleh mundur (hari)" in calendar days (004, 014); a rejected request can be resent with its past dates unchanged (013); a request the Atasan files is approved on filing (015). Partial only because the evidence rule is still open (007) |
+| `REQ-WIZ`  | New leave request      | 15  | 14  | 🟡     | Working-day count (weekends and calendar events excluded), optional attachments, per-type maximum days and resubmitting a rejected request are done. Since 10-14: Management files on behalf for their downline (002); no past dates except for HR / Management or within a kind's "Boleh mundur (hari)" in calendar days (004, 014); a rejected request can be resent with its past dates unchanged (013); a request the Atasan files is approved on filing (015). Partial only because the evidence rule is still open (007). Since 11-12: each jenis has an icon chosen in the admin panel (empty = the old guess from its name), a request that lands on another of the person's own (waiting or approved, sharing a working day, and if both name hours only when the hours overlap) is refused with a live warning in the form, and days before the person joined or after they left are refused. Since 11-13: what a corrected request changed is worked out by comparing the old with the new (the "Apa yang Anda ubah?" box is gone) |
 | `REQ-DSH`  | Requests queue         | 8   | 5   | ✅     | "Waiting on" comes from the engine; filters (status, kind, department, month), "Menunggu Anda", CSV export, summary line, "Diajukan" column and a count badge on the menu item. Since 10-14: filing on behalf is open to Management too (005); the queue lists only the viewer's own, their downline's and those waiting on them (`CORE-RBA-004`) |
 | `REQ-DLG`  | Decision dialog        | 5   | 5   | ✅     | Approve/reject with a required reason on rejection; only the Atasan (or HR when there is none) decides |
 | `ATT-LVE`  | Absensi › Cuti         | 10  | 5   | ➖     | Built, then folded into the calendar on 2026-10-09: the on-leave side panel (`ATT-SID-004`) and the Pengajuan queue cover it. The 14-working-day chart, present-per-department bars and head-count reconciliation were dropped |
@@ -1844,7 +1855,10 @@ and the scheduling automation.
     `manager_employee_id`, `about`, `responsibilities`, `benefits`, `checklist` (the last three JSON) and drops the
     first cut's `description` and `requirements`. The wizard sends the lists from state in one `transform`, not as form
     field names. Limits: 12 subtitles, 20 lines per list, 300 characters per line, 3,000 for Tentang Posisi.
-- Not built in this slice: fast-track (WIZ-006), CSV export and nav badge (DSH-007/008), cancelling (PST-004), and stages
+- Not built in this slice (written 2026-10-28; since then fast-track as a marker, the CSV export, the badge, cancelling and
+  stages 02 to 06 are built, the cmp-api push and pull were dropped, see the table below, and only convert-to-employee is
+  left): fast-track (WIZ-006), CSV export and nav badge
+  (DSH-007/008), cancelling (PST-004), and stages
   02-06 (posting, the cmp-api push and pull, screening, interviews and Meet, offers, convert to employee). The checklist
   is what the candidate form on cmp.id will pre-fill and score against (REC-CAR-002, REC-SCR-006), so its shape is the
   contract to hold steady.
@@ -1944,7 +1958,7 @@ platform accounts above (no career page, manual posting, nothing public except t
      `RequisitionPresenter`'s hard-coded `filled => 0` replaced by the accepted offers, a gated "Tandai Selesai" when the
      quota is full that moves the requisition to Filled, a close checklist (manual: take the listings down; automatic: end
      future interviews and their form links), and an opt-in "position filled" email to the other interviewed candidates.
-  6. **Convert to employee** (`REC-FIL-006/007`, size L). A form prefilled from the candidate, the offer and the
+  6. **Convert to employee** (`REC-FIL-006/007`, size L). **Not built; next (checked 2026-11-13: no code for it yet).** A form prefilled from the candidate, the offer and the
      requisition (company tag inherited, department, position, contract type, start date as `joined_on`, the direct
      superior as manager), asking only for what is missing: the employee number, the 16-digit NIK (unique across the group)
      and the Cabang. It reuses the existing employee validation and links candidate to employee so it cannot be done twice;
@@ -1957,11 +1971,11 @@ platform accounts above (no career page, manual posting, nothing public except t
 | `REC-WIZ`                         | Requisition wizard shell    | 6   | 4   | ✅     | Built 10-28: stepper, Sebelumnya/Selanjutnya keeping the values, Simpan Draft at any step (back to the dashboard), resume at the saved step, edit while sent and undecided (005). Built 11-06: the "Mendesak" marker with a reason (006), a marker only |
 | `REC-WZ1` · `REC-WZ2` · `REC-WZ3` | Wizard steps 01–03          | 8   | 7   | ✅     | Built 10-28, reworked the same day to the design's fixed template (see the Phase 4 notes). Step 1 "The ask": Posisi, Departemen, Cabang (optional, added), Jumlah kuota (whole, ≥ 1), Tipe kontrak (+ months for Kontrak/Magang), Atasan langsung, Target mulai kerja (never in the past), Alasan permintaan. Step 2: the job posting (Tentang Posisi, Tanggung Jawab Utama with the requester's own subtitles, Benefit & Fasilitas) and the candidate checklist (Kualifikasi, Skills, Nilai Plus). Step 3: one review page, then "Ajukan untuk Persetujuan" builds the chain. `REC-WZ2-002`'s requirement list is now the checklist; its base is the admin template (`REC-TPL-001`) |
 | `REC-TPL`                         | Templates (admin)           | 1   | 0   | 🟡     | Built 10-28: admin page **Template rekrutmen** (parent-wide HR Admin) holds the base lines for Benefit & Fasilitas and for each fixed checklist subtitle (Pendidikan, Pengalaman, Hard Skills, Soft Skills, Nilai Plus); a new requisition copies them. The sections and subtitles themselves are fixed in code |
-| `REC-PIP`                         | Requisition pipeline        | 6   | 4   | 🟡     | Built 10-28: header and breadcrumb, 6-stage tracker with the date each was reached, locked future stages, forward-only (`RequisitionWorkflow`), opens on the current stage, status line (006). Stages 02, 03 and 04 (invitation) are built (11-04). Built 11-10: HR's "Lanjut ke Penawaran" once the direct superior has chosen a candidate (guard `HasSelectedCandidate`), and the Penawaran tab listing the chosen; stage 06 shows a placeholder, and nothing moves a requisition from Penawaran to Terisi yet. A cancelled requisition keeps the stages it reached open |
+| `REC-PIP`                         | Requisition pipeline        | 6   | 4   | 🟡     | Built 10-28: header and breadcrumb, 6-stage tracker with the date each was reached, locked future stages, forward-only (`RequisitionWorkflow`), opens on the current stage, status line (006). Stages 02, 03 and 04 (invitation) are built (11-04). Built 11-10: HR's "Lanjut ke Penawaran" once the direct superior has chosen a candidate (guard `HasSelectedCandidate`), and the Penawaran tab listing the chosen. Built 11-11: "Tandai Selesai" moves a requisition from Penawaran to Terisi once the quota is full, and the Terisi tab lists the hires. A cancelled requisition keeps the stages it reached open |
 | `REC-APR`                         | Stage 01 Approval           | 9   | 5   | ✅     | Built 10-28: chain Manajemen → HR (decided 2026-10-28, see Phase 4 notes), "Setujui sebagai …", reject with a reason back to a draft, "Lanjut ke Posting" gated on every approval, Edit, "Diajukan <date> oleh <requester>", Ekspektasi Gaji required for Management's approval with "Simpan" before it (007/008), comment thread (009) |
 | `REC-PST`                         | Stage 02 Posting            | 7   | 4   | ✅     | Built 11-04 (revised plan: manual, no cmp-api push): copy buttons (Judul, Deskripsi, Persyaratan, Semua), "Tandai sudah diposting" per platform with date and optional link, correct/remove, "Lanjut ke Screening" once one is recorded, "Batalkan lowongan" with a reason (PST-004) |
 | `REC-SCR`                         | Stage 03 Screening          | 8   | 4   | ✅     | Built 11-04 (revised plan): total-applicants count, quick-add of shortlisted candidates (duplicate warning, paste-to-autofill, optional CV), shortlist list, "Lanjut ke Interview". No ranking. Candidate list is HR-only |
-| `REC-INT`                         | Stage 04 Interview          | 8   | 3   | ✅     | Built 11-04 (revised plan): invitation (time, online/in person, Meet link or address) by email with the same text for WhatsApp, single-use link, open only on the interview day, to the public in-app candidate form (Ya/Tidak on the checklist, salary, start date), answers shown to HR. Built 11-06: feedback by HR and the direct superior, reminders (candidate the day before, HR and superior on the day). Built 11-09: a notice to HR and the superior for interviews still without an evaluation; the CSV for mail merge (one row per interviewee with an email, the invitation's note included, every download on the audit trail); cancelling warns HR of candidates already scheduled and tells the superior. Candidate rescheduling stays with HR by decision. Google Meet creation waits on the account test |
+| `REC-INT`                         | Stage 04 Interview          | 8   | 3   | ✅     | Built 11-04 (revised plan): invitation (time, online/in person, Meet link or address) by email with the same text for WhatsApp, single-use link, open only on the interview day, to the public in-app candidate form (Ya/Tidak on the checklist, salary, start date), answers shown to HR. Built 11-06: feedback by HR and the direct superior, reminders (candidate the day before, HR and superior on the day). Built 11-09: a notice to HR and the superior for interviews still without an evaluation; the CSV for mail merge (one row per interviewee with an email, the invitation's note included, every download on the audit trail); cancelling warns HR of candidates already scheduled and tells the superior. Candidate rescheduling stays with HR by decision. Built 11-10: the availability calendar (holidays and leave) on the tab. Built 11-12: the interview's length and its calendar event (`.ics`, one for the people who sit in and one attached to the candidate's email). Built 11-13: HR chooses who sits in, per candidate (HR admins and Manajemen of the company, the direct superior always), who are told, are on the event, are chased for the evaluation, and, for Manajemen, see that candidate (no contact details) and may evaluate. Google Meet creation waits on the account test |
 | `REC-OFS`                         | Stage 05 Offer              | 9   | 8   | 🟡     | Built 11-11: the chosen list with ticks and "Direkomendasikan oleh n", "Ajukan ke Manajemen" (001/002), Management's approval with the starting salary or a rejection that returns the candidate to Interview (006), withdrawing an offer. Built 11-11 (Phase 4): the letter as a print page (007) and "Tandai terkirim" with an opt-in email (003). Built 11-11 (Phase 5): Tandai Diterima (004) and Menolak (008), the "position filled" email (009), Tarik for a sent offer. Not built: nothing in this stage |
 | `REC-FIL`                         | Stage 06 Filled             | 7   | 6   | 🟡     | Built 11-11: the filled count from accepted offers, "Tandai Selesai" gated on the quota (001/003), the close (offers withdrawn, links ended), the Terisi tab with the hires and the listings to take down (005). Not built: convert-to-employee (006/007, L). Creates the profile the hire then registers against (`CORE-REG`); until this exists HR creates profiles by hand or CSV |
 | `REC-CAN` · `REC-CDT` · `REC-CRV` | Candidate detail + tabs     | 11  | 8   | 🟡     | The candidate is a side drawer, not a page (by decision): Ringkasan (answers of the form), Dokumen (CV), Interview (schedule, invitation, evaluations). Built 11-10: Tolak with a reason and an opt-in email, and Pulihkan (`CAN-002/003`, the "Ditolak" banner of `CDT-001`); Pilih and Batalkan pilihan for the direct superior, with the "Dipilih" banner. The stage-dependent actions for Siap Ditawari and Penawaran Terkirim come with the Offer phases |
@@ -1989,7 +2003,7 @@ table, the checklist and the screens.
 
 | Screen     | Name                     | f   | P1  | Status | Notes                                                                                                     |
 | ---------- | ------------------------ | --- | --- | ------ | --------------------------------------------------------------------------------------------------------- |
-| `DAS-MAI`  | Home                     | 5   | 3   | ⬜     | Cross-module KPIs — needs the modules to exist first                                                      |
+| `DAS-MAI`  | Home                     | 5   | 3   | 🟡     | Cross-module KPIs are not built. Built so far: the cards for the people who run HR (Menunggu keputusan, Rekrutmen berjalan) and one calendar for everyone with a switch **Saya \| Lainnya** for HR and Management: Saya is the person's own leave, the interviews they sit in on, their last day and the holidays and events that cover them; Lainnya is everyone else's leave, newcomers' start dates and the last working days of people leaving (11-13) |
 | `CORE-SRC` | Global search & settings | 4   | 3   | 🟡     | Global search is done (header box, Ctrl/⌘ K). The leave and holiday policy live in the admin panel and on the calendar; for 004 the backend runs `APP_LOCALE=id` with `lang/id` (2026-11-05), while frontend text is still written in the components rather than in translation files |
 | —          | Employee app (PWA)       | —   | —   | 🟡     | **Feasibility build 2026-10-20:** manifest, icons, service worker (offline page, built assets only, never a page or data), install banner (Android prompt, iPhone hint). Not built: Web Push, the Sanctum API, saved drafts. See "PWA feasibility build" below |
 

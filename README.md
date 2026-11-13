@@ -10,8 +10,10 @@ checklist, decisions and known gaps are in [DEVELOPMENT.md](DEVELOPMENT.md). The
 on feature detail).
 
 **Current release:** employee directory, Pengajuan (requests), offboarding, profile change requests, documents, the admin
-panel, and attendance (which can be switched off, see below). Recruitment is in progress (its first slice, raising and approving a requisition by a fixed template, is on the
-`feature/recruitement` branch); the employee mobile app is not part of it.
+panel, and attendance (which can be switched off, see below). Recruitment is on the `feature/recruitement` branch and is
+built from raising and approving a requisition, through posting, screening, interviews (with the people who sit in
+chosen per candidate) and the offer, to a filled position; converting the hire into an employee profile is the one part
+still to build. The employee mobile app is not part of it.
 Attendance arrives by **upload**: head office's Fingerspot export, and a per-period rekap from each Cabang without a
 scanner (see [Attendance data](#attendance-data)). The automatic on-site agent lives in the separate `fingerspot-toolkit`
 folder and is switched off (`FEATURE_ATTENDANCE_AGENTS`).
@@ -78,14 +80,14 @@ The two projects meet in four places; anything else crossing the boundary is a b
 | --------------------- | ------------------------------------------------------------------------------------------------------------- |
 | `app/Actions/`        | one class per business operation (leave filing, offboarding, attendance import, profile changes, accounts)    |
 | `app/Concerns/`       | `BelongsToCompany`: the one trait every company-tagged model uses                                             |
-| `app/Console/`        | scheduled and manual commands (notices, offboarding exits)                                                    |
+| `app/Console/`        | scheduled and manual commands (notices, offboarding exits, interview reminders)                               |
 | `app/Enums/`          | `Role`, `Permission` (and the role to permission defaults), workflow stages, statuses                         |
 | `app/Filament/`       | the admin panel's resources; a new resource must be added to the list in `Providers/Filament/AdminPanelProvider` |
 | `app/Http/`           | controllers (web and `Api/`), middleware, form requests (validation and authorisation)                        |
 | `app/Models/`         | Eloquent models; `Scopes/CompanyScope` is the tenancy filter                                                  |
 | `app/Policies/`       | one per model; they re-check the company as well as the scope                                                 |
 | `app/Support/`        | domain helpers: `Access/` (entrances, public route list), `Attendance/`, `Leave/`, `Offboarding/`, `Notifications/`, `CompanyContext`, `ReportingLine`, `Features` |
-| `app/Workflows/`      | the approval engine shared by leave, offboarding and (later) recruitment                                      |
+| `app/Workflows/`      | the approval engine shared by leave, offboarding and recruitment (requisitions and offers)                    |
 | `config/`             | besides the framework's: `entrance.php`, `features.php`, `initial_admin.php`, `attendance.php`, `inertia.php` |
 | `database/`           | migrations, factories, seeders: `RoleSeeder` and `SystemAdminSeeder` are for every server; `CompanySeeder`, `DevAccountSeeder`, `OrgHierarchySeeder` are local or staging only |
 | `routes/`             | `web.php`, `api.php` (the scanner ingest, token only), `settings.php`, `console.php` (the schedule)           |
@@ -185,7 +187,7 @@ Docker Compose**; allow about 4 GB of RAM and 10 GB of disk (the first build tak
 | `web`       | Nginx. Decides which entrance a request used, serves the built files, hands PHP to `app`                     |
 | `app`       | PHP-FPM with the code baked into the image. Applies migrations when it starts                                |
 | `queue`     | the queue worker                                                                                             |
-| `scheduler` | the daily jobs (notices, offboarding exits)                                                                  |
+| `scheduler` | the daily jobs (notices, offboarding exits, interview reminders)                                             |
 | `db`        | PostgreSQL, not published                                                                                    |
 | `wg`        | WireGuard (wg-easy): the private entrance. UDP 51820; its admin page is on `127.0.0.1:51821` only            |
 | `tunnel`    | optional (`--profile tunnel`): a temporary https address for trying the PWA; arrives as the **public** entrance |
