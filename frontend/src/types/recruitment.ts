@@ -119,6 +119,13 @@ export type RequisitionPosting = {
     takenDownOn: string | null;
 };
 
+/** Who the invitation's "Peserta" list offers: an HR admin or a Manajemen user of the company. */
+export type InterviewerOption = {
+    id: number;
+    name: string;
+    group: 'hr' | 'management';
+};
+
 /** Someone HR shortlisted (REC-SCR). Only HR is given these. */
 export type Candidate = {
     id: number;
@@ -148,7 +155,9 @@ export type Candidate = {
     interviewPlace: string | null;
     /** How long the interview is, in minutes: an hour unless HR chose otherwise. */
     interviewMinutes: number;
-    /** HR and the direct superior may download the interview as a calendar event (.ics). */
+    /** The HR and Manajemen users chosen to sit in on the interview, besides the direct superior; empty for an older invitation. */
+    interviewers: { id: number; name: string }[];
+    /** HR, the direct superior and the Manajemen users chosen may download the interview as a calendar event (.ics). */
     canExportEvent: boolean;
     /** What HR wrote to the candidate in the invitation; repeated when it is sent again. HR only. */
     invitationNote: string | null;
@@ -387,6 +396,8 @@ export type Requisition = RequisitionRow & {
     selectedCount: number;
     /** HR may invite shortlisted candidates, at Interview and Offer. */
     canManageInterview: boolean;
+    /** The HR admins and Manajemen users the invitation's "Peserta" list offers; empty for those who may not invite. */
+    interviewerOptions: InterviewerOption[];
     /** Holidays and leave of the people interviews depend on; null outside Interview and Offer, and for those who do not see candidates. */
     availability: InterviewAvailability | null;
     canManagePostings: boolean;

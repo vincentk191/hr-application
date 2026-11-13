@@ -14,6 +14,7 @@ import {
     Trash2,
     UserCheck,
     UserMinus,
+    Users,
     X,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -751,6 +752,13 @@ function InterviewSection({
             return;
         }
 
+        // An invitation from before participants could be chosen has none to repeat: HR picks them in the form.
+        if (candidate.interviewers.length === 0) {
+            onInvite?.(candidate);
+
+            return;
+        }
+
         router.post(
             invite.url({ requisition: item.id, candidate: candidate.id }),
             {
@@ -759,6 +767,7 @@ function InterviewSection({
                 interview_place: candidate.interviewPlace ?? '',
                 interview_minutes: candidate.interviewMinutes,
                 note: candidate.invitationNote ?? '',
+                participants: candidate.interviewers.map((person) => person.id),
             },
             {
                 preserveScroll: true,
@@ -812,6 +821,27 @@ function InterviewSection({
                                     </span>
                                 </span>
                             </p>
+                            {candidate.interviewers.length > 0 && (
+                                <p
+                                    className="mt-2 flex items-start gap-1.5 text-sm"
+                                    data-test="interview-participants"
+                                >
+                                    <Users
+                                        className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+                                        aria-label="Peserta"
+                                    />
+                                    <span className="break-words">
+                                        {[
+                                            ...candidate.interviewers.map(
+                                                (person) => person.name,
+                                            ),
+                                            ...(item.manager
+                                                ? [`${item.manager} (atasan)`]
+                                                : []),
+                                        ].join(', ')}
+                                    </span>
+                                </p>
+                            )}
                         </div>
                     )}
                 </div>

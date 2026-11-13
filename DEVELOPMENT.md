@@ -69,6 +69,23 @@ left uncommitted for review.
 
 ## Change log (latest first)
 
+- **2026-11-13 (calendar: "Rekapitulasi cabang" filter removed; interview participants).** The R chip in the attendance
+  calendar's status row (and its side-panel row) duplicated the Semua / Scanner / Rekapitulasi source toggle, so `rekap` is no
+  longer a status: `statusEntries` loses it, `StatusFilterKey` is `DayStatus`, and `AttendanceCalendarController` drops it from
+  the accepted `statuses[]` (an old link carrying it is ignored). **Interview participants (REC-INT):** HR now chooses, per
+  candidate, who sits in. Migration `create_candidate_interviewers_table` (candidate, user; the direct superior is not stored,
+  since it comes from the requisition) and `Candidate::interviewers()`. `InterviewParticipants` gives the form's choices (active
+  HR admins and Manajemen of the company, the superior left out) and who is told or put on the event: those chosen plus the
+  superior, and for an invitation with nobody chosen (made before this) every HR admin plus the superior, as before. The
+  invite form asks for at least one (`participants[]`, checked against the choices); the action syncs them and `Notifier::interviewScheduled`
+  tells the others (not the sender; nothing for an old-style invitation). The "interview hari ini" and "menunggu penilaian"
+  notices now go per person with only their own candidates, and the `.ics` for interviewers lists the same people. A chosen
+  Manajemen user (`RequisitionPolicy::sitsIn`) sees that candidate in the shortlist without phone, email or note, may download
+  the event, open the CV and evaluate once the interview has passed; choosing the candidate and inviting stay with the superior
+  and HR. HR who are not chosen keep their access to every candidate. A re-send of an old-style invitation opens the form so the
+  participants get picked. Frontend: `InterviewerPicker` chips in `InviteDialog` (the sender pre-ticked, the superior locked) and
+  a "Peserta" line on the candidate's interview card.
+
 - **2026-11-12 (pengajuan: an icon per jenis, and double booking).** The plane in the request side panel was a guess from the
   type's name (`TypeIcon`: "sakit" a stethoscope, "izin" a door, anything else a plane). Migration `add_icon_to_request_types_table`
   (nullable `icon`) and the `RequestTypeIcon` enum (12 icons); the admin panel's Jenis pengajuan has an "Ikon" select, empty

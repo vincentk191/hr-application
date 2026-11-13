@@ -80,6 +80,7 @@ function invitationFields(array $overrides = []): array
         'interview_mode' => 'online',
         'interview_place' => 'https://meet.google.com/abc-defg-hij',
         'note' => 'Mohon hadir 10 menit lebih awal.',
+        'participants' => [test()->hr->id],
         ...$overrides,
     ];
 }
@@ -539,7 +540,7 @@ it('tells the direct superior when a requisition is cancelled with interviews st
     $this->actingAs($this->hr)->post(route('recruitment.cancel', $over), ['note' => 'Tidak jadi'])
         ->assertRedirect()
         ->assertInertiaFlash('toast', ['type' => 'success', 'message' => "{$over->reference()} dibatalkan."]);
-    expect($boss->notifications()->count())->toBe(0);
+    expect($boss->notifications()->where('data->title', 'like', '%dibatalkan%')->count())->toBe(0);
 
     $this->actingAs($this->hr)->post(route('recruitment.cancel', $ahead), ['note' => 'Posisi diisi dari internal.'])
         ->assertRedirect()
@@ -548,7 +549,7 @@ it('tells the direct superior when a requisition is cancelled with interviews st
             'message' => "{$ahead->reference()} dibatalkan. 1 kandidat sudah dijadwalkan interview, kabari mereka.",
         ]);
 
-    expect($boss->notifications()->sole()->data['title'])->toContain('dibatalkan')
+    expect($boss->notifications()->where('data->title', 'like', '%dibatalkan%')->sole()->data['title'])->toContain('dibatalkan')
         ->and($this->requester->notifications()->where('data->title', 'like', '%dibatalkan%')->count())->toBe(2);
 });
 

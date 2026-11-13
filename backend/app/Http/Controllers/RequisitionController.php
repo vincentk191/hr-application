@@ -215,8 +215,9 @@ class RequisitionController extends Controller
     }
 
     /**
-     * "Tambah ke kalender": one candidate's interview as an `.ics` file (REC-INT). HR gets the candidate among the
-     * participants when they have an email; the direct superior, who is not shown candidates' emails, does not.
+     * "Tambah ke kalender": one candidate's interview as an `.ics` file (REC-INT), naming those chosen to sit in and the
+     * direct superior. HR gets the candidate among the participants when they have an email; the others, who are not shown
+     * candidates' emails, do not.
      */
     public function interviewEvent(Request $request, Requisition $requisition, Candidate $candidate, InterviewCalendar $calendar): HttpResponse
     {
@@ -719,10 +720,12 @@ class RequisitionController extends Controller
     {
         $user = $request->user();
 
-        // HR opens any CV; the direct superior only that of a candidate who was invited to interview.
+        // HR opens any CV; the direct superior only that of a candidate who was invited to interview, and a Manajemen user
+        // only that of a candidate they were chosen to sit in on.
         abort_unless(
             $user->can('viewCandidates', $requisition)
                 || ($user->can('viewInterviewees', $requisition) && $candidate->inviteState() !== 'none')
+                || $user->can('sitsIn', [$requisition, $candidate])
                 || $user->can('viewOfferedCandidate', [$requisition, $candidate]),
             403,
         );

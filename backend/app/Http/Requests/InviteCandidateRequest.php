@@ -3,9 +3,11 @@
 namespace App\Http\Requests;
 
 use App\Models\Requisition;
+use App\Support\Recruitment\InterviewParticipants;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 /**
@@ -33,7 +35,20 @@ class InviteCandidateRequest extends FormRequest
             // How long it lasts, for the calendar event; left out it stays as it was, or an hour.
             'interview_minutes' => ['nullable', 'integer', 'min:5', 'max:480'],
             'note' => ['nullable', 'string', 'max:1000'],
+            // Who sits in besides the direct superior: HR and Manajemen of this company, at least one.
+            'participants' => ['required', 'array', 'min:1'],
+            'participants.*' => ['integer', 'distinct', Rule::in($this->participantChoices())],
         ];
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function participantChoices(): array
+    {
+        $requisition = $this->route('requisition');
+
+        return $requisition instanceof Requisition ? app(InterviewParticipants::class)->optionIds($requisition) : [];
     }
 
     /**
@@ -51,6 +66,9 @@ class InviteCandidateRequest extends FormRequest
             'interview_minutes.integer' => 'Durasi harus berupa angka menit.',
             'interview_minutes.min' => 'Durasi minimal 5 menit.',
             'interview_minutes.max' => 'Durasi maksimal 480 menit (8 jam).',
+            'participants.required' => 'Pilih minimal satu peserta.',
+            'participants.min' => 'Pilih minimal satu peserta.',
+            'participants.*.in' => 'Peserta harus dari HR atau Manajemen perusahaan ini.',
         ];
     }
 
@@ -77,7 +95,7 @@ class InviteCandidateRequest extends FormRequest
     }
 
     /**
-     * @return array{interview_at: string, interview_mode: string, interview_place: string, interview_minutes: int|null, note: string|null}
+     * @return array{interview_at: string, interview_mode: string, interview_place: string, interview_minutes: int|null, note: string|null, participants: list<int>}
      */
     public function invitationFields(): array
     {
@@ -85,6 +103,7 @@ class InviteCandidateRequest extends FormRequest
         $validated = $this->validated();
 
         return [
+            'participants' => array_values(array_map('intval', (array) $validated['participants'])),
             'interview_at' => (string) $validated['interview_at'],
             'interview_mode' => (string) $validated['interview_mode'],
             'interview_place' => (string) $validated['interview_place'],

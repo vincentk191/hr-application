@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Models\WorkflowComment;
 use App\Models\WorkflowStep;
 use App\Notifications\InAppNotice;
+use App\Support\Recruitment\InterviewParticipants;
 use App\Support\Recruitment\InvitationMessage;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -581,19 +582,45 @@ class Notifier
      */
     public function interviewsToday(Requisition $requisition, Collection $candidates): void
     {
-        $times = $candidates
-            ->sortBy('interview_at')
-            ->map(fn (Candidate $candidate): string => $candidate->name.' '.InvitationMessage::local($candidate->interview_at)->format('H:i'))
-            ->implode(', ');
+        $this->eachInterviewer($requisition, $candidates, function (User $user, Collection $theirs) use ($requisition): void {
+            $times = $theirs
+                ->sortBy('interview_at')
+                ->map(fn (Candidate $candidate): string => $candidate->name.' '.InvitationMessage::local($candidate->interview_at)->format('H:i'))
+                ->implode(', ');
 
+            $user->notify(new InAppNotice(
+                'recruitment',
+                "Interview hari ini: {$requisition->position_name} ({$theirs->count()} kandidat)",
+                "{$requisition->reference()} · {$times}",
+                route('recruitment.show', $requisition, absolute: false),
+            ));
+        });
+    }
+
+    /**
+     * HR invited a candidate, or moved the time (REC-INT): tell the people chosen to sit in, and the direct superior, except
+     * whoever did it. An invitation with no chosen participants (made before they could be chosen) tells no one new.
+     */
+    public function interviewScheduled(Requisition $requisition, Candidate $candidate, User $by, bool $rescheduled): void
+    {
+        $participants = app(InterviewParticipants::class);
+        $candidate->loadMissing('interviewers');
+
+        if (! $participants->hasChosen($candidate)) {
+            return;
+        }
+
+        $when = InvitationMessage::whenLabel(InvitationMessage::local($candidate->interview_at));
         $notice = new InAppNotice(
             'recruitment',
-            "Interview hari ini: {$requisition->position_name} ({$candidates->count()} kandidat)",
-            "{$requisition->reference()} · {$times}",
+            ($rescheduled ? 'Jadwal interview diubah: ' : 'Anda diundang interview: ').$requisition->position_name,
+            "{$requisition->reference()} · {$candidate->name} · {$when}",
             route('recruitment.show', $requisition, absolute: false),
         );
 
-        $this->interviewersOf($requisition)->each(fn (User $user) => $user->notify($notice));
+        $participants->recipients($candidate, $requisition)
+            ->reject(fn (User $user): bool => $user->is($by))
+            ->each(fn (User $user) => $user->notify($notice));
     }
 
     /**
@@ -605,30 +632,40 @@ class Notifier
      */
     public function evaluationsDue(Requisition $requisition, Collection $candidates): void
     {
-        $names = $candidates->sortBy('interview_at')->pluck('name')->implode(', ');
+        $this->eachInterviewer($requisition, $candidates, function (User $user, Collection $theirs) use ($requisition): void {
+            $names = $theirs->sortBy('interview_at')->pluck('name')->implode(', ');
 
-        $notice = new InAppNotice(
-            'recruitment',
-            "Menunggu penilaian: {$requisition->position_name} ({$candidates->count()} kandidat)",
-            "{$requisition->reference()} · {$names}",
-            route('recruitment.show', $requisition, absolute: false),
-        );
-
-        $this->interviewersOf($requisition)->each(fn (User $user) => $user->notify($notice));
+            $user->notify(new InAppNotice(
+                'recruitment',
+                "Menunggu penilaian: {$requisition->position_name} ({$theirs->count()} kandidat)",
+                "{$requisition->reference()} · {$names}",
+                route('recruitment.show', $requisition, absolute: false),
+            ));
+        });
     }
 
     /**
-     * HR and the new hire's direct superior: the people who hold and evaluate the interviews.
+     * Calls back once per person who sits in on any of the candidates' interviews (REC-INT), with the candidates they sit
+     * in on: those HR chose and the direct superior, or for an older invitation every HR admin and the superior.
      *
-     * @return Collection<int, User>
+     * @param  Collection<int, Candidate>  $candidates
+     * @param  callable(User, Collection<int, Candidate>): void  $callback
      */
-    private function interviewersOf(Requisition $requisition): Collection
+    private function eachInterviewer(Requisition $requisition, Collection $candidates, callable $callback): void
     {
-        $superior = $this->directSuperiorOf($requisition);
+        $participants = app(InterviewParticipants::class);
+        $byUser = [];
 
-        return $this->hrAdmins($requisition->company_id)
-            ->when($superior instanceof User && $superior->is_active, fn (Collection $users) => $users->push($superior))
-            ->unique('id');
+        foreach ($candidates->load('interviewers') as $candidate) {
+            foreach ($participants->recipients($candidate, $requisition) as $user) {
+                $byUser[$user->id]['user'] = $user;
+                $byUser[$user->id]['candidates'][] = $candidate;
+            }
+        }
+
+        foreach ($byUser as $entry) {
+            $callback($entry['user'], new Collection($entry['candidates']));
+        }
     }
 
     /**

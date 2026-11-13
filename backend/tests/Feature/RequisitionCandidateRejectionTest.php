@@ -181,7 +181,7 @@ it('does not invite, or make a new form link for, a rejected candidate', functio
     rejectCandidate($requisition, $candidate)->assertRedirect();
 
     $this->actingAs($this->hr)->post(route('recruitment.candidates.invite', [$requisition, $candidate]), [
-        'interview_at' => '2026-11-06T10:00', 'interview_mode' => 'online', 'interview_place' => 'https://meet.google.com/x',
+        'interview_at' => '2026-11-06T10:00', 'interview_mode' => 'online', 'interview_place' => 'https://meet.google.com/x', 'participants' => [$this->hr->id],
     ])->assertForbidden();
     $this->actingAs($this->hr)->post(route('recruitment.candidates.form-link', [$requisition, $candidate]))->assertForbidden();
 });

@@ -23,6 +23,7 @@ use App\Models\WorkflowStep;
 use App\Models\WorkflowTransition;
 use App\Support\Files\InlineImage;
 use App\Workflows\WorkflowEngine;
+use Closure;
 
 /**
  * A requisition as the pages show it: a row for the dashboard (REC-DSH-002) and the whole requisition for its
@@ -155,6 +156,8 @@ class RequisitionPresenter
             // How many the direct superior has chosen: a count anyone who sees the requisition may see.
             'selectedCount' => $requisition->candidates->filter(fn (Candidate $candidate): bool => $candidate->isSelected())->count(),
             'canManageInterview' => $viewer->can('manageInterview', $requisition),
+            // Who the invitation's "Peserta" list offers: HR and Manajemen of the company, for those who may invite.
+            'interviewerOptions' => $viewer->can('manageInterview', $requisition) ? app(InterviewParticipants::class)->options($requisition) : [],
             'canProposeOffers' => $viewer->can('proposeOffers', $requisition),
             // The offers to chosen candidates: HR, the direct superior and Management only (REC-OFS).
             'offers' => $this->offers($requisition, $viewer),
@@ -253,13 +256,13 @@ class RequisitionPresenter
      *
      * @return list<array<string, mixed>>
      */
-    private function candidates(Requisition $requisition, User $viewer, bool $intervieweesOnly = false): array
+    private function candidates(Requisition $requisition, User $viewer, ?Closure $only = null): array
     {
-        $requisition->loadMissing('candidates.addedBy:id,name', 'candidates.evaluations.author:id,name', 'candidates.rejectedBy:id,name', 'candidates.selectedBy:id,name');
+        $requisition->loadMissing('candidates.addedBy:id,name', 'candidates.evaluations.author:id,name', 'candidates.rejectedBy:id,name', 'candidates.selectedBy:id,name', 'candidates.interviewers:id,name');
 
         return array_values($requisition->candidates
-            ->filter(fn (Candidate $candidate): bool => ! $intervieweesOnly || $candidate->inviteState() !== 'none')
-            ->map(fn (Candidate $candidate): array => $intervieweesOnly
+            ->filter(fn (Candidate $candidate): bool => $only === null || $only($candidate))
+            ->map(fn (Candidate $candidate): array => $only !== null
                 ? [...$this->candidate($requisition, $candidate, $viewer), 'phone' => null, 'email' => null, 'note' => null]
                 : $this->candidate($requisition, $candidate, $viewer))
             ->all());
@@ -267,7 +270,8 @@ class RequisitionPresenter
 
     /**
      * The shortlist as this person may see it: all of it for HR; for the new hire's direct superior only those invited
-     * to interview, without phone, email or note; nothing for anyone else.
+     * to interview, and for a Manajemen user only those they were chosen to sit in on, without phone, email or note;
+     * nothing for anyone else.
      *
      * @return list<array<string, mixed>>|null
      */
@@ -275,7 +279,8 @@ class RequisitionPresenter
     {
         return match (true) {
             $viewer->can('viewCandidates', $requisition) => $this->candidates($requisition, $viewer),
-            $viewer->can('viewInterviewees', $requisition) => $this->candidates($requisition, $viewer, intervieweesOnly: true),
+            $viewer->can('viewInterviewees', $requisition) => $this->candidates($requisition, $viewer, fn (Candidate $candidate): bool => $candidate->inviteState() !== 'none'),
+            $viewer->can('sitsInOnAny', $requisition) => $this->candidates($requisition, $viewer, fn (Candidate $candidate): bool => $viewer->can('sitsIn', [$requisition, $candidate])),
             default => null,
         };
     }
@@ -288,7 +293,7 @@ class RequisitionPresenter
      */
     public function candidate(Requisition $requisition, Candidate $candidate, ?User $viewer = null): array
     {
-        $candidate->loadMissing('addedBy:id,name', 'evaluations.author:id,name', 'rejectedBy:id,name', 'selectedBy:id,name');
+        $candidate->loadMissing('addedBy:id,name', 'evaluations.author:id,name', 'rejectedBy:id,name', 'selectedBy:id,name', 'interviewers:id,name');
         $cvUrl = $candidate->cv_path === null ? null : route('recruitment.candidates.cv', [$requisition, $candidate]);
 
         return [
@@ -306,6 +311,8 @@ class RequisitionPresenter
             'cvUrl' => $cvUrl,
             'cvPreviewUrl' => $cvUrl === null ? null : InlineImage::previewUrl($cvUrl, (string) $candidate->cv_name),
             ...$this->interviewFields($candidate),
+            // Who HR chose to sit in on the interview, besides the direct superior; the ids prefill a re-invite.
+            'interviewers' => $candidate->interviewers->map(fn (User $user): array => ['id' => $user->id, 'name' => $user->name])->values()->all(),
             'canExportEvent' => $viewer !== null && $viewer->can('exportInterviewEvent', [$requisition, $candidate]),
             ...$this->evaluationFields($requisition, $candidate, $viewer),
             'canRenewFormLink' => $viewer !== null && $viewer->can('renewFormLink', [$requisition, $candidate]),

@@ -1,4 +1,4 @@
-import { Form, router } from '@inertiajs/react';
+import { Form, router, usePage } from '@inertiajs/react';
 import {
     Building2,
     CalendarDays,
@@ -27,6 +27,7 @@ import { CandidateDrawer } from '@/components/candidate-drawer';
 import type { CandidateTab } from '@/components/candidate-drawer';
 import { modeLabel } from '@/components/candidate-invitation';
 import InputError from '@/components/input-error';
+import { InterviewerPicker } from '@/components/interviewer-picker';
 import { firstAddress, LinkifiedText } from '@/components/linkified-text';
 import { CopyButton } from '@/components/requisition-posting';
 import { Button } from '@/components/ui/button';
@@ -184,7 +185,7 @@ export function InviteDialog({
     availability,
     onClose,
 }: {
-    item: Pick<Requisition, 'id'>;
+    item: Pick<Requisition, 'id' | 'manager' | 'interviewerOptions'>;
     /** The candidate to invite, when the dialog was opened for one. */
     candidate?: Candidate;
     /** Who the "Kandidat" field offers, when the dialog was opened from a slot with nobody chosen yet. */
@@ -207,6 +208,22 @@ export function InviteDialog({
         candidate?.interviewMode ?? 'online',
     );
     const again = candidate !== undefined && candidate.inviteState !== 'none';
+    // Whoever was chosen last time again; for a first invitation, the person sending it when they are on the list.
+    const { auth } = usePage().props;
+    const [participants, setParticipants] = useState<number[]>(() => {
+        const before = candidate?.interviewers.map((person) => person.id) ?? [];
+
+        if (before.length > 0) {
+            return before;
+        }
+
+        const me = auth.user?.id;
+
+        return me !== undefined &&
+            item.interviewerOptions.some((option) => option.id === me)
+            ? [me]
+            : [];
+    });
 
     return (
         <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -361,6 +378,16 @@ export function InviteDialog({
                                 />
                                 <InputError message={errors.interview_place} />
                             </div>
+                            <InterviewerPicker
+                                options={item.interviewerOptions}
+                                superior={item.manager}
+                                selected={participants}
+                                onChange={setParticipants}
+                                error={
+                                    errors.participants ??
+                                    errors['participants.0']
+                                }
+                            />
                             <div className="grid gap-1">
                                 <Label htmlFor="invite-note">
                                     Catatan untuk kandidat (opsional)

@@ -72,6 +72,7 @@ function icsInvite(Requisition $requisition, Candidate $candidate, array $fields
         'interview_mode' => 'online',
         'interview_place' => 'https://meet.google.com/abc-defg-hij',
         'note' => null,
+        'participants' => [test()->hr->id],
         ...$fields,
     ]);
 }

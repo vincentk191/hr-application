@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
@@ -180,6 +181,17 @@ class Candidate extends Model
     public function requisition(): BelongsTo
     {
         return $this->belongsTo(Requisition::class);
+    }
+
+    /**
+     * The HR and Management users HR chose to sit in on the interview (REC-INT), besides the direct superior. Empty for an
+     * invitation made before participants could be chosen.
+     *
+     * @return BelongsToMany<User, $this>
+     */
+    public function interviewers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'candidate_interviewers')->withTimestamps()->orderBy('users.name');
     }
 
     /**

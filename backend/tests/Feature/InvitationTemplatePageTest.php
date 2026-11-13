@@ -127,7 +127,7 @@ it('builds the invitations from the template HR saved, and keeps what was sent',
     [$requisition, $candidate, $hr] = templatedInvitation();
 
     $this->actingAs($hr)->post(route('recruitment.candidates.invite', [$requisition, $candidate]), [
-        'interview_at' => '2026-11-10T10:00', 'interview_mode' => 'online', 'interview_place' => 'https://meet.google.com/abc', 'note' => 'Bawa KTP.',
+        'interview_at' => '2026-11-10T10:00', 'interview_mode' => 'online', 'interview_place' => 'https://meet.google.com/abc', 'note' => 'Bawa KTP.', 'participants' => [$hr->id],
     ])->assertSessionDoesntHaveErrors();
 
     Mail::assertQueued(CandidateInvitation::class, fn (CandidateInvitation $mail): bool => $mail->subjectLine === 'Undangan Staf Gudang - PT Maju Jaya'

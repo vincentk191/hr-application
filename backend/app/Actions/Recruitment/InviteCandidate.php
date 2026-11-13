@@ -6,6 +6,7 @@ use App\Mail\CandidateInvitation;
 use App\Models\Candidate;
 use App\Models\Requisition;
 use App\Models\User;
+use App\Support\Notifications\Notifier;
 use App\Support\Recruitment\InterviewCalendar;
 use App\Support\Recruitment\InvitationMessage;
 use Carbon\CarbonImmutable;
@@ -17,6 +18,8 @@ use Illuminate\Support\Str;
  * the candidate form that opens only on the day of the interview, works once, and lapses at the end of that day. The text is emailed when the candidate has an email,
  * and returned so HR can also paste it into WhatsApp or the platform's chat. Inviting again (a new time, or a lost
  * message) makes a new link and cancels the old one; a form already filled in stays filled in.
+ *
+ * HR also chooses who sits in on the interview, besides the direct superior, and each of them is told (REC-INT).
  */
 class InviteCandidate
 {
@@ -24,11 +27,12 @@ class InviteCandidate
     public const MASKED_LINK = '[tautan formulir pribadi — hanya tampil saat undangan dibuat]';
 
     /**
-     * @param  array{interview_at: string, interview_mode: string, interview_place: string, interview_minutes?: int|null, note: string|null}  $fields  `interview_at` is a local date and time in the company timezone; `interview_minutes` stays what it was (an hour at first) when left out
+     * @param  array{interview_at: string, interview_mode: string, interview_place: string, interview_minutes?: int|null, note: string|null, participants?: list<int>}  $fields  `interview_at` is a local date and time in the company timezone; `interview_minutes` stays what it was (an hour at first) when left out; `participants` are the HR and Management users who sit in besides the direct superior, and stay as they were when left out
      * @return array{link: string|null, message: string, emailed: bool, expiresAt: CarbonImmutable|null}
      */
     public function handle(Requisition $requisition, Candidate $candidate, array $fields, User $by): array
     {
+        $rescheduled = $candidate->invited_at !== null;
         $timezone = (string) config('attendance.device_timezone');
         $token = Str::random(48);
         $formOpen = $candidate->form_submitted_at === null;
@@ -49,6 +53,13 @@ class InviteCandidate
             'interviewers_reminded_at' => null,
             'evaluation_prompted_at' => null,
         ])->save();
+
+        if (isset($fields['participants'])) {
+            $candidate->interviewers()->sync($fields['participants']);
+        }
+
+        $candidate->unsetRelation('interviewers');
+        app(Notifier::class)->interviewScheduled($requisition, $candidate, $by, $rescheduled);
 
         $link = $formOpen ? InvitationMessage::formLink($token) : null;
         $message = InvitationMessage::text($candidate, $requisition, $link, $fields['note']);

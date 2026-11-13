@@ -3,7 +3,6 @@
 namespace App\Support\Recruitment;
 
 use App\Models\Candidate;
-use App\Models\Employee;
 use App\Models\Requisition;
 use App\Models\User;
 use Carbon\CarbonImmutable;
@@ -14,7 +13,8 @@ use Carbon\CarbonImmutable;
  *
  * Two copies of it exist. The one for the people who run the interview names the candidate and lists them, the direct
  * superior and the person who invited as participants; the candidate's own, attached to the invitation email, says only what
- * the candidate needs: the position, the company, when and where, and who invited them. Both carry the same event ID, so
+ * the candidate needs: the position, the company, when and where, and who invited them. The people who sit in are those HR
+ * chose for the candidate and the direct superior (InterviewParticipants). Both carry the same event ID, so
  * after a new time the file added again updates the event instead of making a second one.
  */
 class InterviewCalendar
@@ -33,12 +33,18 @@ class InterviewCalendar
     public function forInterviewers(Candidate $candidate, Requisition $requisition, User $viewer, bool $withCandidateEmail): string
     {
         $organizer = $this->organizer($candidate, $viewer);
-        $superior = Employee::acrossCompanies()->whereKey($requisition->manager_employee_id)->first()?->user;
 
-        $attendees = array_values(array_filter([
-            $superior instanceof User ? ['name' => $superior->name, 'email' => $superior->email] : null,
-            $withCandidateEmail && filled($candidate->email) ? ['name' => $candidate->name, 'email' => (string) $candidate->email] : null,
-        ]));
+        $candidate->loadMissing('interviewers');
+        $people = app(InterviewParticipants::class)->attendees($candidate, $requisition)
+            ->reject(fn (User $user): bool => $user->email === ($organizer['email'] ?? null))
+            ->map(fn (User $user): array => ['name' => $user->name, 'email' => $user->email])
+            ->values()
+            ->all();
+
+        $attendees = [
+            ...$people,
+            ...($withCandidateEmail && filled($candidate->email) ? [['name' => $candidate->name, 'email' => (string) $candidate->email]] : []),
+        ];
 
         return $this->build(
             $candidate,

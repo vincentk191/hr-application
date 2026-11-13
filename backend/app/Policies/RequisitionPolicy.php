@@ -12,6 +12,7 @@ use App\Models\Employee;
 use App\Models\Requisition;
 use App\Models\User;
 use App\Models\WorkflowStep;
+use App\Support\Recruitment\InterviewParticipants;
 use App\Support\Recruitment\RequisitionApprovers;
 use App\Support\Recruitment\RequisitionDepartments;
 
@@ -164,8 +165,34 @@ class RequisitionPolicy
     }
 
     /**
-     * Giving feedback after an interview: HR and the direct superior, for a candidate who was invited and whose
-     * interview time has passed, while the requisition is at Interview or Offer (REC-INT).
+     * A Manajemen user HR chose to sit in on this candidate's interview sees that candidate, and only those: like the
+     * direct superior, without phone, email or note. HR need not be chosen to see a candidate, so only Manajemen counts here.
+     */
+    public function sitsIn(User $user, Requisition $requisition, Candidate $candidate): bool
+    {
+        return in_array($requisition->stage(), [RequisitionStage::Interview, RequisitionStage::Offer], true)
+            && $candidate->requisition_id === $requisition->id
+            && $candidate->inviteState() !== 'none'
+            && $user->isA(Role::Management)
+            && $user->canAccessCompany($requisition->company_id)
+            && app(InterviewParticipants::class)->chose($candidate->loadMissing('interviewers'), $user);
+    }
+
+    /**
+     * Whether this person sits in on any interview of the requisition as a chosen Manajemen user, to know there is a list
+     * to show them.
+     */
+    public function sitsInOnAny(User $user, Requisition $requisition): bool
+    {
+        return in_array($requisition->stage(), [RequisitionStage::Interview, RequisitionStage::Offer], true)
+            && $user->isA(Role::Management)
+            && $user->canAccessCompany($requisition->company_id)
+            && $requisition->candidates()->inProcess()->whereHas('interviewers', fn ($interviewers) => $interviewers->whereKey($user->id))->exists();
+    }
+
+    /**
+     * Giving feedback after an interview: HR, the direct superior and the Manajemen users chosen for it, for a candidate
+     * who was invited and whose interview time has passed, while the requisition is at Interview or Offer (REC-INT).
      */
     public function evaluate(User $user, Requisition $requisition, Candidate $candidate): bool
     {
@@ -173,7 +200,7 @@ class RequisitionPolicy
             && $candidate->requisition_id === $requisition->id
             && $candidate->interview_at !== null
             && $candidate->interview_at->isPast()
-            && ($this->viewCandidates($user, $requisition) || $this->viewInterviewees($user, $requisition));
+            && ($this->viewCandidates($user, $requisition) || $this->viewInterviewees($user, $requisition) || $this->sitsIn($user, $requisition, $candidate));
     }
 
     /**
@@ -362,12 +389,12 @@ class RequisitionPolicy
     }
 
     /**
-     * A candidate's interview as a calendar event to add (REC-INT): for HR and for the new hire's direct superior, for someone
-     * invited to a time and still in the process.
+     * A candidate's interview as a calendar event to add (REC-INT): for HR, for the new hire's direct superior and for the
+     * Manajemen users chosen for it, for someone invited to a time and still in the process.
      */
     public function exportInterviewEvent(User $user, Requisition $requisition, Candidate $candidate): bool
     {
-        return ($this->viewCandidates($user, $requisition) || $this->viewInterviewees($user, $requisition))
+        return ($this->viewCandidates($user, $requisition) || $this->viewInterviewees($user, $requisition) || $this->sitsIn($user, $requisition, $candidate))
             && $candidate->requisition_id === $requisition->id
             && $candidate->interview_at !== null
             && ! $candidate->isRejected();

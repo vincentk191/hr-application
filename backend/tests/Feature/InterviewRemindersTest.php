@@ -140,7 +140,7 @@ it('reminds again after the interview is moved to a new time', function () {
 
     // HR invites again for tomorrow: the new day is reminded on its own.
     $this->actingAs($this->hr)->post(route('recruitment.candidates.invite', [$this->requisition, $budi]), [
-        'interview_at' => '2026-11-10T10:00', 'interview_mode' => 'online', 'interview_place' => 'https://meet.google.com/new',
+        'interview_at' => '2026-11-10T10:00', 'interview_mode' => 'online', 'interview_place' => 'https://meet.google.com/new', 'participants' => [$this->hr->id],
     ])->assertSessionDoesntHaveErrors();
     expect($budi->refresh()->interviewers_reminded_at)->toBeNull()->and($budi->candidate_reminded_at)->toBeNull();
 
@@ -189,7 +189,7 @@ it('asks again after an interview is moved, and not at all for requisitions that
     expect($budi->refresh()->evaluation_prompted_at)->not->toBeNull();
 
     $this->actingAs($this->hr)->post(route('recruitment.candidates.invite', [$this->requisition, $budi]), [
-        'interview_at' => '2026-11-10T10:00', 'interview_mode' => 'online', 'interview_place' => 'https://meet.google.com/new',
+        'interview_at' => '2026-11-10T10:00', 'interview_mode' => 'online', 'interview_place' => 'https://meet.google.com/new', 'participants' => [$this->hr->id],
     ])->assertSessionDoesntHaveErrors();
     expect($budi->refresh()->evaluation_prompted_at)->toBeNull();
 
