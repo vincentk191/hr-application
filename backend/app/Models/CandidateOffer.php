@@ -25,6 +25,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $salary
  * @property Carbon|null $start_on
  * @property int|null $probation_months
+ * @property int|null $employee_id
  * @property int|null $proposed_by_user_id
  * @property Carbon|null $proposed_at
  * @property Carbon|null $sent_at
@@ -42,6 +43,7 @@ use Illuminate\Support\Carbon;
     'salary',
     'start_on',
     'probation_months',
+    'employee_id',
     'proposed_by_user_id',
     'proposed_at',
     'sent_at',
@@ -170,6 +172,16 @@ class CandidateOffer extends Model
     public function candidate(): BelongsTo
     {
         return $this->belongsTo(Candidate::class);
+    }
+
+    /**
+     * The employee profile made from this hire (REC-FIL-006), once HR has converted it.
+     *
+     * @return BelongsTo<Employee, $this>
+     */
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class);
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Recruitment\ConvertHireToEmployee;
 use App\Actions\Recruitment\DecideOffer;
 use App\Actions\Recruitment\ProposeOffers;
 use App\Actions\Recruitment\RespondToOffer;
@@ -9,8 +10,13 @@ use App\Actions\Recruitment\SendOffer;
 use App\Actions\Recruitment\SetOfferTerms;
 use App\Actions\Recruitment\WithdrawOffer;
 use App\Enums\OfferStage;
+use App\Enums\Permission;
+use App\Http\Requests\ConvertHireRequest;
 use App\Models\CandidateOffer;
+use App\Models\Employee;
 use App\Models\Requisition;
+use App\Support\Employees\EmployeeFormOptions;
+use App\Support\Recruitment\HireProfile;
 use App\Support\Recruitment\RequisitionPresenter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -131,6 +137,45 @@ class RequisitionOfferController extends Controller
             'requisition' => ['id' => $requisition->id, 'reference' => $requisition->reference(), 'positionName' => $requisition->position_name],
             'letter' => $presenter->offerLetter($requisition, $offer),
         ]);
+    }
+
+    /**
+     * "Jadikan karyawan": the employee form, filled in from the hire (REC-FIL-006), asking HR only for what is not known.
+     */
+    public function employee(Request $request, Requisition $requisition, CandidateOffer $offer, HireProfile $profile): Response
+    {
+        $this->authorize('convertHire', [$requisition, $offer]);
+
+        $offer->loadMissing('candidate');
+
+        return Inertia::render('recruitment/hire-employee', [
+            ...EmployeeFormOptions::make(),
+            // The profile goes to the requisition's company, so no company is asked for.
+            'companies' => null,
+            'canEditSensitive' => $request->user()->can(Permission::ViewSensitiveData->value),
+            'requisition' => ['id' => $requisition->id, 'reference' => $requisition->reference(), 'positionName' => $requisition->position_name],
+            'offerId' => $offer->id,
+            'hire' => $profile->defaults($requisition, $offer),
+        ]);
+    }
+
+    /**
+     * Saves the profile of the hire (REC-FIL-007): checked like any new employee, filed under the requisition's company and
+     * linked to the offer, once.
+     */
+    public function convert(ConvertHireRequest $request, Requisition $requisition, CandidateOffer $offer, ConvertHireToEmployee $convert): RedirectResponse
+    {
+        $fields = $request->safe()->except(['photo', 'remove_photo', 'company_id']);
+
+        if (! $request->user()->can(Permission::ViewSensitiveData->value)) {
+            $fields = array_diff_key($fields, array_flip(Employee::SENSITIVE_FIELDS));
+        }
+
+        $employee = $convert->handle($requisition, $offer, $fields, $request->file('photo'), $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "{$employee->full_name} dijadikan karyawan."]);
+
+        return to_route('employees.show', $employee);
     }
 
     /**

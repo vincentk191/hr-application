@@ -31,23 +31,23 @@ tracks structure and progress; the workbook tracks requirements and tests.
 ## Status
 
 Phases 0, 1, 3 and 5 are built, Phase 2 (attendance) is built for manual capture, Phase 4 (recruitment) is built from the
-requisition to the filled position and lacks only converting the hire to an employee, and the server stack has had a
+requisition to the filled position and the hire's employee profile, and the server stack has had a
 security pass (Phase 7). What remains is listed in the checklist below. Recruitment is on the branch
 `feature/recruitement`, the rest on `main`; new changes are left uncommitted for review.
 
 |                 |                                                                                                              |
 | --------------- | ------------------------------------------------------------------------------------------------------------ |
-| Tests           | 1,244 (1,239 passed, 5 skipped; full suite run 2026-11-13 with `php -d memory_limit=2G vendor/bin/pest`; the later change to the correction form ran the related files only) |
+| Tests           | 1,254 (1,249 passed, 5 skipped; full suite run 2026-11-13, after the conversion of a hire to an employee, with `php -d memory_limit=2G vendor/bin/pest`) |
 | Static analysis | PHPStan level 7; checked on the files touched since 2026-11-12, which are clean except 12 older errors in `AdminOverview` (`waiting()`, `dateRange()`); the 14 in the attendance-rekap files (2026-10-26) were not re-checked |
 | Phase 0         | **Complete**: company scoping, RBAC, workflow engine, account state and login rules, mandatory 2FA for elevated accounts |
 | Phase 1         | Directory (Cabang, CSV import/export, list/grid/org chart, phone layout), profile, add/edit, reactivation, documents, admin panel |
 | Phase 2         | Manual import of the Fingerspot export, branch rekap import, Zona and potongan, calendar, holidays/events, recap with Excel export, issues, timesheet corrections. The ingest API and on-site agents are built but switched off (`FEATURE_ATTENDANCE_AGENTS`) |
 | Phase 3         | Pengajuan end to end (types with an icon each, timeframe, attachments, double-booking refusal and live warning, queue with filters/export/badge), correcting a rejected request with the changes worked out automatically, leave on the calendar's side panel, in-app notices |
-| Phase 4         | Branch `feature/recruitement`. Requisition dashboard, 3-step wizard, stage 01 approval (2026-10-28); 02 Posting, 03 Screening and 04 Interview with the invitation and the candidate form (2026-11-04); interview feedback, reminders, calendar events, duration and availability (11-06 to 11-12); **participants chosen per interview, HR and Manajemen besides the direct superior (11-13)**; the candidate's outcome (Tolak / Pulihkan) and the direct superior's Pilih (11-10); 05 Offer with Management's approval, terms, letter and sending (11-11); the response, Tandai Selesai and the Terisi tab (11-11). **Not built: converting the hire to an employee (`REC-FIL-006/007`), the funnel figures** |
+| Phase 4         | Branch `feature/recruitement`. Requisition dashboard, 3-step wizard, stage 01 approval (2026-10-28); 02 Posting, 03 Screening and 04 Interview with the invitation and the candidate form (2026-11-04); interview feedback, reminders, calendar events, duration and availability (11-06 to 11-12); **participants chosen per interview, HR and Manajemen besides the direct superior (11-13)**; the candidate's outcome (Tolak / Pulihkan) and the direct superior's Pilih (11-10); 05 Offer with Management's approval, terms, letter and sending (11-11); the response, Tandai Selesai and the Terisi tab (11-11). **The accepted hire becomes an employee profile from the Terisi tab (11-13, `REC-FIL-006/007`).** Not built: the funnel figures, a browser check |
 | Phase 5         | Offboarding end to end: wizard, Management approval, checklist, sign-off, exit, berita acara, Cabang filter, phone action bar |
 | Phase 7         | Server stack, VPN, backups with an admin page, non-superuser database login, security headers and limits      |
-| Next            | **Recruitment Phase 6: convert the accepted hire to an employee**, then Phase 7 of that plan (funnel figures, a browser check); plan under "Offer, Filled and the candidate's outcome" in Phase 4 |
-| Not built       | Convert-to-employee and the recruitment funnel; candidate rescheduling (by decision, HR does it); Google Meet creation (waits on the Workspace answer); Home KPIs; employee app (Web Push, API); CSP, Ghostscript sandbox, narrowing `web`'s `storage` mount |
+| Next            | **Recruitment Phase 7 of the Offer plan: the funnel figures (offered, filled) on the dashboard and a browser check**; plan under "Offer, Filled and the candidate's outcome" in Phase 4 |
+| Not built       | The recruitment funnel figures; the candidate's CV into the new employee's documents; candidate rescheduling (by decision, HR does it); Google Meet creation (waits on the Workspace answer); Home KPIs; employee app (Web Push, API); CSP, Ghostscript sandbox, narrowing `web`'s `storage` mount |
 
 ---
 
@@ -70,6 +70,29 @@ security pass (Phase 7). What remains is listed in the checklist below. Recruitm
 ---
 
 ## Change log (latest first)
+
+- **2026-11-13 (recruitment: a hire becomes an employee; Phase 6 of the Offer plan, `REC-FIL-006/007`, branch
+  `feature/recruitement`).** On the Terisi tab each accepted offer has **Jadikan karyawan** (HR with `manage-recruitment` and
+  `create-employees`). It opens the form of any new employee (`pages/recruitment/hire-employee.tsx`, which renders
+  `EmployeeForm` with a new `hire` prop), filled in by `HireProfile::defaults` from the candidate (name, email, phone), the
+  requisition (company, department, Cabang when it named one, the position of the same name in the company's list when there is
+  one, the position name as the job title, contract type, direct superior) and the offer (start date as `joined_on`, the
+  salary Management set as the base salary). HR adds what is not known: the employee number, the NIK, a Cabang when the
+  requisition had none, and anything else of the dossier. **Same rules as any new employee:** `ConvertHireRequest` uses the
+  `ValidatesEmployeeDossier` trait unchanged (NIK 16 digits and unique across the group, the number unique in the company,
+  Cabang, department, position and manager from the company), with `activeCompanyId()` overridden to the requisition's company,
+  so HR who views every company still files the profile in the right one and no company is asked for. `ConvertHireToEmployee`
+  locks the offer row, refuses when it already has an employee, creates the `Employee` in the requisition's company and sets the
+  new `candidate_offers.employee_id` (migration `add_employee_id_to_candidate_offers_table`: nullable, unique, set null when
+  the profile is removed), and writes "Pelamar diterima dijadikan karyawan" to the audit trail. Bank, payroll and health
+  fields follow the existing rule (dropped unless the person may handle sensitive data). Policy `convertHire`: stage Penawaran
+  or Terisi, an accepted offer, no profile yet, `viewCandidates` and `create` on employees. Routes
+  `recruitment.offers.employee` (form) and `recruitment.offers.convert`. The offer payload gains `canConvert`, `employeeId` (for
+  those who may open the profile) and `hasEmployee`; once made, the row shows "Karyawan" linking to the profile. The form's
+  choices moved out of `EmployeeController` into `Support\Employees\EmployeeFormOptions`, shared with this page. The hire
+  registers their account against the employee number and NIK like anyone else (`CORE-REG`); nothing is created for them.
+  **Not done:** carrying the candidate's CV over into the profile's documents, converting several hires at once. Tests: new
+  `RequisitionConvertHireTest` (8).
 
 - **2026-11-13 (documentation brought up to date before starting convert-to-employee).** The Status block (tests: the
   full suite of this day, 1,244; static analysis; Phase 3 and 4 rows; "Next"; "Not built") now says what is built: Phase 4 runs
@@ -1958,7 +1981,8 @@ platform accounts above (no career page, manual posting, nothing public except t
      `RequisitionPresenter`'s hard-coded `filled => 0` replaced by the accepted offers, a gated "Tandai Selesai" when the
      quota is full that moves the requisition to Filled, a close checklist (manual: take the listings down; automatic: end
      future interviews and their form links), and an opt-in "position filled" email to the other interviewed candidates.
-  6. **Convert to employee** (`REC-FIL-006/007`, size L). **Not built; next (checked 2026-11-13: no code for it yet).** A form prefilled from the candidate, the offer and the
+  6. **Convert to employee** (`REC-FIL-006/007`, size L). **Built 2026-11-13** (change log above; the company comes from the
+     requisition, the profile is linked through `candidate_offers.employee_id`). As planned: a form prefilled from the candidate, the offer and the
      requisition (company tag inherited, department, position, contract type, start date as `joined_on`, the direct
      superior as manager), asking only for what is missing: the employee number, the 16-digit NIK (unique across the group)
      and the Cabang. It reuses the existing employee validation and links candidate to employee so it cannot be done twice;
@@ -1977,7 +2001,7 @@ platform accounts above (no career page, manual posting, nothing public except t
 | `REC-SCR`                         | Stage 03 Screening          | 8   | 4   | ✅     | Built 11-04 (revised plan): total-applicants count, quick-add of shortlisted candidates (duplicate warning, paste-to-autofill, optional CV), shortlist list, "Lanjut ke Interview". No ranking. Candidate list is HR-only |
 | `REC-INT`                         | Stage 04 Interview          | 8   | 3   | ✅     | Built 11-04 (revised plan): invitation (time, online/in person, Meet link or address) by email with the same text for WhatsApp, single-use link, open only on the interview day, to the public in-app candidate form (Ya/Tidak on the checklist, salary, start date), answers shown to HR. Built 11-06: feedback by HR and the direct superior, reminders (candidate the day before, HR and superior on the day). Built 11-09: a notice to HR and the superior for interviews still without an evaluation; the CSV for mail merge (one row per interviewee with an email, the invitation's note included, every download on the audit trail); cancelling warns HR of candidates already scheduled and tells the superior. Candidate rescheduling stays with HR by decision. Built 11-10: the availability calendar (holidays and leave) on the tab. Built 11-12: the interview's length and its calendar event (`.ics`, one for the people who sit in and one attached to the candidate's email). Built 11-13: HR chooses who sits in, per candidate (HR admins and Manajemen of the company, the direct superior always), who are told, are on the event, are chased for the evaluation, and, for Manajemen, see that candidate (no contact details) and may evaluate. Google Meet creation waits on the account test |
 | `REC-OFS`                         | Stage 05 Offer              | 9   | 8   | 🟡     | Built 11-11: the chosen list with ticks and "Direkomendasikan oleh n", "Ajukan ke Manajemen" (001/002), Management's approval with the starting salary or a rejection that returns the candidate to Interview (006), withdrawing an offer. Built 11-11 (Phase 4): the letter as a print page (007) and "Tandai terkirim" with an opt-in email (003). Built 11-11 (Phase 5): Tandai Diterima (004) and Menolak (008), the "position filled" email (009), Tarik for a sent offer. Not built: nothing in this stage |
-| `REC-FIL`                         | Stage 06 Filled             | 7   | 6   | 🟡     | Built 11-11: the filled count from accepted offers, "Tandai Selesai" gated on the quota (001/003), the close (offers withdrawn, links ended), the Terisi tab with the hires and the listings to take down (005). Not built: convert-to-employee (006/007, L). Creates the profile the hire then registers against (`CORE-REG`); until this exists HR creates profiles by hand or CSV |
+| `REC-FIL`                         | Stage 06 Filled             | 7   | 7   | ✅     | Built 11-11: the filled count from accepted offers, "Tandai Selesai" gated on the quota (001/003), the close (offers withdrawn, links ended), the Terisi tab with the hires and the listings to take down (005). Built 11-13: "Jadikan karyawan" (006/007), the employee form filled in from the hire, the same checks as any new employee, the profile linked to the offer and made once; the hire then registers against it (`CORE-REG`). Not done: the CV into the profile's documents |
 | `REC-CAN` · `REC-CDT` · `REC-CRV` | Candidate detail + tabs     | 11  | 8   | 🟡     | The candidate is a side drawer, not a page (by decision): Ringkasan (answers of the form), Dokumen (CV), Interview (schedule, invitation, evaluations). Built 11-10: Tolak with a reason and an opt-in email, and Pulihkan (`CAN-002/003`, the "Ditolak" banner of `CDT-001`); Pilih and Batalkan pilihan for the direct superior, with the "Dipilih" banner. The stage-dependent actions for Siap Ditawari and Penawaran Terkirim come with the Offer phases |
 | `REC-OFR`                         | Send offer form             | 6   | 4   | 🟡     | Built 11-11: start date (after today) and probation (0 to 3 months) with the salary from Management, the letter from the requisition and the offer. Not built: one set of terms for several candidates (003) |
 | `REC-EDI`                         | Post-interview form builder | 1   | 0   | ⬜     | P5 — backlog                                                |

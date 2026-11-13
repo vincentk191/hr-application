@@ -318,6 +318,20 @@ class RequisitionPolicy
     }
 
     /**
+     * Making the employee profile of a hire is HR's (REC-FIL-006): for an accepted offer not yet converted, while the
+     * requisition is at Penawaran or Terisi, and for someone who may add employees. The profile is made once.
+     */
+    public function convertHire(User $user, Requisition $requisition, CandidateOffer $offer): bool
+    {
+        return in_array($requisition->stage(), [RequisitionStage::Offer, RequisitionStage::Filled], true)
+            && $offer->requisition_id === $requisition->id
+            && $offer->stage() === OfferStage::Accepted
+            && $offer->employee_id === null
+            && $this->viewCandidates($user, $requisition)
+            && $user->can('create', Employee::class);
+    }
+
+    /**
      * Closing the loose ends of a filled requisition, such as taking its listings down, is HR's (REC-FIL-005).
      */
     public function closeFilled(User $user, Requisition $requisition): bool

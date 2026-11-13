@@ -435,7 +435,7 @@ class RequisitionPresenter
             return null;
         }
 
-        $requisition->loadMissing('offers.workflow.steps.decidedBy:id,name', 'offers.candidate.evaluations.author:id,name', 'offers.proposedBy:id,name', 'offers.sentBy:id,name');
+        $requisition->loadMissing('offers.workflow.steps.decidedBy:id,name', 'offers.candidate.evaluations.author:id,name', 'offers.proposedBy:id,name', 'offers.sentBy:id,name', 'offers.employee');
 
         return array_values($requisition->offers->map(fn (CandidateOffer $offer): array => $this->offer($requisition, $offer, $viewer))->all());
     }
@@ -489,6 +489,10 @@ class RequisitionPresenter
             'canSetTerms' => $viewer->can('setOfferTerms', [$requisition, $offer]),
             'canSend' => $viewer->can('sendOffer', [$requisition, $offer]),
             'canViewLetter' => $viewer->can('viewOfferLetter', [$requisition, $offer]),
+            // The profile made from this hire (REC-FIL-006): who it is, for those who may open it, and whether HR may still make it.
+            'canConvert' => $viewer->can('convertHire', [$requisition, $offer]),
+            'employeeId' => $offer->employee !== null && $viewer->can('view', $offer->employee) ? $offer->employee_id : null,
+            'hasEmployee' => $offer->employee_id !== null,
             'candidate' => $data,
         ];
     }

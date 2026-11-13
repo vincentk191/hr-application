@@ -256,7 +256,31 @@ export type CandidateOffer = {
     canSetTerms: boolean;
     canSend: boolean;
     canViewLetter: boolean;
+    /** HR may make the employee profile of this hire now: accepted, not yet converted. */
+    canConvert: boolean;
+    /** The profile made from this hire, for those who may open it. */
+    employeeId: number | null;
+    /** A profile has been made from this hire, whether or not this person may open it. */
+    hasEmployee: boolean;
     candidate: Candidate | null;
+};
+
+/** What the employee form is filled in with when a hire becomes an employee. */
+export type HireDefaults = {
+    companyId: number;
+    name: string;
+    email: string | null;
+    phone: string | null;
+    branchId: number | null;
+    departmentId: number;
+    positionId: number | null;
+    jobTitle: string;
+    employmentType: string | null;
+    joinedOn: string | null;
+    managerId: number | null;
+    baseSalary: number | null;
+    probationMonths: number | null;
+    position: string;
 };
 
 /** What the offer letter is built from (the print page). */

@@ -1,9 +1,18 @@
-import { router } from '@inertiajs/react';
-import { BadgeCheck, Check, ListChecks, Undo2 } from 'lucide-react';
+import { Link, router } from '@inertiajs/react';
+import {
+    BadgeCheck,
+    Check,
+    ListChecks,
+    Undo2,
+    UserCheck,
+    UserPlus,
+} from 'lucide-react';
 import { useState } from 'react';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import { shortDate } from '@/components/requisition-summary';
 import { Button } from '@/components/ui/button';
+import { show as employeeShow } from '@/routes/employees';
+import { employee } from '@/routes/recruitment/offers';
 import { takedown } from '@/routes/recruitment/postings';
 import type { Requisition, RequisitionPosting } from '@/types/recruitment';
 
@@ -135,6 +144,62 @@ export function FilledTab({ item }: { item: Requisition }) {
                                             .join(' · ')}
                                     </span>
                                 </span>
+                                {offer.canConvert && (
+                                    <Button
+                                        asChild
+                                        size="sm"
+                                        data-test="convert-hire"
+                                    >
+                                        <Link
+                                            href={
+                                                employee({
+                                                    requisition: item.id,
+                                                    offer: offer.id,
+                                                }).url
+                                            }
+                                        >
+                                            <UserPlus
+                                                className="size-4"
+                                                aria-hidden
+                                            />
+                                            Jadikan karyawan
+                                        </Link>
+                                    </Button>
+                                )}
+                                {offer.employeeId !== null && (
+                                    <Button
+                                        asChild
+                                        size="sm"
+                                        variant="outline"
+                                        data-test="open-employee"
+                                    >
+                                        <Link
+                                            href={
+                                                employeeShow(offer.employeeId)
+                                                    .url
+                                            }
+                                        >
+                                            <UserCheck
+                                                className="size-4"
+                                                aria-hidden
+                                            />
+                                            Karyawan
+                                        </Link>
+                                    </Button>
+                                )}
+                                {offer.hasEmployee &&
+                                    offer.employeeId === null && (
+                                        <span
+                                            className="label-mono flex items-center gap-1.5"
+                                            data-test="converted"
+                                        >
+                                            <UserCheck
+                                                className="size-4"
+                                                aria-hidden
+                                            />
+                                            Sudah jadi karyawan
+                                        </span>
+                                    )}
                             </li>
                         ))}
                     </ul>

@@ -5,30 +5,21 @@ namespace App\Http\Controllers;
 use App\Actions\Employees\ReactivateEmployee;
 use App\Enums\DocumentCategory;
 use App\Enums\EmploymentStatus;
-use App\Enums\EmploymentType;
-use App\Enums\Gender;
-use App\Enums\MaritalStatus;
 use App\Enums\Permission;
-use App\Enums\PtkpStatus;
-use App\Enums\Religion;
-use App\Enums\Zona;
 use App\Http\Requests\StoreEmployeeRequest;
 use App\Http\Requests\UpdateEmployeeRequest;
-use App\Models\Branch;
 use App\Models\Company;
-use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
 use App\Models\EmployeeDocumentVersion;
 use App\Models\LeaveRequest;
-use App\Models\Position;
 use App\Models\ProfileChangeRequest;
 use App\Models\User;
 use App\Models\WorkflowStep;
 use App\Support\Attendance\DailyAttendance;
 use App\Support\Attendance\EmployeeTimesheet;
-use App\Support\CompanyContext;
 use App\Support\CsvDownload;
+use App\Support\Employees\EmployeeFormOptions;
 use App\Support\Employees\EmployeeSheet;
 use App\Support\Employees\TeamSlice;
 use App\Support\Features;
@@ -358,35 +349,7 @@ class EmployeeController extends Controller
      */
     private function formOptions(): array
     {
-        return [
-            // Only offered while every company is being viewed: a new record then needs one chosen.
-            'companies' => app(CompanyContext::class)->companyId() === null
-                ? Company::orderBy('name')->get(['id', 'name'])
-                : null,
-            'branches' => Branch::orderBy('name')->get(['id', 'name', 'company_id']),
-            'departments' => Department::orderBy('name')->get(['id', 'name', 'company_id']),
-            'positions' => Position::orderBy('name')->get(['id', 'name', 'department_id', 'company_id']),
-            'managers' => Employee::query()->active()->orderBy('full_name')->get(['id', 'full_name', 'employee_number', 'company_id'])
-                ->map(fn (Employee $employee): array => [
-                    'id' => $employee->id,
-                    'company_id' => $employee->company_id,
-                    'label' => "{$employee->full_name} ({$employee->employee_number})",
-                ]),
-            // A profile is only closed by offboarding, so the forms offer nothing but active.
-            'employmentStatuses' => [['value' => EmploymentStatus::Active->value, 'label' => EmploymentStatus::Active->label()]],
-            'employmentTypes' => array_map(
-                fn (EmploymentType $type): array => ['value' => $type->value, 'label' => $type->label()],
-                EmploymentType::cases(),
-            ),
-            'zonas' => array_map(
-                fn (Zona $zona): array => ['value' => $zona->value, 'label' => $zona->label()],
-                Zona::cases(),
-            ),
-            'genders' => array_map(fn (Gender $gender): array => ['value' => $gender->value, 'label' => $gender->label()], Gender::cases()),
-            'religions' => array_map(fn (Religion $religion): array => ['value' => $religion->value, 'label' => $religion->label()], Religion::cases()),
-            'maritalStatuses' => array_map(fn (MaritalStatus $status): array => ['value' => $status->value, 'label' => $status->label()], MaritalStatus::cases()),
-            'ptkpStatuses' => array_map(fn (PtkpStatus $status): array => ['value' => $status->value, 'label' => $status->label()], PtkpStatus::cases()),
-        ];
+        return EmployeeFormOptions::make();
     }
 
     /**

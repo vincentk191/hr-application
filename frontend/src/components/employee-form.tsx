@@ -13,6 +13,7 @@ import type {
     Option,
     ValueOption,
 } from '@/types/employee';
+import type { HireDefaults } from '@/types/recruitment';
 
 export type EmployeeFormOptions = {
     /** Set only while every company is being viewed: a new employee then needs one chosen. */
@@ -156,6 +157,7 @@ export function EmployeeForm({
     method,
     options,
     employee,
+    hire,
     canEditSensitive,
     submitLabel,
 }: {
@@ -163,18 +165,27 @@ export function EmployeeForm({
     method: 'post' | 'put';
     options: EmployeeFormOptions;
     employee?: EmployeeDetail;
+    /** A hire becoming an employee: the fields it knows come filled in, in the company of its requisition. */
+    hire?: HireDefaults;
     /** Bank, payroll and health are left out of the form for anyone who may not handle them. */
     canEditSensitive: boolean;
     submitLabel: string;
 }) {
     const [companyId, setCompanyId] = useState('');
     // Viewing every company at once, a new employee has no company yet: it is chosen first, and the
-    // Cabang, departments, positions and managers on offer are that company's.
-    const choosesCompany = options.companies !== null && employee === undefined;
+    // Cabang, departments, positions and managers on offer are that company's. A hire's company is its requisition's.
+    const choosesCompany =
+        options.companies !== null &&
+        employee === undefined &&
+        hire === undefined;
     const inChosenCompany = <T extends { company_id: number }>(items: T[]) =>
-        choosesCompany
-            ? items.filter((item) => String(item.company_id) === companyId)
-            : items;
+        hire !== undefined
+            ? items.filter(
+                  (item) => String(item.company_id) === String(hire.companyId),
+              )
+            : choosesCompany
+              ? items.filter((item) => String(item.company_id) === companyId)
+              : items;
 
     return (
         <Form
@@ -246,7 +257,7 @@ export function EmployeeForm({
                         <TextField
                             name="full_name"
                             label="Nama lengkap"
-                            defaultValue={employee?.name}
+                            defaultValue={employee?.name ?? hire?.name}
                             error={errors.full_name}
                             required
                         />
@@ -256,7 +267,9 @@ export function EmployeeForm({
                             <select
                                 id="branch_id"
                                 name="branch_id"
-                                defaultValue={employee?.branchId ?? ''}
+                                defaultValue={
+                                    employee?.branchId ?? hire?.branchId ?? ''
+                                }
                                 className={selectClasses}
                                 required
                             >
@@ -280,7 +293,11 @@ export function EmployeeForm({
                             <select
                                 id="department_id"
                                 name="department_id"
-                                defaultValue={employee?.departmentId ?? ''}
+                                defaultValue={
+                                    employee?.departmentId ??
+                                    hire?.departmentId ??
+                                    ''
+                                }
                                 className={selectClasses}
                             >
                                 <option value="">—</option>
@@ -303,7 +320,11 @@ export function EmployeeForm({
                             <select
                                 id="position_id"
                                 name="position_id"
-                                defaultValue={employee?.positionId ?? ''}
+                                defaultValue={
+                                    employee?.positionId ??
+                                    hire?.positionId ??
+                                    ''
+                                }
                                 className={selectClasses}
                             >
                                 <option value="">—</option>
@@ -324,7 +345,9 @@ export function EmployeeForm({
                         <TextField
                             name="job_title"
                             label="Jabatan"
-                            defaultValue={employee?.personal.job_title}
+                            defaultValue={
+                                employee?.personal.job_title ?? hire?.jobTitle
+                            }
                             error={errors.job_title}
                             placeholder="Mis. Staff, Supervisor, Manager"
                         />
@@ -334,7 +357,9 @@ export function EmployeeForm({
                             <select
                                 id="manager_id"
                                 name="manager_id"
-                                defaultValue={employee?.managerId ?? ''}
+                                defaultValue={
+                                    employee?.managerId ?? hire?.managerId ?? ''
+                                }
                                 className={selectClasses}
                             >
                                 <option value="">—</option>
@@ -384,7 +409,11 @@ export function EmployeeForm({
                             <select
                                 id="employment_type"
                                 name="employment_type"
-                                defaultValue={employee?.employmentType ?? ''}
+                                defaultValue={
+                                    employee?.employmentType ??
+                                    hire?.employmentType ??
+                                    ''
+                                }
                                 className={selectClasses}
                             >
                                 <option value="">—</option>
@@ -432,7 +461,7 @@ export function EmployeeForm({
                             name="joined_on"
                             label="Tanggal bergabung"
                             type="date"
-                            defaultValue={employee?.joinedOn}
+                            defaultValue={employee?.joinedOn ?? hire?.joinedOn}
                             error={errors.joined_on}
                         />
                         <TextField
@@ -493,13 +522,17 @@ export function EmployeeForm({
                             name="email"
                             label="Email"
                             type="email"
-                            defaultValue={employee?.contact.email}
+                            defaultValue={
+                                employee?.contact.email ?? hire?.email
+                            }
                             error={errors.email}
                         />
                         <TextField
                             name="phone"
                             label="Telepon"
-                            defaultValue={employee?.contact.phone}
+                            defaultValue={
+                                employee?.contact.phone ?? hire?.phone
+                            }
                             error={errors.phone}
                         />
                         <TextField
@@ -770,7 +803,8 @@ export function EmployeeForm({
                                     name="base_salary_idr"
                                     label="Gaji pokok (Rp)"
                                     defaultValue={
-                                        employee?.payroll?.base_salary_idr
+                                        employee?.payroll?.base_salary_idr ??
+                                        hire?.baseSalary
                                     }
                                     error={errors.base_salary_idr}
                                 />

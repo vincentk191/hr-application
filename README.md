@@ -12,8 +12,8 @@ on feature detail).
 **Current release:** employee directory, Pengajuan (requests), offboarding, profile change requests, documents, the admin
 panel, and attendance (which can be switched off, see below). Recruitment is on the `feature/recruitement` branch and is
 built from raising and approving a requisition, through posting, screening, interviews (with the people who sit in
-chosen per candidate) and the offer, to a filled position; converting the hire into an employee profile is the one part
-still to build. The employee mobile app is not part of it.
+chosen per candidate) and the offer, to a filled position, where each hire becomes an employee profile from the Terisi tab
+(the funnel figures are still to build). The employee mobile app is not part of it.
 Attendance arrives by **upload**: head office's Fingerspot export, and a per-period rekap from each Cabang without a
 scanner (see [Attendance data](#attendance-data)). The automatic on-site agent lives in the separate `fingerspot-toolkit`
 folder and is switched off (`FEATURE_ATTENDANCE_AGENTS`).
