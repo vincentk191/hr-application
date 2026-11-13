@@ -11,12 +11,14 @@ import {
     useScannerMinutes,
 } from '@/components/dashboard-overview';
 import { LeaveDecisionDialog } from '@/components/leave-decision-dialog';
+import { InterviewPanel } from '@/components/requisition-interview';
 import { Badge } from '@/components/ui/badge';
 import { dashboard } from '@/routes';
 import { device } from '@/routes/attendance';
 import { show } from '@/routes/employees';
 import type { CaptureStatus } from '@/types/attendance';
 import type { LeaveRequestRow } from '@/types/leave';
+import type { OpenedInterview } from '@/types/recruitment';
 import type {
     AdminCalendar,
     AdminWaiting,
@@ -153,6 +155,7 @@ export default function Dashboard({
     adminCalendar,
     recruitment,
     openedRequest,
+    openedInterview,
 }: {
     intro: Intro;
     /** Null for an account with no employee record, which has no personal overview. */
@@ -166,6 +169,8 @@ export default function Dashboard({
     recruitment: RecruitmentOverview | null;
     /** The leave request asked for with `?request=ID`, to open its panel over the dashboard. */
     openedRequest: LeaveRequestRow | null;
+    /** The interview asked for with `?interview=ID`, to open its panel over the dashboard. */
+    openedInterview: OpenedInterview | null;
 }) {
     const now = useScannerMinutes(intro.nowMinutes);
     // A request opens as the same side panel the Pengajuan page uses, on top of this page, so the person stays where they
@@ -192,8 +197,39 @@ export default function Dashboard({
         });
     };
 
+    // An interview opens the same way: the candidate's panel over this page (`?interview=ID`), not the recruitment page.
+    const [interviewDismissed, setInterviewDismissed] = useState<number | null>(
+        null,
+    );
+    const interview =
+        openedInterview?.candidateId === interviewDismissed
+            ? null
+            : openedInterview;
+
+    const showInterview = (id: number | null) => {
+        const params = new URLSearchParams(window.location.search);
+
+        if (id === null) {
+            params.delete('interview');
+        } else {
+            params.set('interview', String(id));
+            setInterviewDismissed(null);
+        }
+
+        router.get(dashboard().url, Object.fromEntries(params), {
+            only: ['openedInterview'],
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
+    };
+
     const calendar = adminCalendar && (
-        <AdminCalendarCard data={adminCalendar} onOpenLeave={showRequest} />
+        <AdminCalendarCard
+            data={adminCalendar}
+            onOpenLeave={showRequest}
+            onOpenInterview={showInterview}
+        />
     );
     const ownOnly = adminCalendar?.scope === 'me' && !adminCalendar.canSwitch;
 
@@ -218,7 +254,12 @@ export default function Dashboard({
                                 onOpenLeave={showRequest}
                             />
                         )}
-                        {recruitment && <RecruitmentCard data={recruitment} />}
+                        {recruitment && (
+                            <RecruitmentCard
+                                data={recruitment}
+                                onOpenInterview={showInterview}
+                            />
+                        )}
                     </div>
                 )}
                 {!ownOnly && calendar}
@@ -238,6 +279,13 @@ export default function Dashboard({
                 {ownOnly && calendar}
             </div>
 
+            <InterviewPanel
+                opened={interview}
+                onClose={() => {
+                    setInterviewDismissed(openedInterview?.candidateId ?? null);
+                    showInterview(null);
+                }}
+            />
             <LeaveDecisionDialog
                 request={request}
                 onClose={() => {

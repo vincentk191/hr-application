@@ -3,15 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Enums\Permission;
+use App\Models\Candidate;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
 use App\Models\LeaveRequest;
+use App\Support\Access\Entrance;
 use App\Support\Attendance\AgentStatus;
 use App\Support\Attendance\CaptureStatus;
 use App\Support\Dashboard\AdminOverview;
 use App\Support\Dashboard\EmployeeOverview;
 use App\Support\Features;
 use App\Support\Leave\LeaveRequestPresenter;
+use App\Support\Recruitment\RequisitionPresenter;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -59,6 +62,9 @@ class DashboardController extends Controller
             // A request opened over the dashboard (`?request=ID`) rather than on the Pengajuan page: the same panel, read the
             // same way, through the same visibility, so a request the person may not see opens nothing.
             'openedRequest' => fn (): ?array => $this->openedRequest($request),
+            // A candidate's interview opened over the dashboard (`?interview=ID`), from the calendar or the list of interviews: the
+            // same panel as the requisition's Interview tab, read the same way, so one the person may not see opens nothing.
+            'openedInterview' => fn (): ?array => $this->openedInterview($request),
             // Only for the people who capture the scanner log; everyone else gets no card.
             'attendanceStatus' => $user->can('manage-attendance-device')
                 ? [...$status->resolve(), 'agentStale' => Features::attendanceAgents() && $agents->anyStale()]
@@ -75,6 +81,39 @@ class DashboardController extends Controller
                 ])->all(),
             ],
         ]);
+    }
+
+    /**
+     * The interview the dashboard was asked to open: the candidate's requisition as the recruitment page presents it to this
+     * person, and the candidate in it. The candidate must be one of those the recruitment page would show them (HR sees every
+     * candidate, a participant only theirs), and recruitment is private: nothing opens on the public entrance.
+     *
+     * @return array{requisition: array<string, mixed>, candidateId: int}|null
+     */
+    private function openedInterview(Request $request): ?array
+    {
+        $id = $request->integer('interview');
+        $user = $request->user();
+
+        if ($id <= 0 || $user === null || app(Entrance::class)->isPublic()) {
+            return null;
+        }
+
+        $requisition = Candidate::query()->with('requisition')->find($id)?->requisition;
+
+        if ($requisition === null || ! $user->can('view', $requisition)) {
+            return null;
+        }
+
+        $detail = app(RequisitionPresenter::class)->detail($requisition, $user);
+
+        foreach ((array) ($detail['shortlist'] ?? []) as $entry) {
+            if (is_array($entry) && ($entry['id'] ?? null) === $id) {
+                return ['requisition' => $detail, 'candidateId' => $id];
+            }
+        }
+
+        return null;
     }
 
     /**

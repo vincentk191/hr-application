@@ -143,6 +143,12 @@ export type GoogleStatus = {
     email: string | null;
 };
 
+/** An interview opened over the dashboard: the requisition as the recruitment page presents it, and the candidate in it. */
+export type OpenedInterview = {
+    requisition: Requisition;
+    candidateId: number;
+};
+
 /** What a candidate answered to the Google Calendar invitation. */
 export type GoogleResponse =
     | 'accepted'

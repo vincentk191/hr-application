@@ -190,10 +190,13 @@ const longDay = new Intl.DateTimeFormat('id-ID', {
 export function AdminCalendarCard({
     data,
     onOpenLeave,
+    onOpenInterview,
 }: {
     data: AdminCalendar;
     /** Opens the person's own request over the dashboard, for the leave on their own view. */
     onOpenLeave?: (id: number) => void;
+    /** Opens a candidate's interview panel over the dashboard, for the interviews on their own view. */
+    onOpenInterview?: (candidateId: number) => void;
 }) {
     const today = localToday();
     const [year, month] = data.month.split('-').map(Number);
@@ -431,6 +434,7 @@ export function AdminCalendarCard({
                             );
 
                             const requestId = entry.requestId;
+                            const interviewId = entry.interviewId;
 
                             return (
                                 <li key={`${entry.kind}-${position}`}>
@@ -443,6 +447,18 @@ export function AdminCalendarCard({
                                                 onOpenLeave(requestId)
                                             }
                                             className="flex items-start gap-2 text-left text-sm hover:underline"
+                                        >
+                                            {body}
+                                        </button>
+                                    ) : interviewId !== undefined &&
+                                      onOpenInterview ? (
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                onOpenInterview(interviewId)
+                                            }
+                                            className="flex items-start gap-2 text-left text-sm hover:underline"
+                                            data-test="open-interview"
                                         >
                                             {body}
                                         </button>
@@ -472,7 +488,14 @@ export function AdminCalendarCard({
  * How recruitment is going, for HR: running requisitions by stage, the interviews ahead, and the invitation links that
  * lapsed before the candidate filled the form, each opening its requisition so a new link can be sent.
  */
-export function RecruitmentCard({ data }: { data: RecruitmentOverview }) {
+export function RecruitmentCard({
+    data,
+    onOpenInterview,
+}: {
+    data: RecruitmentOverview;
+    /** Opens a candidate's interview panel over the dashboard, instead of the requisition's page. */
+    onOpenInterview?: (candidateId: number) => void;
+}) {
     return (
         <section
             className="surface space-y-4 p-4"
@@ -552,20 +575,9 @@ export function RecruitmentCard({ data }: { data: RecruitmentOverview }) {
                     </p>
                 ) : (
                     <ul className="divide-y text-sm">
-                        {data.upcoming.map((candidate) => (
-                            <li key={candidate.id}>
-                                <Link
-                                    href={recruitmentShow(
-                                        candidate.requisitionId,
-                                        {
-                                            query: {
-                                                tab: 'interview',
-                                                candidate: candidate.id,
-                                            },
-                                        },
-                                    )}
-                                    className="block py-1.5 hover:underline"
-                                >
+                        {data.upcoming.map((candidate) => {
+                            const body = (
+                                <>
                                     <span className="font-medium">
                                         {candidate.name}
                                     </span>
@@ -576,9 +588,41 @@ export function RecruitmentCard({ data }: { data: RecruitmentOverview }) {
                                     <span className="block text-xs text-muted-foreground">
                                         {candidate.when}
                                     </span>
-                                </Link>
-                            </li>
-                        ))}
+                                </>
+                            );
+
+                            return (
+                                <li key={candidate.id}>
+                                    {onOpenInterview ? (
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                onOpenInterview(candidate.id)
+                                            }
+                                            className="block w-full py-1.5 text-left hover:underline"
+                                            data-test="open-interview"
+                                        >
+                                            {body}
+                                        </button>
+                                    ) : (
+                                        <Link
+                                            href={recruitmentShow(
+                                                candidate.requisitionId,
+                                                {
+                                                    query: {
+                                                        tab: 'interview',
+                                                        candidate: candidate.id,
+                                                    },
+                                                },
+                                            )}
+                                            className="block py-1.5 hover:underline"
+                                        >
+                                            {body}
+                                        </Link>
+                                    )}
+                                </li>
+                            );
+                        })}
                     </ul>
                 )}
             </div>

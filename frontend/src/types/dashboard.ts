@@ -116,6 +116,8 @@ export type AdminCalendarEntry = {
     href: string | null;
     /** For leave: the request, to open over the dashboard. */
     requestId?: number;
+    /** For an interview: the candidate, whose panel opens over the dashboard. */
+    interviewId?: number;
 };
 
 /**

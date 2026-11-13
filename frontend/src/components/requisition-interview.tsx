@@ -49,6 +49,7 @@ import type {
     FormLink,
     InterviewAvailability,
     Invitation,
+    OpenedInterview,
     Requisition,
 } from '@/types/recruitment';
 
@@ -1306,6 +1307,84 @@ function WeekCalendar({
  * invitation is emailed and its text and personal link handed over for WhatsApp too. The candidate's answers to the
  * checklist show under their name once they send their form. Screening stays open on its own tab for more candidates.
  */
+/**
+ * A candidate's interview panel opened over another page (the dashboard's calendar): the same side panel as on the
+ * Interview tab, with the dialogs it leads to (rescheduling, and the invitation or form link handed back once). It is
+ * always mounted, so the dialogs outlive the panel: after inviting, the panel closes but the result stays to be copied.
+ * The panel's data comes from the page (`opened`), which the page reads from the address.
+ */
+export function InterviewPanel({
+    opened,
+    onClose,
+}: {
+    opened: OpenedInterview | null;
+    onClose: () => void;
+}) {
+    const [tab, setTab] = useState<CandidateTab>('interview');
+    const [inviting, setInviting] = useState<Candidate | null>(null);
+    const [invitation, setInvitation] = useState<Invitation | null>(null);
+    const [formLink, setFormLink] = useState<FormLink | null>(null);
+
+    useEffect(() => {
+        return router.on('flash', (event) => {
+            const flash = (event as CustomEvent).detail?.flash as
+                | { invitation?: Invitation; formLink?: FormLink }
+                | undefined;
+
+            if (flash?.invitation) {
+                setInvitation(flash.invitation);
+            }
+
+            if (flash?.formLink) {
+                setFormLink(flash.formLink);
+            }
+        });
+    }, []);
+
+    const item = opened?.requisition ?? null;
+    const candidate =
+        item?.shortlist?.find((entry) => entry.id === opened?.candidateId) ??
+        null;
+
+    return (
+        <>
+            {item && (
+                <CandidateDrawer
+                    item={item}
+                    candidate={inviting === null ? candidate : null}
+                    tab={tab}
+                    onTab={setTab}
+                    onClose={onClose}
+                    onInvite={setInviting}
+                />
+            )}
+            {item && inviting && (
+                <InviteDialog
+                    item={item}
+                    candidate={inviting}
+                    availability={item.availability}
+                    onClose={() => {
+                        setInviting(null);
+                        onClose();
+                    }}
+                />
+            )}
+            {invitation && (
+                <InvitationResult
+                    invitation={invitation}
+                    onClose={() => setInvitation(null)}
+                />
+            )}
+            {formLink && (
+                <FormLinkResult
+                    formLink={formLink}
+                    onClose={() => setFormLink(null)}
+                />
+            )}
+        </>
+    );
+}
+
 export function InterviewTab({
     item,
     openCandidateId = null,

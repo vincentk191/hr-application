@@ -430,3 +430,54 @@ it('counts running requisitions by stage and lists the invitation links that lap
         ->and($recruitment['interviewsThisWeek'])->toBe(1)
         ->and($recruitment['upcoming'][0]['name'])->toBe('Besok');
 });
+
+it('opens a candidate\'s interview over the dashboard as the recruitment page would show it to them, and nothing otherwise', function () {
+    $boss = adminUser(Role::Supervisor, $this->company);
+    $bossEmployee = Employee::factory()->forCompany($this->company)->create(['user_id' => $boss->id, 'full_name' => 'Bu Bos', 'joined_on' => '2020-01-01']);
+    $mira = adminUser(Role::Management, $this->company);
+    $requisition = adminRequisition(RequisitionStage::Interview);
+    $requisition->update(['manager_employee_id' => $bossEmployee->id]);
+    $at = CarbonImmutable::parse('2026-11-10 10:00', 'Asia/Jakarta')->utc();
+
+    $withMira = Candidate::factory()->create(['requisition_id' => $requisition->id, 'name' => 'Ani', 'invited_at' => now(), 'interview_at' => $at, 'interview_mode' => 'online']);
+    $withMira->interviewers()->sync([$mira->id]);
+    $withHr = Candidate::factory()->create(['requisition_id' => $requisition->id, 'name' => 'Budi Kandidat', 'invited_at' => now(), 'interview_at' => $at->addHour(), 'interview_mode' => 'online']);
+    $withHr->interviewers()->sync([$this->hr->id]);
+
+    // HR gets the requisition as its Interview tab shows it, and the candidate to open in it.
+    $opened = dashboardProps($this->hr, "?interview={$withMira->id}")['openedInterview'];
+
+    expect($opened['candidateId'])->toBe($withMira->id)
+        ->and($opened['requisition']['id'])->toBe($requisition->id)
+        ->and(collect($opened['requisition']['shortlist'])->pluck('id')->all())->toContain($withMira->id)
+        ->and($opened['requisition']['canManageInterview'])->toBeTrue()
+        // Nothing is asked for, nothing is opened; and an interview that does not exist opens nothing.
+        ->and(dashboardProps($this->hr)['openedInterview'])->toBeNull()
+        ->and(dashboardProps($this->hr, '?interview=999999')['openedInterview'])->toBeNull();
+
+    // A participant opens their own interview, but not one they were not chosen for.
+    expect(dashboardProps($mira, "?interview={$withMira->id}")['openedInterview']['candidateId'])->toBe($withMira->id)
+        ->and(dashboardProps($mira, "?interview={$withHr->id}")['openedInterview'])->toBeNull();
+
+    // Someone with no part in recruitment opens nothing.
+    $stranger = adminUser(Role::Employee, $this->company);
+    Employee::factory()->forCompany($this->company)->create(['user_id' => $stranger->id, 'joined_on' => '2020-01-01']);
+
+    expect(dashboardProps($stranger, "?interview={$withMira->id}")['openedInterview'])->toBeNull();
+
+    // Recruitment is private: not on the public entrance, whoever asks.
+    $public = $this->withHeaders(['X-Entrance' => 'public'])->actingAs($this->hr)->get("/dashboard?interview={$withMira->id}")->assertOk()->viewData('page')['props'];
+    expect($public['openedInterview'])->toBeNull();
+});
+
+it('gives an interview on the calendar the candidate to open over the dashboard', function () {
+    $requisition = adminRequisition(RequisitionStage::Interview);
+    $sari = Candidate::factory()->create([
+        'requisition_id' => $requisition->id, 'name' => 'Sari',
+        'interview_at' => CarbonImmutable::parse('2026-11-10 10:00', 'Asia/Jakarta')->utc(), 'interview_mode' => 'online',
+    ]);
+
+    $entry = collect(dashboardProps($this->hr, '?calendar=2026-11&scope=me')['adminCalendar']['entries'])->firstWhere('kind', 'interview');
+
+    expect($entry['interviewId'])->toBe($sari->id);
+});

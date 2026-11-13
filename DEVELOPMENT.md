@@ -1966,7 +1966,11 @@ Screening now happens inside the platforms, and the app only meets the people HR
     someone has evaluated the interview. This is how an event deleted on Google is cleared from the app (the flag stays
     until HR acts; it never deletes by itself).
   - **Dashboard calendar (2026-11-13):** an interview on the home calendar (and in "Interview mendatang") opens the
-    requisition on its Interview tab with that candidate's panel already open (`?tab=interview&candidate=…`).
+    candidate's panel **on the dashboard itself** (`?interview=ID`, the `openedInterview` prop, like `?request=ID` does for
+    leave), not the recruitment page. It is the same panel as the Interview tab, read through the same visibility (HR sees
+    every candidate, a participant only theirs) and never on the public entrance; rescheduling and the invitation result
+    work from there too (`InterviewPanel`). The link to the requisition's Interview tab with the panel open
+    (`/recruitment/{id}?tab=interview&candidate=ID`) remains as the fallback.
   - **Open:** how long a refresh token lives for CMP's real account. See the Phase 0 result below: the mail for `cmp.id` was
     found at Niagahoster, not Google, so the account is probably a plain Google account; publish the OAuth app to **In
     production** and prove it before relying on it. Tests: `GoogleInterviewTest`.
