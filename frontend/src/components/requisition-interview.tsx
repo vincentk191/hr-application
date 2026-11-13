@@ -2,6 +2,7 @@ import { Form, router, usePage } from '@inertiajs/react';
 import {
     Building2,
     CalendarDays,
+    CalendarX2,
     Check,
     Clock,
     Download,
@@ -26,6 +27,7 @@ import {
 import { CandidateDrawer } from '@/components/candidate-drawer';
 import type { CandidateTab } from '@/components/candidate-drawer';
 import { modeLabel } from '@/components/candidate-invitation';
+import { GoogleConnectionBar } from '@/components/google-connection';
 import InputError from '@/components/input-error';
 import { InterviewerPicker } from '@/components/interviewer-picker';
 import { firstAddress, LinkifiedText } from '@/components/linkified-text';
@@ -74,8 +76,12 @@ export function InvitationResult({
                     <DialogTitle>Undangan untuk {invitation.name}</DialogTitle>
                     <DialogDescription>
                         {invitation.email
-                            ? `Email dikirim ke ${invitation.email}. `
-                            : 'Kandidat ini tidak punya email, jadi kirim pesan di bawah lewat WhatsApp atau chat platform. '}
+                            ? invitation.viaGoogle
+                                ? `Undangan Google Calendar dikirim ke ${invitation.email}. `
+                                : `Email dikirim ke ${invitation.email}. `
+                            : invitation.viaGoogle
+                              ? 'Kandidat ini tidak punya email: acara sudah di Google Calendar, tetapi kirim pesan di bawah lewat WhatsApp atau chat platform. '
+                              : 'Kandidat ini tidak punya email, jadi kirim pesan di bawah lewat WhatsApp atau chat platform. '}
                         {invitation.link
                             ? `Tautan formulir hanya tampil sekarang. Tautan hanya bisa dibuka pada hari interview (${invitation.expiresOn}) dan kedaluwarsa di akhir hari itu atau setelah formulir diisi.`
                             : 'Formulirnya sudah diisi, jadi pesan ini hanya memuat jadwal baru.'}
@@ -185,7 +191,7 @@ export function InviteDialog({
     availability,
     onClose,
 }: {
-    item: Pick<Requisition, 'id' | 'manager' | 'interviewerOptions'>;
+    item: Pick<Requisition, 'id' | 'manager' | 'interviewerOptions' | 'google'>;
     /** The candidate to invite, when the dialog was opened for one. */
     candidate?: Candidate;
     /** Who the "Kandidat" field offers, when the dialog was opened from a slot with nobody chosen yet. */
@@ -208,6 +214,9 @@ export function InviteDialog({
         candidate?.interviewMode ?? 'online',
     );
     const again = candidate !== undefined && candidate.inviteState !== 'none';
+    // With the company's Google account connected, Google sends the invitation and makes the Meet room itself.
+    const google = item.google?.ready ? item.google : null;
+    const googleMakesRoom = google !== null && mode === 'online';
     // Whoever was chosen last time again; for a first invitation, the person sending it when they are on the list.
     const { auth } = usePage().props;
     const [participants, setParticipants] = useState<number[]>(() => {
@@ -239,9 +248,13 @@ export function InviteDialog({
                         {fixed ? ` — ${fixed.name}` : ''}
                     </DialogTitle>
                     <DialogDescription>
-                        {candidate === undefined || candidate.email
-                            ? 'Undangan dikirim lewat email jika kandidat punya email, dan teksnya juga bisa disalin untuk WhatsApp.'
-                            : 'Kandidat ini tidak punya email: teks undangan disiapkan untuk disalin ke WhatsApp.'}
+                        {google !== null
+                            ? candidate === undefined || candidate.email
+                                ? `Google Calendar mengirim undangan dari ${google.email}, dan teksnya juga bisa disalin untuk WhatsApp.`
+                                : 'Kandidat ini tidak punya email: acara tetap dibuat di Google Calendar, dan teks undangan disiapkan untuk disalin ke WhatsApp.'
+                            : candidate === undefined || candidate.email
+                              ? 'Undangan dikirim lewat email jika kandidat punya email, dan teksnya juga bisa disalin untuk WhatsApp.'
+                              : 'Kandidat ini tidak punya email: teks undangan disiapkan untuk disalin ke WhatsApp.'}
                         {again && candidate.inviteState !== 'submitted'
                             ? ' Tautan formulir lama berhenti berlaku dan diganti yang baru.'
                             : ''}
@@ -356,28 +369,45 @@ export function InviteDialog({
                                 </select>
                                 <InputError message={errors.interview_mode} />
                             </div>
-                            <div className="grid gap-1">
-                                <Label htmlFor="interview-place">
-                                    {mode === 'online'
-                                        ? 'Tautan Google Meet'
-                                        : 'Alamat tempat interview'}
-                                </Label>
-                                <Input
-                                    id="interview-place"
-                                    name="interview_place"
-                                    defaultValue={
-                                        candidate?.interviewPlace ?? ''
-                                    }
-                                    placeholder={
-                                        mode === 'online'
-                                            ? 'https://meet.google.com/…'
-                                            : 'Kantor, lantai, ruangan'
-                                    }
-                                    maxLength={300}
-                                    required
-                                />
-                                <InputError message={errors.interview_place} />
-                            </div>
+                            {googleMakesRoom ? (
+                                <p
+                                    className="flex items-center gap-2 text-sm text-muted-foreground"
+                                    data-test="meet-automatic"
+                                >
+                                    <Video className="size-4" aria-hidden />
+                                    Tautan Google Meet dibuat otomatis.
+                                </p>
+                            ) : (
+                                <div className="grid gap-1">
+                                    <Label htmlFor="interview-place">
+                                        {mode === 'online'
+                                            ? 'Tautan Google Meet'
+                                            : 'Alamat tempat interview'}
+                                    </Label>
+                                    <Input
+                                        id="interview-place"
+                                        name="interview_place"
+                                        defaultValue={
+                                            // A Meet room Google made is not an address to travel to.
+                                            candidate?.googleEvent &&
+                                            mode === 'onsite'
+                                                ? ''
+                                                : (candidate?.interviewPlace ??
+                                                  '')
+                                        }
+                                        placeholder={
+                                            mode === 'online'
+                                                ? 'https://meet.google.com/…'
+                                                : 'Kantor, lantai, ruangan'
+                                        }
+                                        maxLength={300}
+                                        required
+                                    />
+                                    <InputError
+                                        message={errors.interview_place}
+                                    />
+                                </div>
+                            )}
                             <InterviewerPicker
                                 options={item.interviewerOptions}
                                 superior={item.manager}
@@ -404,6 +434,7 @@ export function InviteDialog({
                                 />
                                 <InputError message={errors.note} />
                             </div>
+                            <InputError message={errors.google} />
                             <Button
                                 type="submit"
                                 disabled={processing}
@@ -853,6 +884,12 @@ function CandidateSummaryRow({
                         <UserCheck
                             className="size-4 text-emerald-600"
                             aria-label="Dipilih"
+                        />
+                    )}
+                    {candidate.googleMissing && (
+                        <CalendarX2
+                            className="size-4 text-amber-600"
+                            aria-label="Acara dihapus di Google"
                         />
                     )}
                 </span>
@@ -1359,6 +1396,13 @@ export function InterviewTab({ item }: { item: Requisition }) {
 
     return (
         <div className="space-y-5" data-test="interview-tab">
+            {item.google !== null && (
+                <GoogleConnectionBar
+                    requisitionId={item.id}
+                    google={item.google}
+                />
+            )}
+
             <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_24rem]">
                 <WeekCalendar
                     entries={entries}

@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Requisition;
+use App\Support\Recruitment\InterviewEvent;
 use App\Support\Recruitment\InterviewParticipants;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -12,7 +13,8 @@ use Illuminate\Validation\Validator;
 
 /**
  * Inviting a shortlisted candidate to interview (REC-INT): when (in the company's time, a future time within a year),
- * online or in person, and where: a Meet link or an address.
+ * online or in person, and where: a Meet link or an address. Where the company's Google account is connected, an online
+ * interview needs no link: Google makes the Meet room.
  */
 class InviteCandidateRequest extends FormRequest
 {
@@ -31,7 +33,7 @@ class InviteCandidateRequest extends FormRequest
         return [
             'interview_at' => ['required', 'date_format:Y-m-d\TH:i'],
             'interview_mode' => ['required', 'in:online,onsite'],
-            'interview_place' => ['required', 'string', 'max:300'],
+            'interview_place' => [Rule::requiredIf(fn (): bool => ! $this->googleMakesTheMeetRoom()), 'nullable', 'string', 'max:300'],
             // How long it lasts, for the calendar event; left out it stays as it was, or an hour.
             'interview_minutes' => ['nullable', 'integer', 'min:5', 'max:480'],
             'note' => ['nullable', 'string', 'max:1000'],
@@ -39,6 +41,18 @@ class InviteCandidateRequest extends FormRequest
             'participants' => ['required', 'array', 'min:1'],
             'participants.*' => ['integer', 'distinct', Rule::in($this->participantChoices())],
         ];
+    }
+
+    /**
+     * An online interview of a company whose Google account is connected gets its Meet link from Google.
+     */
+    private function googleMakesTheMeetRoom(): bool
+    {
+        $requisition = $this->route('requisition');
+
+        return $requisition instanceof Requisition
+            && $this->input('interview_mode') === 'online'
+            && app(InterviewEvent::class)->usableFor($requisition->company_id) !== null;
     }
 
     /**
@@ -95,7 +109,7 @@ class InviteCandidateRequest extends FormRequest
     }
 
     /**
-     * @return array{interview_at: string, interview_mode: string, interview_place: string, interview_minutes: int|null, note: string|null, participants: list<int>}
+     * @return array{interview_at: string, interview_mode: string, interview_place: string|null, interview_minutes: int|null, note: string|null, participants: list<int>}
      */
     public function invitationFields(): array
     {
@@ -106,7 +120,7 @@ class InviteCandidateRequest extends FormRequest
             'participants' => array_values(array_map('intval', (array) $validated['participants'])),
             'interview_at' => (string) $validated['interview_at'],
             'interview_mode' => (string) $validated['interview_mode'],
-            'interview_place' => (string) $validated['interview_place'],
+            'interview_place' => isset($validated['interview_place']) ? (string) $validated['interview_place'] : null,
             'interview_minutes' => isset($validated['interview_minutes']) ? (int) $validated['interview_minutes'] : null,
             'note' => isset($validated['note']) ? (string) $validated['note'] : null,
         ];

@@ -126,6 +126,26 @@ export type InterviewerOption = {
     group: 'hr' | 'management';
 };
 
+/**
+ * The Google account the company's interview invitations are sent from (REC-INT). `ready` means invitations go through it:
+ * connected, and Google has not refused it. Only HR with the recruitment permission can connect or disconnect.
+ */
+export type GoogleStatus = {
+    /** The server has the Google client ID, secret and return address. */
+    configured: boolean;
+    connected: boolean;
+    ready: boolean;
+    email: string | null;
+    canManage: boolean;
+};
+
+/** What a candidate answered to the Google Calendar invitation. */
+export type GoogleResponse =
+    | 'accepted'
+    | 'declined'
+    | 'tentative'
+    | 'needsAction';
+
 /** Someone HR shortlisted (REC-SCR). Only HR is given these. */
 export type Candidate = {
     id: number;
@@ -155,6 +175,12 @@ export type Candidate = {
     interviewPlace: string | null;
     /** How long the interview is, in minutes: an hour unless HR chose otherwise. */
     interviewMinutes: number;
+    /** The interview is an event on Google Calendar. */
+    googleEvent: boolean;
+    /** The event was deleted on Google; inviting again makes a new one. */
+    googleMissing: boolean;
+    /** What the candidate answered to Google's invitation; null when they have not or have no email. */
+    googleResponse: GoogleResponse | null;
     /** The HR and Manajemen users chosen to sit in on the interview, besides the direct superior; empty for an older invitation. */
     interviewers: { id: number; name: string }[];
     /** HR, the direct superior and the Manajemen users chosen may download the interview as a calendar event (.ics). */
@@ -330,6 +356,8 @@ export type SentInvitation = {
     message: string;
     /** It went out by email; otherwise HR copied it for WhatsApp. */
     emailed: boolean;
+    /** The email was Google Calendar's invitation. */
+    viaGoogle: boolean;
     sentOn: string | null;
     /** The same moment as a datetime-local value in the company's time, to show the hour. */
     sentAt: string | null;
@@ -354,6 +382,8 @@ export type Invitation = {
     link: string | null;
     message: string;
     expiresOn: string | null;
+    /** Google Calendar sent the invitation (from the company's account) instead of the app's own email. */
+    viaGoogle: boolean;
 };
 
 /** A new link to a candidate's form, handed to HR once (a candidate asked for it again). */
@@ -435,6 +465,8 @@ export type Requisition = RequisitionRow & {
     canManageInterview: boolean;
     /** The HR admins and Manajemen users the invitation's "Peserta" list offers; empty for those who may not invite. */
     interviewerOptions: InterviewerOption[];
+    /** The company's Google account for invitations; null for those who may not invite. */
+    google: GoogleStatus | null;
     /** Holidays and leave of the people interviews depend on; null outside Interview and Offer, and for those who do not see candidates. */
     availability: InterviewAvailability | null;
     canManagePostings: boolean;

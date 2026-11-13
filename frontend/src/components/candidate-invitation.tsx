@@ -35,6 +35,17 @@ export const INVITE_STATE: Record<
     },
 };
 
+/** What the candidate answered to Google Calendar's invitation. */
+export const GOOGLE_RESPONSE: Record<
+    NonNullable<Candidate['googleResponse']>,
+    string
+> = {
+    accepted: 'Kandidat menerima',
+    declined: 'Kandidat menolak',
+    tentative: 'Kandidat mungkin hadir',
+    needsAction: 'Kandidat belum menjawab',
+};
+
 export function modeLabel(mode: Candidate['interviewMode']): string {
     return mode === 'online' ? 'Daring' : 'Tatap muka';
 }
@@ -68,7 +79,11 @@ export function InvitationEmail({ candidate }: { candidate: Candidate }) {
         {
             label: 'Dikirim',
             value: `${sentLabel(sent.sentAt, sent.sentOn)} · ${
-                sent.emailed ? 'lewat email' : 'disalin untuk WhatsApp'
+                sent.viaGoogle
+                    ? 'lewat Google Calendar'
+                    : sent.emailed
+                      ? 'lewat email'
+                      : 'disalin untuk WhatsApp'
             }`,
         },
         ...(sent.subject
@@ -80,7 +95,11 @@ export function InvitationEmail({ candidate }: { candidate: Candidate }) {
         <section className="space-y-2" data-test="invitation-preview">
             <header className="flex items-center justify-between gap-3">
                 <h3 className="label-mono">
-                    {sent.emailed ? 'Email undangan' : 'Pesan undangan'}
+                    {sent.viaGoogle
+                        ? 'Undangan Google Calendar'
+                        : sent.emailed
+                          ? 'Email undangan'
+                          : 'Pesan undangan'}
                 </h3>
                 <CopyButton
                     variant="ghost"

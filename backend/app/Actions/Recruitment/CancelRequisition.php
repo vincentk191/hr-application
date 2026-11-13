@@ -6,7 +6,9 @@ use App\Enums\RequisitionStage;
 use App\Mail\CandidateInterviewCancelled;
 use App\Models\Requisition;
 use App\Models\User;
+use App\Support\Google\GoogleCalendar;
 use App\Support\Notifications\Notifier;
+use App\Support\Recruitment\InterviewEvent;
 use App\Support\Recruitment\InvitationMessage;
 use App\Workflows\WorkflowEngine;
 use Illuminate\Support\Facades\DB;
@@ -41,25 +43,39 @@ class CancelRequisition
 
         app(Notifier::class)->requisitionCancelled($requisition->refresh(), $reason, $by);
 
-        return $notifyCandidates ? $this->tellCandidates($requisition) : 0;
+        return $this->tellCandidates($requisition, $notifyCandidates);
     }
 
-    private function tellCandidates(Requisition $requisition): int
+    /**
+     * The interviews still ahead come off the calendar of the company's Google account. Where HR chose to tell the
+     * candidates, Google's own cancellation is the word they get; the others get the app's email as before.
+     *
+     * @return int how many candidates were told
+     */
+    private function tellCandidates(Requisition $requisition, bool $notify): int
     {
         $requisition->loadMissing('company');
         $subject = 'Interview dibatalkan — '.$requisition->position_name;
+        $events = app(InterviewEvent::class);
+        $told = 0;
 
-        $candidates = $requisition->candidates()
-            ->inProcess()
-            ->where('interview_at', '>', now())
-            ->whereNotNull('email')
-            ->where('email', '!=', '')
-            ->get();
+        $ahead = $requisition->candidates()->inProcess()->where('interview_at', '>', now())->get();
 
-        foreach ($candidates as $candidate) {
-            Mail::to((string) $candidate->email)->queue(new CandidateInterviewCancelled($subject, InvitationMessage::cancellation($candidate, $requisition)));
+        foreach ($ahead as $candidate) {
+            $hadEvent = $candidate->hasGoogleEvent();
+
+            if ($hadEvent && $events->cancel($candidate, $notify ? GoogleCalendar::NOTIFY_ALL : GoogleCalendar::NOTIFY_NONE)) {
+                $told += $notify && filled($candidate->email) ? 1 : 0;
+
+                continue;
+            }
+
+            if ($notify && filled($candidate->email)) {
+                Mail::to((string) $candidate->email)->queue(new CandidateInterviewCancelled($subject, InvitationMessage::cancellation($candidate, $requisition)));
+                $told++;
+            }
         }
 
-        return $candidates->count();
+        return $told;
     }
 }

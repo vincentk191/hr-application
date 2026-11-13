@@ -19,6 +19,7 @@ use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeDocumentController;
 use App\Http\Controllers\EmployeeImportController;
 use App\Http\Controllers\EmployeePhotoController;
+use App\Http\Controllers\GoogleConnectionController;
 use App\Http\Controllers\LeaveAttachmentController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\LeaveRequestDecisionController;
@@ -130,6 +131,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('recruitment/{requisition}/offers/{offer}/employee', [RequisitionOfferController::class, 'employee'])->scopeBindings()->name('recruitment.offers.employee');
     Route::post('recruitment/{requisition}/offers/{offer}/employee', [RequisitionOfferController::class, 'convert'])->scopeBindings()->name('recruitment.offers.convert');
     Route::get('recruitment/{requisition}/candidates/{candidate}/calendar', [RequisitionController::class, 'interviewEvent'])->scopeBindings()->name('recruitment.candidates.calendar');
+    // The Google account a company's interview invitations are sent from (REC-INT). Private like the rest of recruitment;
+    // Google sends HR back to /google/callback on the private address.
+    Route::get('recruitment/{requisition}/google', [GoogleConnectionController::class, 'connect'])->name('recruitment.google.connect');
+    Route::delete('recruitment/{requisition}/google', [GoogleConnectionController::class, 'disconnect'])->name('recruitment.google.disconnect');
+    Route::get('google/callback', [GoogleConnectionController::class, 'callback'])->name('recruitment.google.callback');
     Route::post('recruitment/{requisition}/offer', [RequisitionController::class, 'advanceToOffer'])->name('recruitment.offer');
     Route::post('recruitment/{requisition}/filled', [RequisitionController::class, 'markFilled'])->name('recruitment.filled');
     Route::put('recruitment/{requisition}/postings/{posting}/takedown', [RequisitionController::class, 'takeDownPosting'])->scopeBindings()->name('recruitment.postings.takedown');

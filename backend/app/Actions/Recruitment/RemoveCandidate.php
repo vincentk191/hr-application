@@ -4,6 +4,8 @@ namespace App\Actions\Recruitment;
 
 use App\Models\Candidate;
 use App\Models\User;
+use App\Support\Google\GoogleCalendar;
+use App\Support\Recruitment\InterviewEvent;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -17,6 +19,7 @@ class RemoveCandidate
     public function handle(Candidate $candidate, ?User $by = null): void
     {
         $this->withdraw->forCandidate($candidate, $by);
+        app(InterviewEvent::class)->cancel($candidate, GoogleCalendar::NOTIFY_NONE);
 
         if ($candidate->cv_path !== null) {
             Storage::disk(Candidate::CV_DISK)->delete($candidate->cv_path);

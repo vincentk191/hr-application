@@ -158,6 +158,10 @@ class RequisitionPresenter
             'canManageInterview' => $viewer->can('manageInterview', $requisition),
             // Who the invitation's "Peserta" list offers: HR and Manajemen of the company, for those who may invite.
             'interviewerOptions' => $viewer->can('manageInterview', $requisition) ? app(InterviewParticipants::class)->options($requisition) : [],
+            // The Google account the company's invitations come from: for those who invite; only HR with the recruitment permission can change it.
+            'google' => $viewer->can('manageInterview', $requisition)
+                ? app(InterviewEvent::class)->status($requisition->company_id, $viewer->can(Permission::ManageRecruitment->value))
+                : null,
             'canProposeOffers' => $viewer->can('proposeOffers', $requisition),
             // The offers to chosen candidates: HR, the direct superior and Management only (REC-OFS).
             'offers' => $this->offers($requisition, $viewer),
@@ -368,10 +372,15 @@ class RequisitionPresenter
             'interviewMode' => $candidate->interview_mode,
             'interviewPlace' => $candidate->interview_place,
             'interviewMinutes' => $candidate->interview_minutes ?: InterviewCalendar::DEFAULT_MINUTES,
+            // The interview is an event on Google Calendar: whether it was deleted there, and what the candidate answered.
+            'googleEvent' => $candidate->hasGoogleEvent(),
+            'googleMissing' => $candidate->google_missing_at !== null,
+            'googleResponse' => filled($candidate->email) ? ($candidate->google_responses[strtolower((string) $candidate->email)] ?? null) : null,
             'invitation' => $candidate->invitation_message === null ? null : [
                 'subject' => $candidate->invitation_subject,
                 'message' => $candidate->invitation_message,
                 'emailed' => $candidate->invitation_emailed,
+                'viaGoogle' => $candidate->hasGoogleEvent(),
                 'sentOn' => $candidate->invited_at?->copy()->setTimezone($timezone)->toDateString(),
                 'sentAt' => $candidate->invited_at?->copy()->setTimezone($timezone)->format('Y-m-d\TH:i'),
             ],

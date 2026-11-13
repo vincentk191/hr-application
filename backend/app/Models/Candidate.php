@@ -45,6 +45,12 @@ use Illuminate\Support\Carbon;
  * @property string|null $invitation_message
  * @property string|null $invitation_note
  * @property bool $invitation_emailed
+ * @property string|null $google_event_id
+ * @property string|null $google_etag
+ * @property string|null $google_meet_link
+ * @property array<string, string>|null $google_responses
+ * @property Carbon|null $google_missing_at
+ * @property Carbon|null $google_synced_at
  * @property Carbon|null $candidate_reminded_at
  * @property Carbon|null $interviewers_reminded_at
  * @property Carbon|null $evaluation_prompted_at
@@ -84,6 +90,12 @@ use Illuminate\Support\Carbon;
     'invitation_message',
     'invitation_note',
     'invitation_emailed',
+    'google_event_id',
+    'google_etag',
+    'google_meet_link',
+    'google_responses',
+    'google_missing_at',
+    'google_synced_at',
     'candidate_reminded_at',
     'interviewers_reminded_at',
     'evaluation_prompted_at',
@@ -119,6 +131,9 @@ class Candidate extends Model
             'interview_minutes' => 'integer',
             'form_submitted_at' => 'datetime',
             'invitation_emailed' => 'boolean',
+            'google_responses' => 'array',
+            'google_missing_at' => 'datetime',
+            'google_synced_at' => 'datetime',
             'candidate_reminded_at' => 'datetime',
             'interviewers_reminded_at' => 'datetime',
             'evaluation_prompted_at' => 'datetime',
@@ -165,6 +180,14 @@ class Candidate extends Model
                 ->setTimezone((string) config('attendance.device_timezone'))
                 ->endOfDay()
                 ->utc();
+    }
+
+    /**
+     * The interview is an event on the company's Google Calendar, which is what invited the candidate.
+     */
+    public function hasGoogleEvent(): bool
+    {
+        return $this->google_event_id !== null;
     }
 
     /**

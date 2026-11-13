@@ -1,8 +1,10 @@
 import { router } from '@inertiajs/react';
 import {
     Ban,
+    CalendarCheck,
     CalendarDays,
     CalendarPlus,
+    CalendarX2,
     Clock,
     Mail,
     MapPin,
@@ -27,6 +29,7 @@ import { DecisionDialog } from '@/components/decision-dialog';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import { FileLink, useFilePreview } from '@/components/file-preview';
 import {
+    GOOGLE_RESPONSE,
     INVITE_STATE,
     InvitationEmail,
     modeLabel,
@@ -840,6 +843,32 @@ function InterviewSection({
                                                 : []),
                                         ].join(', ')}
                                     </span>
+                                </p>
+                            )}
+                            {candidate.googleMissing && (
+                                <p
+                                    className="mt-2 flex items-start gap-1.5 text-sm text-amber-700 dark:text-amber-300"
+                                    data-test="google-missing"
+                                >
+                                    <CalendarX2
+                                        className="mt-0.5 size-4 shrink-0"
+                                        aria-hidden
+                                    />
+                                    Acara dihapus di Google Calendar. Ubah
+                                    jadwal &amp; kirim ulang untuk membuat yang
+                                    baru.
+                                </p>
+                            )}
+                            {candidate.googleResponse && (
+                                <p
+                                    className="mt-2 flex items-center gap-1.5 text-sm"
+                                    data-test="google-response"
+                                >
+                                    <CalendarCheck
+                                        className="size-4 text-muted-foreground"
+                                        aria-hidden
+                                    />
+                                    {GOOGLE_RESPONSE[candidate.googleResponse]}
                                 </p>
                             )}
                         </div>

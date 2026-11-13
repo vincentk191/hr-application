@@ -6,6 +6,8 @@ use App\Mail\CandidateRejected;
 use App\Models\Candidate;
 use App\Models\Requisition;
 use App\Models\User;
+use App\Support\Google\GoogleCalendar;
+use App\Support\Recruitment\InterviewEvent;
 use App\Support\Recruitment\InvitationMessage;
 use Illuminate\Support\Facades\Mail;
 
@@ -37,6 +39,9 @@ class RejectCandidate
             ->log('Kandidat ditolak');
 
         $this->withdraw->forCandidate($candidate, $by);
+
+        // A turned-down candidate is off the interview's calendar too. Google says nothing: whether to tell them is HR's choice below.
+        app(InterviewEvent::class)->cancel($candidate, GoogleCalendar::NOTIFY_NONE);
 
         if (! $notify || blank($candidate->email) || $candidate->invited_at === null) {
             return false;

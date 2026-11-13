@@ -1,6 +1,7 @@
 <?php
 
 use App\Support\Features;
+use App\Support\Google\GoogleOAuth;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -37,3 +38,10 @@ Schedule::command('notifications:document-expiry')
 Schedule::command('recruitment:interview-reminders')
     ->dailyAt('08:00')
     ->timezone((string) config('attendance.device_timezone'));
+
+// Interviews made through Google Calendar (REC-INT): follow a time changed there, flag an event deleted there. Outbound only, so
+// nothing about Google is reachable from outside. Skipped when the app is not set up for Google at all.
+Schedule::command('recruitment:sync-google-events')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping(10)
+    ->when(fn (): bool => app(GoogleOAuth::class)->isConfigured());

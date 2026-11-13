@@ -46,8 +46,11 @@ use App\Models\RequisitionPosting;
 use App\Models\User;
 use App\Support\CsvDownload;
 use App\Support\Files\InlineImage;
+use App\Support\Google\GoogleAuthLost;
+use App\Support\Google\GoogleUnavailable;
 use App\Support\Notifications\Notifier;
 use App\Support\Recruitment\InterviewCalendar;
+use App\Support\Recruitment\InterviewEvent;
 use App\Support\Recruitment\InvitationMessage;
 use App\Support\Recruitment\RequisitionDepartments;
 use App\Support\Recruitment\RequisitionPresenter;
@@ -522,7 +525,17 @@ class RequisitionController extends Controller
     {
         abort_if($candidate->isRejected(), 403);
 
-        $result = $invite->handle($requisition, $candidate, $request->invitationFields(), $request->user());
+        try {
+            $result = $invite->handle($requisition, $candidate, $request->invitationFields(), $request->user());
+        } catch (GoogleAuthLost $lost) {
+            app(InterviewEvent::class)->lost($lost);
+
+            throw ValidationException::withMessages(['google' => 'Google menolak akun yang terhubung, jadi undangan belum dikirim. Hubungkan ulang akunnya, atau isi tautan sendiri setelah itu.']);
+        } catch (GoogleUnavailable $unavailable) {
+            report($unavailable);
+
+            throw ValidationException::withMessages(['google' => 'Google Calendar tidak bisa dihubungi sekarang, jadi undangan belum dikirim. Coba lagi sebentar lagi.']);
+        }
 
         Inertia::flash('invitation', [
             'candidateId' => $candidate->id,
@@ -531,8 +544,9 @@ class RequisitionController extends Controller
             'link' => $result['link'],
             'message' => $result['message'],
             'expiresOn' => $result['expiresAt'] === null ? null : InvitationMessage::dayLabel($result['expiresAt'], false),
+            'viaGoogle' => $result['viaGoogle'],
         ]);
-        Inertia::flash('toast', ['type' => 'success', 'message' => "{$candidate->name} diundang interview."]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => $result['viaGoogle'] ? "{$candidate->name} diundang lewat Google Calendar." : "{$candidate->name} diundang interview."]);
 
         return back();
     }

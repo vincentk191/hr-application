@@ -8,6 +8,7 @@ use App\Models\Candidate;
 use App\Models\CandidateOffer;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
+use App\Models\GoogleConnection;
 use App\Models\LeaveRequest;
 use App\Models\OffboardingCase;
 use App\Models\ProfileChangeRequest;
@@ -621,6 +622,70 @@ class Notifier
         $participants->recipients($candidate, $requisition)
             ->reject(fn (User $user): bool => $user->is($by))
             ->each(fn (User $user) => $user->notify($notice));
+    }
+
+    /**
+     * The time of an interview was changed on Google Calendar itself, and the app followed (REC-INT): tell HR and the people
+     * who sit in. Google has already emailed the candidate.
+     */
+    public function interviewMovedOnGoogle(Requisition $requisition, Candidate $candidate): void
+    {
+        $when = InvitationMessage::whenLabel(InvitationMessage::local($candidate->interview_at));
+        $notice = new InAppNotice(
+            'recruitment',
+            'Jadwal interview diubah di Google: '.$requisition->position_name,
+            "{$requisition->reference()} · {$candidate->name} · {$when}",
+            route('recruitment.show', $requisition, absolute: false),
+        );
+
+        $this->interviewTeam($requisition, $candidate)->each(fn (User $user) => $user->notify($notice));
+    }
+
+    /**
+     * The event of an interview was deleted on Google Calendar (REC-INT): tell HR, who decide whether to invite again. The
+     * app does not cancel the candidate on its own, since a deleted event may be a mistake.
+     */
+    public function interviewEventDeleted(Requisition $requisition, Candidate $candidate): void
+    {
+        $notice = new InAppNotice(
+            'recruitment',
+            'Interview dihapus di Google: '.$requisition->position_name,
+            "{$requisition->reference()} · {$candidate->name} · undang ulang untuk membuat jadwal baru",
+            route('recruitment.show', $requisition, absolute: false),
+        );
+
+        $this->recruitmentManagers($requisition->company_id)->each(fn (User $user) => $user->notify($notice));
+    }
+
+    /**
+     * Google no longer accepts the company's connected account (REC-INT): tell HR to connect it again. Until then, invitations
+     * go out as the app's own email.
+     */
+    public function googleNeedsReconnect(GoogleConnection $connection): void
+    {
+        $notice = new InAppNotice(
+            'recruitment',
+            'Google Calendar perlu dihubungkan ulang',
+            "{$connection->google_email} · undangan interview dikirim lewat email aplikasi sampai terhubung lagi",
+            route('recruitment.index', absolute: false),
+        );
+
+        $this->recruitmentManagers($connection->company_id)->each(fn (User $user) => $user->notify($notice));
+    }
+
+    /**
+     * HR, and the people who sit in on the candidate's interview, each once.
+     *
+     * @return \Illuminate\Support\Collection<int, User>
+     */
+    private function interviewTeam(Requisition $requisition, Candidate $candidate): \Illuminate\Support\Collection
+    {
+        $candidate->unsetRelation('interviewers');
+
+        return app(InterviewParticipants::class)->recipients($candidate, $requisition)
+            ->merge($this->recruitmentManagers($requisition->company_id))
+            ->unique('id')
+            ->values();
     }
 
     /**
