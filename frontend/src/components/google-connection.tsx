@@ -49,7 +49,11 @@ export function GoogleConnectionBar({
         >
             {!google.configured ? (
                 <p className="text-muted-foreground">
-                    Google belum disiapkan di server.
+                    Google belum disiapkan di server:{' '}
+                    <span className="font-mono text-xs">
+                        {google.missing.join(', ')}
+                    </span>{' '}
+                    kosong.
                 </p>
             ) : google.ready ? (
                 <>

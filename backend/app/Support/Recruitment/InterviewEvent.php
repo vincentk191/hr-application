@@ -58,7 +58,7 @@ class InterviewEvent
     /**
      * What the Interview tab shows about the company's Google account.
      *
-     * @return array{configured: bool, connected: bool, ready: bool, email: string|null, canManage: bool}
+     * @return array{configured: bool, missing: list<string>, connected: bool, ready: bool, email: string|null, canManage: bool}
      */
     public function status(int $companyId, bool $canManage): array
     {
@@ -66,6 +66,8 @@ class InterviewEvent
 
         return [
             'configured' => $this->oauth->isConfigured(),
+            // Which environment settings the server lacks, by name, for HR to pass on.
+            'missing' => $this->oauth->missingSettings(),
             'connected' => $connection !== null,
             // Invitations go through Google: connected, and Google has not refused the account.
             'ready' => $connection?->isUsable() === true,

@@ -133,6 +133,8 @@ export type InterviewerOption = {
 export type GoogleStatus = {
     /** The server has the Google client ID, secret and return address. */
     configured: boolean;
+    /** The environment settings the server has no value for, by name. */
+    missing: string[];
     connected: boolean;
     ready: boolean;
     email: string | null;

@@ -35,7 +35,7 @@ class GoogleConnectionController extends Controller
         $this->authorizeFor($request->user(), $requisition->company_id);
 
         if (! $oauth->isConfigured()) {
-            Inertia::flash('toast', ['type' => 'error', 'message' => 'Google belum disiapkan di server (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI).']);
+            Inertia::flash('toast', ['type' => 'error', 'message' => 'Google belum disiapkan di server: '.implode(', ', $oauth->missingSettings()).' kosong.']);
 
             return back();
         }

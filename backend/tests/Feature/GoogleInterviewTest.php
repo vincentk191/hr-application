@@ -211,11 +211,18 @@ it('sends HR to Google with the narrow calendar permission and a one-off state',
 it('lets only those who run recruitment connect, and says so when the server is not set up', function () {
     $this->actingAs($this->supervisor)->get(route('recruitment.google.connect', $this->requisition))->assertForbidden();
 
-    config(['services.google.client_id' => null]);
+    config(['services.google.client_id' => null, 'services.google.redirect' => '']);
 
     $this->actingAs($this->hr)->get(route('recruitment.google.connect', $this->requisition))
         ->assertRedirect()
-        ->assertInertiaFlash('toast.type', 'error');
+        ->assertInertiaFlash('toast.type', 'error')
+        // It names what is empty, never what the values are.
+        ->assertInertiaFlash('toast.message', 'Google belum disiapkan di server: GOOGLE_CLIENT_ID, GOOGLE_REDIRECT_URI kosong.');
+
+    $this->actingAs($this->hr)->get(route('recruitment.show', $this->requisition))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('requisition.google.configured', false)
+            ->where('requisition.google.missing', ['GOOGLE_CLIENT_ID', 'GOOGLE_REDIRECT_URI']));
 
     expect(session('google_oauth'))->toBeNull();
 });

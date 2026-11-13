@@ -39,9 +39,22 @@ class GoogleOAuth
      */
     public function isConfigured(): bool
     {
-        return filled(config('services.google.client_id'))
-            && filled(config('services.google.client_secret'))
-            && filled(config('services.google.redirect'));
+        return $this->missingSettings() === [];
+    }
+
+    /**
+     * The environment settings the server does not have a value for, by name (never the values), so a connection that cannot
+     * be made says what to fill in.
+     *
+     * @return list<string>
+     */
+    public function missingSettings(): array
+    {
+        return array_keys(array_filter([
+            'GOOGLE_CLIENT_ID' => blank(config('services.google.client_id')),
+            'GOOGLE_CLIENT_SECRET' => blank(config('services.google.client_secret')),
+            'GOOGLE_REDIRECT_URI' => blank(config('services.google.redirect')),
+        ]));
     }
 
     /**
