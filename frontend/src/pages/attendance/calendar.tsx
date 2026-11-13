@@ -402,7 +402,6 @@ export default function AttendanceCalendar(props: Props) {
     const entries = statusEntries(
         options.statuses,
         summary.counts,
-        summary.rekapEmployees,
         filters.statuses,
     );
     const pickStatus = (key: StatusFilterKey) =>

@@ -25,17 +25,16 @@ export type StatusEntry = {
 };
 
 /**
- * The statuses a person can be filtered by, with their counts: the five about someone expected to work, "belum ada
- * data", and the people of a Cabang that sends a rekapitulasi (only when there are some). A holiday or weekend ("off")
- * is not one: it says nothing about the person.
+ * The statuses a person can be filtered by, with their counts: the five about someone expected to work, and "belum ada
+ * data". A holiday or weekend ("off") is not one: it says nothing about the person. The people of a Cabang that sends a
+ * rekapitulasi are picked with the source toggle instead.
  */
 export function statusEntries(
     statuses: StatusOption[],
     counts: StatusCounts,
-    rekapEmployees: number,
     selected: StatusFilterKey[],
 ): StatusEntry[] {
-    const entries: StatusEntry[] = statuses
+    return statuses
         .filter((status) => status.value !== 'off')
         .map((status) => ({
             key: status.value,
@@ -44,18 +43,6 @@ export function statusEntries(
             count: counts[status.value],
             on: selected.includes(status.value),
         }));
-
-    if (rekapEmployees > 0 || selected.includes('rekap')) {
-        entries.push({
-            key: 'rekap',
-            code: 'R',
-            label: 'Rekapitulasi cabang',
-            count: rekapEmployees,
-            on: selected.includes('rekap'),
-        });
-    }
-
-    return entries;
 }
 
 const SOURCES: { value: CalendarSource; label: string }[] = [
@@ -98,7 +85,7 @@ export function SourceToggle({
 }
 
 export function tileOf(key: StatusFilterKey): string {
-    return key === 'rekap' ? STATUS_TILE.off : STATUS_TILE[key];
+    return STATUS_TILE[key];
 }
 
 export function FilterBar({

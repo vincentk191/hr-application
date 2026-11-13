@@ -48,7 +48,7 @@ class AttendanceCalendarController extends Controller
      */
     private const MAX_ROWS = 500;
 
-    /** The value of the status filter that picks the people of a Cabang that sends a rekapitulasi. */
+    /** The value of the source that picks the people of a Cabang that sends a rekapitulasi. */
     private const REKAP = 'rekap';
 
     /**
@@ -217,10 +217,9 @@ class AttendanceCalendarController extends Controller
         $filters = [
             'branches' => OrganisationNames::fromInput($request->input('branches')),
             'departments' => OrganisationNames::fromInput($request->input('departments')),
-            // 'rekap' is not a status of a day: it picks the people of a Cabang that sends a rekapitulasi.
             'statuses' => array_values(array_intersect(
                 (array) $request->input('statuses', []),
-                [...array_column(AttendanceDayStatus::cases(), 'value'), self::REKAP],
+                array_column(AttendanceDayStatus::cases(), 'value'),
             )),
             'search' => trim((string) $request->string('search')),
             'team' => $request->integer('team') ?: null,
@@ -232,10 +231,9 @@ class AttendanceCalendarController extends Controller
 
         // The week, month and year views mix the two kinds of people, so they can be narrowed to one of them. The day is the
         // scanner's alone: people of a Cabang that sends a rekapitulasi have no check-ins to list for a day, so they are not
-        // in it, and the "rekap" status means nothing there.
+        // in it.
         if ($view === 'day') {
             $employees = $employees->reject(fn (Employee $employee): bool => $employee->attendsViaRekap())->values();
-            $filters['statuses'] = array_values(array_diff($filters['statuses'], [self::REKAP]));
         } elseif ($filters['source'] !== 'all') {
             $wantsRekap = $filters['source'] === self::REKAP;
             $employees = $employees->filter(fn (Employee $employee): bool => $employee->attendsViaRekap() === $wantsRekap)->values();
@@ -431,9 +429,7 @@ class AttendanceCalendarController extends Controller
         foreach ($employees as $employee) {
             $days = $records[$employee->id] ?? [];
 
-            $picked = $employee->attendsViaRekap() && in_array(self::REKAP, $statuses, true);
-
-            if ($statuses !== [] && ! $picked && ! collect($days)->contains(fn (array $day): bool => in_array($day['status'], $statuses, true))) {
+            if ($statuses !== [] && ! collect($days)->contains(fn (array $day): bool => in_array($day['status'], $statuses, true))) {
                 continue;
             }
 
