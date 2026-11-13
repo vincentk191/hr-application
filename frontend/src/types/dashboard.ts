@@ -106,7 +106,7 @@ export type AdminWaiting = {
 /** One person, or one event, on one date of the admin calendar. */
 export type AdminCalendarEntry = {
     date: string;
-    kind: 'leave' | 'interview' | 'holiday' | 'event';
+    kind: 'leave' | 'interview' | 'holiday' | 'event' | 'start' | 'lastday';
     title: string;
     detail: string;
     /** "10:00" for an interview. */
@@ -118,16 +118,19 @@ export type AdminCalendarEntry = {
     requestId?: number;
 };
 
-/** A month of leave, interviews and holidays; for someone who does not run HR, their own leave and the holidays. */
+/**
+ * A month of the person's own ("me": their leave, the interviews they sit in on, their last day, holidays and events) or
+ * of everyone else's ("others": leave, newcomers' start dates, last working days, holidays and events). Someone who does
+ * not run HR has only their own.
+ */
 export type AdminCalendar = {
     /** "YYYY-MM". */
     month: string;
     label: string;
     prev: string;
     next: string;
-    /** "team": everyone's leave and the interviews; "me": only the person's own leave. */
-    scope: 'team' | 'me';
-    /** The person is also an employee, so the calendar can be switched between the two. */
+    scope: 'others' | 'me';
+    /** The person runs HR, so the calendar can be switched between their own and the others'. */
     canSwitch: boolean;
     entries: AdminCalendarEntry[];
 };

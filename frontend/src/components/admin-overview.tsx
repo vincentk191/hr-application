@@ -147,6 +147,8 @@ const KIND_STYLE: Record<AdminCalendarEntry['kind'], string> = {
         'bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-200',
     holiday: 'bg-muted text-muted-foreground',
     event: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200',
+    start: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200',
+    lastday: 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200',
 };
 
 const KIND_LABEL: Record<AdminCalendarEntry['kind'], string> = {
@@ -154,6 +156,17 @@ const KIND_LABEL: Record<AdminCalendarEntry['kind'], string> = {
     interview: 'Interview',
     holiday: 'Libur',
     event: 'Acara',
+    start: 'Mulai kerja',
+    lastday: 'Hari terakhir',
+};
+
+/** The kinds each view can hold, in the order the legend lists them. */
+const KINDS_OF_SCOPE: Record<
+    AdminCalendar['scope'],
+    AdminCalendarEntry['kind'][]
+> = {
+    me: ['leave', 'interview', 'lastday', 'event', 'holiday'],
+    others: ['leave', 'start', 'lastday', 'event', 'holiday'],
 };
 
 function localToday(): string {
@@ -170,8 +183,9 @@ const longDay = new Intl.DateTimeFormat('id-ID', {
 });
 
 /**
- * One month of leave, interviews and holidays on the shared month grid. Each day shows how many people are on leave
- * and how many interviews there are; choosing a day lists them underneath. Moving the month reloads only this card.
+ * One month on the shared month grid, switched between "Saya" (the person's own leave, interviews and last day) and
+ * "Lainnya" (everyone else's leave, newcomers' start dates and last working days), with holidays and events in both. Each
+ * day shows how many of each there are; choosing a day lists them underneath. Moving the month reloads only this card.
  */
 export function AdminCalendarCard({
     data,
@@ -209,13 +223,13 @@ export function AdminCalendarCard({
         <section className="surface space-y-3 p-4" data-test="admin-calendar">
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="font-semibold">Kalender {data.label}</h2>
-                {/* A person who is also an employee has this one calendar for both: their own leave, or everyone's. */}
+                {/* Those who run HR have this one calendar for both: what concerns them, or everyone else's. */}
                 {data.canSwitch && (
                     <div className="seg" data-test="admin-calendar-scope">
                         {(
                             [
                                 { value: 'me', label: 'Saya' },
-                                { value: 'team', label: 'Manajemen' },
+                                { value: 'others', label: 'Lainnya' },
                             ] as const
                         ).map((option) => (
                             <button
@@ -276,6 +290,12 @@ export function AdminCalendarCard({
                     const events = entries.filter(
                         (entry) => entry.kind === 'event',
                     ).length;
+                    const starts = entries.filter(
+                        (entry) => entry.kind === 'start',
+                    ).length;
+                    const lastDays = entries.filter(
+                        (entry) => entry.kind === 'lastday',
+                    ).length;
 
                     return (
                         <button
@@ -310,6 +330,12 @@ export function AdminCalendarCard({
                                 {events > 0 && (
                                     <span className="size-1.5 rounded-full bg-amber-500" />
                                 )}
+                                {starts > 0 && (
+                                    <span className="size-1.5 rounded-full bg-emerald-500" />
+                                )}
+                                {lastDays > 0 && (
+                                    <span className="size-1.5 rounded-full bg-rose-500" />
+                                )}
                             </span>
                             {leave > 0 && (
                                 <span
@@ -325,23 +351,42 @@ export function AdminCalendarCard({
                                     {interviews} interview
                                 </span>
                             )}
+                            {starts > 0 && (
+                                <span
+                                    className={`hidden rounded px-1 text-[10px] sm:inline ${KIND_STYLE.start}`}
+                                >
+                                    {starts} mulai
+                                </span>
+                            )}
+                            {lastDays > 0 && (
+                                <span
+                                    className={`hidden rounded px-1 text-[10px] sm:inline ${KIND_STYLE.lastday}`}
+                                >
+                                    {lastDays} terakhir
+                                </span>
+                            )}
                         </button>
                     );
                 }}
             />
 
             <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                {(personal
-                    ? (['leave', 'event', 'holiday'] as const)
-                    : (['leave', 'interview', 'event', 'holiday'] as const)
-                ).map((kind) => (
-                    <li key={kind} className="flex items-center gap-1.5">
-                        <span
-                            className={`size-3 rounded-sm ${KIND_STYLE[kind]}`}
-                        />
-                        {KIND_LABEL[kind]}
-                    </li>
-                ))}
+                {KINDS_OF_SCOPE[data.scope]
+                    // A last day on one's own view is rare: it is listed only when there is one.
+                    .filter(
+                        (kind) =>
+                            kind !== 'lastday' ||
+                            !personal ||
+                            data.entries.some((entry) => entry.kind === kind),
+                    )
+                    .map((kind) => (
+                        <li key={kind} className="flex items-center gap-1.5">
+                            <span
+                                className={`size-3 rounded-sm ${KIND_STYLE[kind]}`}
+                            />
+                            {KIND_LABEL[kind]}
+                        </li>
+                    ))}
                 <li className="flex items-center gap-1.5">
                     <span className="size-3 rounded-sm border border-dashed border-sky-500" />
                     Cuti menunggu persetujuan
@@ -354,9 +399,7 @@ export function AdminCalendarCard({
                 </p>
                 {agenda.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
-                        {personal
-                            ? 'Tidak ada cuti atau acara.'
-                            : 'Tidak ada cuti, interview, atau acara.'}
+                        Tidak ada acara.
                     </p>
                 ) : (
                     <ul className="space-y-1.5">

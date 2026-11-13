@@ -1,12 +1,5 @@
 import { Link } from '@inertiajs/react';
-import {
-    Building2,
-    FileText,
-    LogIn,
-    LogOut,
-    ScanLine,
-    User,
-} from 'lucide-react';
+import { FileText, LogIn, LogOut, ScanLine } from 'lucide-react';
 import { STATUS_LABEL, STATUS_TILE } from '@/lib/attendance-status';
 import { cn } from '@/lib/utils';
 import { show as employeeShow } from '@/routes/employees';
@@ -239,81 +232,18 @@ function PersonRow({
     );
 }
 
-/** How many units (department · Cabang) the people on the list are in. */
-export function unitCount(rows: CalendarRow[]): number {
-    return new Set(rows.map(unitOf)).size;
-}
-
-/** The two ways to read the list: everyone, or grouped by unit (the number is how many units there are). */
-export function GroupToggle({
-    grouped,
-    onChange,
-    units,
-}: {
-    grouped: boolean;
-    onChange: (grouped: boolean) => void;
-    units: number;
-}) {
-    return (
-        <div
-            role="group"
-            aria-label="Susunan daftar"
-            className="inline-flex shrink-0 items-center gap-1 rounded-full border bg-card p-1"
-        >
-            <button
-                type="button"
-                aria-pressed={!grouped}
-                aria-label="Semua karyawan"
-                onClick={() => onChange(false)}
-                className={cn(
-                    'hidden size-9 items-center justify-center rounded-full text-muted-foreground md:inline-flex',
-                    !grouped && 'bg-foreground text-background',
-                )}
-            >
-                <User className="size-4" aria-hidden />
-            </button>
-            <button
-                type="button"
-                aria-pressed={grouped}
-                aria-label="Kelompokkan per unit"
-                title="Kelompokkan per unit"
-                onClick={() => onChange(!grouped)}
-                className={cn(
-                    'inline-flex h-10 items-center justify-center gap-1.5 rounded-full px-3 text-sm text-muted-foreground md:h-9',
-                    grouped && 'bg-foreground text-background',
-                )}
-            >
-                <Building2 className="size-4" aria-hidden />
-                <span className="tabular-nums">{units}</span>
-            </button>
-        </div>
-    );
-}
-
 export function DayView({
     date,
     rows,
     statuses,
-    grouped,
 }: {
     date: string;
     rows: CalendarRow[];
     statuses: StatusOption[];
-    grouped: boolean;
 }) {
     const codeOf = Object.fromEntries(
         statuses.map((status) => [status.value, status.code]),
     ) as Record<DayStatus, string>;
-
-    const units = [...new Set(rows.map(unitOf))].sort((a, b) =>
-        a.localeCompare(b, 'id'),
-    );
-    const groups: { unit: string | null; rows: CalendarRow[] }[] = grouped
-        ? units.map((unit) => ({
-              unit,
-              rows: rows.filter((row) => unitOf(row) === unit),
-          }))
-        : [{ unit: null, rows }];
 
     if (rows.length === 0) {
         return (
@@ -362,29 +292,16 @@ export function DayView({
                     </span>
                 </div>
 
-                {groups.map((group) => (
-                    <div key={group.unit ?? 'all'} role="rowgroup">
-                        {group.unit !== null && (
-                            <div
-                                role="row"
-                                className="flex items-center justify-between border-t bg-muted/40 px-4 py-2"
-                            >
-                                <span className="label-mono">{group.unit}</span>
-                                <span className="text-xs font-semibold text-muted-foreground tabular-nums">
-                                    {group.rows.length}
-                                </span>
-                            </div>
-                        )}
-                        {group.rows.map((row) => (
-                            <PersonRow
-                                key={row.id}
-                                row={row}
-                                date={date}
-                                codeOf={codeOf}
-                            />
-                        ))}
-                    </div>
-                ))}
+                <div role="rowgroup">
+                    {rows.map((row) => (
+                        <PersonRow
+                            key={row.id}
+                            row={row}
+                            date={date}
+                            codeOf={codeOf}
+                        />
+                    ))}
+                </div>
             </div>
         </div>
     );

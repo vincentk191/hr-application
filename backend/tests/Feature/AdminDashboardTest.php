@@ -4,14 +4,18 @@ use App\Enums\RequisitionStage;
 use App\Enums\Role;
 use App\Models\CalendarEvent;
 use App\Models\Candidate;
+use App\Models\CandidateOffer;
 use App\Models\Company;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
+use App\Models\OffboardingCase;
 use App\Models\Requisition;
 use App\Models\User;
 use App\Models\WorkflowStep;
 use App\Support\Dashboard\AdminOverview;
+use App\Workflows\Definitions\OffboardingCaseWorkflow;
+use App\Workflows\Definitions\OfferWorkflow;
 use App\Workflows\Definitions\RequisitionWorkflow;
 use App\Workflows\WorkflowEngine;
 use Carbon\CarbonImmutable;
@@ -184,7 +188,8 @@ it('shows interviews and holidays on the calendar, and moves by month', function
     ]);
     CalendarEvent::create(['title' => 'Cuti bersama', 'kind' => 'holiday', 'starts_on' => '2026-11-11', 'ends_on' => '2026-11-11']);
 
-    $calendar = dashboardProps($this->hr, '?calendar=2026-11')['adminCalendar'];
+    // HR has no one chosen for this interview (an older invitation), so they sit in on it and see it in their own view.
+    $calendar = dashboardProps($this->hr, '?calendar=2026-11&scope=me')['adminCalendar'];
     $entries = collect($calendar['entries']);
 
     expect($calendar['month'])->toBe('2026-11')
@@ -197,7 +202,7 @@ it('shows interviews and holidays on the calendar, and moves by month', function
     expect(dashboardProps($this->hr)['adminCalendar']['month'])->toBe('2026-10');
 });
 
-it('switches the one calendar to the person\'s own leave, keeping holidays and dropping interviews and everyone else\'s leave', function () {
+it('switches the one calendar between what concerns the person and everyone else\'s leave, with holidays in both', function () {
     $requisition = adminRequisition(RequisitionStage::Interview);
     Candidate::factory()->create(['requisition_id' => $requisition->id, 'name' => 'Sari', 'interview_at' => CarbonImmutable::parse('2026-11-10 10:00', 'Asia/Jakarta')->utc()]);
     CalendarEvent::create(['title' => 'Cuti bersama', 'kind' => 'holiday', 'starts_on' => '2026-11-11', 'ends_on' => '2026-11-11']);
@@ -209,13 +214,15 @@ it('switches the one calendar to the person\'s own leave, keeping holidays and d
         'employee_id' => $bossEmployee->id, 'leave_type' => 'annual', 'start_on' => '2026-11-13', 'end_on' => '2026-11-13', 'reason' => 'Perlu',
     ])->assertSessionHasNoErrors();
 
-    $team = dashboardProps($boss, '?calendar=2026-11')['adminCalendar'];
+    $others = dashboardProps($boss, '?calendar=2026-11')['adminCalendar'];
     $mine = dashboardProps($boss, '?calendar=2026-11&scope=me')['adminCalendar'];
 
-    expect($team['scope'])->toBe('team')->and($team['canSwitch'])->toBeTrue()
-        ->and(collect($team['entries'])->pluck('kind')->unique()->sort()->values()->all())->toBe(['holiday', 'interview', 'leave'])
+    // Others: everyone else's leave, not their own and not the interviews; mine: their own leave, the interview they sit in on.
+    expect($others['scope'])->toBe('others')->and($others['canSwitch'])->toBeTrue()
+        ->and(collect($others['entries'])->pluck('kind')->unique()->sort()->values()->all())->toBe(['holiday', 'leave'])
+        ->and(collect($others['entries'])->where('kind', 'leave')->pluck('title')->all())->toBe(['Budi'])
         ->and($mine['scope'])->toBe('me')
-        ->and(collect($mine['entries'])->pluck('kind')->unique()->sort()->values()->all())->toBe(['holiday', 'leave'])
+        ->and(collect($mine['entries'])->pluck('kind')->unique()->sort()->values()->all())->toBe(['holiday', 'interview', 'leave'])
         ->and(collect($mine['entries'])->where('kind', 'leave')->pluck('title')->unique()->all())->toBe(['Bu Bos'])
         ->and(collect($mine['entries'])->where('kind', 'leave')->pluck('date')->all())->toBe(['2026-11-13']);
 });
@@ -289,10 +296,84 @@ it('opens a leave request over the dashboard with the panel the Pengajuan page u
     expect(dashboardProps($stranger, "?request={$leave->id}")['openedRequest'])->toBeNull();
 });
 
-it('has no personal view for someone without an employee record, who stays on the management one', function () {
-    $props = dashboardProps($this->hr, '?calendar=2026-11&scope=me');
+it('gives someone without an employee record the personal view too, with the holidays and interviews but no leave', function () {
+    $requisition = adminRequisition(RequisitionStage::Interview);
+    Candidate::factory()->create(['requisition_id' => $requisition->id, 'name' => 'Sari', 'interview_at' => CarbonImmutable::parse('2026-11-10 10:00', 'Asia/Jakarta')->utc()]);
+    CalendarEvent::create(['title' => 'Cuti bersama', 'kind' => 'holiday', 'starts_on' => '2026-11-11', 'ends_on' => '2026-11-11']);
+    adminLeave('2026-11-12', '2026-11-12');
 
-    expect($props['adminCalendar']['canSwitch'])->toBeFalse()->and($props['adminCalendar']['scope'])->toBe('team');
+    $calendar = dashboardProps($this->hr, '?calendar=2026-11&scope=me')['adminCalendar'];
+
+    expect($calendar['canSwitch'])->toBeTrue()->and($calendar['scope'])->toBe('me')
+        ->and(collect($calendar['entries'])->pluck('kind')->unique()->sort()->values()->all())->toBe(['holiday', 'interview']);
+});
+
+it('shows the interviews a person sits in on in their own view, and no one else\'s', function () {
+    $boss = adminUser(Role::Supervisor, $this->company);
+    $bossEmployee = Employee::factory()->forCompany($this->company)->create(['user_id' => $boss->id, 'full_name' => 'Bu Bos', 'joined_on' => '2020-01-01']);
+    $mira = adminUser(Role::Management, $this->company);
+    $requisition = adminRequisition(RequisitionStage::Interview);
+    $requisition->update(['manager_employee_id' => $bossEmployee->id]);
+    $at = CarbonImmutable::parse('2026-11-10 10:00', 'Asia/Jakarta')->utc();
+
+    $withMira = Candidate::factory()->create(['requisition_id' => $requisition->id, 'name' => 'Ani', 'interview_at' => $at]);
+    $withMira->interviewers()->sync([$mira->id]);
+    $withHr = Candidate::factory()->create(['requisition_id' => $requisition->id, 'name' => 'Budi Kandidat', 'interview_at' => $at->addHour()]);
+    $withHr->interviewers()->sync([$this->hr->id]);
+
+    $names = fn (User $user, string $query): array => collect(dashboardProps($user, "?calendar=2026-11{$query}")['adminCalendar']['entries'])->where('kind', 'interview')->pluck('title')->sort()->values()->all();
+
+    expect($names($mira, '&scope=me'))->toBe(['Ani'])
+        ->and($names($this->hr, '&scope=me'))->toBe(['Budi Kandidat'])
+        // The direct superior sits in on every interview for their requisition, and an employee sees only their own view.
+        ->and($names($boss, ''))->toBe(['Ani', 'Budi Kandidat'])
+        // The others' view is leave, newcomers and last days: interviews are not on it.
+        ->and($names($mira, ''))->toBe([])
+        ->and($names($this->hr, ''))->toBe([]);
+
+    // None on the public entrance, where everyone is an employee.
+    $public = $this->withHeaders(['X-Entrance' => 'public'])->actingAs($boss)->get('/dashboard?calendar=2026-11')->assertOk()->viewData('page')['props'];
+    expect(collect($public['adminCalendar']['entries'])->where('kind', 'interview'))->toBeEmpty();
+});
+
+it('shows HR and Management the day each newcomer starts and the last day of each person leaving', function (Role $role) {
+    $requisition = adminRequisition(RequisitionStage::Offer);
+    $offerFor = function (string $name, string $stage, string $startOn) use ($requisition): void {
+        $candidate = Candidate::factory()->create(['requisition_id' => $requisition->id, 'name' => $name]);
+        $offer = CandidateOffer::factory()->create(['candidate_id' => $candidate->id, 'start_on' => $startOn]);
+        app(WorkflowEngine::class)->start($offer, new OfferWorkflow, [], test()->hr)->update(['current_stage' => $stage]);
+    };
+    $offerFor('Dewi', 'accepted', '2026-11-16');
+    $offerFor('Eko', 'sent', '2026-11-17');
+    $offerFor('Fani', 'declined', '2026-11-18');
+
+    $leaving = function (string $name, string $stage, string $lastDay): void {
+        $employee = Employee::factory()->forCompany(test()->company)->create(['full_name' => $name, 'joined_on' => '2020-01-01']);
+        $case = OffboardingCase::factory()->create(['employee_id' => $employee->id, 'last_working_on' => $lastDay]);
+        app(WorkflowEngine::class)->start($case, new OffboardingCaseWorkflow, [], test()->hr)->update(['current_stage' => $stage]);
+    };
+    $leaving('Gita', 'checklist', '2026-11-20');
+    $leaving('Hadi', 'closed', '2026-11-23');
+    $leaving('Indra', 'draft', '2026-11-24');
+    $leaving('Joko', 'cancelled', '2026-11-25');
+
+    $viewer = $role === Role::HrAdmin ? $this->hr : adminUser($role, $this->company);
+    $entries = collect(dashboardProps($viewer, '?calendar=2026-11')['adminCalendar']['entries']);
+
+    expect($entries->where('kind', 'start')->map(fn (array $entry): array => [$entry['date'], $entry['title']])->values()->all())->toBe([['2026-11-16', 'Dewi']])
+        ->and($entries->firstWhere('kind', 'start')['detail'])->toContain('Mulai bekerja')
+        ->and($entries->where('kind', 'lastday')->map(fn (array $entry): array => [$entry['date'], $entry['title']])->values()->all())->toBe([['2026-11-20', 'Gita'], ['2026-11-23', 'Hadi']])
+        ->and($entries->firstWhere('kind', 'lastday')['detail'])->toContain('Hari terakhir');
+})->with([Role::HrAdmin, Role::Management]);
+
+it('keeps the person\'s own last day on their own view, and off the others\'', function () {
+    $own = Employee::factory()->forCompany($this->company)->create(['user_id' => $this->hr->id, 'full_name' => 'Hana HR', 'joined_on' => '2020-01-01']);
+    $case = OffboardingCase::factory()->create(['employee_id' => $own->id, 'last_working_on' => '2026-11-27']);
+    app(WorkflowEngine::class)->start($case, new OffboardingCaseWorkflow, [], $this->hr)->update(['current_stage' => 'checklist']);
+
+    $lastDays = fn (string $query): array => collect(dashboardProps($this->hr, "?calendar=2026-11{$query}")['adminCalendar']['entries'])->where('kind', 'lastday')->pluck('title')->all();
+
+    expect($lastDays('&scope=me'))->toBe(['Hana HR'])->and($lastDays(''))->toBe([]);
 });
 
 it('leaves interviews off the calendar of someone who does not recruit', function () {

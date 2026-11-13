@@ -69,6 +69,23 @@ left uncommitted for review.
 
 ## Change log (latest first)
 
+- **2026-11-13 (attendance calendar, phone row).** On a phone the search box shares the status row with the Semua / Scanner /
+  Rekapitulasi toggle and the two overlapped, so `FilterBar` takes `searchOnPhone`: off for the week, month and year views (the
+  filter sheet has its own search), on for the day, which has no toggle. The day view's building-icon "Kelompokkan per unit"
+  button is removed with the grouping behind it (`GroupToggle`, `unitCount`, the `grouped` prop): the Unit is still on each row.
+
+- **2026-11-13 (home calendar: Saya / Lainnya).** The calendar's toggle is now **Saya | Lainnya** (scope `me` | `others`, was
+  `me` | `team` labelled "Manajemen"). `AdminOverview::calendar`: **Saya** is what concerns the person: their own leave, the
+  interviews they sit in on (`InterviewParticipants::includes`: chosen for it, the direct superior, or any HR admin for an
+  invitation with nobody chosen; none on the public entrance), their own last working day, and the holidays and events that
+  cover them. **Lainnya** (HR and Management, who both get it) is everyone else's leave (the person's own left out), the day
+  each newcomer starts (`startEntries`: offers in stage Accepted with a start date, kinds `start`) and the last working day of
+  each person leaving (`lastDayEntries`, kind `lastday`: cases submitted, in checklist or sign-off, or closed; not drafts or
+  cancelled; through `OffboardingCase::visibleTo`), plus holidays and events. Interviews are no longer on Lainnya, so HR who
+  are not chosen for an interview do not see it there; the Rekrutmen card still lists those ahead. `canSwitch` is now true for
+  everyone who runs HR, employee record or not (a Saya view without one has interviews, holidays and events, no leave).
+  Frontend: new kinds with their colour, label and day counts in `admin-overview.tsx`; the legend follows the view.
+
 - **2026-11-13 (calendar: "Rekapitulasi cabang" filter removed; interview participants).** The R chip in the attendance
   calendar's status row (and its side-panel row) duplicated the Semua / Scanner / Rekapitulasi source toggle, so `rekap` is no
   longer a status: `statusEntries` loses it, `StatusFilterKey` is `DayStatus`, and `AttendanceCalendarController` drops it from

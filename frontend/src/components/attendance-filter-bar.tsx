@@ -99,10 +99,16 @@ export function FilterBar({
     onPick,
     onClear,
     trailing,
+    searchOnPhone = true,
 }: {
     search: string;
     onSearchChange: (value: string) => void;
     onSearch: () => void;
+    /**
+     * Whether the search box is on the phone's row. Without it the filter button's own search is the one there, which leaves
+     * room for the toggle at the end of the row.
+     */
+    searchOnPhone?: boolean;
     /** How many filters are on, shown on the filter button. */
     filterCount: number;
     onOpenFilters: () => void;
@@ -124,7 +130,10 @@ export function FilterBar({
                     event.preventDefault();
                     onSearch();
                 }}
-                className="relative min-w-0 flex-1 md:max-w-sm"
+                className={cn(
+                    'relative min-w-0 flex-1 md:max-w-sm',
+                    !searchOnPhone && 'hidden md:block',
+                )}
             >
                 <Search
                     className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground"

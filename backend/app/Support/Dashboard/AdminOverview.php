@@ -3,6 +3,7 @@
 namespace App\Support\Dashboard;
 
 use App\Enums\LeaveRequestStage;
+use App\Enums\OffboardingCaseStage;
 use App\Enums\Permission;
 use App\Enums\RequisitionStage;
 use App\Enums\Role;
@@ -16,8 +17,10 @@ use App\Models\ProfileChangeRequest;
 use App\Models\Requisition;
 use App\Models\User;
 use App\Models\WorkflowStep;
+use App\Support\Access\Entrance;
 use App\Support\Attendance\WorkSchedule;
 use App\Support\CompanyContext;
+use App\Support\Recruitment\InterviewParticipants;
 use App\Support\Recruitment\InvitationMessage;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -206,23 +209,26 @@ class AdminOverview
     }
 
     /**
-     * One month of what HR plans around: leave (waiting and approved, on working days), interviews, and the holidays
-     * and company events this person may see. Each entry is one person, or one event, on one date.
+     * One month, in two views.
      *
-     * A person who is also an employee can switch it to their own: `$scope` "me" keeps the holidays and events and only
-     * their own leave, with no interviews, so one calendar serves both what they plan around and what is theirs. Someone
-     * who does not run HR (an employee, or anyone on the public entrance) has only that own view, with the holidays and
-     * events that cover their company, department and Cabang, and no switch.
+     * "Saya" (`$scope` "me") is everything that concerns the person: their own leave, the interviews they sit in on, their own
+     * last working day, and the holidays and events that cover their company, department and Cabang. Someone who does not
+     * run HR (an employee, or anyone on the public entrance, where there are no interviews) has only this view, with no
+     * switch.
+     *
+     * "Lainnya" is what HR and Management plan around: the leave of everyone else (waiting and approved, on working days),
+     * the day each newcomer from recruitment starts, the last working day of each person leaving, and the holidays and company
+     * events they may see.
      *
      * @param  Employee|null  $own  the person's own employee record, when they have one
-     * @param  string|null  $scope  "me" for their own leave, anything else for everyone's
+     * @param  string|null  $scope  "me" for their own view, anything else for the others'
      * @return array{month: string, label: string, prev: string, next: string, scope: string, canSwitch: bool, entries: list<array<string, mixed>>}
      */
     public function calendar(User $user, ?string $asked = null, ?Employee $own = null, ?string $scope = null): array
     {
         $runsHr = self::seesCalendar($user);
-        $personal = $own !== null && ($scope === 'me' || ! $runsHr);
-        $ownEmployeeId = $own?->id;
+        $personal = $scope === 'me' || ! $runsHr;
+        $public = app(Entrance::class)->isPublic();
 
         $timezone = (string) config('attendance.device_timezone');
         $month = $asked !== null && preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $asked) === 1
@@ -231,11 +237,19 @@ class AdminOverview
         $from = $month->startOfMonth();
         $to = $month->endOfMonth()->startOfDay();
 
-        $entries = [
-            ...$this->events($user, $from, $to, $personal ? $own : null),
-            ...$this->leaveEntries($user, $from, $to, $personal ? $ownEmployeeId : null),
-            ...(! $personal && $user->can(Permission::ManageRecruitment->value) ? $this->interviewEntries($from, $to, $timezone) : []),
-        ];
+        $entries = $personal
+            ? [
+                ...$this->events($user, $from, $to, $own),
+                ...($own !== null ? $this->leaveEntries($user, $from, $to, $own->id) : []),
+                ...($public ? [] : $this->interviewEntries($user, $from, $to, $timezone)),
+                ...($own !== null ? $this->lastDayEntries($user, $from, $to, $own->id, null, ! $public) : []),
+            ]
+            : [
+                ...$this->events($user, $from, $to),
+                ...$this->leaveEntries($user, $from, $to, null, $own?->id),
+                ...$this->startEntries($from, $to),
+                ...$this->lastDayEntries($user, $from, $to, null, $own?->id, true),
+            ];
 
         usort($entries, fn (array $a, array $b): int => [$a['date'], $a['order'], $a['time'] ?? '', $a['title']] <=> [$b['date'], $b['order'], $b['time'] ?? '', $b['title']]);
 
@@ -244,8 +258,8 @@ class AdminOverview
             'label' => $month->settings(['locale' => 'id'])->translatedFormat('F Y'),
             'prev' => $month->subMonth()->format('Y-m'),
             'next' => $month->addMonth()->format('Y-m'),
-            'scope' => $personal ? 'me' : 'team',
-            'canSwitch' => $ownEmployeeId !== null && $runsHr,
+            'scope' => $personal ? 'me' : 'others',
+            'canSwitch' => $runsHr,
             'entries' => array_map(function (array $entry): array {
                 unset($entry['order']);
 
@@ -365,9 +379,10 @@ class AdminOverview
      * covers (a leave over a weekend does not fill the weekend). Rejected leave asks for nothing, so it is left out.
      *
      * @param  int|null  $onlyEmployeeId  keep one employee's leave, for the person's own view
+     * @param  int|null  $exceptEmployeeId  leave one employee's out: the person's own, which has its own view
      * @return list<array<string, mixed>>
      */
-    private function leaveEntries(User $user, CarbonImmutable $from, CarbonImmutable $to, ?int $onlyEmployeeId = null): array
+    private function leaveEntries(User $user, CarbonImmutable $from, CarbonImmutable $to, ?int $onlyEmployeeId = null, ?int $exceptEmployeeId = null): array
     {
         $schedule = WorkSchedule::current();
         $entries = [];
@@ -375,6 +390,7 @@ class AdminOverview
         LeaveRequest::query()
             ->visibleTo($user)
             ->when($onlyEmployeeId !== null, fn (Builder $query) => $query->where('employee_id', $onlyEmployeeId))
+            ->when($exceptEmployeeId !== null, fn (Builder $query) => $query->where('employee_id', '!=', $exceptEmployeeId))
             ->with(['type', 'workflow', 'employee:id,full_name'])
             ->whereHas('workflow', fn (Builder $query) => $query->whereIn('current_stage', [LeaveRequestStage::Submitted->value, LeaveRequestStage::Approved->value]))
             ->whereDate('start_on', '<=', $to->toDateString())
@@ -407,18 +423,23 @@ class AdminOverview
     }
 
     /**
-     * Interviews in the month, on requisitions that are not cancelled, in company time.
+     * The interviews in the month that this person sits in on (HR and Manajemen chosen for it, or the direct superior), on
+     * requisitions that are not cancelled, in company time.
      *
      * @return list<array<string, mixed>>
      */
-    private function interviewEntries(CarbonImmutable $from, CarbonImmutable $to, string $timezone): array
+    private function interviewEntries(User $user, CarbonImmutable $from, CarbonImmutable $to, string $timezone): array
     {
+        $participants = app(InterviewParticipants::class);
+
         return array_values(Candidate::query()
             ->inProcess()
-            ->with('requisition.workflow')
+            ->with('requisition.workflow', 'interviewers')
             ->whereBetween('interview_at', [$from->utc(), $to->endOfDay()->utc()])
             ->get()
-            ->filter(fn (Candidate $candidate): bool => $candidate->requisition !== null && $candidate->requisition->stage() !== RequisitionStage::Cancelled)
+            ->filter(fn (Candidate $candidate): bool => $candidate->requisition !== null
+                && $candidate->requisition->stage() !== RequisitionStage::Cancelled
+                && $participants->includes($candidate, $candidate->requisition, $user))
             ->map(function (Candidate $candidate) use ($timezone): array {
                 $local = CarbonImmutable::instance($candidate->interview_at)->setTimezone($timezone);
 
@@ -433,6 +454,69 @@ class AdminOverview
                     'order' => 1,
                 ];
             })
+            ->all());
+    }
+
+    /**
+     * The day each newcomer from recruitment starts: candidates who accepted an offer, on the start date HR set in its terms.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function startEntries(CarbonImmutable $from, CarbonImmutable $to): array
+    {
+        return array_values(CandidateOffer::query()
+            ->accepted()
+            ->whereNotNull('start_on')
+            ->whereDate('start_on', '>=', $from->toDateString())
+            ->whereDate('start_on', '<=', $to->toDateString())
+            ->with('candidate:id,name', 'requisition:id,position_name')
+            ->get()
+            ->map(fn (CandidateOffer $offer): array => [
+                'date' => $offer->start_on?->toDateString(),
+                'kind' => 'start',
+                'title' => (string) $offer->candidate?->name,
+                'detail' => 'Mulai bekerja · '.$offer->requisition?->position_name,
+                'time' => null,
+                'status' => null,
+                'href' => route('recruitment.show', $offer->requisition_id, absolute: false),
+                'order' => 1,
+            ])
+            ->all());
+    }
+
+    /**
+     * The last working day of each person leaving, from the offboarding cases this person may see that are submitted or
+     * further along (a draft is not a decision yet, and a cancelled case is no departure).
+     *
+     * @param  int|null  $onlyEmployeeId  keep one employee's, for the person's own view
+     * @param  int|null  $exceptEmployeeId  leave one employee's out: the person's own, which has its own view
+     * @param  bool  $withLink  link to the case, where this entrance serves it
+     * @return list<array<string, mixed>>
+     */
+    private function lastDayEntries(User $user, CarbonImmutable $from, CarbonImmutable $to, ?int $onlyEmployeeId, ?int $exceptEmployeeId, bool $withLink): array
+    {
+        return array_values(OffboardingCase::query()
+            ->visibleTo($user)
+            ->when($onlyEmployeeId !== null, fn (Builder $query) => $query->where('employee_id', $onlyEmployeeId))
+            ->when($exceptEmployeeId !== null, fn (Builder $query) => $query->where('employee_id', '!=', $exceptEmployeeId))
+            ->whereNotNull('last_working_on')
+            ->whereDate('last_working_on', '>=', $from->toDateString())
+            ->whereDate('last_working_on', '<=', $to->toDateString())
+            ->whereHas('workflow', fn (Builder $workflow) => $workflow->whereIn('current_stage', [
+                OffboardingCaseStage::Submitted->value, OffboardingCaseStage::Checklist->value, OffboardingCaseStage::SignOff->value, OffboardingCaseStage::Closed->value,
+            ]))
+            ->with('employee:id,full_name')
+            ->get()
+            ->map(fn (OffboardingCase $case): array => [
+                'date' => $case->last_working_on?->toDateString(),
+                'kind' => 'lastday',
+                'title' => (string) $case->employee?->full_name,
+                'detail' => 'Hari terakhir'.($case->exit_type !== null ? ' · '.$case->exit_type->label() : ''),
+                'time' => null,
+                'status' => null,
+                'href' => $withLink ? route('offboarding.show', $case, absolute: false) : null,
+                'order' => 1,
+            ])
             ->all());
     }
 

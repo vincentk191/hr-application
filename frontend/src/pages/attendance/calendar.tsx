@@ -12,11 +12,7 @@ import {
     MonthSummary,
     YearSummary,
 } from '@/components/attendance-summary-views';
-import {
-    DayView,
-    GroupToggle,
-    unitCount,
-} from '@/components/attendance-day-view';
+import { DayView } from '@/components/attendance-day-view';
 import {
     FilterBar,
     SourceToggle,
@@ -359,7 +355,6 @@ export default function AttendanceCalendar(props: Props) {
 
     const [search, setSearch] = useState(filters.search);
     const [filtersOpen, setFiltersOpen] = useState(false);
-    const [grouped, setGrouped] = useState(false);
 
     const go = (changes: {
         view?: CalendarView;
@@ -631,16 +626,12 @@ export default function AttendanceCalendar(props: Props) {
                     total={summary.employees + summary.rekapEmployees}
                     onPick={pickStatus}
                     onClear={() => go({ filters: { statuses: [] } })}
+                    // On a phone the search is in the filter sheet; the row keeps the toggle, which the day view has none of.
+                    searchOnPhone={view === 'day'}
                     trailing={
-                        view === 'day' ? (
-                            <GroupToggle
-                                grouped={grouped}
-                                onChange={setGrouped}
-                                units={unitCount(rows)}
-                            />
-                        ) : view === 'week' ||
-                          view === 'month' ||
-                          view === 'year' ? (
+                        view === 'week' ||
+                        view === 'month' ||
+                        view === 'year' ? (
                             <SourceToggle
                                 source={filters.source}
                                 onChange={(source) =>
@@ -672,7 +663,6 @@ export default function AttendanceCalendar(props: Props) {
                                 date={dates[0]?.date ?? anchor}
                                 rows={rows}
                                 statuses={options.statuses}
-                                grouped={grouped}
                             />
                         ) : view === 'week' ? (
                             <WeekGrid

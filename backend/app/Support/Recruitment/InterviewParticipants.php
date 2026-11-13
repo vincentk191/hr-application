@@ -92,6 +92,21 @@ class InterviewParticipants
     }
 
     /**
+     * Whether this person sits in on the candidate's interview: chosen for it, the direct superior, or for an invitation with
+     * nobody chosen, any HR admin of the company.
+     */
+    public function includes(Candidate $candidate, Requisition $requisition, User $user): bool
+    {
+        if ($this->superior($requisition)?->is($user) === true) {
+            return true;
+        }
+
+        return $this->hasChosen($candidate)
+            ? $this->chose($candidate, $user)
+            : $user->hasRole(Role::HrAdmin->value) && $user->canAccessCompany($requisition->company_id);
+    }
+
+    /**
      * The people on the calendar event: those chosen and the direct superior. Before participants could be chosen the
      * event named the superior alone, and it still does.
      *
