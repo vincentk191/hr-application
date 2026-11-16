@@ -564,7 +564,7 @@ it('gives a candidate a new form link and leaves the invitation itself alone', f
     $requisition = interviewRequisition();
     $candidate = Candidate::factory()->for($requisition)->create(['name' => 'Budi', 'email' => 'budi@example.com']);
     $oldLink = sentLink($requisition, $candidate);
-    $before = $candidate->refresh()->only(['invited_at', 'interview_at', 'interview_place', 'invitation_note', 'invitation_message', 'candidate_reminded_at']);
+    $before = $candidate->refresh()->only(['invited_at', 'interview_at', 'interview_place', 'invitation_note', 'invitation_message']);
 
     renewLink($requisition, $candidate)->assertRedirect();
     $given = session('inertia.flash_data')['formLink'];
@@ -572,7 +572,7 @@ it('gives a candidate a new form link and leaves the invitation itself alone', f
     expect($given['link'])->toContain('/lamaran/')->not->toBe($oldLink)
         ->and($given['name'])->toBe('Budi')
         ->and($given['expiresOn'])->toBe('10 November 2026')
-        ->and($candidate->refresh()->only(['invited_at', 'interview_at', 'interview_place', 'invitation_note', 'invitation_message', 'candidate_reminded_at']))->toEqual($before)
+        ->and($candidate->refresh()->only(['invited_at', 'interview_at', 'interview_place', 'invitation_note', 'invitation_message']))->toEqual($before)
         ->and($candidate->invitation_note)->toBe('Mohon hadir 10 menit lebih awal.')
         ->and($candidate->invite_token_hash)->toBe(Candidate::hashToken(substr($given['link'], -48)));
 

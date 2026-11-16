@@ -39,6 +39,7 @@ import {
     withdraw,
 } from '@/routes/recruitment/offers';
 import { resend as resendEmail } from '@/routes/recruitment/offers/email';
+import { resend as resendWelcomeEmail } from '@/routes/recruitment/offers/welcome-email';
 import {
     destroy as removeSignedLetter,
     store as fileSignedLetter,
@@ -661,6 +662,13 @@ function AcceptOffer({
                         tempat terisi.
                     </p>
                     <InputError message={errors.answer} />
+                    {offer.welcomeDraft && (
+                        <WelcomeEmailFields
+                            draft={offer.welcomeDraft}
+                            mailReady={offer.mailReady ?? false}
+                            errors={errors}
+                        />
+                    )}
                 </>
             )}
             trigger={
@@ -670,6 +678,145 @@ function AcceptOffer({
                 </Button>
             }
         />
+    );
+}
+
+/**
+ * The welcome email HR reviews while marking an offer accepted: ticked unless HR unticks it. The time and place of the first day
+ * are the one thing the app does not know, so the text has an empty slot for them and the server refuses it while it is there.
+ */
+function WelcomeEmailFields({
+    draft,
+    mailReady,
+    errors,
+}: {
+    draft: NonNullable<CandidateOffer['welcomeDraft']>;
+    mailReady: boolean;
+    errors: Record<string, string>;
+}) {
+    const [send, setSend] = useState(mailReady);
+
+    return (
+        <div className="mt-3 space-y-3" data-test="welcome-email-draft">
+            <label className="flex items-center gap-2 text-sm font-medium">
+                <input
+                    type="checkbox"
+                    name="notify_candidate"
+                    value="1"
+                    checked={send}
+                    disabled={!mailReady}
+                    onChange={(event) => setSend(event.target.checked)}
+                    className="size-4 accent-primary"
+                    data-test="notify-welcome"
+                />
+                <Mail className="size-4 text-muted-foreground" aria-hidden />
+                Kirim email sambutan
+            </label>
+            {!mailReady && (
+                <p
+                    className="text-sm text-muted-foreground"
+                    data-test="welcome-no-mailbox"
+                >
+                    Email perusahaan belum diaktifkan oleh admin, jadi tidak ada
+                    email yang dikirim. Kabari kandidat sendiri.
+                </p>
+            )}
+            <InputError message={errors.notify_candidate} />
+            {send && (
+                <>
+                    <p className="text-sm">
+                        <span className="text-muted-foreground">Kepada: </span>
+                        <span className="font-medium">{draft.to}</span>
+                    </p>
+                    <div className="grid gap-1">
+                        <label
+                            htmlFor="welcome-email-subject"
+                            className="text-sm font-semibold text-muted-foreground"
+                        >
+                            Subjek
+                        </label>
+                        <input
+                            id="welcome-email-subject"
+                            name="email_subject"
+                            defaultValue={draft.subject}
+                            maxLength={300}
+                            required
+                            className="h-10 w-full rounded-xl border border-input bg-card px-3 text-sm"
+                            data-test="welcome-email-subject"
+                        />
+                        <InputError message={errors.email_subject} />
+                    </div>
+                    <div className="grid gap-1">
+                        <label
+                            htmlFor="welcome-email-body"
+                            className="text-sm font-semibold text-muted-foreground"
+                        >
+                            Isi email
+                        </label>
+                        <textarea
+                            id="welcome-email-body"
+                            name="email_body"
+                            defaultValue={draft.body}
+                            rows={14}
+                            required
+                            className="w-full rounded-xl border border-input bg-card px-3 py-2 text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+                            data-test="welcome-email-body"
+                        />
+                        <InputError message={errors.email_body} />
+                    </div>
+                </>
+            )}
+        </div>
+    );
+}
+
+/** How the welcome email is doing, with "Kirim ulang" when it failed. */
+function WelcomeEmailStatus({
+    item,
+    offer,
+}: {
+    item: Requisition;
+    offer: CandidateOffer;
+}) {
+    const email = offer.welcomeEmail ?? null;
+
+    if (email === null) {
+        return null;
+    }
+
+    return (
+        <div
+            className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-sm ${email.status === 'failed' ? 'text-destructive' : 'text-muted-foreground'}`}
+            data-test="welcome-email-status"
+        >
+            <span className="inline-flex items-center gap-1.5">
+                <Mail className="size-4" aria-hidden />
+                Email sambutan {email.label.toLowerCase()}
+                {email.status === 'failed' && email.error
+                    ? `: ${email.error}`
+                    : ''}
+            </span>
+            {offer.canResendWelcomeEmail && (
+                <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                        router.post(
+                            resendWelcomeEmail.url({
+                                requisition: item.id,
+                                offer: offer.id,
+                            }),
+                            {},
+                            { preserveScroll: true },
+                        )
+                    }
+                    data-test="resend-welcome-email"
+                >
+                    <Send className="size-4" aria-hidden />
+                    Kirim ulang
+                </Button>
+            )}
+        </div>
     );
 }
 
@@ -819,6 +966,7 @@ function OfferRow({
 
             {sent && <p className="text-sm text-muted-foreground">{sent}</p>}
             <OfferEmailStatus item={item} offer={offer} />
+            <WelcomeEmailStatus item={item} offer={offer} />
             <SignedLetter item={item} offer={offer} />
             {answered && (
                 <p className="text-sm text-muted-foreground">{answered}</p>

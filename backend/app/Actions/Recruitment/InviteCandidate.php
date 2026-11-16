@@ -79,7 +79,6 @@ class InviteCandidate
             'interview_place' => $place,
             'interview_minutes' => $fields['interview_minutes'] ?? ($candidate->interview_minutes ?: InterviewCalendar::DEFAULT_MINUTES),
             // A new time is a new day to remind.
-            'candidate_reminded_at' => null,
             'interviewers_reminded_at' => null,
             'evaluation_prompted_at' => null,
         ])->save();

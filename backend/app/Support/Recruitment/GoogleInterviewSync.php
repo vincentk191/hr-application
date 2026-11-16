@@ -131,7 +131,6 @@ class GoogleInterviewSync
                     'interview_at' => $start->utc(),
                     'interview_minutes' => $minutes,
                     // A new time is a new day to remind.
-                    'candidate_reminded_at' => null,
                     'interviewers_reminded_at' => null,
                     'evaluation_prompted_at' => null,
                 ]);

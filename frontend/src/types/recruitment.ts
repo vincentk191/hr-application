@@ -319,6 +319,17 @@ export type CandidateOffer = {
         at: string | null;
     } | null;
     canResendEmail?: boolean;
+    /** HR only, while the offer can be marked accepted: the welcome email to review (the time and place are left to fill in). */
+    welcomeDraft?: { to: string; subject: string; body: string } | null;
+    /** HR only: how the welcome email that went when the offer was accepted is doing. */
+    welcomeEmail?: {
+        status: 'pending' | 'sending' | 'sent' | 'failed' | 'cancelled';
+        label: string;
+        error: string | null;
+        /** A datetime-local value in the company's time. */
+        at: string | null;
+    } | null;
+    canResendWelcomeEmail?: boolean;
     /** HR only: the letter the candidate signed and sent back, once filed. */
     signedLetter?: {
         name: string | null;

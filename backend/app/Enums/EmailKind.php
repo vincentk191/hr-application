@@ -14,6 +14,7 @@ enum EmailKind: string implements HasLabel
     case OfferWithdrawn = 'offer_withdrawn';
     case CandidateRejected = 'candidate_rejected';
     case PositionFilled = 'position_filled';
+    case OnboardingWelcome = 'onboarding_welcome';
 
     public function getLabel(): string
     {
@@ -23,6 +24,7 @@ enum EmailKind: string implements HasLabel
             self::OfferWithdrawn => 'Penawaran ditarik',
             self::CandidateRejected => 'Penolakan kandidat',
             self::PositionFilled => 'Lowongan terisi',
+            self::OnboardingWelcome => 'Sambutan karyawan baru',
         };
     }
 }

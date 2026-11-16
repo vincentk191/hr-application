@@ -676,7 +676,7 @@ it('takes the interviews off the calendar quietly when the position is closed an
 
 it('follows a new time set on Google, moves the reminders and the form link with it, and tells HR, the superior and those chosen', function () {
     connectedGoogle();
-    $candidate = googleInvitedCandidate(['candidate_reminded_at' => now(), 'interviewers_reminded_at' => now()]);
+    $candidate = googleInvitedCandidate(['interviewers_reminded_at' => now()]);
     $candidate->interviewers()->sync([$this->hr->id]);
 
     Http::fake(['www.googleapis.com/*' => Http::response(googleEvent([
@@ -691,7 +691,6 @@ it('follows a new time set on Google, moves the reminders and the form link with
     expect($candidate->interview_at->toDateTimeString())->toBe('2026-11-14 08:00:00')
         ->and($candidate->interview_minutes)->toBe(90)
         ->and($candidate->google_etag)->toBe('"etag-2"')
-        ->and($candidate->candidate_reminded_at)->toBeNull()
         ->and($candidate->interviewers_reminded_at)->toBeNull()
         // The form opens on the interview day and lapses at the end of it.
         ->and($candidate->invite_expires_at->copy()->setTimezone('Asia/Jakarta')->toDateTimeString())->toBe('2026-11-14 23:59:59')

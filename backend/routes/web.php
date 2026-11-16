@@ -135,6 +135,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('recruitment/{requisition}/offers/{offer}/signed-letter', [RequisitionOfferController::class, 'signedLetter'])->scopeBindings()->name('recruitment.offers.signed-letter');
     Route::delete('recruitment/{requisition}/offers/{offer}/signed-letter', [RequisitionOfferController::class, 'removeSignedLetter'])->scopeBindings()->name('recruitment.offers.signed-letter.destroy');
     Route::post('recruitment/{requisition}/offers/{offer}/email/resend', [RequisitionOfferController::class, 'resendEmail'])->scopeBindings()->name('recruitment.offers.email.resend');
+    Route::post('recruitment/{requisition}/offers/{offer}/welcome-email/resend', [RequisitionOfferController::class, 'resendWelcomeEmail'])->scopeBindings()->name('recruitment.offers.welcome-email.resend');
     Route::get('recruitment/{requisition}/offers/{offer}/employee', [RequisitionOfferController::class, 'employee'])->scopeBindings()->name('recruitment.offers.employee');
     Route::post('recruitment/{requisition}/offers/{offer}/employee', [RequisitionOfferController::class, 'convert'])->scopeBindings()->name('recruitment.offers.convert');
     Route::get('recruitment/{requisition}/candidates/{candidate}/calendar', [RequisitionController::class, 'interviewEvent'])->scopeBindings()->name('recruitment.candidates.calendar');

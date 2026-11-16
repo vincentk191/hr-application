@@ -50,7 +50,6 @@ class CancelInterview
                 'invitation_message' => null,
                 'invitation_note' => null,
                 'invitation_emailed' => false,
-                'candidate_reminded_at' => null,
                 'interviewers_reminded_at' => null,
                 'evaluation_prompted_at' => null,
             ])->save();

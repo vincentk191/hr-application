@@ -6,6 +6,7 @@ use App\Enums\EmailStatus;
 use App\Enums\OfferStage;
 use App\Enums\RequisitionStage;
 use App\Enums\Role;
+use App\Jobs\DeliverEmail;
 use App\Models\Candidate;
 use App\Models\CandidateEvaluation;
 use App\Models\CandidateOffer;
@@ -291,4 +292,99 @@ it('lets HR mark the listings as taken down once the position is filled, and tak
 
     $this->actingAs($this->hr)->put($takedown);
     expect($posting->refresh()->taken_down_at)->toBeNull();
+});
+
+function welcomeFields(array $overrides = []): array
+{
+    return [
+        'notify_candidate' => '1',
+        'email_subject' => 'Selamat bergabung di PT Maju Jaya',
+        'email_body' => "Halo Budi,\n\nHari pertama: Senin 1 Desember 2026, 08.00 di kantor pusat.",
+        ...$overrides,
+    ];
+}
+
+function welcomeEmails(CandidateOffer $offer)
+{
+    return EmailMessage::acrossCompanies()->where('related_id', $offer->id)->where('kind', EmailKind::OnboardingWelcome->value);
+}
+
+it('shows HR the welcome email to review, with the time and place left to fill in and nothing private in it', function () {
+    CompanyMailSetting::factory()->forCompany($this->company)->create(['from_address' => 'recruitment@majujaya.test']);
+    $requisition = fillRequisition(quota: 1);
+    fillOffer($requisition, 'Budi', 'budi@example.com');
+
+    $offers = $this->actingAs($this->hr)->get(route('recruitment.show', $requisition))->viewData('page')['props']['requisition']['offers'];
+    $draft = $offers[0]['welcomeDraft'];
+
+    expect($offers[0]['mailReady'])->toBeTrue()
+        ->and($draft['to'])->toBe('budi@example.com')
+        ->and($draft['subject'])->toBe('Selamat bergabung di PT Maju Jaya')
+        ->and($draft['body'])->toContain('Halo Budi')->toContain('Staf Gudang')->toContain('1 Desember 2026')
+        ->toContain('[isi waktu dan tempat]')->toContain('/register')
+        ->not->toContain('4.500.000')->not->toContain('{');
+});
+
+it('sends the reviewed welcome email once, when the offer is accepted, and not unless ticked', function () {
+    Queue::fake();
+    CompanyMailSetting::factory()->forCompany($this->company)->create(['from_address' => 'recruitment@majujaya.test']);
+    $requisition = fillRequisition(quota: 3);
+    $quiet = fillOffer($requisition, 'Ani', 'ani@example.com');
+    $welcomed = fillOffer($requisition, 'Budi', 'budi@example.com');
+    $noEmail = fillOffer($requisition, 'Citra', null);
+
+    fillAccept($requisition, $quiet)->assertRedirect();
+    $this->actingAs($this->hr)->post(route('recruitment.offers.accept', [$requisition, $noEmail]), welcomeFields())->assertRedirect();
+
+    expect(welcomeEmails($quiet)->exists())->toBeFalse()
+        ->and(welcomeEmails($noEmail)->exists())->toBeFalse();
+
+    $this->actingAs($this->requester)->post(route('recruitment.offers.accept', [$requisition, $welcomed]), welcomeFields())->assertForbidden();
+
+    $this->actingAs($this->hr)->post(route('recruitment.offers.accept', [$requisition, $welcomed]), welcomeFields())
+        ->assertSessionDoesntHaveErrors()
+        ->assertInertiaFlash('toast', ['type' => 'success', 'message' => 'Budi diterima (3 dari 3). Email sambutan dikirim.']);
+
+    $message = welcomeEmails($welcomed)->sole();
+
+    expect($welcomed->refresh()->stage())->toBe(OfferStage::Accepted)
+        ->and($message->to_email)->toBe('budi@example.com')
+        ->and($message->status)->toBe(EmailStatus::Pending)
+        ->and($message->body)->toContain('08.00 di kantor pusat');
+    Queue::assertPushed(DeliverEmail::class, 1);
+});
+
+it('refuses the welcome email while the time and place are still blank, or the mailbox is off, and accepts nothing', function () {
+    Queue::fake();
+    $requisition = fillRequisition(quota: 1);
+    $offer = fillOffer($requisition, 'Budi', 'budi@example.com');
+    $accept = fn (array $fields) => $this->actingAs($this->hr)->post(route('recruitment.offers.accept', [$requisition, $offer]), $fields);
+
+    $accept(['notify_candidate' => '1'])->assertSessionHasErrors(['email_subject', 'email_body']);
+    $accept(welcomeFields())->assertSessionHasErrors('notify_candidate');
+
+    CompanyMailSetting::factory()->forCompany($this->company)->create(['from_address' => 'recruitment@majujaya.test']);
+
+    $accept(welcomeFields(['email_body' => 'Hari pertama: [isi waktu dan tempat]']))->assertSessionHasErrors('email_body');
+
+    expect($offer->refresh()->stage())->toBe(OfferStage::Sent)
+        ->and(welcomeEmails($offer)->exists())->toBeFalse();
+});
+
+it('lets HR send a failed welcome email again, and only then', function () {
+    Queue::fake();
+    CompanyMailSetting::factory()->forCompany($this->company)->create(['from_address' => 'recruitment@majujaya.test']);
+    $requisition = fillRequisition(quota: 1);
+    $offer = fillOffer($requisition, 'Budi', 'budi@example.com');
+    $this->actingAs($this->hr)->post(route('recruitment.offers.accept', [$requisition, $offer]), welcomeFields());
+    $route = route('recruitment.offers.welcome-email.resend', [$requisition, $offer]);
+
+    $this->actingAs($this->hr)->post($route)->assertForbidden();
+
+    welcomeEmails($offer)->update(['status' => EmailStatus::Failed->value, 'error' => 'Ditolak server.']);
+
+    $this->actingAs($this->requester)->post($route)->assertForbidden();
+    $this->actingAs($this->hr)->post($route)->assertRedirect();
+
+    expect(welcomeEmails($offer)->sole()->status)->toBe(EmailStatus::Pending);
 });

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Concerns\BelongsToCompany;
 use App\Concerns\HasWorkflow;
+use App\Enums\EmailKind;
 use App\Enums\OfferStage;
 use Database\Factories\CandidateOfferFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -114,6 +115,19 @@ class CandidateOffer extends Model
     /**
      * HR has filed the letter the candidate signed and sent back.
      */
+    /**
+     * The welcome email sent to the hire when the offer was accepted, the latest if it was sent again; null when none was.
+     */
+    public function welcomeEmail(): ?EmailMessage
+    {
+        return EmailMessage::acrossCompanies()
+            ->where('related_type', $this->getMorphClass())
+            ->where('related_id', $this->getKey())
+            ->where('kind', EmailKind::OnboardingWelcome->value)
+            ->latest('id')
+            ->first();
+    }
+
     public function hasSignedLetter(): bool
     {
         return $this->signed_letter_path !== null;

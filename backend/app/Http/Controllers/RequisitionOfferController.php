@@ -22,6 +22,7 @@ use App\Support\Files\UploadFiler;
 use App\Support\Recruitment\HireProfile;
 use App\Support\Recruitment\OfferLetterComposer;
 use App\Support\Recruitment\OfferLetterPdf;
+use App\Support\Recruitment\OnboardingEmailTemplate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -364,9 +365,43 @@ class RequisitionOfferController extends Controller
     {
         $this->authorize('respondToOffer', [$requisition, $offer]);
 
-        $respond->accept($requisition, $offer, $request->user());
+        $email = null;
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => "{$offer->candidate?->name} diterima ({$requisition->filledCount()} dari {$requisition->quota})."]);
+        // HR reviewed the welcome email and left it ticked: what they left in it is what goes, once the time and place are filled in.
+        if ($request->boolean('notify_candidate') && filled($offer->candidate?->email)) {
+            $draft = $request->validate([
+                'email_subject' => ['required', 'string', 'max:300'],
+                'email_body' => ['required', 'string', 'max:10000'],
+            ], ['email_subject.required' => 'Isi subjek email.', 'email_body.required' => 'Isi teks email.']);
+
+            if (OnboardingEmailTemplate::hasBlank((string) $draft['email_body']) || OnboardingEmailTemplate::hasBlank((string) $draft['email_subject'])) {
+                throw ValidationException::withMessages(['email_body' => 'Isi waktu dan tempat hari pertama di teks email.']);
+            }
+
+            if (! app(CompanyMailer::class)->isReady($requisition->company_id)) {
+                throw ValidationException::withMessages(['notify_candidate' => 'Email pengirim perusahaan belum diaktifkan oleh admin, jadi emailnya belum bisa dikirim. Hapus centangnya dan kabari kandidat sendiri.']);
+            }
+
+            $email = ['subject' => (string) $draft['email_subject'], 'body' => (string) $draft['email_body']];
+        }
+
+        $emailed = $respond->accept($requisition, $offer, $request->user(), $email);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "{$offer->candidate?->name} diterima ({$requisition->filledCount()} dari {$requisition->quota}).".($emailed ? ' Email sambutan dikirim.' : '')]);
+
+        return back();
+    }
+
+    /**
+     * "Kirim ulang": the welcome email failed, so it is tried again from the start. The acceptance is untouched.
+     */
+    public function resendWelcomeEmail(Request $request, Requisition $requisition, CandidateOffer $offer, CompanyMailer $mailer): RedirectResponse
+    {
+        $this->authorize('resendWelcomeEmail', [$requisition, $offer]);
+
+        $mailer->resend($offer->welcomeEmail());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Email dikirim ulang.']);
 
         return back();
     }

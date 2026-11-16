@@ -3,64 +3,36 @@
 namespace App\Console\Commands;
 
 use App\Enums\RequisitionStage;
-use App\Mail\CandidateReminder;
 use App\Models\Candidate;
 use App\Models\Requisition;
 use App\Support\Notifications\Notifier;
-use App\Support\Recruitment\InvitationMessage;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Mail;
 
 /**
- * The interview reminders (REC-INT), run every morning. A candidate with an email is emailed the day before; on the
- * day itself HR and the new hire's direct superior get a notice listing the interviews; the morning after, and until it
- * is done, the same two are told which interviews are still waiting for an evaluation. Each is sent once: running the
- * command again changes nothing, and a re-invite with a new time clears them. Requisitions that are cancelled or filled
- * are left alone.
+ * The interview reminders (REC-INT), run every morning. On the day itself HR and the new hire's direct superior get a
+ * notice listing the interviews; the morning after, and until it is done, the same two are told which interviews are
+ * still waiting for an evaluation. Each is sent once: running the command again changes nothing, and a re-invite with a
+ * new time clears them. Requisitions that are cancelled or filled are left alone. The candidate is not reminded by email:
+ * the Google Calendar invitation does that.
  */
 #[Signature('recruitment:interview-reminders')]
-#[Description('Remind candidates of tomorrow\'s interviews, HR of today\'s, and ask for the evaluations still missing')]
+#[Description('Remind HR of today\'s interviews, and ask for the evaluations still missing')]
 class SendInterviewReminders extends Command
 {
     public function handle(Notifier $notifier): int
     {
-        $zone = (string) config('attendance.device_timezone');
-        $today = CarbonImmutable::now($zone)->startOfDay();
+        $today = CarbonImmutable::now((string) config('attendance.device_timezone'))->startOfDay();
 
-        $emailed = $this->remindCandidates($today->addDay(), $zone);
         $noticed = $this->remindInterviewers($today, $notifier);
         $chased = $this->askForEvaluations($today, $notifier);
 
-        $this->info("{$emailed} candidate(s) emailed, {$noticed} interview(s) announced, {$chased} awaiting an evaluation.");
+        $this->info("{$noticed} interview(s) announced, {$chased} awaiting an evaluation.");
 
         return self::SUCCESS;
-    }
-
-    /**
-     * Candidates whose interview is on the given day and who have an email.
-     */
-    private function remindCandidates(CarbonImmutable $day, string $zone): int
-    {
-        $count = 0;
-
-        $this->on($day)->whereNull('candidate_reminded_at')->whereNotNull('email')->with('requisition.company')
-            ->each(function (Candidate $candidate) use (&$count): void {
-                $requisition = $candidate->requisition;
-
-                Mail::to((string) $candidate->email)->queue(new CandidateReminder(
-                    'Pengingat interview besok — '.$requisition->position_name,
-                    InvitationMessage::reminder($candidate, $requisition),
-                ));
-
-                $candidate->forceFill(['candidate_reminded_at' => now()])->save();
-                $count++;
-            });
-
-        return $count;
     }
 
     /**

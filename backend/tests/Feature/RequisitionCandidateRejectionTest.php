@@ -7,7 +7,6 @@ use App\Enums\RequisitionStage;
 use App\Enums\Role;
 use App\Jobs\DeliverEmail;
 use App\Mail\CandidateInterviewCancelled;
-use App\Mail\CandidateReminder;
 use App\Models\Candidate;
 use App\Models\Company;
 use App\Models\CompanyMailSetting;
@@ -224,7 +223,7 @@ it('lets HR send a failed rejection email again, and only then', function () {
     Queue::assertPushed(DeliverEmail::class);
 });
 
-it('leaves a rejected candidate out of reminders, the mail-merge file, the form and the cancellation email', function () {
+it('leaves a rejected candidate out of the mail-merge file, the form and the cancellation email', function () {
     $requisition = rejectionRequisition();
     $out = Candidate::factory()->for($requisition)->create(['name' => 'Budi', 'email' => 'budi@example.com']);
     $in = Candidate::factory()->for($requisition)->create(['name' => 'Ani', 'email' => 'ani@example.com']);
@@ -232,11 +231,6 @@ it('leaves a rejected candidate out of reminders, the mail-merge file, the form 
     rejectionInvite($requisition, $in);
     rejectCandidate($requisition, $out)->assertRedirect();
     Mail::fake();
-
-    // The day before: only Ani is reminded.
-    $this->artisan('recruitment:interview-reminders')->assertSuccessful();
-    Mail::assertQueued(CandidateReminder::class, 1);
-    Mail::assertQueued(CandidateReminder::class, fn (CandidateReminder $mail): bool => $mail->hasTo('ani@example.com'));
 
     // The mail-merge file has one row.
     $rows = $this->actingAs($this->hr)->get(route('recruitment.candidates.export', $requisition))->streamedContent();

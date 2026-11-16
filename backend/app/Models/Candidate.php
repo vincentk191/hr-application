@@ -52,7 +52,6 @@ use Illuminate\Support\Carbon;
  * @property array<string, string>|null $google_responses
  * @property Carbon|null $google_missing_at
  * @property Carbon|null $google_synced_at
- * @property Carbon|null $candidate_reminded_at
  * @property Carbon|null $interviewers_reminded_at
  * @property Carbon|null $evaluation_prompted_at
  * @property Carbon|null $form_submitted_at
@@ -97,7 +96,6 @@ use Illuminate\Support\Carbon;
     'google_responses',
     'google_missing_at',
     'google_synced_at',
-    'candidate_reminded_at',
     'interviewers_reminded_at',
     'evaluation_prompted_at',
     'form_submitted_at',
@@ -135,7 +133,6 @@ class Candidate extends Model
             'google_responses' => 'array',
             'google_missing_at' => 'datetime',
             'google_synced_at' => 'datetime',
-            'candidate_reminded_at' => 'datetime',
             'interviewers_reminded_at' => 'datetime',
             'evaluation_prompted_at' => 'datetime',
             'rejected_at' => 'datetime',

@@ -405,6 +405,17 @@ class RequisitionPolicy
     }
 
     /**
+     * HR may send the welcome email again when it failed: the acceptance stays, only the email is tried again.
+     */
+    public function resendWelcomeEmail(User $user, Requisition $requisition, CandidateOffer $offer): bool
+    {
+        return $offer->requisition_id === $requisition->id
+            && $offer->stage() === OfferStage::Accepted
+            && $offer->welcomeEmail()?->status === EmailStatus::Failed
+            && $this->viewCandidates($user, $requisition);
+    }
+
+    /**
      * Marking an offer as sent is HR's, for an approved offer whose terms are complete.
      */
     public function sendOffer(User $user, Requisition $requisition, CandidateOffer $offer): bool

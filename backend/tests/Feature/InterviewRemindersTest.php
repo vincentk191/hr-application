@@ -2,7 +2,6 @@
 
 use App\Enums\RequisitionStage;
 use App\Enums\Role;
-use App\Mail\CandidateReminder;
 use App\Models\Candidate;
 use App\Models\CandidateEvaluation;
 use App\Models\Company;
@@ -72,48 +71,6 @@ function interviewAt(Requisition $requisition, string $local, array $overrides =
     ]);
 }
 
-it('emails a candidate the day before, once, with when and where', function () {
-    $budi = interviewAt($this->requisition, '2026-11-10 10:00', ['name' => 'Budi', 'email' => 'budi@example.com']);
-
-    $this->artisan('recruitment:interview-reminders')->assertSuccessful();
-
-    Mail::assertQueued(CandidateReminder::class, 1);
-    Mail::assertQueued(CandidateReminder::class, fn (CandidateReminder $mail): bool => $mail->hasTo('budi@example.com')
-        && str_contains($mail->subjectLine, 'Pengingat interview besok')
-        && str_contains($mail->body, 'Halo Budi')
-        && str_contains($mail->body, 'Selasa, 10 November 2026')
-        && str_contains($mail->body, '10:00 WIB')
-        && str_contains($mail->body, 'https://meet.google.com/abc')
-        && ! str_contains($mail->body, '/lamaran/'));
-    expect($budi->refresh()->candidate_reminded_at)->not->toBeNull();
-
-    $this->artisan('recruitment:interview-reminders')->assertSuccessful();
-    Mail::assertQueued(CandidateReminder::class, 1);
-});
-
-it('leaves a candidate without an email, and those not interviewing tomorrow', function () {
-    interviewAt($this->requisition, '2026-11-10 10:00', ['email' => null]);
-    interviewAt($this->requisition, '2026-11-11 10:00', ['email' => 'later@example.com']);
-    interviewAt($this->requisition, '2026-11-09 15:00', ['email' => 'today@example.com']);
-    Candidate::factory()->for($this->requisition)->create(['email' => 'never@example.com']);
-
-    $this->artisan('recruitment:interview-reminders')->assertSuccessful();
-
-    Mail::assertNothingQueued();
-});
-
-it('judges tomorrow in company time, not UTC', function () {
-    // 00:30 Jakarta on the 10th is still the 9th in UTC; 23:30 on the 10th is the 10th in both.
-    interviewAt($this->requisition, '2026-11-10 00:30', ['email' => 'early@example.com']);
-    interviewAt($this->requisition, '2026-11-10 23:30', ['email' => 'late@example.com']);
-    interviewAt($this->requisition, '2026-11-11 00:30', ['email' => 'next@example.com']);
-
-    $this->artisan('recruitment:interview-reminders')->assertSuccessful();
-
-    Mail::assertQueued(CandidateReminder::class, 2);
-    Mail::assertNotQueued(CandidateReminder::class, fn (CandidateReminder $mail): bool => $mail->hasTo('next@example.com'));
-});
-
 it('tells HR and the direct superior about today\'s interviews, once, with the times', function () {
     interviewAt($this->requisition, '2026-11-09 14:00', ['name' => 'Ani']);
     interviewAt($this->requisition, '2026-11-09 10:00', ['name' => 'Budi']);
@@ -142,10 +99,12 @@ it('reminds again after the interview is moved to a new time', function () {
     $this->actingAs($this->hr)->post(route('recruitment.candidates.invite', [$this->requisition, $budi]), [
         'interview_at' => '2026-11-10T10:00', 'interview_mode' => 'online', 'interview_place' => 'https://meet.google.com/new', 'participants' => [$this->hr->id],
     ])->assertSessionDoesntHaveErrors();
-    expect($budi->refresh()->interviewers_reminded_at)->toBeNull()->and($budi->candidate_reminded_at)->toBeNull();
+    expect($budi->refresh()->interviewers_reminded_at)->toBeNull();
 
+    // The new day comes: HR is told again.
+    $this->travelTo(CarbonImmutable::parse('2026-11-10 07:00', 'Asia/Jakarta'));
     $this->artisan('recruitment:interview-reminders');
-    Mail::assertQueued(CandidateReminder::class, fn (CandidateReminder $mail): bool => str_contains($mail->body, 'https://meet.google.com/new'));
+    expect($this->hr->notifications()->count())->toBe(2);
 });
 
 it('leaves requisitions that are cancelled, filled or not yet at Interview alone', function () {

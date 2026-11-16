@@ -96,31 +96,6 @@ class InvitationMessage
     }
 
     /**
-     * The day-before reminder: when and where, nothing else. The form's link is not repeated, because it opens only on the
-     * interview day and the invitation already carries it.
-     */
-    public static function reminder(Candidate $candidate, Requisition $requisition): string
-    {
-        $when = $candidate->interview_at;
-        $online = $candidate->interview_mode === 'online';
-
-        return implode("\n", [
-            "Halo {$candidate->name},",
-            '',
-            "Mengingatkan interview untuk posisi {$requisition->position_name} di {$requisition->company->name} besok:",
-            '',
-            'Hari/tanggal : '.($when === null ? '-' : self::dayLabel($when)),
-            'Jam          : '.($when === null ? '-' : self::local($when)->format('H:i')).' WIB',
-            'Format       : '.($online ? 'Online' : 'Tatap muka'),
-            str_pad($online ? 'Tautan' : 'Tempat', 12).' : '.($candidate->interview_place ?? '-'),
-            '',
-            'Jika berhalangan, mohon kabari kami dengan membalas pesan ini. Terima kasih.',
-            '',
-            "HR {$requisition->company->name}",
-        ]);
-    }
-
-    /**
      * The word that an interview is off because the position was closed: which interview, an apology, nothing about why
      * (the reason HR wrote is internal).
      */

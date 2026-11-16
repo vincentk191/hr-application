@@ -557,10 +557,22 @@ class RequisitionPresenter
         $timezone = (string) config('attendance.device_timezone');
         $candidate = $offer->candidate;
         $message = $offer->emailMessage;
+        $welcome = $offer->stage() === OfferStage::Accepted ? $offer->welcomeEmail() : null;
         $composer = app(OfferLetterComposer::class);
 
         return [
             'mailReady' => app(CompanyMailer::class)->isReady($requisition->company_id),
+            // The welcome email HR reviews while marking the offer accepted (the time and place of the first day are theirs to fill in).
+            'welcomeDraft' => $viewer->can('respondToOffer', [$requisition, $offer]) && filled($candidate->email)
+                ? ['to' => $candidate->email, ...app(OnboardingEmailTemplate::class)->render($requisition, $offer)]
+                : null,
+            'welcomeEmail' => $welcome === null ? null : [
+                'status' => $welcome->status->value,
+                'label' => $welcome->status->getLabel(),
+                'error' => $welcome->error,
+                'at' => ($welcome->sent_at ?? $welcome->created_at)?->copy()->setTimezone($timezone)->format('Y-m-d\TH:i'),
+            ],
+            'canResendWelcomeEmail' => $viewer->can('resendWelcomeEmail', [$requisition, $offer]),
             // What HR reviews before "Kirim": to whom, the subject and the text (which they may edit), and the letter as the PDF.
             'emailDraft' => $viewer->can('sendOffer', [$requisition, $offer]) && filled($candidate->email)
                 ? ['to' => $candidate->email, 'subject' => $composer->emailSubject($requisition, $offer), 'body' => $composer->emailBody($requisition, $offer)]
