@@ -26,6 +26,7 @@ use App\Actions\Recruitment\SaveSalaryExpectation;
 use App\Actions\Recruitment\SelectCandidate;
 use App\Actions\Recruitment\SubmitRequisition;
 use App\Actions\Recruitment\UnselectCandidate;
+use App\Enums\EmailKind;
 use App\Enums\EmploymentStatus;
 use App\Enums\EmploymentType;
 use App\Enums\Permission;
@@ -46,6 +47,7 @@ use App\Models\Requisition;
 use App\Models\RequisitionPosting;
 use App\Models\User;
 use App\Support\CsvDownload;
+use App\Support\Email\CompanyMailer;
 use App\Support\Files\InlineImage;
 use App\Support\Google\GoogleAuthLost;
 use App\Support\Google\GoogleUnavailable;
@@ -564,9 +566,26 @@ class RequisitionController extends Controller
             'notify_candidate' => ['nullable', 'boolean'],
         ], ['note.required' => 'Tulis alasan penolakan.']);
 
-        $emailed = $reject->handle($requisition, $candidate, $request->user(), $validated['note'], $request->boolean('notify_candidate'));
+        $email = null;
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => "{$candidate->name} ditolak".($emailed ? ' dan dikabari lewat email.' : '.')]);
+        // HR reviewed the draft of the rejection email and left it ticked: what they left in it is what goes, the next morning.
+        // Someone who was never invited, or has no email, is not emailed whatever is sent.
+        if ($request->boolean('notify_candidate') && filled($candidate->email) && $candidate->invited_at !== null) {
+            $draft = $request->validate([
+                'email_subject' => ['required', 'string', 'max:300'],
+                'email_body' => ['required', 'string', 'max:10000'],
+            ], ['email_subject.required' => 'Isi subjek email.', 'email_body.required' => 'Isi teks email.']);
+
+            if (! app(CompanyMailer::class)->isReady($requisition->company_id)) {
+                throw ValidationException::withMessages(['notify_candidate' => 'Email pengirim perusahaan belum diaktifkan oleh admin, jadi emailnya belum bisa dikirim. Hapus centangnya dan kabari kandidat sendiri.']);
+            }
+
+            $email = ['subject' => (string) $draft['email_subject'], 'body' => (string) $draft['email_body']];
+        }
+
+        $emailed = $reject->handle($requisition, $candidate, $request->user(), $validated['note'], $email);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "{$candidate->name} ditolak".($emailed ? ' dan emailnya dijadwalkan besok pagi.' : '.')]);
 
         return back();
     }
@@ -578,9 +597,23 @@ class RequisitionController extends Controller
     {
         $this->authorize('restoreCandidate', [$requisition, $candidate]);
 
-        $restore->handle($requisition, $candidate, $request->user());
+        $stopped = $restore->handle($requisition, $candidate, $request->user());
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => "{$candidate->name} kembali diproses."]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => "{$candidate->name} kembali diproses.".($stopped ? ' Email penolakan yang menunggu dibatalkan.' : '')]);
+
+        return back();
+    }
+
+    /**
+     * "Kirim ulang": the rejection email failed, so it is tried again from the start. The rejection itself is untouched.
+     */
+    public function resendRejectionEmail(Request $request, Requisition $requisition, Candidate $candidate, CompanyMailer $mailer): RedirectResponse
+    {
+        $this->authorize('resendRejectionEmail', [$requisition, $candidate]);
+
+        $mailer->resend($candidate->latestEmail(EmailKind::CandidateRejected));
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Email dikirim ulang.']);
 
         return back();
     }
@@ -671,13 +704,17 @@ class RequisitionController extends Controller
     {
         $this->authorize('markFilled', $requisition);
 
+        if ($request->boolean('notify_candidates') && $fill->emailable($requisition) > 0 && ! app(CompanyMailer::class)->isReady($requisition->company_id)) {
+            throw ValidationException::withMessages(['notify_candidates' => 'Email pengirim perusahaan belum diaktifkan oleh admin, jadi emailnya belum bisa dikirim. Hapus centangnya dan kabari kandidat sendiri.']);
+        }
+
         try {
             $emailed = $fill->handle($requisition, $request->user(), $request->boolean('notify_candidates'));
         } catch (TransitionBlocked $blocked) {
             throw ValidationException::withMessages(['filled' => $blocked->getMessage()]);
         }
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => "{$requisition->reference()} terisi.".($emailed > 0 ? " {$emailed} kandidat dikabari lewat email." : '')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => "{$requisition->reference()} terisi.".($emailed > 0 ? " {$emailed} kandidat dikabari lewat email besok pagi." : '')]);
 
         return back();
     }

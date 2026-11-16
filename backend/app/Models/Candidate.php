@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Concerns\BelongsToCompany;
 use App\Enums\CandidateSource;
+use App\Enums\EmailKind;
 use Carbon\CarbonImmutable;
 use Database\Factories\CandidateFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -188,6 +189,19 @@ class Candidate extends Model
     public function hasGoogleEvent(): bool
     {
         return $this->google_event_id !== null;
+    }
+
+    /**
+     * The latest email of a kind written about this candidate (their rejection), for how it is doing.
+     */
+    public function latestEmail(EmailKind $kind): ?EmailMessage
+    {
+        return EmailMessage::acrossCompanies()
+            ->where('related_type', $this->getMorphClass())
+            ->where('related_id', $this->getKey())
+            ->where('kind', $kind->value)
+            ->latest('id')
+            ->first();
     }
 
     /**

@@ -1,4 +1,4 @@
-import { router } from '@inertiajs/react';
+﻿import { router } from '@inertiajs/react';
 import {
     Ban,
     CalendarCheck,
@@ -28,6 +28,7 @@ import {
 import { DecisionDialog } from '@/components/decision-dialog';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import { FileLink, useFilePreview } from '@/components/file-preview';
+import InputError from '@/components/input-error';
 import {
     GOOGLE_RESPONSE,
     INVITE_STATE,
@@ -55,6 +56,7 @@ import {
     unselect,
     uninvite,
 } from '@/routes/recruitment/candidates';
+import { resend as resendRejectionEmail } from '@/routes/recruitment/candidates/rejection-email';
 import type { Candidate, Requisition } from '@/types/recruitment';
 
 export type CandidateTab = 'overview' | 'documents' | 'interview';
@@ -79,7 +81,7 @@ function size(bytes: number | null): string {
 
 function Field({ label, value }: { label: string; value: unknown }) {
     const display =
-        value === null || value === undefined || value === '' ? '—' : value;
+        value === null || value === undefined || value === '' ? 'â€”' : value;
 
     return (
         <div className="grid grid-cols-[9rem_1fr] gap-2 border-t py-2 text-sm">
@@ -146,6 +148,154 @@ export function CandidateDrawer({
     );
 }
 
+/**
+ * The email HR reviews while turning someone down: ticked unless HR unticks it, the wording theirs to edit for this one
+ * candidate. It does not go at once; it is scheduled for the next morning, and taking the rejection back stops it.
+ */
+function RejectionEmailFields({
+    draft,
+    mailReady,
+    errors,
+}: {
+    draft: NonNullable<Candidate['rejectionDraft']>;
+    mailReady: boolean;
+    errors: Record<string, string>;
+}) {
+    const [send, setSend] = useState(mailReady);
+
+    return (
+        <div className="mb-3 space-y-3" data-test="rejection-email-draft">
+            <label className="flex items-center gap-2 text-sm font-medium">
+                <input
+                    type="checkbox"
+                    name="notify_candidate"
+                    value="1"
+                    checked={send}
+                    disabled={!mailReady}
+                    onChange={(event) => setSend(event.target.checked)}
+                    className="size-4 accent-primary"
+                    data-test="notify-candidate"
+                />
+                <Mail className="size-4 text-muted-foreground" aria-hidden />
+                Kabari kandidat lewat email
+            </label>
+            {!mailReady && (
+                <p
+                    className="text-sm text-muted-foreground"
+                    data-test="rejection-no-mailbox"
+                >
+                    Email perusahaan belum diaktifkan oleh admin, jadi tidak ada
+                    email yang dikirim. Kabari kandidat sendiri.
+                </p>
+            )}
+            <InputError message={errors.notify_candidate} />
+            {send && (
+                <>
+                    <p className="text-sm">
+                        <span className="text-muted-foreground">Kepada: </span>
+                        <span className="font-medium">{draft.to}</span>
+                        <span className="text-muted-foreground">
+                            {' '}
+                            Â· dikirim {draft.sendAt}
+                        </span>
+                    </p>
+                    <div className="grid gap-1">
+                        <label
+                            htmlFor="rejection-email-subject"
+                            className="text-sm font-semibold text-muted-foreground"
+                        >
+                            Subjek
+                        </label>
+                        <input
+                            id="rejection-email-subject"
+                            name="email_subject"
+                            defaultValue={draft.subject}
+                            maxLength={300}
+                            required
+                            className="h-10 w-full rounded-xl border border-input bg-card px-3 text-sm"
+                            data-test="rejection-email-subject"
+                        />
+                        <InputError message={errors.email_subject} />
+                    </div>
+                    <div className="grid gap-1">
+                        <label
+                            htmlFor="rejection-email-body"
+                            className="text-sm font-semibold text-muted-foreground"
+                        >
+                            Isi email
+                        </label>
+                        <textarea
+                            id="rejection-email-body"
+                            name="email_body"
+                            defaultValue={draft.body}
+                            rows={8}
+                            required
+                            className="w-full rounded-xl border border-input bg-card px-3 py-2 text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+                            data-test="rejection-email-body"
+                        />
+                        <InputError message={errors.email_body} />
+                    </div>
+                </>
+            )}
+        </div>
+    );
+}
+
+/**
+ * How the rejection email is doing (waiting for its morning, sent, failed, or stopped), with "Kirim ulang" when it failed.
+ */
+function RejectionEmailStatus({
+    item,
+    candidate,
+}: {
+    item: Requisition;
+    candidate: Candidate;
+}) {
+    const email = candidate.rejectionEmail ?? null;
+
+    if (email === null) {
+        return null;
+    }
+
+    return (
+        <div
+            className={`mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 ${email.status === 'failed' ? 'text-destructive' : 'text-muted-foreground'}`}
+            data-test="rejection-email-status"
+        >
+            <span className="inline-flex items-center gap-1.5">
+                <Mail className="size-4" aria-hidden />
+                Email {email.label.toLowerCase()}
+                {email.at
+                    ? ` Â· ${shortDate(email.at.slice(0, 10))} ${email.at.slice(11).replace(':', '.')}`
+                    : ''}
+                {email.status === 'failed' && email.error
+                    ? `: ${email.error}`
+                    : ''}
+            </span>
+            {candidate.canResendRejectionEmail && (
+                <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                        router.post(
+                            resendRejectionEmail.url({
+                                requisition: item.id,
+                                candidate: candidate.id,
+                            }),
+                            {},
+                            { preserveScroll: true },
+                        )
+                    }
+                    data-test="resend-rejection-email"
+                >
+                    <Send className="size-4" aria-hidden />
+                    Kirim ulang
+                </Button>
+            )}
+        </div>
+    );
+}
+
 function DrawerBody({
     item,
     candidate,
@@ -186,7 +336,7 @@ function DrawerBody({
                     <p className="text-sm text-muted-foreground">
                         {[item.positionName, item.department]
                             .filter(Boolean)
-                            .join(' · ')}
+                            .join(' Â· ')}
                     </p>
                 </div>
             </div>
@@ -204,10 +354,10 @@ function DrawerBody({
                         <p className="font-semibold">
                             Ditolak
                             {candidate.rejectedOn
-                                ? ` · ${shortDate(candidate.rejectedOn)}`
+                                ? ` Â· ${shortDate(candidate.rejectedOn)}`
                                 : ''}
                             {candidate.rejectedBy
-                                ? ` · ${candidate.rejectedBy}`
+                                ? ` Â· ${candidate.rejectedBy}`
                                 : ''}
                         </p>
                         {candidate.rejectedReason && (
@@ -215,6 +365,10 @@ function DrawerBody({
                                 {candidate.rejectedReason}
                             </p>
                         )}
+                        <RejectionEmailStatus
+                            item={item}
+                            candidate={candidate}
+                        />
                     </div>
                 </div>
             )}
@@ -231,10 +385,10 @@ function DrawerBody({
                     <p className="font-semibold">
                         Dipilih
                         {candidate.selectedOn
-                            ? ` · ${shortDate(candidate.selectedOn)}`
+                            ? ` Â· ${shortDate(candidate.selectedOn)}`
                             : ''}
                         {candidate.selectedBy
-                            ? ` · ${candidate.selectedBy}`
+                            ? ` Â· ${candidate.selectedBy}`
                             : ''}
                     </p>
                 </div>
@@ -295,33 +449,23 @@ function DrawerBody({
                                 candidate: candidate.id,
                             })}
                             decision="reject"
-                            title={`Tolak kandidat — ${candidate.name}`}
-                            subtitle={`${item.reference} · ${item.positionName}`}
+                            title={`Tolak kandidat â€” ${candidate.name}`}
+                            subtitle={`${item.reference} Â· ${item.positionName}`}
                             fieldLabel="Alasan penolakan"
-                            hint="Wajib diisi · tidak dikirim ke kandidat"
+                            hint="Wajib diisi Â· tidak dikirim ke kandidat"
                             required
                             confirmLabel="Tolak"
                             destructive
                             extra={
-                                candidate.email &&
-                                candidate.inviteState !== 'none'
-                                    ? () => (
-                                          <label
-                                              className="mb-3 flex items-center gap-2 text-sm font-medium"
-                                              data-test="notify-candidate"
-                                          >
-                                              <input
-                                                  type="checkbox"
-                                                  name="notify_candidate"
-                                                  value="1"
-                                                  className="size-4 accent-primary"
-                                              />
-                                              <Mail
-                                                  className="size-4 text-muted-foreground"
-                                                  aria-hidden
-                                              />
-                                              Kabari kandidat lewat email
-                                          </label>
+                                candidate.rejectionDraft
+                                    ? (errors) => (
+                                          <RejectionEmailFields
+                                              draft={candidate.rejectionDraft!}
+                                              mailReady={
+                                                  candidate.mailReady ?? false
+                                              }
+                                              errors={errors}
+                                          />
                                       )
                                     : undefined
                             }
@@ -510,7 +654,7 @@ function OverviewTab({ candidate }: { candidate: Candidate }) {
                     label="Ditambahkan"
                     value={
                         candidate.addedOn
-                            ? `${shortDate(candidate.addedOn)}${candidate.addedBy ? ` · ${candidate.addedBy}` : ''}`
+                            ? `${shortDate(candidate.addedOn)}${candidate.addedBy ? ` Â· ${candidate.addedBy}` : ''}`
                             : null
                     }
                 />
@@ -560,7 +704,7 @@ function Questionnaire({ candidate }: { candidate: Candidate }) {
                 <p className="label-mono">
                     {form.yes} dari {form.answers.length} YA
                     {candidate.formSubmittedOn
-                        ? ` · dikirim ${shortDate(candidate.formSubmittedOn)}`
+                        ? ` Â· dikirim ${shortDate(candidate.formSubmittedOn)}`
                         : ''}
                 </p>
             </div>
@@ -607,7 +751,9 @@ function Questionnaire({ candidate }: { candidate: Candidate }) {
                 />
             </dl>
             {form.message && (
-                <p className="text-sm whitespace-pre-line">“{form.message}”</p>
+                <p className="text-sm whitespace-pre-line">
+                    â€œ{form.message}â€
+                </p>
             )}
         </section>
     );
@@ -829,7 +975,7 @@ function InterviewSection({
                                     <Clock className="size-4 text-muted-foreground" />
                                     {String(at.getHours()).padStart(2, '0')}:
                                     {String(at.getMinutes()).padStart(2, '0')}{' '}
-                                    WIB · {candidate.interviewMinutes} menit
+                                    WIB Â· {candidate.interviewMinutes} menit
                                 </span>
                                 <span className="inline-flex min-w-0 items-center gap-1.5">
                                     <MapPin className="size-4 shrink-0 text-muted-foreground" />
@@ -837,7 +983,7 @@ function InterviewSection({
                                         {modeLabel(candidate.interviewMode)}
                                         {candidate.interviewPlace && (
                                             <>
-                                                {' · '}
+                                                {' Â· '}
                                                 <LinkifiedText
                                                     text={
                                                         candidate.interviewPlace

@@ -4,6 +4,8 @@ namespace App\Support\Recruitment;
 
 use App\Actions\Recruitment\MarkRequisitionFilled;
 use App\Enums\CandidateSource;
+use App\Enums\EmailKind;
+use App\Enums\EmailStatus;
 use App\Enums\EmploymentStatus;
 use App\Enums\EvaluationRecommendation;
 use App\Enums\JobPlatform;
@@ -173,6 +175,14 @@ class RequisitionPresenter
                 : [],
             // Interviewed candidates who could be told by email that the position is filled.
             'emailableOthers' => $viewer->can('markFilled', $requisition) ? app(MarkRequisitionFilled::class)->emailable($requisition) : 0,
+            // The wording of that email (the admin's), as one candidate would read it, and when it would go.
+            'positionFilledEmail' => $viewer->can('markFilled', $requisition)
+                ? [
+                    'mailReady' => app(CompanyMailer::class)->isReady($requisition->company_id),
+                    ...app(CandidateOutcomeTemplate::class)->render(CandidateOutcomeTemplate::POSITION_FILLED, new Candidate, $requisition, '[nama kandidat]'),
+                    'sendAt' => InvitationMessage::whenLabel(CandidateOutcomeTemplate::nextMorning()),
+                ]
+                : null,
             'canCloseFilled' => $viewer->can('closeFilled', $requisition),
             'canChangeSuperior' => $viewer->can('changeSuperior', $requisition),
             'superiorChoices' => $viewer->can('changeSuperior', $requisition) ? $this->superiorChoices($requisition) : [],
@@ -408,8 +418,28 @@ class RequisitionPresenter
     {
         $isHr = $viewer !== null && $viewer->can('viewCandidates', $requisition);
         $timezone = (string) config('attendance.device_timezone');
+        $canReject = $viewer !== null && $viewer->can('rejectCandidate', [$requisition, $candidate]);
+        $message = $isHr && $candidate->isRejected() ? $candidate->latestEmail(EmailKind::CandidateRejected) : null;
 
         return [
+            // The email HR reviews before turning someone down (they may edit it; it goes the next morning), for a candidate who was
+            // invited and has an email, and whether the company can send email at all.
+            'rejectionDraft' => $canReject && filled($candidate->email) && $candidate->invited_at !== null
+                ? [
+                    'to' => $candidate->email,
+                    ...app(CandidateOutcomeTemplate::class)->render(CandidateOutcomeTemplate::REJECTION, $candidate, $requisition),
+                    'sendAt' => InvitationMessage::whenLabel(CandidateOutcomeTemplate::nextMorning()),
+                ]
+                : null,
+            'mailReady' => $isHr ? app(CompanyMailer::class)->isReady($requisition->company_id) : false,
+            // How the rejection email is doing, for HR: waiting for its morning, sent, failed, or stopped.
+            'rejectionEmail' => $message === null ? null : [
+                'status' => $message->status->value,
+                'label' => $message->status->getLabel(),
+                'error' => $message->error,
+                'at' => ($message->status === EmailStatus::Sent ? $message->sent_at : $message->send_at)?->copy()->setTimezone($timezone)->format('Y-m-d\TH:i'),
+            ],
+            'canResendRejectionEmail' => $viewer !== null && $viewer->can('resendRejectionEmail', [$requisition, $candidate]),
             'isRejected' => $candidate->isRejected(),
             'rejectedOn' => $candidate->rejected_at?->copy()->setTimezone($timezone)->toDateString(),
             'rejectedReason' => $isHr ? $candidate->rejected_reason : null,

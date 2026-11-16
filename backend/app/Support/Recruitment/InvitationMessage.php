@@ -142,23 +142,6 @@ class InvitationMessage
     }
 
     /**
-     * The word to a candidate who will not go further: thanks, and that the process stops here. Nothing about why (the
-     * reason HR wrote is internal).
-     */
-    public static function rejection(Candidate $candidate, Requisition $requisition): string
-    {
-        return implode("\n", [
-            "Halo {$candidate->name},",
-            '',
-            "Terima kasih atas waktu dan minat Anda pada posisi {$requisition->position_name} di {$requisition->company->name}.",
-            '',
-            'Setelah kami pertimbangkan, kami belum dapat melanjutkan proses Anda untuk posisi ini. Kami menghargai usaha Anda dan berharap Anda sukses ke depannya.',
-            '',
-            "HR {$requisition->company->name}",
-        ]);
-    }
-
-    /**
      * "Rp 4.500.000".
      */
     public static function rupiah(int $amount): string
@@ -186,23 +169,6 @@ class InvitationMessage
             "Dengan menyesal kami sampaikan bahwa penawaran kerja untuk posisi {$requisition->position_name} di {$requisition->company->name} yang kami kirimkan kepada Anda tidak dapat dilanjutkan.",
             '',
             'Mohon maaf atas ketidaknyamanannya, dan terima kasih atas waktu dan minat Anda.',
-            '',
-            "HR {$requisition->company->name}",
-        ]);
-    }
-
-    /**
-     * The word to the other interviewed candidates that the position is filled (REC-OFS-009): thanks, and that the process
-     * stops here.
-     */
-    public static function positionFilled(Candidate $candidate, Requisition $requisition): string
-    {
-        return implode("\n", [
-            "Halo {$candidate->name},",
-            '',
-            "Terima kasih atas waktu dan minat Anda pada posisi {$requisition->position_name} di {$requisition->company->name}.",
-            '',
-            'Posisi ini sudah terisi, sehingga kami tidak dapat melanjutkan proses Anda. Kami menghargai usaha Anda dan berharap Anda sukses ke depannya.',
             '',
             "HR {$requisition->company->name}",
         ]);

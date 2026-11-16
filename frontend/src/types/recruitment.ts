@@ -210,6 +210,25 @@ export type Candidate = {
     /** HR may turn them down now, or take the rejection back. */
     canReject: boolean;
     canRestore: boolean;
+    /** The email HR reviews when turning someone down (invited, has an email); null when none can be sent. */
+    rejectionDraft?: {
+        to: string;
+        subject: string;
+        body: string;
+        /** When it would go, as a label ("Kamis, 5 Nov · 08.00"). */
+        sendAt: string;
+    } | null;
+    /** The company has an enabled mailbox, so an email can be sent at all (HR only). */
+    mailReady?: boolean;
+    /** HR only: how the rejection email is doing. */
+    rejectionEmail?: {
+        status: 'pending' | 'sending' | 'sent' | 'failed' | 'cancelled';
+        label: string;
+        error: string | null;
+        /** A datetime-local value in the company's time. */
+        at: string | null;
+    } | null;
+    canResendRejectionEmail?: boolean;
     /** HR may take them off the shortlist: not while an offer is out to them, and never after they accepted. */
     canRemove: boolean;
     /** The direct superior chose this candidate (REC-PIP) and they are still in the process. */
@@ -483,6 +502,13 @@ export type Requisition = RequisitionRow & {
     filledBlockers: string[];
     /** Interviewed candidates, not hired, with an email: who "kabari kandidat lain" would reach. */
     emailableOthers: number;
+    /** The wording of the position-filled email as one candidate would read it, and when it would go (HR only). */
+    positionFilledEmail?: {
+        mailReady: boolean;
+        subject: string;
+        body: string;
+        sendAt: string;
+    } | null;
     /** HR may tick listings off as taken down, once the position is filled. */
     canCloseFilled: boolean;
     /** HR may name a different direct superior, and from whom: active employees with an active account. */

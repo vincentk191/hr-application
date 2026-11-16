@@ -13,6 +13,7 @@ use App\Models\User;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Mail\Mailables\Address;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Throwable;
@@ -101,7 +102,7 @@ class CompanyMailer
             'body' => $body,
             'attachments' => $attachments === [] ? null : $attachments,
             'status' => EmailStatus::Pending,
-            'send_at' => $sendAt ?? now(),
+            'send_at' => $sendAt === null ? now() : Carbon::instance($sendAt)->setTimezone(config('app.timezone')),
             'related_type' => $related?->getMorphClass(),
             'related_id' => $related?->getKey(),
             'created_by_user_id' => $by?->id,
@@ -190,6 +191,21 @@ class CompanyMailer
             ->whereKey($message->id)
             ->where('status', EmailStatus::Pending->value)
             ->update(['status' => EmailStatus::Cancelled->value]) > 0;
+    }
+
+    /**
+     * Stops the emails of one kind about one thing that have not gone yet (a rejection email, when HR takes the rejection back).
+     *
+     * @return int how many were stopped
+     */
+    public function cancelFor(Model $related, EmailKind $kind): int
+    {
+        return EmailMessage::acrossCompanies()
+            ->where('related_type', $related->getMorphClass())
+            ->where('related_id', $related->getKey())
+            ->where('kind', $kind->value)
+            ->where('status', EmailStatus::Pending->value)
+            ->update(['status' => EmailStatus::Cancelled->value]);
     }
 
     /**

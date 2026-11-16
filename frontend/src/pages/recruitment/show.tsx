@@ -526,23 +526,59 @@ export default function RequisitionShow({
                               extra={(dialogErrors) => (
                                   <div className="space-y-3">
                                       {item.emailableOthers > 0 && (
-                                          <label
-                                              className="flex items-center gap-2 text-sm font-medium"
+                                          <div
+                                              className="space-y-2"
                                               data-test="notify-others"
                                           >
-                                              <input
-                                                  type="checkbox"
-                                                  name="notify_candidates"
-                                                  value="1"
-                                                  className="size-4 accent-primary"
+                                              <label className="flex items-center gap-2 text-sm font-medium">
+                                                  <input
+                                                      type="checkbox"
+                                                      name="notify_candidates"
+                                                      value="1"
+                                                      disabled={
+                                                          !item
+                                                              .positionFilledEmail
+                                                              ?.mailReady
+                                                      }
+                                                      className="size-4 accent-primary"
+                                                  />
+                                                  <Mail
+                                                      className="size-4 text-muted-foreground"
+                                                      aria-hidden
+                                                  />
+                                                  Kabari {item.emailableOthers}{' '}
+                                                  kandidat lain lewat email
+                                              </label>
+                                              {item.positionFilledEmail
+                                                  ?.mailReady ? (
+                                                  <p className="text-sm whitespace-pre-line text-muted-foreground">
+                                                      Dikirim{' '}
+                                                      {
+                                                          item
+                                                              .positionFilledEmail
+                                                              .sendAt
+                                                      }
+                                                      , isinya:{'\n\n'}
+                                                      {
+                                                          item
+                                                              .positionFilledEmail
+                                                              .body
+                                                      }
+                                                  </p>
+                                              ) : (
+                                                  <p className="text-sm text-muted-foreground">
+                                                      Email perusahaan belum
+                                                      diaktifkan oleh admin,
+                                                      jadi tidak ada email yang
+                                                      dikirim.
+                                                  </p>
+                                              )}
+                                              <InputError
+                                                  message={
+                                                      dialogErrors.notify_candidates
+                                                  }
                                               />
-                                              <Mail
-                                                  className="size-4 text-muted-foreground"
-                                                  aria-hidden
-                                              />
-                                              Kabari {item.emailableOthers}{' '}
-                                              kandidat lain lewat email
-                                          </label>
+                                          </div>
                                       )}
                                       <InputError
                                           message={dialogErrors.filled}

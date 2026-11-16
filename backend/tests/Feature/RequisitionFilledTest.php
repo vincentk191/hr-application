@@ -1,15 +1,18 @@
 <?php
 
 use App\Actions\Recruitment\InviteCandidate;
+use App\Enums\EmailKind;
+use App\Enums\EmailStatus;
 use App\Enums\OfferStage;
 use App\Enums\RequisitionStage;
 use App\Enums\Role;
-use App\Mail\CandidatePositionFilled;
 use App\Models\Candidate;
 use App\Models\CandidateEvaluation;
 use App\Models\CandidateOffer;
 use App\Models\Company;
+use App\Models\CompanyMailSetting;
 use App\Models\Department;
+use App\Models\EmailMessage;
 use App\Models\Employee;
 use App\Models\Requisition;
 use App\Models\RequisitionPosting;
@@ -19,6 +22,7 @@ use App\Workflows\WorkflowEngine;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Activitylog\Models\Activity;
 
@@ -218,10 +222,12 @@ it('closes the requisition once the quota is filled: withdraws what is out, ends
         ->and($this->requester->notifications()->get()->pluck('data.title')->implode(' '))->toContain('terisi')
         ->and($this->management->notifications()->get()->pluck('data.title')->implode(' '))->toContain('terisi');
 
-    Mail::assertNotQueued(CandidatePositionFilled::class);
+    expect(EmailMessage::acrossCompanies()->where('kind', EmailKind::PositionFilled->value)->exists())->toBeFalse();
 });
 
-it('emails the other interviewed candidates that the position is filled only when ticked, never the hire', function () {
+it('schedules the position-filled email for the other interviewed candidates only when ticked, never the hire', function () {
+    Queue::fake();
+    CompanyMailSetting::factory()->forCompany($this->company)->create(['from_address' => 'recruitment@majujaya.test']);
     $requisition = fillRequisition(quota: 1);
     $hired = fillOffer($requisition, 'Budi', 'budi@example.com');
     fillOffer($requisition, 'Ani', 'ani@example.com');
@@ -230,13 +236,31 @@ it('emails the other interviewed candidates that the position is filled only whe
 
     $props = fn () => $this->actingAs($this->hr)->get(route('recruitment.show', $requisition))->viewData('page')['props']['requisition'];
 
-    expect($props())->toMatchArray(['canMarkFilled' => true, 'emailableOthers' => 1, 'filledBlockers' => []]);
+    expect($props())->toMatchArray(['canMarkFilled' => true, 'emailableOthers' => 1, 'filledBlockers' => []])
+        ->and($props()['positionFilledEmail'])->toMatchArray(['mailReady' => true])
+        ->and($props()['positionFilledEmail']['body'])->toContain('[nama kandidat]');
 
     fillClose($requisition, ['notify_candidates' => '1'])->assertSessionDoesntHaveErrors()
-        ->assertInertiaFlash('toast', ['type' => 'success', 'message' => 'REQ-'.str_pad((string) $requisition->id, 4, '0', STR_PAD_LEFT).' terisi. 1 kandidat dikabari lewat email.']);
+        ->assertInertiaFlash('toast', ['type' => 'success', 'message' => 'REQ-'.str_pad((string) $requisition->id, 4, '0', STR_PAD_LEFT).' terisi. 1 kandidat dikabari lewat email besok pagi.']);
 
-    Mail::assertQueued(CandidatePositionFilled::class, 1);
-    Mail::assertQueued(CandidatePositionFilled::class, fn (CandidatePositionFilled $mail): bool => $mail->hasTo('ani@example.com') && str_contains($mail->body, 'sudah terisi'));
+    $message = EmailMessage::acrossCompanies()->where('kind', EmailKind::PositionFilled->value)->sole();
+
+    expect($message->to_email)->toBe('ani@example.com')
+        ->and($message->status)->toBe(EmailStatus::Pending)
+        ->and($message->body)->toContain('Halo Ani')->toContain('sudah terisi')
+        ->and($message->send_at->setTimezone('Asia/Jakarta')->format('Y-m-d H:i'))->toBe('2026-11-05 08:00');
+});
+
+it('refuses to tell the other candidates while the company mailbox is off', function () {
+    Queue::fake();
+    $requisition = fillRequisition(quota: 1);
+    $hired = fillOffer($requisition, 'Budi', 'budi@example.com');
+    fillOffer($requisition, 'Ani', 'ani@example.com');
+    fillAccept($requisition, $hired);
+
+    fillClose($requisition, ['notify_candidates' => '1'])->assertSessionHasErrors('notify_candidates');
+
+    expect($requisition->refresh()->stage())->not->toBe(RequisitionStage::Filled);
 });
 
 it('leaves "Tandai Selesai" to HR at Penawaran', function () {

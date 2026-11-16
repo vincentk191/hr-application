@@ -2096,7 +2096,7 @@ scans and returns it).
      on the audit trail, without the password. **Not moved yet:** the older candidate emails (the invitation fallback, the
      reminder, the cancellation, the rejection, "position filled", the offer and its withdrawal) still go through the app's
      default `MAIL_MAILER` (`log` on the server), so nothing leaves until each is moved onto `CompanyMailer`: the offer and its
-     withdrawal in Phase 1, the rejection and "position filled" in Phase 2, then the reminder, the cancellation and the invitation
+     withdrawal in Phase 1, the rejection and "position filled" in Phase 2 (done), then the reminder, the cancellation and the invitation
      fallback.
   1. **Offer letter.** HR reviews the draft email and the letter, "Kirim" sends it with the **PDF attached**; the sent
      letter stays frozen (`letter_snapshot`). A place on the offer to **upload the signed scan** HR receives back. Salary not in
@@ -2124,6 +2124,22 @@ scans and returns it).
      email is **scheduled for the next morning** (time to confirm; 08:00 like the other morning jobs unless said otherwise) and
      **cancelled by "Pulihkan"**. Editable neutral wording, only for candidates who were invited and have an email. The
      "position filled" email becomes the same scheduled kind.
+     **Built 2026-11-16 (uncommitted).** In the Tolak dialog the email is **ticked by default** (HR can untick it) for a candidate
+     who was invited and has an email; HR sees to, when it goes and the subject and text, and may edit them for this candidate.
+     The wording comes from the new admin page **Email hasil seleksi** (`CandidateOutcomeTemplate`, setting
+     `recruitment.outcome_emails`: subject and text for the rejection and for "position filled", placeholders `{nama}`,
+     `{posisi}`, `{perusahaan}`, a typo is refused when saving, the **reason is never a placeholder**). Tolak queues the email
+     through `CompanyMailer` as `candidate_rejected` with `send_at` = **the next day at 08:00 company time** (`nextMorning()`,
+     `attendance.device_timezone`; 08:00 is my default, not yet confirmed by the user); a rejection made again after a restore
+     replaces the earlier waiting email. **Pulihkan stops it if it is still waiting** (and says so); one that already went is
+     not recalled. With the company's mailbox off, a ticked email is refused with a message and nothing changes (untick it to
+     reject without email). The rejected banner shows how the email is doing (waiting with its time, sent, failed, stopped) and
+     "Kirim ulang" for a failed one. **"Tandai Selesai"** shows the admin wording (not editable per send) and the time, queues one
+     `position_filled` email per other interviewed candidate for the next morning, and is refused the same way while the mailbox is
+     off. `CompanyMailer` now stores `send_at` in the app time zone (a Jakarta time was being stored as if it were UTC, seven
+     hours late). The old mailables `CandidateRejected` and `CandidatePositionFilled` and their `InvitationMessage` texts are
+     gone. Tests: `RequisitionCandidateRejectionTest`, `RequisitionFilledTest`, `CandidateOutcomeTemplatePageTest`. Not seen in a
+     browser; no email has been delivered by a real server yet.
   3. **Onboarding welcome.** When the offer is accepted (or the hire converted): start date, time and place, what to bring (an
      editable list), how to activate the account (the public address and "Daftar"; never the NIK or employee ID), and a reminder
      the day before the start. From the personal email on the candidate record. No onboarding checklist module yet.

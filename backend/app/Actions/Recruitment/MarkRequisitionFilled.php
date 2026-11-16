@@ -2,33 +2,40 @@
 
 namespace App\Actions\Recruitment;
 
+use App\Enums\EmailKind;
 use App\Enums\RequisitionStage;
-use App\Mail\CandidatePositionFilled;
 use App\Models\Candidate;
 use App\Models\Requisition;
 use App\Models\User;
+use App\Support\Email\CompanyMailer;
 use App\Support\Notifications\Notifier;
-use App\Support\Recruitment\InvitationMessage;
+use App\Support\Recruitment\CandidateOutcomeTemplate;
 use App\Workflows\Exceptions\TransitionBlocked;
 use App\Workflows\WorkflowEngine;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
 
 /**
  * "Tandai Selesai" (REC-FIL-001/003): once the quota is filled, HR moves the requisition to 06 Terisi. The stage's guard
  * refuses before that. Closing also does what can be done for HR: offers still out for the places that are gone are withdrawn,
  * and the form links of candidates who have not used them are ended. Taking the listings down stays with HR, as a checklist
- * on the Terisi tab. HR may also email the other interviewed candidates that the position is filled.
+ * on the Terisi tab. HR may also tell the other interviewed candidates by email that the position is filled: the wording is the
+ * admin's (CandidateOutcomeTemplate), and like a rejection it goes out the next morning, not at once.
  */
 class MarkRequisitionFilled
 {
-    public function __construct(private WorkflowEngine $engine, private WithdrawOffer $withdraw, private Notifier $notifier) {}
+    public function __construct(
+        private WorkflowEngine $engine,
+        private WithdrawOffer $withdraw,
+        private Notifier $notifier,
+        private CompanyMailer $mailer,
+        private CandidateOutcomeTemplate $wording,
+    ) {}
 
     /**
      * @param  bool  $notifyCandidates  email the interviewed candidates who did not get the job and have an address
-     * @return int how many candidates were emailed
+     * @return int how many candidates were scheduled to be emailed
      *
      * @throws TransitionBlocked the quota is not filled yet
      */
@@ -54,7 +61,7 @@ class MarkRequisitionFilled
 
         $this->notifier->requisitionFilled($requisition->refresh(), $by);
 
-        return $notifyCandidates ? $this->tellCandidates($requisition) : 0;
+        return $notifyCandidates ? $this->tellCandidates($requisition, $by) : 0;
     }
 
     /**
@@ -65,15 +72,25 @@ class MarkRequisitionFilled
         return $this->others($requisition)->count();
     }
 
-    private function tellCandidates(Requisition $requisition): int
+    private function tellCandidates(Requisition $requisition, User $by): int
     {
-        $requisition->loadMissing('company');
-        $subject = 'Status lamaran — '.$requisition->position_name;
-
         $candidates = $this->others($requisition)->get();
+        $sendAt = CandidateOutcomeTemplate::nextMorning();
 
         foreach ($candidates as $candidate) {
-            Mail::to((string) $candidate->email)->queue(new CandidatePositionFilled($subject, InvitationMessage::positionFilled($candidate, $requisition)));
+            $email = $this->wording->render(CandidateOutcomeTemplate::POSITION_FILLED, $candidate, $requisition);
+
+            $this->mailer->queue(
+                $requisition->company_id,
+                EmailKind::PositionFilled,
+                (string) $candidate->email,
+                $email['subject'],
+                $email['body'],
+                sendAt: $sendAt,
+                related: $candidate,
+                by: $by,
+                toName: $candidate->name,
+            );
         }
 
         return $candidates->count();

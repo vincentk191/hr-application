@@ -1,14 +1,18 @@
 <?php
 
 use App\Actions\Recruitment\InviteCandidate;
+use App\Enums\EmailKind;
+use App\Enums\EmailStatus;
 use App\Enums\RequisitionStage;
 use App\Enums\Role;
+use App\Jobs\DeliverEmail;
 use App\Mail\CandidateInterviewCancelled;
-use App\Mail\CandidateRejected;
 use App\Mail\CandidateReminder;
 use App\Models\Candidate;
 use App\Models\Company;
+use App\Models\CompanyMailSetting;
 use App\Models\Department;
+use App\Models\EmailMessage;
 use App\Models\Employee;
 use App\Models\Requisition;
 use App\Models\User;
@@ -17,6 +21,7 @@ use App\Workflows\WorkflowEngine;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Queue;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
 
@@ -116,30 +121,107 @@ it('needs a reason, and lets only HR do it, from Screening to Offer, once', func
     rejectCandidate($requisition, $candidate)->assertForbidden();
 });
 
-it('emails the candidate only when HR asks, only if they were invited, and never with the reason', function () {
+/** The company's mailbox, switched on: without it a rejection email cannot be scheduled. */
+function rejectionMailbox(): void
+{
+    CompanyMailSetting::factory()->forCompany(test()->company)->create(['from_address' => 'recruitment@majujaya.test']);
+}
+
+function rejectionEmails(Candidate $candidate)
+{
+    return EmailMessage::acrossCompanies()->where('related_id', $candidate->id)->where('kind', EmailKind::CandidateRejected->value);
+}
+
+it('schedules the reviewed email for the next morning only for an invited candidate, and never with the reason', function () {
+    Queue::fake();
+    rejectionMailbox();
     $requisition = rejectionRequisition();
     $invited = Candidate::factory()->for($requisition)->create(['name' => 'Budi', 'email' => 'budi@example.com']);
     $never = Candidate::factory()->for($requisition)->create(['email' => 'belum@example.com']);
     $quiet = Candidate::factory()->for($requisition)->create(['email' => 'diam@example.com']);
     rejectionInvite($requisition, $invited);
     rejectionInvite($requisition, $quiet);
-    Mail::fake();
+    $draft = ['email_subject' => 'Status lamaran â€” Staf Gudang', 'email_body' => "Halo Budi,\n\nTerima kasih."];
 
     rejectCandidate($requisition, $quiet)->assertRedirect();
-    Mail::assertNotQueued(CandidateRejected::class);
+    rejectCandidate($requisition, $never, ['note' => 'Rahasia', 'notify_candidate' => '1', ...$draft])->assertRedirect();
 
-    rejectCandidate($requisition, $never, ['note' => 'Rahasia', 'notify_candidate' => '1'])->assertRedirect();
-    Mail::assertNotQueued(CandidateRejected::class);
+    expect(rejectionEmails($quiet)->exists())->toBeFalse()
+        ->and(rejectionEmails($never)->exists())->toBeFalse();
 
-    rejectCandidate($requisition, $invited, ['note' => 'Rahasia internal', 'notify_candidate' => '1'])
+    rejectCandidate($requisition, $invited, ['note' => 'Rahasia internal', 'notify_candidate' => '1', ...$draft])
         ->assertRedirect()
-        ->assertInertiaFlash('toast', ['type' => 'success', 'message' => 'Budi ditolak dan dikabari lewat email.']);
+        ->assertInertiaFlash('toast', ['type' => 'success', 'message' => 'Budi ditolak dan emailnya dijadwalkan besok pagi.']);
 
-    Mail::assertQueued(CandidateRejected::class, 1);
-    Mail::assertQueued(CandidateRejected::class, fn (CandidateRejected $mail): bool => $mail->hasTo('budi@example.com')
-        && str_contains($mail->subjectLine, 'Staf Gudang')
-        && str_contains($mail->body, 'Halo Budi')
-        && ! str_contains($mail->body, 'Rahasia internal'));
+    $message = rejectionEmails($invited)->sole();
+
+    expect($message->to_email)->toBe('budi@example.com')
+        ->and($message->status)->toBe(EmailStatus::Pending)
+        ->and($message->subject)->toBe('Status lamaran â€” Staf Gudang')
+        ->and($message->body)->not->toContain('Rahasia internal')
+        ->and($message->send_at->setTimezone('Asia/Jakarta')->format('Y-m-d H:i'))->toBe('2026-11-05 08:00');
+    Queue::assertNotPushed(DeliverEmail::class);
+});
+
+it('asks for the draft when it is ticked, and refuses while the company mailbox is off', function () {
+    Queue::fake();
+    $requisition = rejectionRequisition();
+    $candidate = Candidate::factory()->for($requisition)->create(['email' => 'budi@example.com']);
+    rejectionInvite($requisition, $candidate);
+
+    rejectCandidate($requisition, $candidate, ['note' => 'x', 'notify_candidate' => '1'])
+        ->assertSessionHasErrors(['email_subject', 'email_body']);
+
+    $draft = ['email_subject' => 'Halo', 'email_body' => 'Teks'];
+
+    rejectCandidate($requisition, $candidate, ['note' => 'x', 'notify_candidate' => '1', ...$draft])
+        ->assertSessionHasErrors('notify_candidate');
+
+    expect($candidate->refresh()->isRejected())->toBeFalse()
+        ->and(rejectionEmails($candidate)->exists())->toBeFalse();
+});
+
+it('stops a waiting rejection email when HR takes the rejection back, but not one that already went', function () {
+    Queue::fake();
+    rejectionMailbox();
+    $requisition = rejectionRequisition();
+    $waiting = Candidate::factory()->for($requisition)->create(['name' => 'Budi', 'email' => 'budi@example.com']);
+    $gone = Candidate::factory()->for($requisition)->create(['name' => 'Ani', 'email' => 'ani@example.com']);
+    rejectionInvite($requisition, $waiting);
+    rejectionInvite($requisition, $gone);
+    $draft = ['email_subject' => 'Halo', 'email_body' => 'Teks'];
+
+    rejectCandidate($requisition, $waiting, ['note' => 'x', 'notify_candidate' => '1', ...$draft]);
+    rejectCandidate($requisition, $gone, ['note' => 'x', 'notify_candidate' => '1', ...$draft]);
+    rejectionEmails($gone)->update(['status' => EmailStatus::Sent->value, 'sent_at' => now()]);
+
+    $this->actingAs($this->hr)->delete(route('recruitment.candidates.restore', [$requisition, $waiting]))
+        ->assertInertiaFlash('toast', ['type' => 'success', 'message' => 'Budi kembali diproses. Email penolakan yang menunggu dibatalkan.']);
+    $this->actingAs($this->hr)->delete(route('recruitment.candidates.restore', [$requisition, $gone]))
+        ->assertInertiaFlash('toast', ['type' => 'success', 'message' => 'Ani kembali diproses.']);
+
+    expect(rejectionEmails($waiting)->sole()->status)->toBe(EmailStatus::Cancelled)
+        ->and(rejectionEmails($gone)->sole()->status)->toBe(EmailStatus::Sent);
+});
+
+it('lets HR send a failed rejection email again, and only then', function () {
+    Queue::fake();
+    rejectionMailbox();
+    $requisition = rejectionRequisition();
+    $candidate = Candidate::factory()->for($requisition)->create(['email' => 'budi@example.com']);
+    rejectionInvite($requisition, $candidate);
+    rejectCandidate($requisition, $candidate, ['note' => 'x', 'notify_candidate' => '1', 'email_subject' => 'Halo', 'email_body' => 'Teks']);
+    $route = route('recruitment.candidates.rejection-email.resend', [$requisition, $candidate]);
+
+    $this->actingAs($this->hr)->post($route)->assertForbidden();
+
+    rejectionEmails($candidate)->update(['status' => EmailStatus::Failed->value, 'error' => 'Ditolak server.']);
+
+    $this->actingAs($this->requester)->post($route)->assertForbidden();
+    $this->actingAs($this->hr)->post($route)->assertRedirect();
+
+    expect(rejectionEmails($candidate)->sole()->status)->toBe(EmailStatus::Pending);
+    Queue::assertPushed(DeliverEmail::class);
 });
 
 it('leaves a rejected candidate out of reminders, the mail-merge file, the form and the cancellation email', function () {

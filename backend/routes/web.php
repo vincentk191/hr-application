@@ -117,6 +117,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('recruitment/{requisition}/candidates/{candidate}/invitation', [RequisitionController::class, 'cancelInterview'])->scopeBindings()->name('recruitment.candidates.uninvite');
     Route::post('recruitment/{requisition}/candidates/{candidate}/rejection', [RequisitionController::class, 'rejectCandidate'])->scopeBindings()->name('recruitment.candidates.reject');
     Route::delete('recruitment/{requisition}/candidates/{candidate}/rejection', [RequisitionController::class, 'restoreCandidate'])->scopeBindings()->name('recruitment.candidates.restore');
+    Route::post('recruitment/{requisition}/candidates/{candidate}/rejection/email/resend', [RequisitionController::class, 'resendRejectionEmail'])->scopeBindings()->name('recruitment.candidates.rejection-email.resend');
     Route::post('recruitment/{requisition}/candidates/{candidate}/selection', [RequisitionController::class, 'selectCandidate'])->scopeBindings()->name('recruitment.candidates.select');
     Route::delete('recruitment/{requisition}/candidates/{candidate}/selection', [RequisitionController::class, 'unselectCandidate'])->scopeBindings()->name('recruitment.candidates.unselect');
     Route::post('recruitment/{requisition}/candidates/{candidate}/form-link', [RequisitionController::class, 'renewFormLink'])->scopeBindings()->name('recruitment.candidates.form-link');

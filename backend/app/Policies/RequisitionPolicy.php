@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Enums\EmailKind;
 use App\Enums\EmailStatus;
 use App\Enums\OfferStage;
 use App\Enums\Permission;
@@ -358,6 +359,17 @@ class RequisitionPolicy
         return $offer->requisition_id === $requisition->id
             && in_array($offer->stage(), [OfferStage::Approved, OfferStage::Sent], true)
             && $offer->hasTerms()
+            && $this->viewCandidates($user, $requisition);
+    }
+
+    /**
+     * HR may send a rejection email again when it failed: the rejection itself stays, only the email is tried again.
+     */
+    public function resendRejectionEmail(User $user, Requisition $requisition, Candidate $candidate): bool
+    {
+        return $candidate->requisition_id === $requisition->id
+            && $candidate->isRejected()
+            && $candidate->latestEmail(EmailKind::CandidateRejected)?->status === EmailStatus::Failed
             && $this->viewCandidates($user, $requisition);
     }
 
