@@ -16,6 +16,20 @@ use Illuminate\Support\Str;
 
 class CompanyForm
 {
+    /**
+     * Where the company's email stands, in words.
+     */
+    private static function mailStatus(Company $company): string
+    {
+        $setting = $company->mailSetting;
+
+        return match (true) {
+            $setting === null => 'Email pengirim belum diatur. Klik Atur email pengirim di kanan atas.',
+            ! $setting->is_enabled => "Email pengirim tersimpan ({$setting->from_address}) tetapi belum diaktifkan: tidak ada email yang dikirim.",
+            default => "Email dikirim dari {$setting->from_address}.",
+        };
+    }
+
     public static function configure(Schema $schema): Schema
     {
         return $schema
@@ -68,6 +82,9 @@ class CompanyForm
                     ->maxLength(255)
                     ->dehydrateStateUsing(fn (?string $state): ?string => filled($state) ? Str::lower(trim($state)) : null),
                 Text::make(fn (?Company $record): string => $record === null ? '' : app(InterviewEvent::class)->describe($record->getKey()))
+                    ->visibleOn('edit'),
+                // The company's mailbox for the emails the app sends (email automation) is set from the page's "Atur email pengirim".
+                Text::make(fn (?Company $record): string => $record === null ? '' : self::mailStatus($record))
                     ->visibleOn('edit'),
                 Toggle::make('is_active')
                     ->label('Aktif')

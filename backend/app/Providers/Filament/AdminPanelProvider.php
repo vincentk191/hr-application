@@ -13,6 +13,7 @@ use App\Filament\Resources\AttendanceIngestRequests\AttendanceIngestRequestResou
 use App\Filament\Resources\Branches\BranchResource;
 use App\Filament\Resources\Companies\CompanyResource;
 use App\Filament\Resources\Departments\DepartmentResource;
+use App\Filament\Resources\EmailMessages\EmailMessageResource;
 use App\Filament\Resources\OffboardingItems\OffboardingItemResource;
 use App\Filament\Resources\Positions\PositionResource;
 use App\Filament\Resources\RequestTypes\RequestTypeResource;
@@ -90,6 +91,7 @@ class AdminPanelProvider extends PanelProvider
             BranchResource::class,
             CompanyResource::class,
             DepartmentResource::class,
+            EmailMessageResource::class,
             OffboardingItemResource::class,
             PositionResource::class,
             RequestTypeResource::class,

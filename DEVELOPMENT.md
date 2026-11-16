@@ -47,7 +47,7 @@ security pass (Phase 7). What remains is listed in the checklist below. Recruitm
 | Phase 5         | Offboarding end to end: wizard, Management approval, checklist, sign-off, exit, berita acara, Cabang filter, phone action bar |
 | Phase 7         | Server stack, VPN, backups with an admin page, non-superuser database login, security headers and limits      |
 | Next            | **Recruitment Phase 7 of the Offer plan: the funnel figures (offered, filled) on the dashboard and a browser check**; plan under "Offer, Filled and the candidate's outcome" in Phase 4 |
-| Not built       | The recruitment funnel figures; the candidate's CV into the new employee's documents; candidate rescheduling (by decision, HR does it); Google Meet creation is built (2026-11-13) but not yet proved against CMP's real Google account; Home KPIs; employee app (Web Push, API); CSP, Ghostscript sandbox, narrowing `web`'s `storage` mount |
+| Not built       | The recruitment funnel figures; the candidate's CV into the new employee's documents; candidate rescheduling (by decision, HR does it); Google Meet creation is built (2026-11-13) but not yet proved against CMP's real Google account; email automation (plan decided 2026-11-16; production still has `MAIL_MAILER=log`); Home KPIs; employee app (Web Push, API); CSP, Ghostscript sandbox, narrowing `web`'s `storage` mount |
 
 ---
 
@@ -2017,7 +2017,8 @@ platform accounts above (no career page, manual posting, nothing public except t
 - **Decisions (the user, 2026-11-10).** (1) **The direct superior (Atasan langsung) chooses the candidate they prefer.** HR
   keeps turning candidates down, since the candidate list is HR's. (2) **The offer letter is a print page**, as the berita
   acara is (Cetak / PDF), so no new dependency. (3) **Every email to a candidate is an opt-in tick box**, as the
-  cancellation email is: rejection, "position filled", and the offer. (4) **No minimum-wage (UMK) warning** for now; the
+  cancellation email is: rejection, "position filled", and the offer. *(Both (2) and (3) are revised for email by
+  "Email automation: phased plan" below, 2026-11-16: HR reviews a draft and sends, and the offer goes as a PDF.)* (4) **No minimum-wage (UMK) warning** for now; the
   other `REC-OFR-006` checks stay (a real future start date, a numeric salary, a probation of at most 3 months).
   (5) **Several offers may be out at once, but an acceptance is refused once the quota is full.**
 - **Model.** A candidate's outcome is read from facts, not one status column: `rejected_at/reason/by` on the candidate
@@ -2054,6 +2055,64 @@ platform accounts above (no career page, manual posting, nothing public except t
      and the Cabang. It reuses the existing employee validation and links candidate to employee so it cannot be done twice;
      the hire then registers through `CORE-REG`.
   7. **Funnel and documents.** The dashboard's offered and filled figures, the REC rows below, a browser check.
+
+**Email automation: phased plan (decided 2026-11-16, not built).** Moves the candidate emails from "opt-in tick box, text
+fixed in code, sent by whatever `MAIL_*` says" to "HR reviews a draft and presses send; the email leaves from the company's
+own `recruitment@` address; every one is logged". It **supersedes two decisions of 2026-11-10** above for the offer, the
+rejection and the "position filled" email: (3) the tick box becomes the review: HR sees the draft and pressing send is the
+act; and (2) the letter stays a print page for HR, but **goes to the candidate as a PDF attachment** (the candidate signs,
+scans and returns it).
+
+- **Decisions (the user, 2026-11-16).** (1) **Production still has `MAIL_MAILER=log`**, so no email leaves the server today
+  (this was already noted under "To run it for real" in the Interview notes). (2) **Sent from each company's `recruitment@`
+  address**; no SMTP details exist yet. (3) **"Automate" means HR reviews a draft and presses send**, and that sends it
+  through the company's address. (4) **The offer letter is sent as a PDF** and the signed scan comes back: it has to reach
+  HR, so the app stores it on the offer. A server-made PDF needs a PHP PDF library, which **needs the user's approval**
+  (no PDF library today, by decision); until approved, the fallback is HR saving the print page as PDF and attaching it.
+  (5) **Rejections are sent the following morning.** (6) **Onboarding: the welcome email only** for now. (7) **No BCC copy to
+  HR** for now.
+- **Transport.** Start with **SMTP through each company's own mailbox** (host, port, encryption, user and password from the
+  hosting's "mail client settings"), kept per company in the admin panel, with the password encrypted and a "Kirim email uji"
+  button. Move to a **transactional service** (domain verified by SPF and DKIM, one API key) only if mail lands in spam or the
+  hosting's sending limits get in the way. The Gmail API is **not** an option unless the Google account is Workspace: a
+  Google account made for a non-Gmail address has no Gmail mailbox.
+- **Phases.**
+  0. **Foundation.** Per-company mail settings and the test button; an **email log** (kind, to, when, status, the candidate or
+     case it belongs to, the text as sent) on the screen with failures visible and a "kirim ulang"; every send queued, once,
+     and never allowed to block the action that caused it; an **outbox with a "send at" time that can be cancelled** (rejection
+     timing, reminders); one editable-template pattern for all kinds (placeholders, preview, a test to oneself), per company;
+     a per-kind on/off switch; Bahasa Indonesia, company time.
+     **Built 2026-11-16 (uncommitted), apart from templates and the per-kind switch, which come with the first kinds that need
+     them.** `CompanyMailer` (`app/Support/Email`) writes every email to `email_messages` (the log and the outbox in one),
+     `DeliverEmail` sends it through a mailer of the company's own (`company_mail_settings`, SMTP, password encrypted) from its
+     own From and Reply-To, attachments from the private disk or inline content. An email is **claimed before it is sent, so it
+     goes once**; the mail server not answering is **tried again** (3 tries, with a wait between) and then marked failed with the
+     reason; a missing or disabled mailbox **fails at once**; a worker that stopped mid-send is recovered after 15 minutes.
+     `send_at` holds an email for a time and `cancel` stops it; `emails:dispatch-due` runs every minute. Admin panel: on a
+     company's page **"Atur email pengirim"** (host, port, SSL or STARTTLS, user, password that is never shown again and kept
+     when left empty, From, Reply-To, Aktif) and **"Kirim email uji"** (sends now and shows the server's own error); under
+     Sistem, **Log email** (read-only; "Kirim ulang" for a failed one, "Batalkan" for one still waiting). Saving the mailbox is
+     on the audit trail, without the password. **Not moved yet:** the older candidate emails (the invitation fallback, the
+     reminder, the cancellation, the rejection, "position filled", the offer and its withdrawal) still go through the app's
+     default `MAIL_MAILER` (`log` on the server), so nothing leaves until each is moved onto `CompanyMailer`: the offer and its
+     withdrawal in Phase 1, the rejection and "position filled" in Phase 2, then the reminder, the cancellation and the invitation
+     fallback.
+  1. **Offer letter.** HR reviews the draft email and the letter, "Kirim" sends it with the **PDF attached**; the sent
+     letter stays frozen (`letter_snapshot`). A place on the offer to **upload the signed scan** HR receives back. Salary not in
+     the email body. An optional reminder when there is no answer; the withdrawal email exists.
+  2. **Rejection after the interview.** "Tolak" (with the internal reason, which is never in the email) shows the draft; the
+     email is **scheduled for the next morning** (time to confirm; 08:00 like the other morning jobs unless said otherwise) and
+     **cancelled by "Pulihkan"**. Editable neutral wording, only for candidates who were invited and have an email. The
+     "position filled" email becomes the same scheduled kind.
+  3. **Onboarding welcome.** When the offer is accepted (or the hire converted): start date, time and place, what to bring (an
+     editable list), how to activate the account (the public address and "Daftar"; never the NIK or employee ID), and a reminder
+     the day before the start. From the personal email on the candidate record. No onboarding checklist module yet.
+  4. **Offboarding.** To be confirmed when we get there: to the leaver if they have an email (the approved last day, the exit
+     interview, what to return, the berita acara link); the checklist owners stay on in-app notices and phone push, since
+     staff emails are optional and unverified.
+- **Rules that hold throughout.** No credentials or ID numbers in any email; sent text is kept as sent; a failed send is shown,
+  never silent; test mode sends only to the admin; personal data of rejected candidates follows a retention period (to decide
+  with the user before Phase 2 goes live).
 
 | Screen                            | Name                        | f   | P1  | Status | Notes                                                       |
 | --------------------------------- | --------------------------- | --- | --- | ------ | ----------------------------------------------------------- |

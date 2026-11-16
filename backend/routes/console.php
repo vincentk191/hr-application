@@ -45,3 +45,6 @@ Schedule::command('recruitment:sync-google-events')
     ->everyFifteenMinutes()
     ->withoutOverlapping(10)
     ->when(fn (): bool => app(GoogleOAuth::class)->isConfigured());
+
+// The outbox (email automation): the emails whose time has come, such as a rejection that waits for the next morning.
+Schedule::command('emails:dispatch-due')->everyMinute()->withoutOverlapping(5);

@@ -77,6 +77,16 @@ class Company extends Model
     }
 
     /**
+     * The mailbox this company's emails are sent from, if an admin has set one.
+     *
+     * @return HasOne<CompanyMailSetting, $this>
+     */
+    public function mailSetting(): HasOne
+    {
+        return $this->hasOne(CompanyMailSetting::class)->withoutGlobalScopes();
+    }
+
+    /**
      * @return HasMany<Branch, $this>
      */
     public function branches(): HasMany
