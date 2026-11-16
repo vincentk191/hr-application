@@ -319,7 +319,8 @@ security pass (Phase 7). What remains is listed in the checklist below. Recruitm
     by anyone who signs such letters:** Surat penawaran kerja, the terms, a request to sign and return it, and two signature
     blocks (the company's HR, and the candidate's acceptance with a date). It has no letter number, city or deadline.
   - **Tandai terkirim (REC-OFS-003).** `SendOffer`, route `recruitment.offers.send`, policy `sendOffer` (HR, approved, terms
-    complete): stage **Sent** ("Penawaran terkirim"), with who and when. **Emailing the candidate the terms is an opt-in tick
+    complete): stage **Sent** ("Penawaran terkirim"), with who and when. **(Replaced 2026-11-16 by "Kirim penawaran": HR reviews the
+    email, which goes with the letter as a PDF; see "Email automation, Phase 1".) Emailing the candidate the terms was an opt-in tick
     box, unticked**, and only offered when the candidate has an email (`CandidateOfferSent`, text from `InvitationMessage::offer`:
     the terms and a request to reply; no attachment, since the letter is a print page). Once sent, the terms are locked and
     HR can no longer pull the offer back (a candidate turned down, or the requisition cancelled, still withdraws it). A sent offer
@@ -2099,7 +2100,26 @@ scans and returns it).
      fallback.
   1. **Offer letter.** HR reviews the draft email and the letter, "Kirim" sends it with the **PDF attached**; the sent
      letter stays frozen (`letter_snapshot`). A place on the offer to **upload the signed scan** HR receives back. Salary not in
-     the email body. An optional reminder when there is no answer; the withdrawal email exists.
+     the email body. The withdrawal email moves onto the outbox. (No reminder for an offer nobody answers: dropped by the user
+     2026-11-16.)
+     **Built 2026-11-16 (uncommitted).** New dependency, approved by the user: **`barryvdh/laravel-dompdf`** (dompdf 3.1.6, pure
+     PHP; the server image already has `gd`; font subsetting is on, so a letter is about 25 KB). `OfferLetterPdf` draws the
+     letter from the same `OfferLetterComposer` array as the print page, through `resources/views/pdf/offer-letter.blade.php`
+     (one A4 page for a typical letter, signature blocks kept together; the logo is embedded as data, an SVG logo is left out).
+     **"Kirim penawaran"** (the old "Tandai terkirim", `SendOffer`): HR sees the email draft (to, subject, text, all editable, with
+     the PDF as the attachment) and pressing the button marks the offer sent **and** queues the email through `CompanyMailer`
+     from the company's address. The saved letter and its PDF are made once at that moment (`letter_snapshot`, `letter_pdf_path`
+     on the private disk) and a later template or logo change never rewrites them; if the PDF cannot be made nothing changes. The
+     email is **refused with a clear message while the company's mailbox is not switched on** (HR can still mark the offer sent
+     without an email and give the letter themselves); a failed email is shown on the offer ("Email gagal: …") with "Kirim
+     ulang" for HR, and never undoes the sending (`candidate_offers.email_message_id`). The default email text no longer lists
+     the terms (the PDF has them), so **the salary is not in the email**; `{ketentuan}` stays available and is no longer required.
+     **"Surat PDF"** opens the letter as a PDF (as it reads now before sending, the kept file afterwards). **Signed letter:** HR
+     files the candidate's scan or photo (PDF, JPG or PNG, 5 MB) on the offer once it is sent or accepted, replaces or removes it,
+     and opens it (`signed_letter_*` on the offer, private disk, audit trail). **The offer withdrawal email** now goes through
+     `CompanyMailer` too, with its tick shown only where the mailbox is on. The two old mailables (`CandidateOfferSent`,
+     `CandidateOfferWithdrawn`) are gone. Tests: `RequisitionOfferLetterTest` (23, with the new PDF, send, signed-letter and
+     resend cases). Not seen in a browser; no email has been delivered by a real server yet.
   2. **Rejection after the interview.** "Tolak" (with the internal reason, which is never in the email) shows the draft; the
      email is **scheduled for the next morning** (time to confirm; 08:00 like the other morning jobs unless said otherwise) and
      **cancelled by "Pulihkan"**. Editable neutral wording, only for candidates who were invited and have an email. The

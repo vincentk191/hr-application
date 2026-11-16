@@ -2,17 +2,17 @@
 
 namespace App\Actions\Recruitment;
 
+use App\Enums\EmailKind;
 use App\Enums\OfferStage;
 use App\Enums\WorkflowStepStatus;
-use App\Mail\CandidateOfferWithdrawn;
 use App\Models\Candidate;
 use App\Models\CandidateOffer;
 use App\Models\Requisition;
 use App\Models\User;
+use App\Support\Email\CompanyMailer;
 use App\Support\Recruitment\InvitationMessage;
 use App\Workflows\WorkflowEngine;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
 
 /**
  * HR pulls an offer back (REC-OFS): Management changed their mind, or the candidate is no longer wanted. Before it is sent
@@ -24,7 +24,7 @@ use Illuminate\Support\Facades\Mail;
  */
 class WithdrawOffer
 {
-    public function __construct(private WorkflowEngine $engine) {}
+    public function __construct(private WorkflowEngine $engine, private CompanyMailer $mailer) {}
 
     public function handle(CandidateOffer $offer, ?User $by = null, ?string $reason = null): void
     {
@@ -64,10 +64,16 @@ class WithdrawOffer
 
         $requisition->loadMissing('company');
 
-        Mail::to((string) $candidate->email)->queue(new CandidateOfferWithdrawn(
+        $this->mailer->queue(
+            $requisition->company_id,
+            EmailKind::OfferWithdrawn,
+            (string) $candidate->email,
             'Penawaran kerja — '.$requisition->position_name,
             InvitationMessage::offerWithdrawn($candidate, $requisition),
-        ));
+            related: $offer,
+            by: $by,
+            toName: $candidate->name,
+        );
 
         return true;
     }

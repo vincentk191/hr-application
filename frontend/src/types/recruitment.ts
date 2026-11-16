@@ -287,6 +287,27 @@ export type CandidateOffer = {
     sentBy: string | null;
     /** Whether the candidate was also emailed when the offer was marked sent. */
     emailed: boolean;
+    /** HR only: the company's mailbox is set up and on, so an email can be sent now. */
+    mailReady?: boolean;
+    /** HR only, while the offer can be sent: the email HR reviews (and may edit) before pressing Kirim; the letter goes with it as a PDF. */
+    emailDraft?: { to: string; subject: string; body: string } | null;
+    /** HR only: how the email that went with the offer is doing. */
+    email?: {
+        status: 'pending' | 'sending' | 'sent' | 'failed' | 'cancelled';
+        label: string;
+        error: string | null;
+        /** A datetime-local value in the company's time. */
+        at: string | null;
+    } | null;
+    canResendEmail?: boolean;
+    /** HR only: the letter the candidate signed and sent back, once filed. */
+    signedLetter?: {
+        name: string | null;
+        size: number | null;
+        on: string | null;
+        by: string | null;
+    } | null;
+    canFileSignedLetter?: boolean;
     /** The day the candidate's answer was recorded, and, for HR, why they said no. */
     respondedOn: string | null;
     declineReason: string | null;

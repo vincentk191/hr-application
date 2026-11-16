@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Enums\EmailStatus;
 use App\Enums\OfferStage;
 use App\Enums\Permission;
 use App\Enums\RequisitionStage;
@@ -357,6 +358,37 @@ class RequisitionPolicy
         return $offer->requisition_id === $requisition->id
             && in_array($offer->stage(), [OfferStage::Approved, OfferStage::Sent], true)
             && $offer->hasTerms()
+            && $this->viewCandidates($user, $requisition);
+    }
+
+    /**
+     * Filing the letter the candidate signed and sent back is HR's, once the offer is with the candidate (sent or accepted).
+     */
+    public function fileSignedLetter(User $user, Requisition $requisition, CandidateOffer $offer): bool
+    {
+        return $offer->requisition_id === $requisition->id
+            && $offer->sent_at !== null
+            && in_array($offer->stage(), [OfferStage::Sent, OfferStage::Accepted], true)
+            && $this->viewCandidates($user, $requisition);
+    }
+
+    /**
+     * The signed letter, once filed, is HR's to open.
+     */
+    public function viewSignedLetter(User $user, Requisition $requisition, CandidateOffer $offer): bool
+    {
+        return $offer->requisition_id === $requisition->id
+            && $offer->hasSignedLetter()
+            && $this->viewCandidates($user, $requisition);
+    }
+
+    /**
+     * HR may send the offer's email again when it failed: the letter and the offer stay as they are, only the email is tried again.
+     */
+    public function resendOfferEmail(User $user, Requisition $requisition, CandidateOffer $offer): bool
+    {
+        return $offer->requisition_id === $requisition->id
+            && $offer->emailMessage?->status === EmailStatus::Failed
             && $this->viewCandidates($user, $requisition);
     }
 

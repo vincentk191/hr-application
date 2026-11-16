@@ -10,11 +10,15 @@ use Filament\Support\Contracts\HasLabel;
 enum EmailKind: string implements HasLabel
 {
     case Test = 'test';
+    case OfferSent = 'offer_sent';
+    case OfferWithdrawn = 'offer_withdrawn';
 
     public function getLabel(): string
     {
         return match ($this) {
             self::Test => 'Email uji',
+            self::OfferSent => 'Penawaran kerja',
+            self::OfferWithdrawn => 'Penawaran ditarik',
         };
     }
 }

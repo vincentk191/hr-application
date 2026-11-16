@@ -41,16 +41,14 @@ class OfferLetterTemplate
     ];
 
     /**
-     * Understood by the email only: the letter prints its terms as a list of its own.
+     * Understood by the email only: the letter prints its terms as a list of its own. The email does not have to use it: the
+     * letter is attached as a PDF and carries the terms, so by default the email leaves the salary out.
      *
      * @var array<string, string>
      */
     public const EMAIL_PLACEHOLDERS = [
         'ketentuan' => 'Daftar ketentuan penawaran: posisi, status kerja, tanggal mulai, masa percobaan dan gaji',
     ];
-
-    /** Placeholders an email cannot work without: without the terms the candidate would learn nothing. */
-    public const EMAIL_REQUIRED = ['ketentuan'];
 
     public const TITLE = 'Surat penawaran kerja';
 
@@ -73,11 +71,9 @@ TEXT;
     public const EMAIL_BODY = <<<'TEXT'
 Halo {nama},
 
-Selamat! {perusahaan} menawarkan Anda posisi {posisi} dengan ketentuan berikut:
+Selamat! {perusahaan} menawarkan Anda posisi {posisi}. Surat penawaran beserta ketentuannya terlampir pada email ini dalam bentuk PDF.
 
-{ketentuan}
-
-Mohon kabari kami dengan membalas pesan ini setelah Anda mempertimbangkan penawaran ini.
+Jika Anda menyetujui penawaran ini, mohon cetak surat tersebut, tandatangani pada kolom yang tersedia, lalu kirimkan hasil pindaiannya dengan membalas email ini.
 
 HR {perusahaan}
 TEXT;
@@ -154,24 +150,6 @@ TEXT;
     public static function unknownEmailPlaceholders(string $text): array
     {
         return PlaceholderText::unknown($text, [...array_keys(self::PLACEHOLDERS), ...array_keys(self::EMAIL_PLACEHOLDERS)]);
-    }
-
-    /**
-     * The required placeholders the email body leaves out.
-     *
-     * @return list<string>
-     */
-    public static function missingEmailRequired(string $body): array
-    {
-        $missing = [];
-
-        foreach (self::EMAIL_REQUIRED as $name) {
-            if (! str_contains($body, '{'.$name.'}')) {
-                $missing[] = $name;
-            }
-        }
-
-        return $missing;
     }
 
     /**

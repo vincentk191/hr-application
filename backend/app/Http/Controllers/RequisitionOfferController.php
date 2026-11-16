@@ -15,13 +15,21 @@ use App\Http\Requests\ConvertHireRequest;
 use App\Models\CandidateOffer;
 use App\Models\Employee;
 use App\Models\Requisition;
+use App\Support\Email\CompanyMailer;
 use App\Support\Employees\EmployeeFormOptions;
+use App\Support\Files\InlineImage;
+use App\Support\Files\UploadFiler;
 use App\Support\Recruitment\HireProfile;
 use App\Support\Recruitment\OfferLetterComposer;
+use App\Support\Recruitment\OfferLetterPdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Offers to the candidates the direct superior chose (REC-OFS): HR puts them to Management, Management approves each with
@@ -131,7 +139,24 @@ class RequisitionOfferController extends Controller
     {
         $this->authorize('sendOffer', [$requisition, $offer]);
 
-        $emailed = $sendOffer->handle($requisition, $offer, $request->user(), $request->boolean('notify_candidate'));
+        $email = null;
+
+        // HR reviewed the draft of the email and chose to send it with the letter: its subject and text are what they left in it.
+        if ($request->boolean('notify_candidate') && filled($offer->candidate?->email)) {
+            $validated = $request->validate([
+                'email_subject' => ['required', 'string', 'max:300'],
+                'email_body' => ['required', 'string', 'max:10000'],
+            ], ['email_subject.required' => 'Isi subjek email.', 'email_body.required' => 'Isi teks email.']);
+
+            // Said now, not found out later in the log: the company's mailbox has to be set up and on.
+            if (! app(CompanyMailer::class)->isReady($requisition->company_id)) {
+                throw ValidationException::withMessages(['notify_candidate' => 'Email pengirim perusahaan belum diaktifkan oleh admin, jadi emailnya belum bisa dikirim. Tandai terkirim tanpa email, lalu kirim suratnya sendiri.']);
+            }
+
+            $email = ['subject' => (string) $validated['email_subject'], 'body' => (string) $validated['email_body']];
+        }
+
+        $emailed = $sendOffer->handle($requisition, $offer, $request->user(), $email);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => "Penawaran {$offer->candidate?->name} ditandai terkirim".($emailed ? ' dan dikabarkan lewat email.' : '.')]);
 
@@ -149,6 +174,117 @@ class RequisitionOfferController extends Controller
             'requisition' => ['id' => $requisition->id, 'reference' => $requisition->reference(), 'positionName' => $requisition->position_name],
             'letter' => $composer->letter($requisition, $offer),
         ]);
+    }
+
+    /**
+     * The offer letter as a PDF, to look at before it is sent and to open again after: the letter as it was sent once it is,
+     * as it would read now before.
+     */
+    public function letterPdf(Request $request, Requisition $requisition, CandidateOffer $offer, OfferLetterPdf $pdfs): HttpResponse
+    {
+        $this->authorize('viewOfferLetter', [$requisition, $offer]);
+
+        $kept = $offer->letter_pdf_path !== null && Storage::disk(CandidateOffer::DISK)->exists($offer->letter_pdf_path);
+        $pdf = $kept ? (string) Storage::disk(CandidateOffer::DISK)->get((string) $offer->letter_pdf_path) : $pdfs->render($requisition, $offer);
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="Surat penawaran '.str_replace(['"', '/', '\\'], '', (string) $offer->candidate?->name).'.pdf"',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
+    /**
+     * HR files the letter the candidate signed and sent back (a scan or a photo of it). A second one replaces the first.
+     */
+    public function fileSignedLetter(Request $request, Requisition $requisition, CandidateOffer $offer, UploadFiler $filer): RedirectResponse
+    {
+        $this->authorize('fileSignedLetter', [$requisition, $offer]);
+
+        $request->validate(
+            ['signed_letter' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120']],
+            [
+                'signed_letter.required' => 'Pilih berkas surat yang sudah ditandatangani.',
+                'signed_letter.mimes' => 'Surat harus berupa PDF atau gambar (JPG, PNG).',
+                'signed_letter.max' => 'Berkas terlalu besar (maksimal 5 MB).',
+            ],
+        );
+
+        $file = $request->file('signed_letter');
+        $stored = $filer->store($file, CandidateOffer::SIGNED_DIRECTORY.'/'.$requisition->id, CandidateOffer::DISK);
+        $before = $offer->signed_letter_path;
+
+        $offer->forceFill([
+            'signed_letter_path' => $stored['path'],
+            'signed_letter_name' => $file->getClientOriginalName(),
+            'signed_letter_size' => $stored['size'],
+            'signed_letter_at' => now(),
+            'signed_letter_by_user_id' => $request->user()->id,
+        ])->save();
+
+        if ($before !== null) {
+            Storage::disk(CandidateOffer::DISK)->delete($before);
+        }
+
+        activity('recruitment')
+            ->performedOn($requisition)
+            ->causedBy($request->user())
+            ->withProperties(['candidate' => $offer->candidate?->name, 'file' => $file->getClientOriginalName()])
+            ->log('Surat penawaran bertanda tangan diarsipkan');
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "Surat bertanda tangan {$offer->candidate?->name} disimpan."]);
+
+        return back();
+    }
+
+    /**
+     * The signed letter, for HR.
+     */
+    public function signedLetter(Request $request, Requisition $requisition, CandidateOffer $offer): StreamedResponse
+    {
+        $this->authorize('viewSignedLetter', [$requisition, $offer]);
+
+        abort_unless(Storage::disk(CandidateOffer::DISK)->exists((string) $offer->signed_letter_path), 404);
+
+        return InlineImage::serve($request, CandidateOffer::DISK, (string) $offer->signed_letter_path, (string) $offer->signed_letter_name);
+    }
+
+    /**
+     * HR takes the signed letter away (a wrong file).
+     */
+    public function removeSignedLetter(Request $request, Requisition $requisition, CandidateOffer $offer): RedirectResponse
+    {
+        $this->authorize('fileSignedLetter', [$requisition, $offer]);
+
+        if ($offer->signed_letter_path !== null) {
+            Storage::disk(CandidateOffer::DISK)->delete($offer->signed_letter_path);
+        }
+
+        $offer->forceFill([
+            'signed_letter_path' => null,
+            'signed_letter_name' => null,
+            'signed_letter_size' => null,
+            'signed_letter_at' => null,
+            'signed_letter_by_user_id' => null,
+        ])->save();
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Surat bertanda tangan dihapus.']);
+
+        return back();
+    }
+
+    /**
+     * "Kirim ulang email": the offer's email failed, so it is tried again from the start. The offer itself is untouched.
+     */
+    public function resendEmail(Request $request, Requisition $requisition, CandidateOffer $offer, CompanyMailer $mailer): RedirectResponse
+    {
+        $this->authorize('resendOfferEmail', [$requisition, $offer]);
+
+        $mailer->resend($offer->emailMessage);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Email dikirim ulang.']);
+
+        return back();
     }
 
     /**
@@ -209,6 +345,10 @@ class RequisitionOfferController extends Controller
             'note' => ['required', 'string', 'max:1000'],
             'notify_candidate' => ['nullable', 'boolean'],
         ], ['note.required' => 'Tulis alasan penarikan.']);
+
+        if ($request->boolean('notify_candidate') && filled($offer->candidate?->email) && ! app(CompanyMailer::class)->isReady($requisition->company_id)) {
+            throw ValidationException::withMessages(['notify_candidate' => 'Email pengirim perusahaan belum diaktifkan oleh admin, jadi kandidat belum bisa dikabari lewat email.']);
+        }
 
         $emailed = $withdraw->handleSent($requisition, $offer, $request->user(), $validated['note'], $request->boolean('notify_candidate'));
 

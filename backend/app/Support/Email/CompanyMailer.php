@@ -36,6 +36,15 @@ class CompanyMailer
     private const STUCK_AFTER_MINUTES = 15;
 
     /**
+     * Whether the company can send email now: it has a mailbox and it is switched on. Where it cannot, whoever is about to send
+     * is told so instead of an email failing later.
+     */
+    public function isReady(int $companyId): bool
+    {
+        return CompanyMailSetting::acrossCompanies()->where('company_id', $companyId)->where('is_enabled', true)->exists();
+    }
+
+    /**
      * Writes the email down and, when it is due now, queues the sending.
      *
      * @param  list<array{name: string, mime: string, path?: string, data?: string}>  $attachments

@@ -1,13 +1,17 @@
-import { Link, router } from '@inertiajs/react';
+import { Form, Link, router } from '@inertiajs/react';
 import {
     BadgeCheck,
     CalendarCheck,
     Check,
     CheckCheck,
+    Download,
+    FileText,
     Mail,
     Printer,
     Send,
+    Trash2,
     Undo2,
+    Upload,
     UserCheck,
     UserX,
     Users,
@@ -27,11 +31,18 @@ import {
     decide,
     decline,
     letter,
+    letterPdf,
     send as sendOffer,
+    signedLetter,
     store,
     terms,
     withdraw,
 } from '@/routes/recruitment/offers';
+import { resend as resendEmail } from '@/routes/recruitment/offers/email';
+import {
+    destroy as removeSignedLetter,
+    store as fileSignedLetter,
+} from '@/routes/recruitment/offers/signed-letter';
 import type {
     Candidate,
     CandidateOffer,
@@ -341,8 +352,10 @@ function OfferTerms({
 }
 
 /**
- * "Tandai terkirim": the letter has gone to the candidate. Emailing them the terms is a tick box, unticked, and only
- * offered when the candidate has an address.
+ * "Kirim penawaran": HR reviews the email to the candidate (to whom, the subject and the text, which they may edit) and the
+ * letter that goes with it as a PDF; pressing the button marks the offer sent and sends the email from the company's own
+ * address. Where no email can go (the candidate has none, or an admin has not switched the company's mailbox on) the dialog
+ * says so and only marks the offer sent, as before, and HR gives the candidate the letter themselves.
  */
 function SendOffer({
     item,
@@ -351,47 +364,275 @@ function SendOffer({
     item: Requisition;
     offer: CandidateOffer;
 }) {
+    const draft = offer.emailDraft ?? null;
+    const emailing = draft !== null && offer.mailReady === true;
+    const pdf = letterPdf.url({ requisition: item.id, offer: offer.id });
+
     return (
         <DecisionDialog
             form={sendOffer.form({ requisition: item.id, offer: offer.id })}
             decision="send"
-            title={`Tandai terkirim — ${offer.name}`}
-            subtitle={`${item.reference} · surat sudah diberikan ke kandidat`}
-            confirmLabel="Tandai terkirim"
-            extra={
-                offer.candidate?.email
-                    ? () => (
-                          <label
-                              className="flex items-center gap-2 text-sm font-medium"
-                              data-test="notify-candidate"
-                          >
-                              <input
-                                  type="checkbox"
-                                  name="notify_candidate"
-                                  value="1"
-                                  className="size-4 accent-primary"
-                              />
-                              <Mail
-                                  className="size-4 text-muted-foreground"
-                                  aria-hidden
-                              />
-                              Kabari kandidat lewat email
-                          </label>
-                      )
-                    : () => (
-                          <p className="text-sm text-muted-foreground">
-                              Kandidat belum punya email, jadi tidak ada email
-                              yang dikirim.
-                          </p>
-                      )
+            title={
+                emailing
+                    ? `Kirim penawaran — ${offer.name}`
+                    : `Tandai terkirim — ${offer.name}`
+            }
+            subtitle={
+                emailing
+                    ? `${item.reference} · email dan surat PDF`
+                    : `${item.reference} · surat sudah diberikan ke kandidat`
+            }
+            confirmLabel={emailing ? 'Kirim penawaran' : 'Tandai terkirim'}
+            extra={(errors) =>
+                emailing ? (
+                    <div className="space-y-3" data-test="offer-email-draft">
+                        <input
+                            type="hidden"
+                            name="notify_candidate"
+                            value="1"
+                        />
+                        <p className="text-sm">
+                            <span className="text-muted-foreground">
+                                Kepada:{' '}
+                            </span>
+                            <span className="font-medium">{draft.to}</span>
+                        </p>
+                        <div className="grid gap-1">
+                            <label
+                                htmlFor="offer-email-subject"
+                                className="text-sm font-semibold text-muted-foreground"
+                            >
+                                Subjek
+                            </label>
+                            <input
+                                id="offer-email-subject"
+                                name="email_subject"
+                                defaultValue={draft.subject}
+                                maxLength={300}
+                                required
+                                className="h-10 w-full rounded-xl border border-input bg-card px-3 text-sm"
+                                data-test="offer-email-subject"
+                            />
+                            <InputError message={errors.email_subject} />
+                        </div>
+                        <div className="grid gap-1">
+                            <label
+                                htmlFor="offer-email-body"
+                                className="text-sm font-semibold text-muted-foreground"
+                            >
+                                Isi email
+                            </label>
+                            <textarea
+                                id="offer-email-body"
+                                name="email_body"
+                                defaultValue={draft.body}
+                                rows={9}
+                                required
+                                className="w-full rounded-xl border border-input bg-card px-3 py-2 text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+                                data-test="offer-email-body"
+                            />
+                            <InputError message={errors.email_body} />
+                        </div>
+                        <a
+                            href={pdf}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 text-sm font-medium underline-offset-4 hover:underline"
+                            data-test="offer-email-attachment"
+                        >
+                            <FileText className="size-4" aria-hidden />
+                            Surat penawaran {offer.name}.pdf (lampiran)
+                        </a>
+                        <InputError message={errors.notify_candidate} />
+                    </div>
+                ) : (
+                    <p
+                        className="text-sm text-muted-foreground"
+                        data-test="offer-no-email"
+                    >
+                        {draft === null
+                            ? 'Kandidat belum punya email, jadi tidak ada email yang dikirim. Berikan suratnya sendiri.'
+                            : 'Email perusahaan belum diaktifkan oleh admin, jadi tidak ada email yang dikirim. Berikan suratnya sendiri.'}
+                    </p>
+                )
             }
             trigger={
                 <Button size="sm" data-test="send-offer">
-                    <CheckCheck className="size-4" aria-hidden />
-                    Tandai terkirim
+                    {emailing ? (
+                        <Send className="size-4" aria-hidden />
+                    ) : (
+                        <CheckCheck className="size-4" aria-hidden />
+                    )}
+                    {emailing ? 'Kirim penawaran' : 'Tandai terkirim'}
                 </Button>
             }
         />
+    );
+}
+
+/** A file size as "180 KB" or "1,2 MB". */
+function fileSize(bytes: number | null): string {
+    if (bytes === null) {
+        return '';
+    }
+
+    return bytes >= 1024 * 1024
+        ? `${(bytes / 1024 / 1024).toFixed(1).replace('.', ',')} MB`
+        : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+/**
+ * How the email that went with the offer is doing, with "Kirim ulang" when it failed: HR sees it here, since the log is the
+ * admin's.
+ */
+function OfferEmailStatus({
+    item,
+    offer,
+}: {
+    item: Requisition;
+    offer: CandidateOffer;
+}) {
+    const email = offer.email ?? null;
+
+    if (email === null) {
+        return null;
+    }
+
+    return (
+        <div
+            className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-sm ${email.status === 'failed' ? 'text-destructive' : 'text-muted-foreground'}`}
+            data-test="offer-email-status"
+        >
+            <span className="inline-flex items-center gap-1.5">
+                <Mail className="size-4" aria-hidden />
+                Email {email.label.toLowerCase()}
+                {email.status === 'failed' && email.error
+                    ? `: ${email.error}`
+                    : ''}
+            </span>
+            {offer.canResendEmail && (
+                <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                        router.post(
+                            resendEmail.url({
+                                requisition: item.id,
+                                offer: offer.id,
+                            }),
+                            {},
+                            { preserveScroll: true },
+                        )
+                    }
+                    data-test="resend-offer-email"
+                >
+                    <Send className="size-4" aria-hidden />
+                    Kirim ulang
+                </Button>
+            )}
+        </div>
+    );
+}
+
+/**
+ * The letter the candidate signed and sent back (a scan or a photo), filed by HR: open it, replace it or remove it. Offered
+ * once the offer is with the candidate.
+ */
+function SignedLetter({
+    item,
+    offer,
+}: {
+    item: Requisition;
+    offer: CandidateOffer;
+}) {
+    const signed = offer.signedLetter ?? null;
+    const route = { requisition: item.id, offer: offer.id };
+
+    if (signed === null && !offer.canFileSignedLetter) {
+        return null;
+    }
+
+    return (
+        <div className="space-y-2 text-sm" data-test="signed-letter">
+            {signed !== null && (
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span className="inline-flex items-center gap-1.5">
+                        <FileText className="size-4" aria-hidden />
+                        Surat bertanda tangan: {signed.name}
+                        {signed.size !== null
+                            ? ` (${fileSize(signed.size)})`
+                            : ''}
+                        {signed.on ? ` · ${shortDate(signed.on)}` : ''}
+                        {signed.by ? ` oleh ${signed.by}` : ''}
+                    </span>
+                    <Button
+                        asChild
+                        size="sm"
+                        variant="outline"
+                        data-test="open-signed-letter"
+                    >
+                        <a
+                            href={signedLetter.url(route)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            <Download className="size-4" aria-hidden />
+                            Unduh
+                        </a>
+                    </Button>
+                    {offer.canFileSignedLetter && (
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                                window.confirm(
+                                    'Hapus surat bertanda tangan ini?',
+                                ) &&
+                                router.delete(removeSignedLetter.url(route), {
+                                    preserveScroll: true,
+                                })
+                            }
+                            data-test="remove-signed-letter"
+                        >
+                            <Trash2 className="size-4" aria-hidden />
+                            Hapus
+                        </Button>
+                    )}
+                </div>
+            )}
+            {offer.canFileSignedLetter && (
+                <Form
+                    {...fileSignedLetter.form(route)}
+                    options={{ preserveScroll: true }}
+                    resetOnSuccess
+                    className="flex flex-wrap items-center gap-2"
+                >
+                    {({ processing, errors }) => (
+                        <>
+                            <input
+                                type="file"
+                                name="signed_letter"
+                                accept=".pdf,image/png,image/jpeg"
+                                required
+                                aria-label="Surat bertanda tangan"
+                                className="max-w-full text-sm file:mr-3 file:rounded-full file:border file:bg-card file:px-3 file:py-1.5"
+                                data-test="signed-letter-file"
+                            />
+                            <Button
+                                type="submit"
+                                size="sm"
+                                disabled={processing}
+                                data-test="file-signed-letter"
+                            >
+                                <Upload className="size-4" aria-hidden />
+                                {signed === null ? 'Unggah' : 'Ganti'}
+                            </Button>
+                            <InputError message={errors.signed_letter} />
+                        </>
+                    )}
+                </Form>
+            )}
+        </div>
     );
 }
 
@@ -484,24 +725,27 @@ function WithdrawSentOffer({
             confirmLabel="Tarik penawaran"
             destructive
             extra={
-                offer.candidate?.email
-                    ? () => (
-                          <label
-                              className="mb-3 flex items-center gap-2 text-sm font-medium"
-                              data-test="notify-candidate"
-                          >
-                              <input
-                                  type="checkbox"
-                                  name="notify_candidate"
-                                  value="1"
-                                  className="size-4 accent-primary"
-                              />
-                              <Mail
-                                  className="size-4 text-muted-foreground"
-                                  aria-hidden
-                              />
-                              Kabari kandidat lewat email
-                          </label>
+                offer.candidate?.email && offer.mailReady
+                    ? (errors) => (
+                          <div className="mb-3 space-y-1">
+                              <label
+                                  className="flex items-center gap-2 text-sm font-medium"
+                                  data-test="notify-candidate"
+                              >
+                                  <input
+                                      type="checkbox"
+                                      name="notify_candidate"
+                                      value="1"
+                                      className="size-4 accent-primary"
+                                  />
+                                  <Mail
+                                      className="size-4 text-muted-foreground"
+                                      aria-hidden
+                                  />
+                                  Kabari kandidat lewat email
+                              </label>
+                              <InputError message={errors.notify_candidate} />
+                          </div>
                       )
                     : undefined
             }
@@ -574,6 +818,8 @@ function OfferRow({
             )}
 
             {sent && <p className="text-sm text-muted-foreground">{sent}</p>}
+            <OfferEmailStatus item={item} offer={offer} />
+            <SignedLetter item={item} offer={offer} />
             {answered && (
                 <p className="text-sm text-muted-foreground">{answered}</p>
             )}
@@ -610,6 +856,26 @@ function OfferRow({
                                 <Printer className="size-4" aria-hidden />
                                 Surat penawaran
                             </Link>
+                        </Button>
+                    )}
+                    {offer.canViewLetter && (
+                        <Button
+                            asChild
+                            size="sm"
+                            variant="outline"
+                            data-test="offer-letter-pdf"
+                        >
+                            <a
+                                href={letterPdf.url({
+                                    requisition: item.id,
+                                    offer: offer.id,
+                                })}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                <FileText className="size-4" aria-hidden />
+                                Surat PDF
+                            </a>
                         </Button>
                     )}
                     {offer.canSend && <SendOffer item={item} offer={offer} />}

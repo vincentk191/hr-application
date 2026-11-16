@@ -19,6 +19,7 @@ use App\Workflows\WorkflowEngine;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Activitylog\Models\Activity;
 
 /**
@@ -30,6 +31,7 @@ use Spatie\Activitylog\Models\Activity;
  * "Now" is 2026-11-04 12:00 in Jakarta; interviews are on the 5th.
  */
 beforeEach(function () {
+    Storage::fake('local');
     Mail::fake();
     $this->travelTo(CarbonImmutable::parse('2026-11-04 12:00', 'Asia/Jakarta'));
     $this->seed(RoleSeeder::class);

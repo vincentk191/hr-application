@@ -93,12 +93,13 @@ it('saves the wording and the signer of each company, and audits the change', fu
         ->and(Activity::query()->where('description', 'Offer letter template changed')->count())->toBe(1);
 });
 
-it('refuses a placeholder that does not exist, and an email without the terms', function () {
+it('refuses a placeholder that does not exist, and lets an email leave the terms out', function () {
     offerLetterPage()->fillForm(['opening' => 'Yth. {nama}, tawaran {gaji_bersih}'])->call('save')->assertHasFormErrors(['opening']);
     offerLetterPage()->fillForm(['closing' => 'Salam {kantor}'])->call('save')->assertHasFormErrors(['closing']);
     offerLetterPage()->fillForm(['subject' => '{ketentuan}'])->call('save')->assertHasFormErrors(['subject']);
     offerLetterPage()->fillForm(['email_subject' => 'Tawaran {kantor}'])->call('save')->assertHasFormErrors(['email_subject']);
-    offerLetterPage()->fillForm(['email_body' => 'Halo {nama}, ada tawaran untuk Anda.'])->call('save')->assertHasFormErrors(['email_body']);
+    // The letter is attached as a PDF and carries the terms, so the email does not have to.
+    offerLetterPage()->fillForm(['email_body' => 'Halo {nama}, ada tawaran untuk Anda.'])->call('save')->assertHasNoFormErrors();
     offerLetterPage()->fillForm(['email_body' => 'Halo {nama}, {ketentuan} {nomor_hp}'])->call('save')->assertHasFormErrors(['email_body']);
     offerLetterPage()->fillForm(['title' => ''])->call('save')->assertHasFormErrors(['title' => 'required']);
 

@@ -28,14 +28,21 @@ use Illuminate\Support\Carbon;
  * @property string|null $letter_number
  * @property string|null $letter_note
  * @property array<string, mixed>|null $letter_snapshot
+ * @property string|null $letter_pdf_path the letter as a PDF, made when the offer was sent
  * @property int|null $employee_id
  * @property int|null $proposed_by_user_id
  * @property Carbon|null $proposed_at
  * @property Carbon|null $sent_at
  * @property int|null $sent_by_user_id
  * @property Carbon|null $emailed_at
+ * @property int|null $email_message_id the email that carried the letter
  * @property Carbon|null $responded_at
  * @property string|null $decline_reason
+ * @property string|null $signed_letter_path the letter signed by the candidate and scanned, filed by HR
+ * @property string|null $signed_letter_name
+ * @property int|null $signed_letter_size
+ * @property Carbon|null $signed_letter_at
+ * @property int|null $signed_letter_by_user_id
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -49,19 +56,33 @@ use Illuminate\Support\Carbon;
     'letter_number',
     'letter_note',
     'letter_snapshot',
+    'letter_pdf_path',
     'employee_id',
     'proposed_by_user_id',
     'proposed_at',
     'sent_at',
     'sent_by_user_id',
     'emailed_at',
+    'email_message_id',
     'responded_at',
     'decline_reason',
+    'signed_letter_path',
+    'signed_letter_name',
+    'signed_letter_size',
+    'signed_letter_at',
+    'signed_letter_by_user_id',
 ])]
 class CandidateOffer extends Model
 {
     /** @use HasFactory<CandidateOfferFactory> */
     use BelongsToCompany, HasFactory, HasWorkflow;
+
+    /** The private disk the letter PDFs and the signed scans are kept on, and the folders within it. */
+    public const DISK = 'local';
+
+    public const LETTER_DIRECTORY = 'offer-letters';
+
+    public const SIGNED_DIRECTORY = 'offer-signed-letters';
 
     /**
      * @return array<string, string>
@@ -77,6 +98,8 @@ class CandidateOffer extends Model
             'emailed_at' => 'datetime',
             'letter_snapshot' => 'array',
             'responded_at' => 'datetime',
+            'signed_letter_size' => 'integer',
+            'signed_letter_at' => 'datetime',
         ];
     }
 
@@ -86,6 +109,14 @@ class CandidateOffer extends Model
     public function hasTerms(): bool
     {
         return $this->salary !== null && $this->start_on !== null && $this->probation_months !== null;
+    }
+
+    /**
+     * HR has filed the letter the candidate signed and sent back.
+     */
+    public function hasSignedLetter(): bool
+    {
+        return $this->signed_letter_path !== null;
     }
 
     public function stage(): OfferStage
@@ -197,6 +228,24 @@ class CandidateOffer extends Model
     public function proposedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'proposed_by_user_id');
+    }
+
+    /**
+     * The email that carried the letter to the candidate, for whether it went.
+     *
+     * @return BelongsTo<EmailMessage, $this>
+     */
+    public function emailMessage(): BelongsTo
+    {
+        return $this->belongsTo(EmailMessage::class)->withoutGlobalScopes();
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function signedLetterBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'signed_letter_by_user_id');
     }
 
     /**

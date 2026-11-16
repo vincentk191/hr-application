@@ -157,17 +157,11 @@ class ManageOfferLetterTemplate extends Page
                         ->rows(14)
                         ->maxLength(4000)
                         ->live(onBlur: true)
-                        ->helperText('Wajib memuat {ketentuan}.')
+                        ->helperText('Surat penawaran terlampir sebagai PDF, jadi emailnya tidak perlu memuat ketentuan. Tambahkan {ketentuan} bila ingin ketentuan juga tertulis di email.')
                         ->rule(fn (): Closure => function (string $attribute, mixed $value, Closure $fail): void {
                             $body = is_string($value) ? $value : '';
 
                             $this->failOnUnknown(OfferLetterTemplate::unknownEmailPlaceholders($body), $fail);
-
-                            $missing = OfferLetterTemplate::missingEmailRequired($body);
-
-                            if ($missing !== []) {
-                                $fail('Isi email harus memuat '.implode(', ', array_map(fn (string $name): string => '{'.$name.'}', $missing)).'.');
-                            }
                         }),
                     Textarea::make('email_preview')
                         ->label('Pratinjau email (dengan contoh penawaran)')

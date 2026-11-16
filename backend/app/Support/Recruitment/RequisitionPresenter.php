@@ -21,6 +21,7 @@ use App\Models\RequisitionPosting;
 use App\Models\User;
 use App\Models\WorkflowStep;
 use App\Models\WorkflowTransition;
+use App\Support\Email\CompanyMailer;
 use App\Support\Files\InlineImage;
 use App\Workflows\WorkflowEngine;
 use Closure;
@@ -446,7 +447,7 @@ class RequisitionPresenter
             return null;
         }
 
-        $requisition->loadMissing('offers.workflow.steps.decidedBy:id,name', 'offers.candidate.evaluations.author:id,name', 'offers.proposedBy:id,name', 'offers.sentBy:id,name', 'offers.employee');
+        $requisition->loadMissing('offers.workflow.steps.decidedBy:id,name', 'offers.candidate.evaluations.author:id,name', 'offers.proposedBy:id,name', 'offers.sentBy:id,name', 'offers.employee', 'offers.emailMessage', 'offers.signedLetterBy:id,name');
 
         return array_values($requisition->offers->map(fn (CandidateOffer $offer): array => $this->offer($requisition, $offer, $viewer))->all());
     }
@@ -493,6 +494,7 @@ class RequisitionPresenter
             'sentOn' => $offer->sent_at?->copy()->setTimezone($timezone)->toDateString(),
             'sentBy' => $offer->sentBy?->name,
             'emailed' => $offer->emailed_at !== null,
+            ...$this->offerEmailFields($requisition, $offer, $viewer),
             'respondedOn' => $offer->responded_at?->copy()->setTimezone($timezone)->toDateString(),
             // Why the candidate said no: HR's, like their phone and email.
             'declineReason' => $viewer->can('viewCandidates', $requisition) ? $offer->decline_reason : null,
@@ -507,6 +509,46 @@ class RequisitionPresenter
             'employeeId' => $offer->employee !== null && $viewer->can('view', $offer->employee) ? $offer->employee_id : null,
             'hasEmployee' => $offer->employee_id !== null,
             'candidate' => $data,
+        ];
+    }
+
+    /**
+     * The email that goes with an offer and the signed letter that comes back, for HR: whether the company can send email now,
+     * the draft HR reviews before sending, how the email that went is doing, and the filed signed letter.
+     *
+     * @return array<string, mixed>
+     */
+    private function offerEmailFields(Requisition $requisition, CandidateOffer $offer, User $viewer): array
+    {
+        if (! $viewer->can('viewCandidates', $requisition)) {
+            return [];
+        }
+
+        $timezone = (string) config('attendance.device_timezone');
+        $candidate = $offer->candidate;
+        $message = $offer->emailMessage;
+        $composer = app(OfferLetterComposer::class);
+
+        return [
+            'mailReady' => app(CompanyMailer::class)->isReady($requisition->company_id),
+            // What HR reviews before "Kirim": to whom, the subject and the text (which they may edit), and the letter as the PDF.
+            'emailDraft' => $viewer->can('sendOffer', [$requisition, $offer]) && filled($candidate->email)
+                ? ['to' => $candidate->email, 'subject' => $composer->emailSubject($requisition, $offer), 'body' => $composer->emailBody($requisition, $offer)]
+                : null,
+            'email' => $message === null ? null : [
+                'status' => $message->status->value,
+                'label' => $message->status->getLabel(),
+                'error' => $message->error,
+                'at' => ($message->sent_at ?? $message->created_at)?->copy()->setTimezone($timezone)->format('Y-m-d\TH:i'),
+            ],
+            'canResendEmail' => $viewer->can('resendOfferEmail', [$requisition, $offer]),
+            'signedLetter' => $offer->hasSignedLetter() ? [
+                'name' => $offer->signed_letter_name,
+                'size' => $offer->signed_letter_size,
+                'on' => $offer->signed_letter_at?->copy()->setTimezone($timezone)->toDateString(),
+                'by' => $offer->signedLetterBy?->name,
+            ] : null,
+            'canFileSignedLetter' => $viewer->can('fileSignedLetter', [$requisition, $offer]),
         ];
     }
 
