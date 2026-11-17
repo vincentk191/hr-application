@@ -46,8 +46,8 @@ security pass (Phase 7). What remains is listed in the checklist below. Recruitm
 | Phase 4         | Branch `feature/recruitement`. Requisition dashboard, 3-step wizard, stage 01 approval (2026-10-28); 02 Posting, 03 Screening and 04 Interview with the invitation and the candidate form (2026-11-04); interview feedback, reminders, calendar events, duration and availability (11-06 to 11-12); **participants chosen per interview, HR and Manajemen besides the direct superior (11-13)**; the candidate's outcome (Tolak / Pulihkan) and the direct superior's Pilih (11-10); 05 Offer with Management's approval, terms, letter and sending (11-11); the response, Tandai Selesai and the Terisi tab (11-11). **The accepted hire becomes an employee profile from the Terisi tab (11-13, `REC-FIL-006/007`).** The offer letter and its email are editable in the admin panel (11-13); Google Calendar invitations with Meet links (11-13); **email automation (11-16): each company's own mailbox, the email log and outbox, the offer sent as a PDF with the signed scan filed back, the rejection and "position filled" emails sent the next morning, and the new hire's welcome email.** The funnel on the dashboard (11-17). Not built: nothing of the Offer plan |
 | Phase 5         | Offboarding end to end: wizard, Management approval, checklist, sign-off, exit, berita acara, Cabang filter, phone action bar |
 | Phase 7         | Server stack, VPN, backups with an admin page, non-superuser database login, security headers and limits      |
-| Next            | **The open points outside recruitment** (Home KPIs, the employee app, the security and go-live items, listed in "Not built"); recruitment's Offer plan is complete |
-| Not built       | Candidate rescheduling (by decision, HR does it); Google Meet creation is built (2026-11-13) but not yet proved against CMP's real Google account; email automation is built for recruitment (11-16) but **no email has been delivered by a real server yet and production still has `MAIL_MAILER=log`**; the retention of rejected candidates is built (11-17); no day-before reminder email and no offboarding emails, by decision 2026-11-17; Home KPIs; employee app (Web Push, API); CSP, Ghostscript sandbox, narrowing `web`'s `storage` mount |
+| Next            | **Security and go-live first** (decided 2026-11-17: the app holds NIK, bank and health data, so security comes before features). The items and their status are under "Security and go-live, re-evaluated 2026-11-17" in Phase 7. After that: the bell refreshing an open tab. Recruitment's Offer plan is complete; Home KPIs are parked |
+| Not built       | Candidate rescheduling (by decision, HR does it); Google Meet creation is built (2026-11-13) but not yet proved against CMP's real Google account; email automation is built for recruitment (11-16) but **no email has been delivered by a real server yet and production still has `MAIL_MAILER=log`**; the retention of rejected candidates is built (11-17); no day-before reminder email and no offboarding emails, by decision 2026-11-17; Home KPIs (parked 2026-11-17); the open security items (Phase 7, "Security and go-live, re-evaluated 2026-11-17"). **Dropped 2026-11-17:** the employee app's Sanctum API, saved drafts, the offboarding CSV export (`OFF-DSH-009`) and closing timeline (`OFF-PIP-007`); frontend text stays in the components (`CORE-SRC-004`) |
 
 ---
 
@@ -71,6 +71,21 @@ security pass (Phase 7). What remains is listed in the checklist below. Recruitm
 
 ## Change log (latest first)
 
+- **2026-11-17 (scope trimmed; security re-evaluated; documentation only, no code changed).** Dropped after checking each
+  use case: the employee app's Sanctum API (approvals already work in the installed app over the VPN), saved drafts, the
+  offboarding CSV export (`OFF-DSH-009`) and closing timeline (`OFF-PIP-007`); frontend text stays in the components
+  (`CORE-SRC-004`). Home KPIs parked. Corrected stale lines: Web Push is built (2026-11-04) and confirmed working; the DNS
+  move to Cloudflare was done on 2026-11-03; off-server backups are built (rclone). The shared-props audit deferred from
+  Phase 6b was done (nothing to fix). The remaining security items are re-ranked in Phase 7, "Security and go-live,
+  re-evaluated 2026-11-17", with one new finding: turning on Cloudflare's proxy without real-IP handling on the host Nginx
+  would make every visitor share one sign-in limit.
+- **2026-11-17 (security: the script and style CSP in report-only mode; uncommitted).** Built after the questions above were
+  answered: the public hostname is DNS only (no proxy, no WAF yet), the leaver's read-only view is not wanted (their
+  supervisor follows up), sharing the VPS is accepted. `AddContentSecurityPolicyReportOnly`, `Support/Security/ContentSecurityPolicy`,
+  `CspReportController` (`POST /csp-report`, public allowlist, CSRF-exempt, throttled), the `csp` log channel,
+  `config/security.php` (`CSP_REPORT_ONLY`, on in the server template), nonces on the inline script and style in
+  `app.blade.php`. `CspReportOnlyTest` (6 tests) and `EntranceTest` pass. Not yet seen in a browser, and nothing is
+  enforced; see Phase 7, item 4, for what comes next.
 - **2026-11-17 (recruitment: the funnel on the dashboard; Phase 7 of the Offer plan, `REC-DSH`, branch `feature/recruitement`).**
   **Corong rekrutmen** under the four tiles of the Rekrutmen dashboard: **Pelamar** (the count HR enters on each requisition) →
   **Shortlist** → **Interview** (candidates given an interview) → **Ditawari** (offers sent) → **Terisi** (offers accepted), each
@@ -1910,7 +1925,7 @@ unapproved-absence detection needs approved-leave data.
 | `ATT-LVE`  | Absensi › Cuti         | 10  | 5   | ➖     | Built, then folded into the calendar on 2026-10-09: the on-leave side panel (`ATT-SID-004`) and the Pengajuan queue cover it. The 14-working-day chart, present-per-department bars and head-count reconciliation were dropped |
 | `EMP-REQ`  | Profile — requests tab | 2   | 2   | ✅     | The employee's requests, opening to their detail            |
 | `ATT-ISS`  | Attendance issues      | 7   | 5   | 🟡     | Six exception types (incl. a scan on approved leave), filters, bulk excuse with audit, reopen. Employee and supervisor are notified the next morning |
-| `CORE-NOT` | Notifications          | 8   | 5   | 🟡     | In-app only, by decision: bell, list, leave / attendance / document notices. Email and Web Push (with the PWA) are not built |
+| `CORE-NOT` | Notifications          | 8   | 5   | 🟡     | In-app plus Web Push (built 2026-11-04, per device under Pengaturan → Notifikasi; confirmed working 2026-11-17): bell, list, leave / attendance / document notices. Nothing goes by email, by decision. The bell does not refresh an open tab after a notice is read elsewhere |
 
 **Open rules:** which kinds of request require evidence (attachments are optional today)?
 _Settled: a rejection requires a reason, and there is no annual entitlement — leave-taken only, no
@@ -2250,9 +2265,9 @@ table, the checklist and the screens.
 
 | Screen                            | Name                     | f   | P1  | Status | Notes                                                  |
 | --------------------------------- | ------------------------ | --- | --- | ------ | ------------------------------------------------------ |
-| `OFF-DSH`                         | Offboarding dashboard    | 10  | 5   | 🟡     | Built 10-15: summary, stage tiles, case list, status chips, filters (status, Cabang since 10-23, department, last day), "Mulai kasus", row routing, badge. CSV export (009) not yet |
+| `OFF-DSH`                         | Offboarding dashboard    | 10  | 5   | ✅     | Built 10-15: summary, stage tiles, case list, status chips, filters (status, Cabang since 10-23, department, last day), "Mulai kasus", row routing, badge. CSV export (009) dropped 2026-11-17: the filters cover the daily use, and an export is a copy of leaver data outside the app |
 | `OFF-WIZ` · `OFF-WZ1` · `OFF-WZ2` | Case wizard + steps      | 11  | 8   | ✅     | Built 10-15. Two steps in one form, save draft, notice-period check against the employee's contract days, compensation with a required reason, case files, send for approval. On a phone (10-23) Simpan / Kirim sit in a bar above the tab bar |
-| `OFF-PIP`                         | Case pipeline            | 7   | 6   | 🟡     | Tracker, header, files, the stage-dependent action bar (004) and all three tabs built; on a phone (10-23) the actions move to a pinned bar (`PhaseActions`, change log). The closing timeline (007) is the only part left |
+| `OFF-PIP`                         | Case pipeline            | 7   | 6   | ✅     | Tracker, header, files, the stage-dependent action bar (004) and all three tabs built; on a phone (10-23) the actions move to a pinned bar (`PhaseActions`, change log). The closing timeline (007) dropped 2026-11-17 as cosmetic |
 | `OFF-APR`                         | Stage 1 Diajukan         | 7   | 5   | ✅     | Built 10-15, **with Management as the approver** (not the supervisor), the comment thread, and rejection back to draft. The HR approval step (004) is dropped |
 | `OFF-CHK`                         | Stage 2 Checklist        | 11  | 10  | ✅     | Built 10-15: groups per department owned by its supervisor (HR Admin when none), owner-only ticking with a checkbox, the blocked-completion guard and banner, ad-hoc items, HR notified. Access revocation (010) built 10-16, see the sign-off rules below |
 | `OFF-SIG`                         | Stage 3 Sign-off         | 9   | 5   | ✅     | Built 10-16: the exit details, then HR closes (no signatures since 10-19), the exit interview, exit documents, the print-ready berita acara, send back to the checklist, close, cancel, and the dossier lock. Waiting on one decision: re-routing approvals that were waiting on the leaver |
@@ -2263,9 +2278,9 @@ table, the checklist and the screens.
 
 | Screen     | Name                     | f   | P1  | Status | Notes                                                                                                     |
 | ---------- | ------------------------ | --- | --- | ------ | --------------------------------------------------------------------------------------------------------- |
-| `DAS-MAI`  | Home                     | 5   | 3   | 🟡     | Cross-module KPIs are not built. Built so far: the cards for the people who run HR (Menunggu keputusan, Rekrutmen berjalan) and one calendar for everyone with a switch **Saya \| Lainnya** for HR and Management: Saya is the person's own leave, the interviews they sit in on, their last day and the holidays and events that cover them; Lainnya is everyone else's leave, newcomers' start dates and the last working days of people leaving (11-13) |
-| `CORE-SRC` | Global search & settings | 4   | 3   | 🟡     | Global search is done (header box, Ctrl/⌘ K). The leave and holiday policy live in the admin panel and on the calendar; for 004 the backend runs `APP_LOCALE=id` with `lang/id` (2026-11-05), while frontend text is still written in the components rather than in translation files |
-| —          | Employee app (PWA)       | —   | —   | 🟡     | **Feasibility build 2026-10-20:** manifest, icons, service worker (offline page, built assets only, never a page or data), install banner (Android prompt, iPhone hint). Not built: Web Push, the Sanctum API, saved drafts. See "PWA feasibility build" below |
+| `DAS-MAI`  | Home                     | 5   | 3   | 🟡     | Cross-module KPIs are not built, parked 2026-11-17 until someone says which figures and for whom. Built so far: the cards for the people who run HR (Menunggu keputusan, Rekrutmen berjalan) and one calendar for everyone with a switch **Saya \| Lainnya** for HR and Management: Saya is the person's own leave, the interviews they sit in on, their last day and the holidays and events that cover them; Lainnya is everyone else's leave, newcomers' start dates and the last working days of people leaving (11-13) |
+| `CORE-SRC` | Global search & settings | 4   | 3   | ✅     | Global search is done (header box, Ctrl/⌘ K). The leave and holiday policy live in the admin panel and on the calendar; for 004 the backend runs `APP_LOCALE=id` with `lang/id` (2026-11-05). Frontend text stays written in the components, by decision 2026-11-17: the app has one language |
+| —          | Employee app (PWA)       | —   | —   | 🟡     | **Feasibility build 2026-10-20:** manifest, icons, service worker (offline page, built assets only, never a page or data), install banner (Android prompt, iPhone hint). Web Push built 2026-11-04. **Dropped 2026-11-17:** the Sanctum API (approvals already work in the installed app over the VPN, and an API would have been private-entrance only too) and saved drafts (requisitions and offboarding cases already keep drafts on the server; no loss of typed input reported). Open: the iPhone install test. See "PWA feasibility build" below |
 
 ### Phase 6b — Public entrance and access tiers (decided 2026-10-19; tier middleware built 2026-10-20)
 
@@ -2274,7 +2289,7 @@ only the network. It reverses the earlier "private-only" decision (`docs/context
 
 | Screen     | Name                          | f | P1 | Status | Notes |
 | ---------- | ----------------------------- | - | -- | ------ | ----- |
-| `CORE-ACC` | Access tiers, public entrance | 9 | 6  | 🟡     | `-001` to `-008` built in the app. Since 10-21/10-27 the Nginx side too (the entrance header set from the source address, public rate limits, security headers) and **mandatory 2FA for elevated accounts**. Open: a WAF, the outside check of the public IP on the real server, and the two audits deferred to Phase 7 |
+| `CORE-ACC` | Access tiers, public entrance | 9 | 6  | 🟡     | `-001` to `-008` built in the app. Since 10-21/10-27 the Nginx side too (the entrance header set from the source address, public rate limits, security headers) and **mandatory 2FA for elevated accounts**. The shared-props audit was done 2026-11-17 (nothing to fix). The leaver's read-only view is not wanted (2026-11-17: their supervisor follows up). Open: a WAF, the outside check of the public IP on the real server, and enforcing the CSP |
 
 - `CORE-ACC-001` **Two entrances.** Separate Nginx server blocks and hostnames; the app learns the entrance from
   a header only Nginx sets (trusted-proxy setup is new work, never the `Host` header); separate session cookies.
@@ -2329,7 +2344,12 @@ front, and the outside check of the public IP on the real server (README step 6 
 
 **Deferred to the last phase, before go-live** (decided 2026-10-20; the mobile PWA view waits until the web app is ready):
 what the Inertia shared props carry on every page, and the leaver's own read-only offboarding view on the public
-entrance (offboarding is private for now). Both are noted here so they are not forgotten.
+entrance (offboarding is private for now). Both are noted here so they are not forgotten. **The shared props were
+audited 2026-11-17** (`HandleInertiaRequests::share`): every `can*` flag and every badge count is false or 0 on the
+public entrance, `pendingForMe` is empty there because `WorkflowStep::waitingOn` returns nothing on it, the company
+switcher offers a company-pinned account only its own company, and `auth.user` is the person's own account with the
+password, 2FA secret, recovery codes and remember token hidden. Nothing about other people reaches the page. The leaver's
+read-only view is a feature, not an audit, and was decided against on 2026-11-17.
 
 #### Route audit for the public entrance (2026-10-20)
 
@@ -2379,11 +2399,12 @@ and new versions; `employees/{employee}/punches`, `punches/*`; all of `attendanc
 8. **No trusted-proxy configuration**, which the entrance header depends on.
 9. **Dev-only routes.** `_boost/browser-logs` comes from a dev package and must not exist on the server
    (install without dev dependencies); `sanctum/csrf-cookie` is unused by the Inertia app and can be blocked.
-10. **Not yet audited:** the data the Inertia shared props carry on every page (company switcher, counts), and
-    the leaver's own read-only offboarding view. The leaver is a Karyawan with no VPN, so the proposal is to
+10. **Audited 2026-11-17:** the data the Inertia shared props carry on every page (company switcher, counts); see
+    "Deferred to the last phase" above. The leaver's own read-only offboarding view is **not wanted** (decided
+    2026-11-17: the leaver's supervisor, who has elevated access, follows up with them). The leaver is a Karyawan with no VPN, so the proposal is to
     allow that one read-only page on the public entrance; to be confirmed.
-11. **Future routes:** the PWA's Sanctum API does not exist yet. It should start with the same allowlist and the
-    same tier rule, so it cannot become a way around the entrance.
+11. **Future routes:** the PWA's Sanctum API was dropped on 2026-11-17. If an API is ever added, it should start
+    with the same allowlist and the same tier rule, so it cannot become a way around the entrance.
 
 Tests to add when this is built: one that requests every route by name as an elevated account on the public
 entrance and expects the allowlist and nothing else, and a guard that fails when a new route has no class.
@@ -2409,10 +2430,11 @@ feel right on real phones before building on it.
   box sits above the keyboard and the page behind does not pan) and hides the fixed bottom bars (`data-hide-on-keyboard`).
   Fields under 16px are raised to 16px on iOS (`@supports (-webkit-touch-callout: none)`), because Safari otherwise
   zooms the page into them. Untested on real devices.
-- **Still open:** Web Push, saved drafts, the Sanctum API for approvals (which will be private-entrance only), iPhone
-  testing of the home-screen install, and what "installed" should open at.
+- **Still open:** iPhone testing of the home-screen install, and what "installed" should open at (the manifest's
+  `start_url` is `/dashboard`). Web Push is built (2026-11-04) and confirmed working by the user on 2026-11-17. Saved
+  drafts and the Sanctum API for approvals were dropped on 2026-11-17 (see the Phase 6 table).
 
-#### Web Push — scope (2026-10-22, not started)
+#### Web Push — scope (2026-10-22; built 2026-11-04, the scope below is what was planned)
 
 Checked against the current code: the installable shell above has no push plumbing at all — `sw.js` has no
 `push` or `notificationclick` listener, there is no VAPID key anywhere, and `CORE-NOT` (Notifications) is
@@ -2499,7 +2521,8 @@ public. That machine is a WireGuard peer, limited to the app's private HTTPS por
   second bookmark/PWA install (one per hostname) rather than one that changes behaviour with the network, which was
   judged the smaller cost. Skipping 7.5 leaves the private entrance on plain HTTP exactly as before, install and
   service worker working only on the public hostname.
-- **DNS moving to Cloudflare, planned, not started (2026-10-22).** The project's registrar, idwebhost, has no API
+- **DNS moved to Cloudflare (planned 2026-10-22, done on the server 2026-11-03, README step 7.5).** The VPN
+  certificate now renews unattended with the `dns-cloudflare` plugin. The reasoning, kept for the record: the project's registrar, idwebhost, has no API
   and its panel offers no TXT record type at all, so `VPN_HOSTNAME`'s certificate (above) cannot renew unattended
   from there — every 60-90 days by hand, forever, unless the domain moves. Two ways around that were considered and
   rejected, both because the people using this are not technical, which was weighted above what was cheapest to
@@ -2526,9 +2549,76 @@ public. That machine is a WireGuard peer, limited to the app's private HTTPS por
   sessions with a daily cap and no remember-me, the sign-in audit, Nginx limits on the public entrance and security
   headers everywhere, capped container logs, encrypted nightly backups with an admin page, a non-superuser database
   login, and only the VPN certificate inside `web`.
-- **Not built yet:** a WAF, the Management accounts (waiting on the client's details, `CORE-USR-007`), Web Push, a
-  script/style CSP, Ghostscript in a sandbox (compression is off on the server meanwhile), and mounting only the public
-  files of `storage` into `web` (needs Docker Engine 26+ / Compose 2.27+ on the server).
+- **Not built yet:** the Management accounts (waiting on the client's details, `CORE-USR-007`), and the security items
+  below.
+- **Security and go-live, re-evaluated 2026-11-17** against what the app is for: an internal HR app for about 100 to
+  150 people that holds NIK, bank and health data, with a public entrance that is only each person's own self-service
+  and a private entrance (VPN) for everything else. Security comes before new features.
+
+  **Already in place** (checked in the code and the README, not on the server):
+  - Off-server backups: `backup.sh` copies each night's encrypted backup to an rclone remote and reads it back
+    (`BACKUP_REMOTE`, also settable on the "Cadangan data" admin page). Whether the server has a remote set is shown
+    on that page ("only on this server" warning).
+  - DNS on Cloudflare, VPN certificate renewing unattended (2026-11-03).
+  - Part of a CSP: `frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'`, plus
+    `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, HSTS over https (`nginx-headers.conf`),
+    and a sandbox policy on `/storage/` (SVG logos).
+  - Rate limits on the public entrance (Nginx and the app), mandatory 2FA for elevated accounts, a non-superuser
+    database login, Ghostscript compression off on the server (`UPLOADS_COMPRESS_PDF=false`), dev routes classed private
+    and dev packages left out of the server image (`--no-dev`).
+  - The shared-props audit (2026-11-17, Phase 6b above).
+  - The report-only script and style policy (item 4 below).
+
+  **Still open, in priority order:**
+  1. **VPN peer firewall rules (README step 7).** Written, never run on a server. Without them a peer on the VPN can open
+     the wg-easy admin page, reach other peers (the scanner PC included) and the host (SSH, other sites). Needed: yes,
+     before the first real client. Server work.
+  2. **Outside check of the public IP (README step 6).** A few requests from a phone off the VPN and one `curl` on the
+     server. Needed: yes, before telling anyone the address, and again after any proxy change. Server work.
+  3. **A WAF: Cloudflare's proxy in front of the public hostname.** Fits: the public entrance is internet-facing with a
+     sign-in form and uploads. **Confirmed 2026-11-17: the public hostname is DNS only (grey cloud) and the VPN hostname
+     is DNS only with a reserved IP, so nothing is proxied today and there is no WAF.** The DNS is already on
+     Cloudflare, so turning the proxy on is mostly a switch, **but** the host Nginx site in README step 5 sets
+     `X-Forwarded-For` to `$remote_addr`, which behind the proxy is a Cloudflare address: every visitor would then
+     share the per-address sign-in limits, and the audit trail would record Cloudflare's addresses. Before the proxy is
+     turned on, the host site must take the visitor from `CF-Connecting-IP`, believed only from Cloudflare's published
+     ranges, and the origin should accept the public hostname only from those ranges. A wrong setup still fails closed
+     (a Cloudflare address is public), so it can lock people out but cannot open the private side. The VPN hostname
+     must stay DNS only. Not done; needs the host Nginx change and a decision to switch the proxy on.
+  4. **Script and style CSP: built in report-only mode 2026-11-17, enforcing waits on the reports.** Defence in depth, not
+     a fix for a known hole: React escapes output, and the only raw HTML is Laravel's pagination labels and Fortify's
+     2FA QR SVG, both made by the server. `AddContentSecurityPolicyReportOnly` sends
+     `Content-Security-Policy-Report-Only` on the app's HTML pages (scripts and styles from this site or carrying the
+     request's nonce; `style="..."` attributes allowed), with `report-uri /csp-report`. The inline dark-mode script and
+     style in `app.blade.php`, the Vite tags and the font tags carry the nonce. The admin panel (Filament, Livewire,
+     Alpine) is left out: it needs inline and evaluated scripts, so a policy that fits it would say nothing about
+     scripts, and it is reached over the VPN only. Switched by `CSP_REPORT_ONLY` (`config/security.php`; on in
+     `docker/server/server.env.example`, off locally). `CspReportController` takes the browsers' reports with no sign-in
+     (public allowlist, CSRF-exempt, 30 a minute per address, bodies over 8 KB ignored) and writes the directive, the
+     blocked address, the page and the source to `storage/logs/csp-*.log` (14 days), with query strings removed and the
+     candidate form's personal link cut to `/lamaran/*`. **Next:** leave it on for a few days of normal use on the
+     server, read the log, fix or allow what it shows (likely a library that injects a `<style>` without the nonce, and
+     the admin panel's fonts if it is ever brought in), then switch the header to `Content-Security-Policy`. Tested in
+     `CspReportOnlyTest` (6 tests); not yet seen in a browser.
+  5. **PHP base image refresh.** A routine, not a build: rebuild with `--pull --no-cache` after each PHP security
+     release, then `up -d`.
+  6. **Narrowing `web`'s `storage` mount to the public files.** Defence in depth: `web` mounts all of `storage`
+     read-only, but Nginx serves only `public/` and `/storage/` (the public disk), so private files are not reachable
+     unless the Nginx configuration is broken. A one-line compose change once the server has Docker Engine 26+ and
+     Compose 2.27+. Low priority.
+  7. **Ghostscript in a sandbox.** Recommended to drop and keep `UPLOADS_COMPRESS_PDF=false` on the server. Compression
+     touches only the PDFs among leave attachments and offboarding files (employee documents are never compressed, photos
+     are shrunk in the browser), so even generously the saving is hundreds of megabytes a year. **The disk is used up by
+     the backups, not the uploads:** every night `backup.sh` archives all of `storage/app` and keeps
+     `BACKUP_KEEP_DAYS` (7) of them on the server, and PDFs and photos do not compress further, so the server holds
+     about eight times the size of the uploads (the live files plus seven nightly copies). Measure before deciding:
+     `du -sh storage/app` in the `app` container, `du -sh /var/backups/hr-app` and `df -h` on the host. If the copies grow
+     too big, set "Simpan di server (hari)" on the "Cadangan data" page to 3: the off-server copy keeps 30 days.
+
+  **Decided 2026-11-17:** the leaver's read-only offboarding view on the public entrance is not built (the leaver's
+  supervisor, who has elevated access, follows up with them); the public entrance may keep sharing the VPS with other
+  sites (a compromise of another site on the host is then outside what this stack can defend). **Waiting:** the
+  Ghostscript decision (7), once the sizes above are known.
 - **PHP security releases need a fresh base image.** `docker-compose.server.yml` builds on the floating `php:8.4-fpm` tag, so
   a patch release (for example 8.4.27, 2026-10-21, the "php2shell" fix) only arrives when the image is rebuilt with
   `--pull --no-cache`. Workers must be restarted (`up -d` recreates them) before the fix is live.
@@ -2916,7 +3006,7 @@ Progress Tracking analytics (Appendix C).
   active company, so a group-wide user must pick one first. Max 2,000 rows, 2 MB. `.xlsx` is not
   accepted here yet, although Laravel Excel is now installed (the attendance imports use it).
 - **Sanctum is installed for the attendance agent only** (token-only, `config/sanctum.php` has no
-  stateful guard). There is no employee-app API yet.
+  stateful guard). There is no employee-app API, and none is planned (dropped 2026-11-17).
 - **The Indonesian workbook copy** (`…_ID.xlsx`) is regenerated from the English one — if you
   edit the English file, regenerate it.
 - **A leave request is approved by the employee's Atasan, not by HR.** The approval chain is one step:

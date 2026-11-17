@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\AddContentSecurityPolicyReportOnly;
 use App\Http\Middleware\EnforceAccountState;
 use App\Http\Middleware\EnforceEntrance;
 use App\Http\Middleware\EnforceSessionAge;
@@ -28,6 +29,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
+        // The browser's policy report carries no token.
+        $middleware->validateCsrfTokens(except: ['csp-report']);
+
         // Which entrance the request used, before anything starts a session (CORE-ACC-001).
         $middleware->prepend(ResolveEntrance::class);
         $middleware->api(append: [EnforceEntrance::class]);
@@ -50,6 +54,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->web(append: [
             EnforceEntrance::class,
+            AddContentSecurityPolicyReportOnly::class,
             HandleAppearance::class,
             SetActiveCompany::class,
             EnforceSessionAge::class,

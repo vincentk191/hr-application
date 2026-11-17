@@ -73,6 +73,16 @@ return [
             'replace_placeholders' => true,
         ],
 
+        // What the report-only script and style policy would have blocked (config/security.php), kept apart from the
+        // application log and for two weeks only.
+        'csp' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/csp.log'),
+            'level' => 'warning',
+            'max_files' => 14,
+            'replace_placeholders' => true,
+        ],
+
         'monthly' => [
             'driver' => 'monthly',
             'path' => storage_path('logs/laravel.log'),

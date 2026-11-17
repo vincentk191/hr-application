@@ -643,6 +643,10 @@ is also written in the key file as a comment (`# public key: age1...`), so it ca
 | `BACKUP_IGNORE_PAGE`             | not on the page                        | no       | `true` = ignore the admin page and use only this file                                            |
 | (the cloud's login)              | not on the page, on purpose            | with a remote | stored by `rclone config` on the server                                                     |
 
+**Disk use:** each night's backup holds a full copy of the uploaded files, which do not compress further, so with the
+default 7 days the server holds about eight times the size of `storage/app` (the live files plus seven copies). On a
+small disk, lower "Simpan di server (hari)" (3 is enough while the copy off the server keeps 30 days).
+
 Each night at 02:30 the script keeps 7 days on the server, copies the folder to a second place with `rclone` and reads it
 back to check it arrived intact, and deletes copies there older than 30 days. A failed run leaves no half-written folder and
 exits with an error; with the optional monitoring URL below, a missing or failed run also tells you. If only the copy off
@@ -733,12 +737,16 @@ where it is), the host Nginx site file from step 5, and the DNS records. Certifi
 
 ### Not built yet (before this is a hardened production)
 
-A WAF in front (Cloudflare, once the domain's DNS moves there; Nginx already limits the public entrance's requests), the
-Management accounts (they wait on the client's details), Web Push (alerts are in-app only),
-mounting only the public files, not all of `storage`, into the `web` container (its certificate mount is already just the
-one VPN pair; the files part needs Docker Engine 26+ / Compose 2.27+ on the server for a volume subpath),
-compressing PDFs in a sandbox, and a server of its own if the public entrance should not share a machine with other sites.
-Details and the open items per screen are in [DEVELOPMENT.md](DEVELOPMENT.md).
+A WAF in front (Cloudflare's proxy; the DNS is already there but nothing is proxied, and the host Nginx site in step 5
+must first take the visitor's address from `CF-Connecting-IP`, believed only from Cloudflare's ranges, or every visitor
+shares one sign-in limit), enforcing the script and style CSP (it runs in report-only mode, `CSP_REPORT_ONLY=true`, and
+`storage/logs/csp-*.log` shows what it would have blocked), the Management accounts (they wait on the client's details), mounting only the public
+files, not all of `storage`, into the `web` container (its certificate mount is already just the one VPN pair; the files
+part needs Docker Engine 26+ / Compose 2.27+ on the server for a volume subpath), and a server of its own if the public
+entrance should not share a machine with other sites. PDF compression stays off on the server (see "Uploaded files").
+Steps 6 and 7 (the outside check and the VPN peer rules) must be run on the server before go-live.
+Details, and the order these are taken in, are in [DEVELOPMENT.md](DEVELOPMENT.md) (Phase 7, "Security and go-live,
+re-evaluated 2026-11-17").
 
 ---
 

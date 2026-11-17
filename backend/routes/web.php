@@ -13,6 +13,7 @@ use App\Http\Controllers\AttendanceRekapController;
 use App\Http\Controllers\CalendarEventController;
 use App\Http\Controllers\CandidateFormController;
 use App\Http\Controllers\CompanySwitcherController;
+use App\Http\Controllers\CspReportController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeeAccountController;
 use App\Http\Controllers\EmployeeController;
@@ -52,6 +53,9 @@ Route::middleware('throttle:candidate-form')->group(function () {
     Route::get('lamaran/{token}', [CandidateFormController::class, 'show'])->name('candidate-form.show');
     Route::post('lamaran/{token}', [CandidateFormController::class, 'store'])->name('candidate-form.store');
 });
+
+// What the report-only script and style policy would have blocked, sent by the browser (no sign-in, no CSRF token).
+Route::post('csp-report', CspReportController::class)->middleware('throttle:csp-report')->name('csp-report');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');

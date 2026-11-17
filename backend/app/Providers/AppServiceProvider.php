@@ -149,6 +149,9 @@ class AppServiceProvider extends ServiceProvider
         // The candidate form is open to anyone holding a link, so it is limited per address (REC-INT).
         RateLimiter::for('candidate-form', fn (Request $request): Limit => Limit::perMinute(20)->by((string) $request->ip()));
 
+        // A page that breaks the policy reports each thing once per load; a few a minute per address is plenty.
+        RateLimiter::for('csp-report', fn (Request $request): Limit => Limit::perMinute(30)->by((string) $request->ip()));
+
         RateLimiter::for('attendance-ingest', function (Request $request): Limit {
             $agent = Auth::guard('sanctum')->user();
             $token = $agent instanceof AttendanceAgent ? $agent->currentAccessToken() : null;

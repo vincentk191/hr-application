@@ -20,6 +20,8 @@ class PublicRoutes
         'home',
         // The candidate form, opened from the link in an interview invitation (no sign-in; the link is the credential).
         'candidate-form.show', 'candidate-form.store',
+        // The browser's report of what the report-only script and style policy would have blocked.
+        'csp-report',
         // Signing in and out, two-factor, and confirming a password.
         'login', 'login.store', 'logout', 'register', 'register.store',
         'two-factor.login', 'two-factor.login.store', 'two-factor.enable', 'two-factor.confirm', 'two-factor.disable',
