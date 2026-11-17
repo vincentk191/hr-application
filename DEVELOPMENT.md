@@ -37,17 +37,17 @@ security pass (Phase 7). What remains is listed in the checklist below. Recruitm
 
 |                 |                                                                                                              |
 | --------------- | ------------------------------------------------------------------------------------------------------------ |
-| Tests           | 1,360 (1,355 passed, 5 skipped; full suite run 2026-11-17, after the retention of rejected candidates, with `php -d memory_limit=2G vendor/bin/pest`) |
+| Tests           | 1,361 (1,356 passed, 5 skipped; count after adding the funnel test, last full run 1,360; full suite run 2026-11-17, after the retention of rejected candidates, with `php -d memory_limit=2G vendor/bin/pest`) |
 | Static analysis | PHPStan level 7; checked on the files touched since 2026-11-12, which are clean except 12 older errors in `AdminOverview` (`waiting()`, `dateRange()`); the 14 in the attendance-rekap files (2026-10-26) were not re-checked |
 | Phase 0         | **Complete**: company scoping, RBAC, workflow engine, account state and login rules, mandatory 2FA for elevated accounts |
 | Phase 1         | Directory (Cabang, CSV import/export, list/grid/org chart, phone layout), profile, add/edit, reactivation, documents, admin panel |
 | Phase 2         | Manual import of the Fingerspot export, branch rekap import, Zona and potongan, calendar, holidays/events, recap with Excel export, issues, timesheet corrections. The ingest API and on-site agents are built but switched off (`FEATURE_ATTENDANCE_AGENTS`) |
 | Phase 3         | Pengajuan end to end (types with an icon each, timeframe, attachments, double-booking refusal and live warning, queue with filters/export/badge), correcting a rejected request with the changes worked out automatically, leave on the calendar's side panel, in-app notices |
-| Phase 4         | Branch `feature/recruitement`. Requisition dashboard, 3-step wizard, stage 01 approval (2026-10-28); 02 Posting, 03 Screening and 04 Interview with the invitation and the candidate form (2026-11-04); interview feedback, reminders, calendar events, duration and availability (11-06 to 11-12); **participants chosen per interview, HR and Manajemen besides the direct superior (11-13)**; the candidate's outcome (Tolak / Pulihkan) and the direct superior's Pilih (11-10); 05 Offer with Management's approval, terms, letter and sending (11-11); the response, Tandai Selesai and the Terisi tab (11-11). **The accepted hire becomes an employee profile from the Terisi tab (11-13, `REC-FIL-006/007`).** The offer letter and its email are editable in the admin panel (11-13); Google Calendar invitations with Meet links (11-13); **email automation (11-16): each company's own mailbox, the email log and outbox, the offer sent as a PDF with the signed scan filed back, the rejection and "position filled" emails sent the next morning, and the new hire's welcome email.** Not built: the funnel figures, a browser check |
+| Phase 4         | Branch `feature/recruitement`. Requisition dashboard, 3-step wizard, stage 01 approval (2026-10-28); 02 Posting, 03 Screening and 04 Interview with the invitation and the candidate form (2026-11-04); interview feedback, reminders, calendar events, duration and availability (11-06 to 11-12); **participants chosen per interview, HR and Manajemen besides the direct superior (11-13)**; the candidate's outcome (Tolak / Pulihkan) and the direct superior's Pilih (11-10); 05 Offer with Management's approval, terms, letter and sending (11-11); the response, Tandai Selesai and the Terisi tab (11-11). **The accepted hire becomes an employee profile from the Terisi tab (11-13, `REC-FIL-006/007`).** The offer letter and its email are editable in the admin panel (11-13); Google Calendar invitations with Meet links (11-13); **email automation (11-16): each company's own mailbox, the email log and outbox, the offer sent as a PDF with the signed scan filed back, the rejection and "position filled" emails sent the next morning, and the new hire's welcome email.** The funnel on the dashboard (11-17). Not built: nothing of the Offer plan |
 | Phase 5         | Offboarding end to end: wizard, Management approval, checklist, sign-off, exit, berita acara, Cabang filter, phone action bar |
 | Phase 7         | Server stack, VPN, backups with an admin page, non-superuser database login, security headers and limits      |
-| Next            | **A browser check of the offer flow with a real mailbox** (approve, terms, "Kirim penawaran", signed scan; the first email a real server delivers), then **Recruitment Phase 7 of the Offer plan: the funnel figures (offered, filled) on the dashboard**; plan under "Offer, Filled and the candidate's outcome" in Phase 4 |
-| Not built       | The recruitment funnel figures; candidate rescheduling (by decision, HR does it); Google Meet creation is built (2026-11-13) but not yet proved against CMP's real Google account; email automation is built for recruitment (11-16) but **no email has been delivered by a real server yet and production still has `MAIL_MAILER=log`**; the retention of rejected candidates is built (11-17); no day-before reminder email and no offboarding emails, by decision 2026-11-17; Home KPIs; employee app (Web Push, API); CSP, Ghostscript sandbox, narrowing `web`'s `storage` mount |
+| Next            | **The open points outside recruitment** (Home KPIs, the employee app, the security and go-live items, listed in "Not built"); recruitment's Offer plan is complete |
+| Not built       | Candidate rescheduling (by decision, HR does it); Google Meet creation is built (2026-11-13) but not yet proved against CMP's real Google account; email automation is built for recruitment (11-16) but **no email has been delivered by a real server yet and production still has `MAIL_MAILER=log`**; the retention of rejected candidates is built (11-17); no day-before reminder email and no offboarding emails, by decision 2026-11-17; Home KPIs; employee app (Web Push, API); CSP, Ghostscript sandbox, narrowing `web`'s `storage` mount |
 
 ---
 
@@ -70,6 +70,15 @@ security pass (Phase 7). What remains is listed in the checklist below. Recruitm
 ---
 
 ## Change log (latest first)
+
+- **2026-11-17 (recruitment: the funnel on the dashboard; Phase 7 of the Offer plan, `REC-DSH`, branch `feature/recruitement`).**
+  **Corong rekrutmen** under the four tiles of the Rekrutmen dashboard: **Pelamar** (the count HR enters on each requisition) →
+  **Shortlist** → **Interview** (candidates given an interview) → **Ditawari** (offers sent) → **Terisi** (offers accepted), each
+  with a bar against the largest figure and the share of the step before. `Support/Recruitment/RecruitmentFunnel`, prop
+  `funnel`. It covers the requisitions the person may see in the company in view, **drafts and cancelled ones left out**, and
+  each figure counts people who **got that far whatever happened later** (someone turned down after the interview stays in
+  Interview). Numbers only, no names. It does not follow the status and department filters of the table. Test: one in
+  `RequisitionFilledTest`. Not seen in a browser.
 
 - **2026-11-17 (recruitment: rejected candidates are deleted after a retention period; branch `feature/recruitement`).** Admin page
   **Penyimpanan data pelamar** (`ManageCandidateRetention`, Workflow group, same gate `manage-recruitment-template` as the other
@@ -94,7 +103,7 @@ security pass (Phase 7). What remains is listed in the checklist below. Recruitm
   `RequisitionConvertHireTest`, 2 in `RequisitionOfferLetterTest`. **Decided by the user:** the offer flow and the manual browser
   check passed; **no day-before email for a new hire, a push notification in the app is enough; no offboarding emails; the
   retention period for rejected candidates is a setting in the admin panel (not built yet); 08:00 for the next-morning emails is
-  confirmed.** The funnel figures are still not built.
+  confirmed.**
 
 - **2026-11-17 (recruitment: the candidate panel on a phone; documentation brought up to date; branch `feature/recruitement`).**
   `candidate-drawer.tsx`, front end only. **Formulir badge:** on a phone it shows the short label ("Menunggu formulir"), can wrap,

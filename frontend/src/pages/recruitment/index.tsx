@@ -9,6 +9,7 @@ import type { BreadcrumbItem } from '@/types';
 import type {
     RequisitionFilters,
     RequisitionRow,
+    RecruitmentFunnel,
     RequisitionSummary,
 } from '@/types/recruitment';
 
@@ -64,12 +65,14 @@ export default function RecruitmentIndex({
     requisitions,
     filters,
     summary,
+    funnel,
     departments,
     canCreate,
 }: {
     requisitions: RequisitionRow[];
     filters: RequisitionFilters;
     summary: RequisitionSummary;
+    funnel: RecruitmentFunnel;
     departments: string[];
     canCreate: boolean;
 }) {
@@ -99,6 +102,15 @@ export default function RecruitmentIndex({
         ['Kuota dibuka', summary.quota],
         ['Draft saya', summary.drafts],
     ];
+
+    const funnelSteps: [string, number][] = [
+        ['Pelamar', funnel.applicants],
+        ['Shortlist', funnel.shortlisted],
+        ['Interview', funnel.interviewed],
+        ['Ditawari', funnel.offered],
+        ['Terisi', funnel.filled],
+    ];
+    const funnelTop = Math.max(...funnelSteps.map(([, value]) => value));
 
     return (
         <>
@@ -152,6 +164,49 @@ export default function RecruitmentIndex({
                             </p>
                         </div>
                     ))}
+                </section>
+
+                <section
+                    className="surface space-y-3 p-4"
+                    data-test="recruitment-funnel"
+                >
+                    <h2 className="label-mono">Corong rekrutmen</h2>
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                        {funnelSteps.map(([label, value], position) => {
+                            const before =
+                                position > 0 ? funnelSteps[position - 1][1] : 0;
+
+                            return (
+                                <div key={label} className="space-y-1">
+                                    <p className="label-mono">{label}</p>
+                                    <p className="text-2xl font-extrabold tracking-tight">
+                                        {value}
+                                    </p>
+                                    <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                                        <div
+                                            className="h-full rounded-full bg-primary"
+                                            style={{
+                                                width: `${
+                                                    funnelTop > 0
+                                                        ? Math.round(
+                                                              (value /
+                                                                  funnelTop) *
+                                                                  100,
+                                                          )
+                                                        : 0
+                                                }%`,
+                                            }}
+                                        />
+                                    </div>
+                                    <p className="label-mono">
+                                        {position > 0 && before > 0
+                                            ? `${Math.round((value / before) * 100)}%`
+                                            : ' '}
+                                    </p>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </section>
 
                 <div className="flex flex-wrap items-center gap-2">

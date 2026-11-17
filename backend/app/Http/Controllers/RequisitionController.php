@@ -55,6 +55,7 @@ use App\Support\Notifications\Notifier;
 use App\Support\Recruitment\InterviewCalendar;
 use App\Support\Recruitment\InterviewEvent;
 use App\Support\Recruitment\InvitationMessage;
+use App\Support\Recruitment\RecruitmentFunnel;
 use App\Support\Recruitment\RequisitionDepartments;
 use App\Support\Recruitment\RequisitionPresenter;
 use App\Support\Recruitment\RequisitionTemplate;
@@ -111,6 +112,7 @@ class RequisitionController extends Controller
                     ->whereHas('workflow', fn (Builder $workflow) => $workflow->where('current_stage', RequisitionStage::Draft->value))
                     ->count(),
             ],
+            'funnel' => app(RecruitmentFunnel::class)->for($user),
             'departments' => Department::query()->whereIn('id', $visible()->select('department_id'))->orderBy('name')->pluck('name')->values(),
             'canCreate' => $user->can('create', Requisition::class),
         ]);

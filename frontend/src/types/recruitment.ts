@@ -51,6 +51,15 @@ export type RequisitionSummary = {
     drafts: number;
 };
 
+/** How far the people of the visible requisitions have got: each figure counts everyone who reached that stage. */
+export type RecruitmentFunnel = {
+    applicants: number;
+    shortlisted: number;
+    interviewed: number;
+    offered: number;
+    filled: number;
+};
+
 /** One of the six pipeline stages (REC-PIP-002). */
 export type RequisitionTab = {
     stage: RequisitionStage;
