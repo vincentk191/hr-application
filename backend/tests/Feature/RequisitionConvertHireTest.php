@@ -193,6 +193,32 @@ it('makes the employee in the requisition\'s company, links the offer, and recor
     expect($employee->user_id)->toBeNull();
 });
 
+it('files the candidate\'s CV on the new employee\'s documents, restricted', function () {
+    Storage::disk('local')->put('candidate-cvs/budi.pdf', 'cv-bytes');
+    $this->offer->candidate->forceFill(['cv_path' => 'candidate-cvs/budi.pdf', 'cv_name' => 'CV Budi.pdf', 'cv_size' => 8])->save();
+
+    hireConvert($this->requisition, $this->offer)->assertSessionDoesntHaveErrors();
+
+    $employee = Employee::query()->where('employee_number', 'EMP-0100')->sole();
+    $document = $employee->documents()->sole();
+    $version = $document->versions()->sole();
+
+    expect($document->title)->toBe('CV — '.$this->requisition->reference())
+        ->and($document->is_restricted)->toBeTrue()
+        ->and($version->original_name)->toBe('CV Budi.pdf')
+        ->and($version->uploaded_by_user_id)->toBe($this->hr->id);
+
+    Storage::disk('local')->assertExists($version->path);
+    // The candidate's own copy stays where it was.
+    Storage::disk('local')->assertExists('candidate-cvs/budi.pdf');
+});
+
+it('files no document for a hire without a CV, and still makes the employee', function () {
+    hireConvert($this->requisition, $this->offer)->assertSessionDoesntHaveErrors();
+
+    expect(Employee::query()->where('employee_number', 'EMP-0100')->sole()->documents()->count())->toBe(0);
+});
+
 it('puts the profile in the requisition\'s company even for HR who views every company', function () {
     $everyCompany = hireUser(Role::HrAdmin, null);
 

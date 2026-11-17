@@ -243,6 +243,10 @@ function OfferTerms({
     item: Requisition;
     offer: CandidateOffer;
 }) {
+    const others = (item.offers ?? []).filter(
+        (other) => other.id !== offer.id && other.canSetTerms,
+    );
+
     return (
         <DecisionDialog
             form={terms.form({ requisition: item.id, offer: offer.id })}
@@ -340,6 +344,33 @@ function OfferTerms({
                         <p className="label-mono">Opsional</p>
                         <InputError message={errors.letter_note} />
                     </div>
+                    {others.length > 0 && (
+                        <fieldset className="space-y-2">
+                            <legend className="text-sm font-semibold text-muted-foreground">
+                                Terapkan juga ke
+                            </legend>
+                            {others.map((other) => (
+                                <label
+                                    key={other.id}
+                                    className="flex items-center gap-2 text-sm"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        name="also_for[]"
+                                        value={other.id}
+                                        className="size-4"
+                                        data-test="offer-terms-also"
+                                    />
+                                    {other.name}
+                                </label>
+                            ))}
+                            <p className="label-mono">
+                                Tanggal mulai, masa percobaan dan catatan. Nomor
+                                surat tetap sendiri-sendiri.
+                            </p>
+                            <InputError message={errors.also_for} />
+                        </fieldset>
+                    )}
                 </div>
             )}
             trigger={

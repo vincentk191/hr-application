@@ -25,6 +25,7 @@ use App\Support\Recruitment\OfferLetterPdf;
 use App\Support\Recruitment\OnboardingEmailTemplate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -108,6 +109,8 @@ class RequisitionOfferController extends Controller
             'probation_months' => ['required', 'integer', 'min:0', 'max:3'],
             'letter_number' => ['nullable', 'string', 'max:60'],
             'letter_note' => ['nullable', 'string', 'max:1000'],
+            'also_for' => ['nullable', 'array'],
+            'also_for.*' => ['integer', 'distinct'],
         ], [
             'start_on.required' => 'Isi tanggal mulai kerja.',
             'start_on.date_format' => 'Tanggal mulai kerja harus berupa tanggal yang sah.',
@@ -118,17 +121,47 @@ class RequisitionOfferController extends Controller
             'letter_note.max' => 'Catatan surat maksimal 1000 karakter.',
         ]);
 
-        $setTerms->handle(
-            $requisition,
-            $offer,
-            $request->user(),
-            $validated['start_on'],
-            (int) $validated['probation_months'],
-            $validated['letter_number'] ?? null,
-            $validated['letter_note'] ?? null,
-        );
+        // One set of terms for several candidates (REC-OFR-003): the same start date, probation and note go to the other
+        // approved offers HR ticked. The letter number is each letter's own, so theirs are left as they are.
+        $others = $requisition->offers()
+            ->whereIn('id', $validated['also_for'] ?? [])
+            ->where('id', '!=', $offer->id)
+            ->with('candidate')
+            ->get();
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => "Ketentuan penawaran {$offer->candidate?->name} disimpan."]);
+        if ($others->count() !== count($validated['also_for'] ?? []) || $others->contains(fn (CandidateOffer $other): bool => $request->user()->cannot('setOfferTerms', [$requisition, $other]))) {
+            throw ValidationException::withMessages(['also_for' => 'Salah satu penawaran yang dipilih tidak bisa diberi ketentuan.']);
+        }
+
+        DB::transaction(function () use ($setTerms, $requisition, $offer, $others, $request, $validated): void {
+            $setTerms->handle(
+                $requisition,
+                $offer,
+                $request->user(),
+                $validated['start_on'],
+                (int) $validated['probation_months'],
+                $validated['letter_number'] ?? null,
+                $validated['letter_note'] ?? null,
+            );
+
+            foreach ($others as $other) {
+                $setTerms->handle(
+                    $requisition,
+                    $other,
+                    $request->user(),
+                    $validated['start_on'],
+                    (int) $validated['probation_months'],
+                    $other->letter_number,
+                    $validated['letter_note'] ?? null,
+                );
+            }
+        });
+
+        $names = $others->map(fn (CandidateOffer $other): ?string => $other->candidate?->name)->prepend($offer->candidate?->name)->filter()->implode(', ');
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => $others->isEmpty()
+            ? "Ketentuan penawaran {$offer->candidate?->name} disimpan."
+            : "Ketentuan penawaran disimpan untuk {$names}."]);
 
         return back();
     }

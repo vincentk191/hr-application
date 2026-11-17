@@ -439,7 +439,10 @@ function DrawerBody({
                             data-test="edit-evaluation"
                         >
                             <Pencil className="size-4" aria-hidden />
-                            Ubah penilaian
+                            <span className="sm:hidden">Ubah</span>
+                            <span className="hidden sm:inline">
+                                Ubah penilaian
+                            </span>
                         </Button>
                     )}
                     {candidate.canReject && (
@@ -502,7 +505,8 @@ function DrawerBody({
                             data-test="restore-candidate"
                         >
                             <RotateCcw className="size-4" aria-hidden />
-                            Pulihkan
+                            <span className="hidden sm:inline">Pulihkan</span>
+                            <span className="sr-only sm:hidden">Pulihkan</span>
                         </Button>
                     )}
                     {candidate.canRemove && (
@@ -533,7 +537,12 @@ function DrawerBody({
                             data-test="cancel-candidate"
                         >
                             <Trash2 className="size-4" aria-hidden />
-                            Hapus kandidat
+                            <span className="hidden sm:inline">
+                                Hapus kandidat
+                            </span>
+                            <span className="sr-only sm:hidden">
+                                Hapus kandidat
+                            </span>
                         </Button>
                     )}
                 </div>
@@ -607,13 +616,17 @@ function OverviewTab({ candidate }: { candidate: Candidate }) {
                         {candidate.sourceLabel}
                     </Badge>
                 </div>
-                <div className="p-3">
+                <div className="min-w-0 p-3">
                     <p className="label-mono">Formulir</p>
-                    <Badge variant={state.variant} className="mt-1">
-                        {state.label}
+                    <Badge
+                        variant={state.variant}
+                        className="mt-1 h-auto max-w-full text-left whitespace-normal"
+                    >
+                        <span className="sm:hidden">{state.shortLabel}</span>
+                        <span className="hidden sm:inline">{state.label}</span>
                     </Badge>
                 </div>
-                <div className="p-3">
+                <div className="min-w-0 p-3">
                     <p className="label-mono">Interview</p>
                     <p className="mt-1 font-medium">
                         {candidate.interviewAtLabel ?? 'Belum dijadwalkan'}

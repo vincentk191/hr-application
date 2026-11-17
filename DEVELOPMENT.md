@@ -37,17 +37,17 @@ security pass (Phase 7). What remains is listed in the checklist below. Recruitm
 
 |                 |                                                                                                              |
 | --------------- | ------------------------------------------------------------------------------------------------------------ |
-| Tests           | 1,254 (1,249 passed, 5 skipped; full suite run 2026-11-13, after the conversion of a hire to an employee, with `php -d memory_limit=2G vendor/bin/pest`) |
+| Tests           | 1,360 (1,355 passed, 5 skipped; full suite run 2026-11-17, after the retention of rejected candidates, with `php -d memory_limit=2G vendor/bin/pest`) |
 | Static analysis | PHPStan level 7; checked on the files touched since 2026-11-12, which are clean except 12 older errors in `AdminOverview` (`waiting()`, `dateRange()`); the 14 in the attendance-rekap files (2026-10-26) were not re-checked |
 | Phase 0         | **Complete**: company scoping, RBAC, workflow engine, account state and login rules, mandatory 2FA for elevated accounts |
 | Phase 1         | Directory (Cabang, CSV import/export, list/grid/org chart, phone layout), profile, add/edit, reactivation, documents, admin panel |
 | Phase 2         | Manual import of the Fingerspot export, branch rekap import, Zona and potongan, calendar, holidays/events, recap with Excel export, issues, timesheet corrections. The ingest API and on-site agents are built but switched off (`FEATURE_ATTENDANCE_AGENTS`) |
 | Phase 3         | Pengajuan end to end (types with an icon each, timeframe, attachments, double-booking refusal and live warning, queue with filters/export/badge), correcting a rejected request with the changes worked out automatically, leave on the calendar's side panel, in-app notices |
-| Phase 4         | Branch `feature/recruitement`. Requisition dashboard, 3-step wizard, stage 01 approval (2026-10-28); 02 Posting, 03 Screening and 04 Interview with the invitation and the candidate form (2026-11-04); interview feedback, reminders, calendar events, duration and availability (11-06 to 11-12); **participants chosen per interview, HR and Manajemen besides the direct superior (11-13)**; the candidate's outcome (Tolak / Pulihkan) and the direct superior's Pilih (11-10); 05 Offer with Management's approval, terms, letter and sending (11-11); the response, Tandai Selesai and the Terisi tab (11-11). **The accepted hire becomes an employee profile from the Terisi tab (11-13, `REC-FIL-006/007`).** Not built: the funnel figures, a browser check |
+| Phase 4         | Branch `feature/recruitement`. Requisition dashboard, 3-step wizard, stage 01 approval (2026-10-28); 02 Posting, 03 Screening and 04 Interview with the invitation and the candidate form (2026-11-04); interview feedback, reminders, calendar events, duration and availability (11-06 to 11-12); **participants chosen per interview, HR and Manajemen besides the direct superior (11-13)**; the candidate's outcome (Tolak / Pulihkan) and the direct superior's Pilih (11-10); 05 Offer with Management's approval, terms, letter and sending (11-11); the response, Tandai Selesai and the Terisi tab (11-11). **The accepted hire becomes an employee profile from the Terisi tab (11-13, `REC-FIL-006/007`).** The offer letter and its email are editable in the admin panel (11-13); Google Calendar invitations with Meet links (11-13); **email automation (11-16): each company's own mailbox, the email log and outbox, the offer sent as a PDF with the signed scan filed back, the rejection and "position filled" emails sent the next morning, and the new hire's welcome email.** Not built: the funnel figures, a browser check |
 | Phase 5         | Offboarding end to end: wizard, Management approval, checklist, sign-off, exit, berita acara, Cabang filter, phone action bar |
 | Phase 7         | Server stack, VPN, backups with an admin page, non-superuser database login, security headers and limits      |
-| Next            | **Recruitment Phase 7 of the Offer plan: the funnel figures (offered, filled) on the dashboard and a browser check**; plan under "Offer, Filled and the candidate's outcome" in Phase 4 |
-| Not built       | The recruitment funnel figures; the candidate's CV into the new employee's documents; candidate rescheduling (by decision, HR does it); Google Meet creation is built (2026-11-13) but not yet proved against CMP's real Google account; email automation (plan decided 2026-11-16; production still has `MAIL_MAILER=log`); Home KPIs; employee app (Web Push, API); CSP, Ghostscript sandbox, narrowing `web`'s `storage` mount |
+| Next            | **A browser check of the offer flow with a real mailbox** (approve, terms, "Kirim penawaran", signed scan; the first email a real server delivers), then **Recruitment Phase 7 of the Offer plan: the funnel figures (offered, filled) on the dashboard**; plan under "Offer, Filled and the candidate's outcome" in Phase 4 |
+| Not built       | The recruitment funnel figures; candidate rescheduling (by decision, HR does it); Google Meet creation is built (2026-11-13) but not yet proved against CMP's real Google account; email automation is built for recruitment (11-16) but **no email has been delivered by a real server yet and production still has `MAIL_MAILER=log`**; the retention of rejected candidates is built (11-17); no day-before reminder email and no offboarding emails, by decision 2026-11-17; Home KPIs; employee app (Web Push, API); CSP, Ghostscript sandbox, narrowing `web`'s `storage` mount |
 
 ---
 
@@ -70,6 +70,58 @@ security pass (Phase 7). What remains is listed in the checklist below. Recruitm
 ---
 
 ## Change log (latest first)
+
+- **2026-11-17 (recruitment: rejected candidates are deleted after a retention period; branch `feature/recruitement`).** Admin page
+  **Penyimpanan data pelamar** (`ManageCandidateRetention`, Workflow group, same gate `manage-recruitment-template` as the other
+  recruitment pages): the number of months, 1 to 120, **12 until changed** (`recruitment.rejected_retention_months` in
+  `app_settings`, read through `Support/Recruitment/CandidateRetention`), audited ("Candidate retention changed").
+  `recruitment:purge-rejected-candidates` runs **every night at 02:00 company time** (`--dry-run` only counts) and deletes the
+  **whole record** of each candidate whose `rejected_at` is older than the period (`PurgeRejectedCandidate`): the candidate with
+  their evaluations and interviewers, their offers and each offer's approval chain, the CV and the offer's letter and signed-scan
+  files, and every email written about the candidate or their offers. **A candidate who became an employee is never deleted**
+  (the profile has its own dossier). **"Pulihkan" stops the clock** since it clears the rejection. **The audit trail keeps its plain
+  lines** ("Pelamar ditolak" with the name and reason, and so on): it is the account of who did what, and deleting it is a
+  separate decision. The nightly run adds one audit line with how many were deleted. Tests: `CandidateRetentionTest` (6); full
+  suite 1,360, 1,355 passed and 5 skipped. Not seen in a browser.
+
+- **2026-11-17 (recruitment: the CV follows the hire; one set of terms for several candidates; decisions; branch `feature/recruitement`).**
+  **CV on the dossier:** `ConvertHireToEmployee` copies the candidate's CV (if there is one and the file still exists) onto the new
+  employee's documents as "CV — REQ-nnnn", category Lainnya, **restricted** (my default, as a CV holds personal data; HR with the
+  sensitive-data permission can change it), with the note "Dari rekrutmen REQ-nnnn"; the candidate's own copy stays, and a missing
+  CV never stops the conversion. **Shared terms (`REC-OFR-003`):** "Atur ketentuan" lists the requisition's other approved offers
+  as "Terapkan juga ke"; ticked ones get the same start date, probation and note (`also_for`, checked server-side: every one must
+  be an approved offer of this requisition or nothing is saved). **The letter number stays each letter's own.** Tests: 2 in
+  `RequisitionConvertHireTest`, 2 in `RequisitionOfferLetterTest`. **Decided by the user:** the offer flow and the manual browser
+  check passed; **no day-before email for a new hire, a push notification in the app is enough; no offboarding emails; the
+  retention period for rejected candidates is a setting in the admin panel (not built yet); 08:00 for the next-morning emails is
+  confirmed.** The funnel figures are still not built.
+
+- **2026-11-17 (recruitment: the candidate panel on a phone; documentation brought up to date; branch `feature/recruitement`).**
+  `candidate-drawer.tsx`, front end only. **Formulir badge:** on a phone it shows the short label ("Menunggu formulir"), can wrap,
+  and no longer runs into the Interview column (the full label shows from `sm` up). **Action bar at the foot of the panel:** on a
+  phone "Ubah penilaian" reads "Ubah", and "Hapus kandidat" and "Pulihkan" are the icon alone (the words stay for screen
+  readers), so the bar fits one line; desktop is unchanged. Not seen in a browser. **Looked into, not changed:** the bell
+  sometimes seeming not to remember what was read. Read state is per account in the database (`read_at`), not per device; the
+  header's count and list (`HandleInertiaRequests::notifications`) are only refreshed when a page loads, so an open tab stays
+  stale after the same account reads a notice elsewhere; the public entrance hides recruitment notices
+  (`User::visibleNotifications`), so one account can show different lists on the two entrances; and a read notice is deleted
+  after 24 hours (`notifications:prune-read`). A periodic partial reload of the bell is the likely fix if it is the first.
+  The Status block, the email plan's header and the "uncommitted" notes were brought up to date; full suite: 1,350 tests, 1,345
+  passed and 5 skipped.
+
+- **2026-11-16 (recruitment: email automation, Phases 0 to 3 of the email plan, branch `feature/recruitement`).** The plan and
+  the details of each phase are under "Email automation: phased plan" in Phase 4. In short: **Phase 0** each company's own SMTP
+  mailbox (admin panel: "Atur email pengirim", "Kirim email uji"), `CompanyMailer` writing every email to `email_messages` (the log
+  and the outbox in one, with `send_at` and cancel), `DeliverEmail` (sent once, retried, failure shown), the admin **Log email**
+  page. **Phase 1** the offer goes as a PDF (`barryvdh/laravel-dompdf`, approved): "Kirim penawaran" shows the draft for review,
+  the letter and PDF are frozen at sending, a failed email shows "Kirim ulang", HR files the candidate's signed scan, and the
+  withdrawal email uses the outbox. **Phase 2** "Tolak" offers the rejection email (ticked by default, editable), sent the next
+  morning at 08:00 company time (confirmed 2026-11-17) and stopped by "Pulihkan"; "Tandai Selesai" queues the "position
+  filled" email; wording on the admin page **Email hasil seleksi**. **Phase 3** "Tandai diterima" shows the welcome email to
+  review; wording on **Email sambutan karyawan baru**; `{waktu_tempat}` must be filled by HR. The candidate reminder email was
+  removed (Google Calendar reminds them). **Not done:** the day-before reminder for the first day, the offboarding emails
+  (Phase 4), a retention period for rejected candidates' data, and any delivery by a real mail server: production still has
+  `MAIL_MAILER=log`.
 
 - **2026-11-13 (recruitment: the offer letter and its email can be edited; `REC-OFR`, branch `feature/recruitement`).** Until
   now the letter's wording lived in `pages/recruitment/offer-letter.tsx` and the email in `InvitationMessage::offer`. Admin page
@@ -752,7 +804,7 @@ security pass (Phase 7). What remains is listed in the checklist below. Recruitm
     formatter clean on the touched files.
   - **Not done:** the applicant count (stage 03), the candidate quick-add, the invitation and the in-app form; the
     requester is not told when the listing is posted.
-- **2026-11-03 (employee data refactor to HR's data sheet; uncommitted, on `feature/recruitement` though unrelated to
+- **2026-11-03 (employee data refactor to HR's data sheet; on `feature/recruitement` though unrelated to
   recruitment).** The sheet `Lembar data field karyawan 20261103.xlsx` (50 columns, header only) is now the shape of
   the employee record, the import, the template and the export. Migration `add_sheet_fields_to_employees_and_companies`;
   enums `Gender`, `Religion`, `MaritalStatus`, `PtkpStatus` (each reads the sheet's spellings with `fromSheet`);
@@ -1935,7 +1987,7 @@ Screening now happens inside the platforms, and the app only meets the people HR
   a **personal link**: a single-use, expiring token that opens the candidate form **hosted in this app**, on the public
   entrance, and nothing else on it is reachable. The yes/no checklist from the requisition moves into this form, so the
   candidate answers it before the interview. Google Meet scheduling and reschedule stay in this stage.
-- **Google Meet automation: built 2026-11-13 (first slice; uncommitted, not yet run against Google itself).** Decisions
+- **Google Meet automation: built 2026-11-13 (first slice, committed; not yet run against Google itself).** Decisions
   (the user, 2026-11-13): **one OAuth-connected Google account per company**, connected once **by an admin** (not per user,
   and no service account with domain-wide delegation, which cannot be tried with a Gmail account); **Google's invitation replaces
   the app's email and `.ics`** to the candidate, and the personal form link sits in the event description; guests cannot see
@@ -2058,7 +2110,7 @@ platform accounts above (no career page, manual posting, nothing public except t
      the hire then registers through `CORE-REG`.
   7. **Funnel and documents.** The dashboard's offered and filled figures, the REC rows below, a browser check.
 
-**Email automation: phased plan (decided 2026-11-16, not built).** Moves the candidate emails from "opt-in tick box, text
+**Email automation: phased plan (decided 2026-11-16; Phases 0 to 3 built the same day and committed, Phase 4 not started, no real mail server used yet).** Moves the candidate emails from "opt-in tick box, text
 fixed in code, sent by whatever `MAIL_*` says" to "HR reviews a draft and presses send; the email leaves from the company's
 own `recruitment@` address; every one is logged". It **supersedes two decisions of 2026-11-10** above for the offer, the
 rejection and the "position filled" email: (3) the tick box becomes the review: HR sees the draft and pressing send is the
@@ -2084,7 +2136,7 @@ scans and returns it).
      and never allowed to block the action that caused it; an **outbox with a "send at" time that can be cancelled** (rejection
      timing, reminders); one editable-template pattern for all kinds (placeholders, preview, a test to oneself), per company;
      a per-kind on/off switch; Bahasa Indonesia, company time.
-     **Built 2026-11-16 (uncommitted), apart from templates and the per-kind switch, which come with the first kinds that need
+     **Built 2026-11-16, apart from templates and the per-kind switch, which come with the first kinds that need
      them.** `CompanyMailer` (`app/Support/Email`) writes every email to `email_messages` (the log and the outbox in one),
      `DeliverEmail` sends it through a mailer of the company's own (`company_mail_settings`, SMTP, password encrypted) from its
      own From and Reply-To, attachments from the private disk or inline content. An email is **claimed before it is sent, so it
@@ -2103,7 +2155,7 @@ scans and returns it).
      letter stays frozen (`letter_snapshot`). A place on the offer to **upload the signed scan** HR receives back. Salary not in
      the email body. The withdrawal email moves onto the outbox. (No reminder for an offer nobody answers: dropped by the user
      2026-11-16.)
-     **Built 2026-11-16 (uncommitted).** New dependency, approved by the user: **`barryvdh/laravel-dompdf`** (dompdf 3.1.6, pure
+     **Built 2026-11-16.** New dependency, approved by the user: **`barryvdh/laravel-dompdf`** (dompdf 3.1.6, pure
      PHP; the server image already has `gd`; font subsetting is on, so a letter is about 25 KB). `OfferLetterPdf` draws the
      letter from the same `OfferLetterComposer` array as the print page, through `resources/views/pdf/offer-letter.blade.php`
      (one A4 page for a typical letter, signature blocks kept together; the logo is embedded as data, an SVG logo is left out).
@@ -2125,7 +2177,7 @@ scans and returns it).
      email is **scheduled for the next morning** (time to confirm; 08:00 like the other morning jobs unless said otherwise) and
      **cancelled by "Pulihkan"**. Editable neutral wording, only for candidates who were invited and have an email. The
      "position filled" email becomes the same scheduled kind.
-     **Built 2026-11-16 (uncommitted).** In the Tolak dialog the email is **ticked by default** (HR can untick it) for a candidate
+     **Built 2026-11-16.** In the Tolak dialog the email is **ticked by default** (HR can untick it) for a candidate
      who was invited and has an email; HR sees to, when it goes and the subject and text, and may edit them for this candidate.
      The wording comes from the new admin page **Email hasil seleksi** (`CandidateOutcomeTemplate`, setting
      `recruitment.outcome_emails`: subject and text for the rejection and for "position filled", placeholders `{nama}`,
@@ -2144,7 +2196,7 @@ scans and returns it).
   3. **Onboarding welcome.** When the offer is accepted (or the hire converted): start date, time and place, what to bring (an
      editable list), how to activate the account (the public address and "Daftar"; never the NIK or employee ID), and a reminder
      the day before the start. From the personal email on the candidate record. No onboarding checklist module yet.
-     **Built 2026-11-16 (uncommitted), the welcome email only.** "Tandai diterima" now shows the welcome email to review (ticked
+     **Built 2026-11-16, the welcome email only.** "Tandai diterima" now shows the welcome email to review (ticked
      by default, subject and text editable, to the candidate's personal email); the wording is the new admin page **Email
      sambutan karyawan baru** (`OnboardingEmailTemplate`, setting `recruitment.onboarding_email`; placeholders `{nama}`,
      `{posisi}`, `{perusahaan}`, `{departemen}`, `{cabang}`, `{atasan}`, `{tanggal_mulai}`, `{waktu_tempat}`, `{alamat_daftar}`,
@@ -2161,8 +2213,8 @@ scans and returns it).
      interview, what to return, the berita acara link); the checklist owners stay on in-app notices and phone push, since
      staff emails are optional and unverified.
 - **Rules that hold throughout.** No credentials or ID numbers in any email; sent text is kept as sent; a failed send is shown,
-  never silent; test mode sends only to the admin; personal data of rejected candidates follows a retention period (to decide
-  with the user before Phase 2 goes live).
+  never silent; test mode sends only to the admin; personal data of rejected candidates follows a retention period (decided
+  2026-11-17: an admin setting, twelve months, whole record deleted; built).
 
 | Screen                            | Name                        | f   | P1  | Status | Notes                                                       |
 | --------------------------------- | --------------------------- | --- | --- | ------ | ----------------------------------------------------------- |
@@ -2178,7 +2230,7 @@ scans and returns it).
 | `REC-OFS`                         | Stage 05 Offer              | 9   | 8   | 🟡     | Built 11-11: the chosen list with ticks and "Direkomendasikan oleh n", "Ajukan ke Manajemen" (001/002), Management's approval with the starting salary or a rejection that returns the candidate to Interview (006), withdrawing an offer. Built 11-11 (Phase 4): the letter as a print page (007) and "Tandai terkirim" with an opt-in email (003). Built 11-11 (Phase 5): Tandai Diterima (004) and Menolak (008), the "position filled" email (009), Tarik for a sent offer. Not built: nothing in this stage |
 | `REC-FIL`                         | Stage 06 Filled             | 7   | 7   | ✅     | Built 11-11: the filled count from accepted offers, "Tandai Selesai" gated on the quota (001/003), the close (offers withdrawn, links ended), the Terisi tab with the hires and the listings to take down (005). Built 11-13: "Jadikan karyawan" (006/007), the employee form filled in from the hire, the same checks as any new employee, the profile linked to the offer and made once; the hire then registers against it (`CORE-REG`). Not done: the CV into the profile's documents |
 | `REC-CAN` · `REC-CDT` · `REC-CRV` | Candidate detail + tabs     | 11  | 8   | 🟡     | The candidate is a side drawer, not a page (by decision): Ringkasan (answers of the form), Dokumen (CV), Interview (schedule, invitation, evaluations). Built 11-10: Tolak with a reason and an opt-in email, and Pulihkan (`CAN-002/003`, the "Ditolak" banner of `CDT-001`); Pilih and Batalkan pilihan for the direct superior, with the "Dipilih" banner. The stage-dependent actions for Siap Ditawari and Penawaran Terkirim come with the Offer phases |
-| `REC-OFR`                         | Send offer form             | 6   | 4   | 🟡     | Built 11-11: start date (after today) and probation (0 to 3 months) with the salary from Management, the letter from the requisition and the offer. Not built: one set of terms for several candidates (003) |
+| `REC-OFR`                         | Send offer form             | 6   | 4   | 🟡     | Built 11-11: start date (after today) and probation (0 to 3 months) with the salary from Management, the letter from the requisition and the offer. Built 11-17: one set of terms for several candidates (003), the same start date, probation and note given to other approved offers from the "Atur ketentuan" dialog |
 | `REC-EDI`                         | Post-interview form builder | 1   | 0   | ⬜     | P5 — backlog                                                |
 | `REC-CAR`                         | Career page (public)        | 3   | 0   | ➖     | Dropped 2026-11-04: no public career page; only invited, shortlisted candidates reach a form (inside this app) |
 

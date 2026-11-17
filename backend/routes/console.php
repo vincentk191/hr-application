@@ -46,5 +46,10 @@ Schedule::command('recruitment:sync-google-events')
     ->withoutOverlapping(10)
     ->when(fn (): bool => app(GoogleOAuth::class)->isConfigured());
 
+// Rejected candidates are deleted once the retention period set in the admin panel is over (default twelve months).
+Schedule::command('recruitment:purge-rejected-candidates')
+    ->dailyAt('02:00')
+    ->timezone((string) config('attendance.device_timezone'));
+
 // The outbox (email automation): the emails whose time has come, such as a rejection that waits for the next morning.
 Schedule::command('emails:dispatch-due')->everyMinute()->withoutOverlapping(5);

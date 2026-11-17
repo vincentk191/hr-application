@@ -127,6 +127,57 @@ it('lets HR set the start date and probation of an approved offer, and leaves Ma
     expect($offer->refresh()->start_on->toDateString())->toBe('2026-12-15')->and($offer->probation_months)->toBe(0);
 });
 
+/**
+ * A second candidate on the same requisition, chosen and put to Management; approved at Rp 4.000.000 when asked.
+ */
+function secondLetterOffer(Requisition $requisition, bool $approve = true): CandidateOffer
+{
+    $candidate = Candidate::factory()->for($requisition)->create(['name' => 'Ani', 'email' => 'ani@example.com']);
+    $candidate->forceFill(['selected_at' => now(), 'selected_by_user_id' => test()->boss->id])->save();
+
+    test()->actingAs(test()->hr)->post(route('recruitment.offers.store', $requisition), ['candidate_ids' => [$candidate->id]]);
+    $offer = CandidateOffer::query()->where('candidate_id', $candidate->id)->sole();
+
+    if ($approve) {
+        test()->actingAs(test()->management)->put(route('recruitment.offers.decide', [$requisition, $offer]), ['decision' => 'approve', 'salary' => 4000000]);
+    }
+
+    return $offer->refresh();
+}
+
+it('gives one set of terms to several approved offers, each keeping its own letter number', function () {
+    [$requisition, $offer] = approvedLetterOffer();
+    $other = secondLetterOffer($requisition);
+    $other->forceFill(['letter_number' => '002/HR/XII'])->save();
+
+    setLetterTerms($requisition, $offer, [
+        'start_on' => '2026-12-01',
+        'probation_months' => 3,
+        'letter_number' => '001/HR/XII',
+        'letter_note' => 'Mulai di gudang pusat.',
+        'also_for' => [$other->id],
+    ])->assertSessionDoesntHaveErrors();
+
+    $other->refresh();
+
+    expect($other->start_on->toDateString())->toBe('2026-12-01')
+        ->and($other->probation_months)->toBe(3)
+        ->and($other->letter_note)->toBe('Mulai di gudang pusat.')
+        ->and($other->letter_number)->toBe('002/HR/XII')
+        ->and($other->salary)->toBe(4000000)
+        ->and($offer->refresh()->letter_number)->toBe('001/HR/XII');
+});
+
+it('refuses terms for an offer that is not approved, and changes nothing', function () {
+    [$requisition, $offer] = approvedLetterOffer();
+    $waiting = secondLetterOffer($requisition, approve: false);
+
+    setLetterTerms($requisition, $offer, ['start_on' => '2026-12-01', 'probation_months' => 3, 'also_for' => [$waiting->id]])
+        ->assertSessionHasErrors('also_for');
+
+    expect($offer->refresh()->hasTerms())->toBeFalse()->and($waiting->refresh()->hasTerms())->toBeFalse();
+});
+
 it('wants a start date after today and a probation of at most three months', function () {
     [$requisition, $offer] = approvedLetterOffer();
 
