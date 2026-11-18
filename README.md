@@ -766,8 +766,8 @@ shows "only on this server", and anything made since the last download is lost i
   the WSL launcher, which fails ("execvpe(/bin/bash) failed") when no Linux distribution is installed, and PowerShell 5.1
   corrupts binary data piped from `age -d` into `ssh`. Paths in Git Bash look like `/c/Users/<you>/hr-backup-keys`.
 - **There is no restore button** in the admin panel, on purpose: a restore needs the private key (which must never be on
-  the server) and stops and replaces the very application the button would live in. It is run from your computer, as in
-  "Restore" below.
+  the server) and stops and replaces the very application the button would live in. It is run from your computer with
+  `docker/server/restore.sh`, as in "Restore" below.
 
 **Test a restore** (every quarter, and after changing the key or the remote). On your own computer, with Docker and age:
 
@@ -781,7 +781,28 @@ touched) and counts the rows in the main tables. It ends with `OK`. Doing it fro
 including that the key you keep is the one the backups were made for.
 
 **Restore** (the data is damaged or lost). From your own computer, which holds the key and the backup folder; nothing
-decrypted is ever stored on the server, it is streamed into the containers:
+decrypted is ever stored on the server, it is streamed into the containers. In Git Bash on Windows, or any bash 4+ with
+`age`, `ssh` and `sha256sum`, the script does the steps below for you:
+
+```bash
+bash docker/server/restore.sh ./2026-10-27_023001 hr-backup-key.txt user@server --dry-run   # checks only, changes nothing
+bash docker/server/restore.sh ./2026-10-27_023001 hr-backup-key.txt user@server             # asks what to restore
+bash docker/server/restore.sh ./2026-10-27_023001 hr-backup-key.txt user@server --parts database
+```
+
+It checks the checksums, proves the key opens the chosen files and that the server answers, shows what it is about to do and
+waits for you to type `RESTORE`. The parts are `database` (replaces the live database; a mistaken deletion is usually only
+this), `files` (unpacked over the live ones, so newer files stay), `vpn` (restarts WireGuard) and `settings` (the `.env`, for a
+rebuilt server, on its own and before the first `up -d --build`; an existing one is kept as `.env.pre-restore`). Before it
+replaces the database it saves an encrypted dump of the live one next to the backup folder (`pre-restore-<time>.dump.age`),
+and if the restore fails halfway it leaves the application stopped and prints the exact command that puts that copy back.
+`--no-safety-copy` skips it (for an empty or stopped database), `--dir` names the clone if it is not `/opt/hr-application`,
+and `RESTORE_COMPOSE_FILES` / `RESTORE_SSH_OPTS` cover the Tailscale setup and unusual ssh ports. Delete the safety copy once
+you are satisfied: it holds the live data. The script was exercised against stand-in `ssh` and `age` programs, which proves
+its order of steps and its refusals but not a real server: **do the first real run as a test restore** (the quarterly one)
+rather than in an emergency.
+
+The same steps by hand, which the script wraps:
 
 ```bash
 SERVER=user@server
@@ -858,6 +879,7 @@ Fill in once the server exists, so the clean-up does not depend on anyone's memo
 | Backup log                                       | `/var/log/hr-backup.log`                          | the cron line                 | `sudo rm -f /var/log/hr-backup.log*`                                                                         |
 | Encrypted backups                                | `/var/backups/hr-app` (`BACKUP_DIR`), one folder per night | `backup.sh`          | `sudo rm -rf /var/backups/hr-app` after a final copy has been taken or the data is no longer owed           |
 | Temporary download copy                          | `~/<YYYY-MM-DD_HHMMSS>` in the login's home       | "Without a copy off the server" | `rm -rf ~/20??-??-??_*` (should already be gone after each download)                                    |
+| `.env.pre-restore` (if a restore of `settings` replaced an existing `.env`) | `<clone>/docker/server/` | `restore.sh --parts settings` | compare with `.env`, then delete it: it holds every secret in plain text                       |
 | Packages `age`, `curl`, and `rclone` (if used)   | apt                                               | Backups, step 1               | `sudo apt remove age rclone`; leave `curl` unless this was the only reason it is installed                 |
 | rclone login for an off-server copy (if used)    | `/root/.config/rclone/rclone.conf` (`rclone config file`) | Backups, step 4 | delete the remote with `rclone config`, then remove the file. The cloud key is deleted at the provider too (section C) |
 | Nginx site for `<hr-host>`                       | the site file you added (for example `/etc/nginx/sites-available/<hr-host>` and its link in `sites-enabled`) | step 5a | remove both, then `nginx -t && nginx -s reload` (never a restart). Do not touch other sites' files |
@@ -916,6 +938,7 @@ On a server shared with other sites, leave the shared images and `alpine`, `php`
 | Throwaway key `practice-key.txt` (if made)       | the folder it was made in                         | "Backups on your own computer" | delete it; it protects nothing real                                                                         |
 | `age` on the computer that holds the key         | the computer                                      | winget or Docker              | `winget uninstall FiloSottile.age`                                                                           |
 | Downloaded backup folders                        | the local server or computer that receives them   | "Without a copy off the server" | delete each when its retention ends. They are encrypted, but they hold every employee's data               |
+| Safety copies `pre-restore-<time>.dump.age`      | next to the backup folder that was restored       | `restore.sh` (database part) | delete once the restore is confirmed good. Encrypted to the same key, but it is the **live** data at that moment |
 | Copies of `docker/server/.env`                   | password manager, off-machine copy                | step 2                        | delete. `APP_KEY` decrypts the 2FA secrets in the database, and `DB_PASSWORD`, `WG_ADMIN_PASSWORD`, `VAPID_PRIVATE_KEY` and `GOOGLE_CLIENT_SECRET` live here |
 | Filled-in setup workbook (`FORMULIR-DATA-AWAL.xlsx`) and employee import sheets | wherever HR saved or mailed them | onboarding | delete every copy: they carry NIKs, and sheets with salaries or bank numbers are worse. Keep them out of the repository |
 | DNS records                                      | the DNS provider (Cloudflare)                     | step 1, 7, 7.5                | delete: `A <hr-host>` (public IP), `A hr-wg` (DNS only, WireGuard), `A <vpn-host>` -> `172.30.0.10` (DNS only), and any leftover `_acme-challenge.*` TXT. No CAA or proxying was added |
