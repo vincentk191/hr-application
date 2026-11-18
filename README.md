@@ -26,8 +26,12 @@ folder and is switched off (`FEATURE_ATTENDANCE_AGENTS`).
 2. [How it is structured](#how-it-is-structured)
 3. [Running it locally](#running-it-locally)
 4. [Deploying to a server](#deploying-to-a-server)
-5. [Configuration reference](#configuration-reference)
-6. [Checks and releases](#checks-and-releases)
+5. [Resource inventory and decommissioning](#resource-inventory-and-decommissioning)
+6. [Configuration reference](#configuration-reference)
+7. [Checks and releases](#checks-and-releases)
+
+The user manual, in Indonesian and per role (Karyawan, Supervisor, Manajemen, Admin HR, Admin Sistem, including adding
+existing employees, registration, WireGuard and the authenticator app), is [PANDUAN-PENGGUNA.md](PANDUAN-PENGGUNA.md).
 
 ---
 
@@ -156,7 +160,8 @@ that the values are known and tested before the server exists. Nothing here make
    docker run --rm -v "$PWD:/out" alpine sh -c "apk add -q age && age-keygen -o /out/practice-key.txt"
    ```
    It prints `Public key: age1...`; the file holds the line `AGE-SECRET-KEY-...`, which is the private key. (Or install age
-   on Windows with `winget install FiloSottile.age` and run `age-keygen -o practice-key.txt`.)
+   on Windows with `winget install FiloSottile.age`, open a **new** terminal so it sees the new PATH, and run
+   `age-keygen -o practice-key.txt`. In PowerShell the Docker command needs `${PWD}` with the braces, and in cmd `%cd%`.)
 2. Sign in as `admin@hr.test` / `password`, open **http://localhost:8001/admin**, then **Cadangan data**. It asks for the
    password once on the way in (and again on save).
 3. Fill in the form:
@@ -359,7 +364,7 @@ else (the `{{...}}` words are wg-easy's own placeholders; leave them as they are
 Then restart the tunnel (`... restart wg`) and check from a phone on the VPN, after adding `10.8.0.0/24, 172.30.0.0/24` to
 that client's Allowed IPs for the test: the app at `http://172.30.0.10/up` answers; `http://10.8.0.1:51821`,
 `http://172.30.0.2:51821` and `172.30.0.1:22` do not; another client's address does not answer a ping. Remove the extra Allowed
-IPs afterwards. This was written from wg-easy's documented defaults and has not been run against your server: if a check
+IPs afterwards. This was written from wg-easy's documented defaults and was run on the server on 2026-11-17 (the owner reported every check passed): if a check
 above fails, `... exec wg iptables -S` shows what is actually in force.
 
 One consequence stays: every peer reaches the app through the `wg` container's address, so the app sees all VPN users as
@@ -485,6 +490,49 @@ depends on it.
 Rolling back, or switching it off for now: empty `VPN_HOSTNAME` in `docker/server/.env` and run the `up -d` command again;
 the HTTPS block is then not added and Nginx starts without it. Then remove the DNS record and the renewal hook if it is
 going away for good.
+
+### Company email and Google Meet invitations
+
+Each company has two separate connections, both set by a System Admin in the admin panel under **Perusahaan** > the
+company. They are independent: a company can have either one, both or neither.
+
+| | Atur email pengirim | Hubungkan Google |
+|---|---|---|
+| Sends | Offer letters, rejection and outcome emails | Interview invitations with a Google Meet link |
+| Signs in with | An SMTP login (host, user, password) | Google's own sign-in (OAuth), no password stored |
+| Needs an App Password | **Only if the mailbox is a Google or Gmail account** | **Never** |
+
+**1. Email pengirim (SMTP).** On the company's page click **Atur email pengirim** and fill in the outgoing-mail settings
+(**Nama pengguna** is usually the full address), then **Kirim email uji** to prove it before an offer goes out.
+- A hosting mailbox (for example Niagahoster): copy the "mail client settings" the host shows. Port 465 is SSL/TLS, port
+  587 is STARTTLS. Use the mailbox's normal password.
+- **A Google or Gmail account as the mailbox needs an App Password**, because Google does not accept the account's normal
+  password over SMTP. Create it on the sending account: Google Account > Security > turn on **2-Step Verification**, then
+  Security > **App passwords**, name it (for example "HR Dashboard"), and copy the 16-character code (type it without the
+  spaces). In the form use host `smtp.gmail.com`, port `465` with SSL/TLS (or `587` with STARTTLS), **Nama pengguna** = the
+  full Gmail address and **Kata sandi** = the App Password. Revoking the App Password on Google's page stops the app from
+  sending at once, and a changed account password does not break it.
+- The App Password option is missing when 2-Step Verification is off, and on a Google Workspace account whose
+  administrator has disabled it. Then use a hosting mailbox instead.
+- The password is stored encrypted and never shown again; leave it empty to keep the saved one. Switch **Aktif** on only
+  after the test email arrives.
+
+**2. Hubungkan Google (Meet invitations).** This uses OAuth, so **no App Password is involved**. Steps:
+1. In the Google Cloud console create a project, enable the **Google Calendar API**, and under *APIs & Services* >
+   *OAuth consent screen* set the app up (External is fine for a Gmail account). While it is in **Testing**, add the
+   organizer account under *Test users*, and know that Google then **expires the connection after 7 days**: move the app
+   to **In production** once it works (an unverified app shows a warning screen at sign-in, which the organizer accepts).
+2. Under *Credentials* create an **OAuth client ID** of type *Web application*, with the authorised redirect URI
+   `https://<the private (VPN) hostname>/google/callback`.
+3. Put the client's ID and secret in `docker/server/.env` as `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and
+   `GOOGLE_REDIRECT_URI` (the same address as in step 2, exactly), then run the `up -d` command again.
+4. In the admin panel, on the company's page fill in **Alamat pengirim undangan interview (Google)** with the organizer's
+   Google address, save, then click **Hubungkan Google** (on the VPN hostname) and approve with that same account. Any
+   other account is refused. Changing the address later disables sending until it is connected again.
+
+Every email sent through a company's mailbox is recorded in the outbox, and connecting, disconnecting or changing the Google
+sender is written to the audit trail. The older candidate emails still use `MAIL_MAILER=log` on the server, so they are
+written to the log and not sent.
 
 ### Day to day
 
@@ -693,7 +741,33 @@ can sign in; the file is the fallback and the place for anything the page refuse
    ```bash
    echo '30 2 * * * root bash /opt/hr-application/docker/server/backup.sh >> /var/log/hr-backup.log 2>&1' | sudo tee /etc/cron.d/hr-app-backup
    ```
-   (Change the path if the clone is elsewhere.) Check `/var/log/hr-backup.log` the next morning.
+   (Change the path if the clone is elsewhere.) Check `/var/log/hr-backup.log` the next morning. Running the script once
+   by hand does **not** schedule it: until this file exists, nothing makes a backup after that one.
+
+**Without a copy off the server (decided 2026-11-18).** This deployment skips step 4 and step 5's remote: no `rclone config`,
+`BACKUP_REMOTE` blank on the page and in `backup.env`, and **Simpan di server (hari)** set to `2`. A System Admin downloads
+backups by hand and keeps them on a local machine. Consequences to accept: the script warns on every run and the admin page
+shows "only on this server", and anything made since the last download is lost if the server's disk is.
+
+- **What "N days" keeps.** The script removes folders with `find -mtime +N`, which means older than N+1 full days. With 2 it
+  keeps tonight's backup and the previous two (up to 3 folders, and a fourth can linger one night when the age check falls
+  just short). For tonight's and last night's only, set 1 (the page accepts 1 to 365). Pruning runs at the end of a
+  successful backup, so a failed night deletes nothing.
+- **Download one.** The folders are root-only (`chmod 700`), so copy the newest into your own home on the server first:
+  ```bash
+  sudo -i
+  ls /var/backups/hr-app                                       # newest folder, e.g. 2026-11-18_023001
+  cp -r /var/backups/hr-app/2026-11-18_023001 /home/USER/ && chown -R USER: /home/USER/2026-11-18_023001
+  exit
+  ```
+  then from your computer `scp -r user@server:2026-11-18_023001 .`, and delete the copy in the server's home afterwards.
+  The folder is encrypted and useless without the private key, so keep the key apart from the backups.
+- **Windows.** Run the restore and verify commands in **Git Bash** (Start menu), not PowerShell: `bash` in PowerShell is
+  the WSL launcher, which fails ("execvpe(/bin/bash) failed") when no Linux distribution is installed, and PowerShell 5.1
+  corrupts binary data piped from `age -d` into `ssh`. Paths in Git Bash look like `/c/Users/<you>/hr-backup-keys`.
+- **There is no restore button** in the admin panel, on purpose: a restore needs the private key (which must never be on
+  the server) and stops and replaces the very application the button would live in. It is run from your computer, as in
+  "Restore" below.
 
 **Test a restore** (every quarter, and after changing the key or the remote). On your own computer, with Docker and age:
 
@@ -744,9 +818,171 @@ shares one sign-in limit), enforcing the script and style CSP (it runs in report
 files, not all of `storage`, into the `web` container (its certificate mount is already just the one VPN pair; the files
 part needs Docker Engine 26+ / Compose 2.27+ on the server for a volume subpath), and a server of its own if the public
 entrance should not share a machine with other sites. PDF compression stays off on the server (see "Uploaded files").
-Steps 6 and 7 (the outside check and the VPN peer rules) must be run on the server before go-live.
+Steps 6 and 7 (the outside check and the VPN peer rules) were run on the server on 2026-11-17; repeat step 6 after any proxy change.
 Details, and the order these are taken in, are in [DEVELOPMENT.md](DEVELOPMENT.md) (Phase 7, "Security and go-live,
 re-evaluated 2026-11-17").
+
+---
+
+## Resource inventory and decommissioning
+
+Everything the steps above create, in one place, so that nothing is left running, billed, listening or holding personal
+data when the application is retired. Each row names what it is, where it lives, which step made it and how to remove
+it. **Rows marked "if used" exist only when that optional step was done**: check the register below before assuming.
+When a step is added to this README that creates something, add its row here in the same change.
+
+Placeholders: `<clone>` is the clone path (for example `/opt/hr-application`), `<hr-host>` the public hostname,
+`<vpn-host>` the VPN hostname, `...` is `docker compose -f docker-compose.server.yml --env-file docker/server/.env`.
+
+### Register of this deployment
+
+Fill in once the server exists, so the clean-up does not depend on anyone's memory.
+
+| Item                                                   | Value                    |
+| ------------------------------------------------------ | ------------------------ |
+| Server (provider, name, public IP)                     |                          |
+| Server snapshot taken in step 1 (name, where)          |                          |
+| Clone path `<clone>`                                   |                          |
+| `<hr-host>` / `<vpn-host>` / WireGuard host (`hr-wg`?) |                          |
+| DNS provider and zone                                  |                          |
+| Who holds the private backup key, and where            |                          |
+| Where downloaded backups are kept                      |                          |
+| Which optional rows below are in use                   |                          |
+
+### A. On the server (the host itself)
+
+| Resource                                         | Where                                             | Made by                       | Remove with                                                                                                  |
+| ------------------------------------------------ | ------------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| The clone, with `docker/server/.env` (every secret), `docker/server/backup.env` and `docker/server/certs/` (the VPN certificate and its private key) | `<clone>` | step 1, 2, 7.5, Backups | last, after the stack is down and the data is handed over: `rm -rf <clone>` |
+| **Nightly backup job**                           | `/etc/cron.d/hr-app-backup`                       | Backups, step 7               | `sudo rm /etc/cron.d/hr-app-backup`. Do this **first**, so nothing runs during the teardown                  |
+| Backup log                                       | `/var/log/hr-backup.log`                          | the cron line                 | `sudo rm -f /var/log/hr-backup.log*`                                                                         |
+| Encrypted backups                                | `/var/backups/hr-app` (`BACKUP_DIR`), one folder per night | `backup.sh`          | `sudo rm -rf /var/backups/hr-app` after a final copy has been taken or the data is no longer owed           |
+| Temporary download copy                          | `~/<YYYY-MM-DD_HHMMSS>` in the login's home       | "Without a copy off the server" | `rm -rf ~/20??-??-??_*` (should already be gone after each download)                                    |
+| Packages `age`, `curl`, and `rclone` (if used)   | apt                                               | Backups, step 1               | `sudo apt remove age rclone`; leave `curl` unless this was the only reason it is installed                 |
+| rclone login for an off-server copy (if used)    | `/root/.config/rclone/rclone.conf` (`rclone config file`) | Backups, step 4 | delete the remote with `rclone config`, then remove the file. The cloud key is deleted at the provider too (section C) |
+| Nginx site for `<hr-host>`                       | the site file you added (for example `/etc/nginx/sites-available/<hr-host>` and its link in `sites-enabled`) | step 5a | remove both, then `nginx -t && nginx -s reload` (never a restart). Do not touch other sites' files |
+| Certificate for `<hr-host>`                      | `/etc/letsencrypt/{live,archive,renewal}/<hr-host>` | step 5a (Certbot)           | `sudo certbot delete --cert-name <hr-host>`                                                                  |
+| Certificate for `<vpn-host>` (if used)           | `/etc/letsencrypt/{live,archive,renewal}/<vpn-host>` | step 7.5                   | `sudo certbot delete --cert-name <vpn-host>`; then `sudo certbot certificates` shows neither                |
+| Certbot Cloudflare plugin (if used)              | snap `certbot-dns-cloudflare` or apt `python3-certbot-dns-cloudflare` | step 7.5 | `sudo snap remove certbot-dns-cloudflare` or `sudo apt remove python3-certbot-dns-cloudflare`          |
+| Cloudflare API token file (if used)              | `/etc/letsencrypt/cloudflare.ini`                 | step 7.5                      | `sudo shred -u /etc/letsencrypt/cloudflare.ini`, **and** delete the token itself in Cloudflare (section C)   |
+| Certbot deploy hook (if used)                    | `/etc/letsencrypt/renewal-hooks/deploy/hr-app.sh` | step 7.5                      | `sudo rm /etc/letsencrypt/renewal-hooks/deploy/hr-app.sh`                                                    |
+| Firewall rule for WireGuard                      | UDP 51820 allowed in (and nothing else is opened: 8090 is bound to 127.0.0.1, 51821 likewise) | step 7 | remove the rule you added (for example `sudo ufw delete allow 51820/udp`) |
+| Swap file (if made)                              | `/swapfile` and one line in `/etc/fstab`          | "Keeping the server lean"     | `sudo swapoff /swapfile && sudo rm /swapfile`, then delete the `/swapfile none swap sw 0 0` line from `/etc/fstab` |
+| Port-forward or hosts-file test entries (if used) | the laptop's hosts file (`172.30.0.10 <vpn-host>`) | step 7.5, item 6             | delete the line                                                                                              |
+
+**ThinkPad with Tailscale instead of WireGuard** (the gitignored `docker/server/local/`, an alternative to steps 7 and 7.5).
+Add these rows to the register when that variant is in use:
+
+| Resource                                         | Where                                             | Remove with                                                                                                  |
+| ------------------------------------------------ | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `tailscale serve` publication                    | Tailscale's own configuration on the machine      | `sudo tailscale serve reset` (and `sudo tailscale funnel reset`, which must never have been on)             |
+| Tailscale itself, and the machine's entry        | the machine, and the admin console (login.tailscale.com) | `sudo tailscale down`, remove the machine in the admin console, then uninstall the package; turn off MagicDNS HTTPS only if nothing else needs it |
+| `docker/server/local/compose.merged.yml` and the stand-in `wg` (an `alpine` container) | `<clone>/docker/server/local/` | goes with the clone; the container goes with `down` |
+| Lid-close and sleep overrides                    | `/etc/systemd/logind.conf` (`HandleLidSwitch*=ignore`) and masked `sleep.target`, `suspend.target`, `hibernate.target`, `hybrid-sleep.target` | restore the two lines, `sudo systemctl unmask sleep.target suspend.target hibernate.target hybrid-sleep.target`, `sudo systemctl restart systemd-logind` |
+| Time zone (if changed)                           | `timedatectl`                                     | `sudo timedatectl set-timezone <the old one>`                                                                |
+| Its backup cron line (same file name as above, with `COMPOSE_FILE=` in it) | `/etc/cron.d/hr-app-backup`   | same as the nightly backup job                                                                               |
+
+### B. Docker objects (project `hr-server`)
+
+| Resource                  | Names                                                                                           | Holds                                    |
+| ------------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| Containers                | `hr-server-web-1`, `-app-1`, `-queue-1`, `-scheduler-1`, `-db-1`, `-wg-1`, and `-tunnel-1` (if used) | the running application            |
+| Images built here         | `hr-server-app`, `hr-server-web`                                                                | the code baked in                        |
+| Images pulled             | `postgres:16-alpine`, `ghcr.io/wg-easy/wg-easy:15`, `cloudflare/cloudflared:latest` (tunnel), build bases `php:8.4-fpm`, `node:24-trixie-slim`, `nginx:stable-alpine`, and `alpine` (the practice key command) | nothing of yours |
+| Networks                  | `hr-server_internal` 172.29.0.0/24, `hr-server_vpn` 172.30.0.0/24, `hr-server_edge` 172.31.0.0/24 | nothing                                  |
+| **Volumes**               | `hr-server_pgdata` (the database), `hr-server_appstorage` (documents, photos, logos, leave attachments, logs), `hr-server_wgdata` (the VPN server key and every client's key) | **all personal data** |
+| Build cache               | `docker builder prune`                                                                          | nothing                                  |
+| Container logs            | inside Docker's own folder, capped at 5 x 10 MB each; deleted with their container             | sign-in attempts (NIK ending, address)   |
+
+Remove them, in this order, **only after the final backup is downloaded and checked**. This is the one time the volumes are
+meant to go, so the usual warning against `down -v` is deliberately set aside:
+
+```bash
+cd <clone>
+docker compose -f docker-compose.server.yml --env-file docker/server/.env --profile tunnel down --volumes --remove-orphans
+docker image rm hr-server-app hr-server-web
+docker image rm postgres:16-alpine ghcr.io/wg-easy/wg-easy:15 cloudflare/cloudflared:latest   # only if no other stack here uses them
+docker builder prune -f
+```
+
+On a server shared with other sites, leave the shared images and `alpine`, `php`, `node` and `nginx` base images alone unless
+`docker ps -a` and `docker image ls` show nothing else using them.
+
+### C. Accounts, keys and secrets outside the server
+
+| Resource                                         | Where                                             | Made by                       | Remove with                                                                                                  |
+| ------------------------------------------------ | ------------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| **Backup private key** `hr-backup-key.txt`       | your computer (for example `~/hr-backup-keys`), the password manager, a printed copy | Backups, step 2 | **last of all.** Destroy it only when every backup made with it has been destroyed or is no longer wanted: without it they cannot be opened, and with it anyone holding a backup can read it. Destroy all three places |
+| Throwaway key `practice-key.txt` (if made)       | the folder it was made in                         | "Backups on your own computer" | delete it; it protects nothing real                                                                         |
+| `age` on the computer that holds the key         | the computer                                      | winget or Docker              | `winget uninstall FiloSottile.age`                                                                           |
+| Downloaded backup folders                        | the local server or computer that receives them   | "Without a copy off the server" | delete each when its retention ends. They are encrypted, but they hold every employee's data               |
+| Copies of `docker/server/.env`                   | password manager, off-machine copy                | step 2                        | delete. `APP_KEY` decrypts the 2FA secrets in the database, and `DB_PASSWORD`, `WG_ADMIN_PASSWORD`, `VAPID_PRIVATE_KEY` and `GOOGLE_CLIENT_SECRET` live here |
+| Filled-in setup workbook (`FORMULIR-DATA-AWAL.xlsx`) and employee import sheets | wherever HR saved or mailed them | onboarding | delete every copy: they carry NIKs, and sheets with salaries or bank numbers are worse. Keep them out of the repository |
+| DNS records                                      | the DNS provider (Cloudflare)                     | step 1, 7, 7.5                | delete: `A <hr-host>` (public IP), `A hr-wg` (DNS only, WireGuard), `A <vpn-host>` -> `172.30.0.10` (DNS only), and any leftover `_acme-challenge.*` TXT. No CAA or proxying was added |
+| Cloudflare API token ("Edit zone DNS") (if used) | Cloudflare > My Profile > API Tokens              | step 7.5                      | delete the token. It can edit every record in the zone, so do this even if the zone stays                    |
+| Let's Encrypt account and certificates           | Certbot's account under `/etc/letsencrypt/accounts` | step 5, 7.5                 | goes with `/etc/letsencrypt` if nothing else on the host uses it. Run `certbot revoke --cert-name <name>` first only if a private key may have been exposed |
+| Google Cloud project (if used)                   | console.cloud.google.com                          | "Company email and Google Meet invitations", item 2 | delete the project (this removes the OAuth client, its secret, the consent screen and the Calendar API setting) |
+| Each company's Google connection (if used)       | the organizer's Google account > Security > Third-party access | the app, **Hubungkan Google** | click **Putuskan Google** on the company's page **before** the database is deleted, or remove the app at `myaccount.google.com/permissions`. Deleting the database alone leaves the grant alive at Google |
+| Gmail App Password for company mail (if used)    | Google Account > Security > App passwords         | "Company email", item 1       | revoke it (this stops sending at once)                                                                       |
+| Hosting mailbox for company mail (if used)       | the mail host (for example Niagahoster) `recruitment@` mailbox | "Company email" | delete the mailbox, or change its password; its SMTP login is stored (encrypted) in the database           |
+| Monitoring check (if used)                       | healthchecks.io (or similar)                      | Backups, step 5               | delete the check. Its two URLs are secrets, so remove them from `backup.env` and the admin page too         |
+| Off-server backup bucket and its key (if used)   | the storage provider (Backblaze B2, S3, ...)      | Backups, step 4               | empty and delete the bucket, and delete the application key. **Not used in this deployment** (see Backups) |
+| Server snapshot                                  | the hosting provider                              | step 1                        | delete it: it holds the whole disk, data included                                                            |
+| The server or virtual machine                    | the hosting provider                              | step 1                        | cancel or destroy it once everything above is done                                                           |
+| WireGuard clients on people's devices            | each phone and laptop                             | step 7                        | delete each client in the wg-easy page first (step 7), then ask each person to delete the tunnel in the WireGuard app |
+| Installed web app (PWA) and notifications        | each phone and laptop (public icon and VPN icon)  | users                         | users remove both icons and the notification permission; push subscriptions are in the database             |
+| Temporary tunnel address (if used)               | `*.trycloudflare.com`, random each time           | step 5b                       | nothing registered: stopping `tunnel` ends it                                                                |
+
+### D. Inside the application (data to account for)
+
+These are in the `hr-server_pgdata` and `hr-server_appstorage` volumes and disappear with them, but decide what happens to
+the data **before** that: it is the group's HR records.
+
+| Data                                              | Notes                                                                                                        |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Employee dossiers, documents, photos              | NIK, KK, bank, NPWP, BPJS, signed documents; the documents are files in `hr-server_appstorage`              |
+| Candidates, CVs, offer letters, the email outbox  | retention for rejected candidates is a setting (**Penyimpanan data pelamar**, default 12 months); the rest stays until deleted |
+| Attendance, requests, offboarding, audit trail    | the audit log records who did what and is part of what must be handed over or destroyed                      |
+| Accounts and 2FA secrets                          | sessions are in the database; the 2FA secrets need `APP_KEY` to be read                                      |
+| Saved settings (`app_settings`)                   | working hours, templates, retention, and the backup settings including the public key                        |
+| Company mailbox passwords and Google tokens       | stored encrypted per company; disconnect them (section C) before wiping                                      |
+| `fingerspot-toolkit` (separate folder, if switched on) | the **agent** and its token under **Agen sinkronisasi**, the `RtListener` on SERVER-CAMAT, and SERVER-CAMAT's WireGuard client; switch the feature off (`FEATURE_ATTENDANCE_AGENTS=false`), delete the agent in the admin panel, and follow that folder's own `README.txt` to remove the site's side |
+
+There is no host cron job other than the backup: the daily jobs run inside `scheduler` and stop with it.
+
+### E. Your own computer
+
+| Resource                                         | Where                                             | Remove with                                                                                                  |
+| ------------------------------------------------ | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Key folder and downloaded backups                | `~/hr-backup-keys` (or wherever you ran `age-keygen`) | see section C: the key last                                                                              |
+| `age`                                            | winget package `FiloSottile.age`                  | `winget uninstall FiloSottile.age`                                                                           |
+| SSH tunnels and `known_hosts` entry for the server | open terminals; `~/.ssh/known_hosts`            | close them; `ssh-keygen -R <server>`                                                                         |
+| The WireGuard tunnel for the server (if you added yourself) | the WireGuard app                       | delete the tunnel                                                                                            |
+
+### Clean-up order
+
+1. **Freeze and hand over.** Stop new entries, run `bash docker/server/backup.sh`, download that folder, and prove it with
+   `backup-verify.sh`. Export or hand over whatever the group must keep.
+2. **Stop the clock.** Remove the cron job (section A) so nothing runs mid-teardown.
+3. **Revoke outside grants while the app still holds them**: **Putuskan Google** on each company, revoke App
+   Passwords, delete the monitoring check, delete each WireGuard client.
+4. **Take the stack down** and remove the Docker objects (section B).
+5. **Remove the front door**: the Nginx site, the certificates, the deploy hook, the Cloudflare plugin and token file,
+   the firewall rule. Then the DNS records and the Cloudflare token.
+6. **Remove host leftovers**: packages, swap, `/var/backups/hr-app`, logs, then the clone itself.
+7. **Remove the outside accounts**: the Google Cloud project, any bucket, the snapshot, then the server.
+8. **Last**, destroy the private key and the downloaded backups, together, in every place they are kept.
+
+Check that nothing is left (each should print nothing or "no" results):
+
+```bash
+docker ps -a --filter name=hr-server; docker volume ls | grep hr-server; docker network ls | grep hr-server
+ls /etc/cron.d | grep hr-app; ls /etc/letsencrypt/renewal-hooks/deploy | grep hr-app
+sudo certbot certificates | grep -E '<hr-host>|<vpn-host>'
+sudo ss -lntu | grep -E ':(8090|51820|51821)\b'
+ls /var/backups | grep hr-app; ls /var/log | grep hr-backup; ls /etc/nginx/sites-enabled | grep <hr-host>
+dig +short <hr-host> <vpn-host>
+```
 
 ---
 

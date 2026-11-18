@@ -46,7 +46,7 @@ security pass (Phase 7). What remains is listed in the checklist below. Recruitm
 | Phase 4         | Branch `feature/recruitement`. Requisition dashboard, 3-step wizard, stage 01 approval (2026-10-28); 02 Posting, 03 Screening and 04 Interview with the invitation and the candidate form (2026-11-04); interview feedback, reminders, calendar events, duration and availability (11-06 to 11-12); **participants chosen per interview, HR and Manajemen besides the direct superior (11-13)**; the candidate's outcome (Tolak / Pulihkan) and the direct superior's Pilih (11-10); 05 Offer with Management's approval, terms, letter and sending (11-11); the response, Tandai Selesai and the Terisi tab (11-11). **The accepted hire becomes an employee profile from the Terisi tab (11-13, `REC-FIL-006/007`).** The offer letter and its email are editable in the admin panel (11-13); Google Calendar invitations with Meet links (11-13); **email automation (11-16): each company's own mailbox, the email log and outbox, the offer sent as a PDF with the signed scan filed back, the rejection and "position filled" emails sent the next morning, and the new hire's welcome email.** The funnel on the dashboard (11-17). Not built: nothing of the Offer plan |
 | Phase 5         | Offboarding end to end: wizard, Management approval, checklist, sign-off, exit, berita acara, Cabang filter, phone action bar |
 | Phase 7         | Server stack, VPN, backups with an admin page, non-superuser database login, security headers and limits      |
-| Next            | **Security and go-live first** (decided 2026-11-17: the app holds NIK, bank and health data, so security comes before features). The items and their status are under "Security and go-live, re-evaluated 2026-11-17" in Phase 7. After that: the bell refreshing an open tab. Recruitment's Offer plan is complete; Home KPIs are parked |
+| Next            | **Security and go-live first** (decided 2026-11-17: the app holds NIK, bank and health data, so security comes before features). The VPN rules and the outside check are done; what is left is deploying the report-only CSP and later enforcing it, the Cloudflare proxy decision, a base-image rebuild and the Ghostscript decision, listed under "Security and go-live, re-evaluated 2026-11-17" in Phase 7. After that: the bell refreshing an open tab. Recruitment's Offer plan is complete; Home KPIs are parked |
 | Not built       | Candidate rescheduling (by decision, HR does it); Google Meet creation is built (2026-11-13) but not yet proved against CMP's real Google account; email automation is built for recruitment (11-16) but **no email has been delivered by a real server yet and production still has `MAIL_MAILER=log`**; the retention of rejected candidates is built (11-17); no day-before reminder email and no offboarding emails, by decision 2026-11-17; Home KPIs (parked 2026-11-17); the open security items (Phase 7, "Security and go-live, re-evaluated 2026-11-17"). **Dropped 2026-11-17:** the employee app's Sanctum API, saved drafts, the offboarding CSV export (`OFF-DSH-009`) and closing timeline (`OFF-PIP-007`); frontend text stays in the components (`CORE-SRC-004`) |
 
 ---
@@ -2024,7 +2024,9 @@ Screening now happens inside the platforms, and the app only meets the people HR
     `recruitment.google.connect` / `.callback` (`GoogleConnectionController`, private entrance). Google sends the admin back
     to **`/google/callback` on the private hostname**; the session-held state ties the answer to the person who started it.
     Env: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` (it must equal the OAuth client's authorised
-    redirect URI exactly). Scope: `calendar.events` (+ `openid`, `email`). The refresh token is kept encrypted in
+    redirect URI exactly). **No App Password is involved** (OAuth); an App Password only applies when a company's SMTP
+    mailbox ("Atur email pengirim") is a Google account. Setup steps for both are in the README, "Company email and Google
+    Meet invitations" (written 2026-11-17). Scope: `calendar.events` (+ `openid`, `email`). The refresh token is kept encrypted in
     `google_connections`. Connecting, disconnecting and changing the sender are written to the audit trail.
   - **Inviting:** `InterviewEvent` makes the event with a Meet room (`conferenceData` `hangoutsMeet`, `sendUpdates=all`), with
     an event ID of our own so a retried request cannot make two; inviting again **patches the same event**. The Meet link
@@ -2570,11 +2572,11 @@ public. That machine is a WireGuard peer, limited to the app's private HTTPS por
   - The report-only script and style policy (item 4 below).
 
   **Still open, in priority order:**
-  1. **VPN peer firewall rules (README step 7).** Written, never run on a server. Without them a peer on the VPN can open
-     the wg-easy admin page, reach other peers (the scanner PC included) and the host (SSH, other sites). Needed: yes,
-     before the first real client. Server work.
-  2. **Outside check of the public IP (README step 6).** A few requests from a phone off the VPN and one `curl` on the
-     server. Needed: yes, before telling anyone the address, and again after any proxy change. Server work.
+  1. **VPN peer firewall rules (README step 7). Done on the server 2026-11-17** (the owner reported every step completed,
+     including the test from a phone on the VPN; the `iptables -S` output was not shown to me). Without them a peer on the
+     VPN can open the wg-easy admin page, reach other peers (the scanner PC included) and the host (SSH, other sites).
+  2. **Outside check of the public IP (README step 6). Done 2026-11-17** (reported by the owner, with the extra checks of a
+     forged `X-Forwarded-For` and `X-Entrance`, and port 8090 not reachable from outside). Repeat it after any proxy change.
   3. **A WAF: Cloudflare's proxy in front of the public hostname.** Fits: the public entrance is internet-facing with a
      sign-in form and uploads. **Confirmed 2026-11-17: the public hostname is DNS only (grey cloud) and the VPN hostname
      is DNS only with a reserved IP, so nothing is proxied today and there is no WAF.** The DNS is already on
@@ -2585,6 +2587,8 @@ public. That machine is a WireGuard peer, limited to the app's private HTTPS por
      ranges, and the origin should accept the public hostname only from those ranges. A wrong setup still fails closed
      (a Cloudflare address is public), so it can lock people out but cannot open the private side. The VPN hostname
      must stay DNS only. Not done; needs the host Nginx change and a decision to switch the proxy on.
+     **Lower priority (decided 2026-11-17):** the Nginx rate limits and mandatory 2FA for elevated accounts are accepted
+     for now; revisit after go-live or if the sign-in form sees abuse.
   4. **Script and style CSP: built in report-only mode 2026-11-17, enforcing waits on the reports.** Defence in depth, not
      a fix for a known hole: React escapes output, and the only raw HTML is Laravel's pagination labels and Fortify's
      2FA QR SVG, both made by the server. `AddContentSecurityPolicyReportOnly` sends
@@ -2605,7 +2609,7 @@ public. That machine is a WireGuard peer, limited to the app's private HTTPS por
   6. **Narrowing `web`'s `storage` mount to the public files.** Defence in depth: `web` mounts all of `storage`
      read-only, but Nginx serves only `public/` and `/storage/` (the public disk), so private files are not reachable
      unless the Nginx configuration is broken. A one-line compose change once the server has Docker Engine 26+ and
-     Compose 2.27+. Low priority.
+     Compose 2.27+. Low priority (confirmed 2026-11-17; parked, no `docker version` needed until it is picked up).
   7. **Ghostscript in a sandbox.** Recommended to drop and keep `UPLOADS_COMPRESS_PDF=false` on the server. Compression
      touches only the PDFs among leave attachments and offboarding files (employee documents are never compressed, photos
      are shrunk in the browser), so even generously the saving is hundreds of megabytes a year. **The disk is used up by
