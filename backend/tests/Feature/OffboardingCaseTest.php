@@ -292,6 +292,19 @@ it('deletes a draft with its files', function () {
     Storage::disk('local')->assertMissing($path);
 });
 
+it('offers the delete button on a draft and not once the case is sent', function () {
+    draftCase($this->hr, $this->sinta)->assertRedirect();
+    $draft = latestCase();
+
+    $this->actingAs($this->hr)->get(route('offboarding.edit', $draft))
+        ->assertInertia(fn (Assert $page) => $page->where('case.canDelete', true));
+
+    $sent = submittedCase($this->lukas);
+
+    $this->actingAs($this->hr)->get(route('offboarding.show', $sent))
+        ->assertInertia(fn (Assert $page) => $page->where('case.canDelete', false));
+});
+
 // --- Who sees what ---
 
 it('keeps a draft to HR, and shows a sent case to Management and to the supervisors above the leaver', function () {

@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Enums\AdminNavigationGroup;
+use App\Support\Backup\BackupFiles;
 use App\Support\Backup\BackupSettings;
 use App\Support\Backup\BackupStatus;
 use BackedEnum;
@@ -19,6 +20,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Text;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Support\Number;
 use UnitEnum;
 
 /**
@@ -149,6 +151,7 @@ class ManageBackups extends Page
                     fn (array $line): Text => Text::make($line['label'].': '.$line['value']),
                     $status->lines,
                 )),
+            $this->downloadsSection(),
             Text::make('Perubahan dipakai pada cadangan berikutnya (jadwalnya diatur di server, lihat README). Server memeriksa ulang setiap nilai dan mengabaikan yang tidak sah. Cadangan sekarang dijalankan dari server dengan "bash docker/server/backup.sh".'),
             Form::make([EmbeddedSchema::make('form')])
                 ->id('form')
@@ -162,6 +165,37 @@ class ManageBackups extends Page
                     ]),
                 ]),
         ]);
+    }
+
+    /**
+     * The backups on the server, each with a link that sends it as one file (README, "Download from the admin page").
+     * Before the server is set up for it, a line says what is missing instead of an empty list.
+     */
+    private function downloadsSection(): Section
+    {
+        $backups = app(BackupFiles::class);
+        $state = $backups->state();
+        $runs = $backups->runs();
+
+        $components = match (true) {
+            $state === BackupFiles::NOT_MOUNTED => [Text::make('Unduhan belum aktif: folder cadangan belum dipasang ke aplikasi di server (lihat README, "Download from the admin page").')],
+            $state === BackupFiles::NOT_READABLE => [Text::make('Unduhan belum aktif: aplikasi belum boleh membaca folder cadangan. Isi BACKUP_READER_GID=33 di backup.env di server, lalu jalankan cadangan sekali (lihat README).')],
+            $runs === [] => [Text::make('Belum ada cadangan yang selesai di server.')],
+            default => array_map(
+                fn (array $run): Actions => Actions::make([
+                    Action::make('download_'.$run['name'])
+                        ->label('Unduh '.$run['startedAt']->isoFormat('D MMM YYYY, HH:mm').' · '.Number::fileSize($run['bytes'], precision: 1))
+                        ->icon(Heroicon::OutlinedArrowDownTray)
+                        ->color('gray')
+                        ->url(route('backups.download', $run['name'])),
+                ]),
+                $runs,
+            ),
+        };
+
+        return Section::make('Unduh cadangan')
+            ->description('Berkas terenkripsi: hanya bisa dibuka dengan kunci privat. Simpan terpisah dari kuncinya.')
+            ->schema($components);
     }
 
     public function save(): void

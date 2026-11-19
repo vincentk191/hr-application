@@ -50,6 +50,7 @@ class ActivityLabels
         'Issue reopened' => 'Masalah absensi dibuka kembali',
         'Restricted document downloaded' => 'Dokumen terbatas diunduh',
         'Backup settings changed' => 'Pengaturan cadangan diubah',
+        'Backup download started' => 'Cadangan diunduh',
         'Invitation template changed' => 'Template undangan diubah',
         'Recruitment template changed' => 'Template rekrutmen diubah',
         'Working hours changed' => 'Jam kerja diubah',

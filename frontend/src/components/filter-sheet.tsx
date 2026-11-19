@@ -41,6 +41,37 @@ export function FilterButton({
 }
 
 /**
+ * The round "Filter" button of the attendance pages, with how many filters are on. On a phone it is an icon with the count
+ * on its corner; from tablet width up it carries its label. It opens the same sheet from the right (`FilterSheet` with
+ * `onDesktop`), so the calendar and the recap filter the same way.
+ */
+export function FilterPill({
+    count,
+    onClick,
+}: {
+    count: number;
+    onClick: () => void;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            aria-label="Cari & filter"
+            data-test="open-filters"
+            className="relative inline-flex size-12 shrink-0 items-center justify-center gap-2 rounded-full border bg-card text-sm font-semibold md:h-11 md:w-auto md:px-5"
+        >
+            <SlidersHorizontal className="size-4" aria-hidden />
+            <span className="hidden md:inline">Filter</span>
+            {count > 0 && (
+                <span className="absolute -top-1 -right-1 inline-flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground md:static md:size-5 md:text-[11px]">
+                    {count}
+                </span>
+            )}
+        </button>
+    );
+}
+
+/**
  * One bottom sheet holding a list's search, sort and filters. Every change is applied as it is made, so the button
  * at the bottom can say how many rows the result has right now; it only closes the sheet.
  */

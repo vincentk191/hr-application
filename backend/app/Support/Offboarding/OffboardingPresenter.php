@@ -137,6 +137,7 @@ class OffboardingPresenter
             'canBeritaAcara' => $viewer->can('beritaAcara', $case),
             'canProceed' => $viewer->can('proceed', $case),
             'canEdit' => $viewer->can('update', $case),
+            'canDelete' => $viewer->can('delete', $case),
             'canDecide' => $viewer->can('decide', $case),
             'canComment' => $viewer->can('comment', $case),
             'canAddFiles' => $viewer->can('addFiles', $case),

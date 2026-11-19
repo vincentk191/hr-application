@@ -523,14 +523,18 @@ tersedia.
 
 - **Kalender:** hari libur dan kegiatan perusahaan; HR menambah dan menghapus kejadian kalender.
 - **Data absensi:** tempat memasukkan data.
-  - **Cabang pusat (mesin pemindai):** **Unggah Laporan Absensi** dari mesin.
-  - **Cabang tanpa mesin:** **Unggah rekapitulasi cabang**. Pilih cabang dan unggah "Rekapitulasi absen karyawan".
+  - **Cabang pusat (mesin pemindai):** **Unggah Laporan Absensi** dari mesin. Tombol **Contoh berkas** mengunduh contoh
+    bentuk berkas yang dibaca.
+  - **Cabang tanpa mesin:** **Unggah rekapitulasi cabang**. Pilih cabang dan unggah "Rekapitulasi absen karyawan"
+    (**Contoh berkas** mengunduh contoh bentuknya, bisa diteruskan ke PIC cabang).
     Hasilnya berupa **draft**: nama dicocokkan dengan karyawan cabang itu; yang belum cocok dihubungkan manual atau dilewati;
     selisih Zona atau potongan ditandai merah (angka aplikasi yang dipakai). **Tidak ada yang dihitung sebelum Anda klik
     Konfirmasi rekapitulasi.** Mengonfirmasi berkas koreksi untuk cabang dan tanggal yang sama menggantikan yang lama.
   - **Tambah pemetaan:** menghubungkan PIN di mesin dengan karyawan.
 - **Rekap absensi** dan **Masalah absensi:** tinjau dan selesaikan pengecualian (mis. scan saat cuti). Tersedia aksi
-  **maafkan** massal dan **buka lagi**.
+  **maafkan** massal dan **buka lagi**. Di Rekap absensi, cari nama di baris atas; tombol **Filter** memuat rentang
+  tanggal, cabang, departemen dan tim (sama seperti di Kalender). **Excel**, **CSV** dan **Cetak / PDF** mengunduh atau
+  mencetak hasil yang sedang tampil.
 - **Zona** (Hijau, Merah, Hitam) di profil karyawan menentukan tarif potongan. Semua orang Hijau sampai HR mengubahnya.
 
 ### 4.7 Rekrutmen: dari lowongan sampai karyawan baru

@@ -1,5 +1,6 @@
-import { Search, Sigma, SlidersHorizontal } from 'lucide-react';
+import { Search, Sigma } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { FilterPill } from '@/components/filter-sheet';
 import { Input } from '@/components/ui/input';
 import { STATUS_TILE } from '@/lib/attendance-status';
 import { cn } from '@/lib/utils';
@@ -148,21 +149,7 @@ export function FilterBar({
                 />
             </form>
 
-            <button
-                type="button"
-                onClick={onOpenFilters}
-                aria-label="Cari & filter"
-                data-test="open-filters"
-                className="relative inline-flex size-12 shrink-0 items-center justify-center gap-2 rounded-full border bg-card text-sm font-semibold md:h-11 md:w-auto md:px-5"
-            >
-                <SlidersHorizontal className="size-4" aria-hidden />
-                <span className="hidden md:inline">Filter</span>
-                {filterCount > 0 && (
-                    <span className="absolute -top-1 -right-1 inline-flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground md:static md:size-5 md:text-[11px]">
-                        {filterCount}
-                    </span>
-                )}
-            </button>
+            <FilterPill count={filterCount} onClick={onOpenFilters} />
 
             {trailing && (
                 <div className="order-3 md:order-last md:ml-auto">

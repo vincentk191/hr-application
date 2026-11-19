@@ -702,7 +702,8 @@ the server fails (the provider is down, say), the backup made on this server is 
 
 **The admin page "Cadangan data"** (admin panel; permission `manage-backups`, given to the System Admin role, and only a
 parent-wide account may open it) holds the same settings as `backup.env`: the public key, the copy destination, how long to
-keep backups, the monitoring addresses, and a switch that pauses the backups. Above the form it shows what the last run
+keep backups, the monitoring addresses, and a switch that pauses the backups, and lists the backups on the server with a
+download button each (see "Download from the admin page"). Above the form it shows what the last run
 reported: when it finished, how big it was, which key and destination it used and where each came from, and a warning when
 the last run failed, the copy off the server failed, nothing was reported for 36 hours, or the backups are only on this
 server. It asks for your password when you open it and again when you save. How it works:
@@ -717,7 +718,7 @@ server. It asks for your password when you open it and again when you save. How 
 - **The cloud credentials are not on the page, on purpose.** They stay in `rclone`'s own configuration on the server. If
   they were in the application's database, anyone who got into the application could also delete the backups.
 - **There is no "back up now" button.** The application cannot start commands on the server, and should not. Run
-  `bash docker/server/backup.sh` there.
+  `bash docker/server/backup.sh` there. (The download button only reads: it starts nothing and the folder is mounted read-only.)
 - Changing the key or the destination is written to the audit log (monitoring addresses only as "set", since their path is
   a secret). Setting `BACKUP_IGNORE_PAGE=true` in `backup.env` ignores the page entirely.
 
@@ -753,7 +754,9 @@ shows "only on this server", and anything made since the last download is lost i
   keeps tonight's backup and the previous two (up to 3 folders, and a fourth can linger one night when the age check falls
   just short). For tonight's and last night's only, set 1 (the page accepts 1 to 365). Pruning runs at the end of a
   successful backup, so a failed night deletes nothing.
-- **Download one.** The folders are root-only (`chmod 700`), so copy the newest into your own home on the server first:
+- **Download one.** The easy way, for someone who does not use a terminal, is the button on the admin page (set it up once,
+  see "Download from the admin page" below). By hand: the folders are root-only (`chmod 700`), so copy the newest into your
+  own home on the server first:
   ```bash
   sudo -i
   ls /var/backups/hr-app                                       # newest folder, e.g. 2026-11-18_023001
@@ -768,6 +771,39 @@ shows "only on this server", and anything made since the last download is lost i
 - **There is no restore button** in the admin panel, on purpose: a restore needs the private key (which must never be on
   the server) and stops and replaces the very application the button would live in. It is run from your computer with
   `docker/server/restore.sh`, as in "Restore" below.
+
+**Download from the admin page.** **Cadangan data** lists the finished backups on the server, each with an **Unduh** button
+that sends it as one `.tar` file (`hr-cadangan-<YYYY-MM-DD_HHMMSS>.tar`). It is for a System Admin who does not use `ssh` or
+`scp`. The download is the same folder `backup.sh` made: the four encrypted files, `SHA256SUMS` and `MANIFEST.txt`. Unpack it
+with `tar -xf hr-cadangan-<...>.tar` (Git Bash, or `tar` in Windows 10 and 11), or 7-Zip, and the folder it makes is what
+`restore.sh` and `backup-verify.sh` take. It is off until the server is set up for it, because by default **the application
+cannot see the backups at all**:
+
+1. In `docker/server/backup.env` set `BACKUP_READER_GID=33` (33 is the web user inside the `app` container). From the next
+   backup on, a finished backup gets group 33, mode 750 (folder) and 640 (files), and `BACKUP_DIR` itself 750. A backup that
+   is still being written stays root-only.
+2. Backups made before that need the same once:
+   ```bash
+   cd /var/backups/hr-app && sudo chgrp 33 . && sudo chmod 750 . && sudo chgrp -R 33 20* && sudo chmod 750 20*/ && sudo chmod 640 20*/*
+   ```
+3. `git pull` and run the `up -d --build` command, so `app` is recreated with the read-only mount of the backup folder
+   (`docker-compose.server.yml`). If `BACKUP_DIR` is not `/var/backups/hr-app`, set `BACKUP_HOST_DIR` to the same path in
+   `docker/server/.env` first.
+4. Open **Cadangan data**. Until it works the box **Unduh cadangan** says what is missing: *belum dipasang* (the mount is
+   not there: step 3) or *belum boleh membaca* (the permissions: steps 1 and 2).
+
+What keeps it safe. The files are encrypted to a key the server never holds, so a downloaded copy is no more readable than
+the folder it came from. The mount is read-only, so the application can neither change nor delete a backup, and `queue` and
+`scheduler` do not get it. The button answers only a parent-wide System Admin (the same gate as the page), asks for the
+password again, allows 6 downloads a minute, works only on the private entrance, and writes each download to the audit trail
+("Cadangan diunduh", with which backup). Only finished backups are offered, never one still being written.
+
+What it costs. The web user inside the `app` container can now read the encrypted backups: it could already read the live
+data, so nothing new is readable, but a flaw in the application can now also copy the backups out. A download holds one web
+worker for as long as it takes, and the two Nginx layers spool up to 1 GB to disk before the rest is sent at the visitor's
+speed, so a very large backup over a slow line is better fetched with `scp` (above). To switch it off again: empty
+`BACKUP_READER_GID`, `sudo chmod 700 /var/backups/hr-app /var/backups/hr-app/20*` and `sudo chgrp -R root /var/backups/hr-app`,
+and remove the `/backups` line from the `app` service.
 
 **Test a restore** (every quarter, and after changing the key or the remote). On your own computer, with Docker and age:
 
@@ -877,7 +913,7 @@ Fill in once the server exists, so the clean-up does not depend on anyone's memo
 | The clone, with `docker/server/.env` (every secret), `docker/server/backup.env` and `docker/server/certs/` (the VPN certificate and its private key) | `<clone>` | step 1, 2, 7.5, Backups | last, after the stack is down and the data is handed over: `rm -rf <clone>` |
 | **Nightly backup job**                           | `/etc/cron.d/hr-app-backup`                       | Backups, step 7               | `sudo rm /etc/cron.d/hr-app-backup`. Do this **first**, so nothing runs during the teardown                  |
 | Backup log                                       | `/var/log/hr-backup.log`                          | the cron line                 | `sudo rm -f /var/log/hr-backup.log*`                                                                         |
-| Encrypted backups                                | `/var/backups/hr-app` (`BACKUP_DIR`), one folder per night | `backup.sh`          | `sudo rm -rf /var/backups/hr-app` after a final copy has been taken or the data is no longer owed           |
+| Encrypted backups                                | `/var/backups/hr-app` (`BACKUP_DIR`), one folder per night; group 33, mode 750/640 once `BACKUP_READER_GID` is set | `backup.sh` | `sudo rm -rf /var/backups/hr-app` after a final copy has been taken or the data is no longer owed |
 | Temporary download copy                          | `~/<YYYY-MM-DD_HHMMSS>` in the login's home       | "Without a copy off the server" | `rm -rf ~/20??-??-??_*` (should already be gone after each download)                                    |
 | `.env.pre-restore` (if a restore of `settings` replaced an existing `.env`) | `<clone>/docker/server/` | `restore.sh --parts settings` | compare with `.env`, then delete it: it holds every secret in plain text                       |
 | Packages `age`, `curl`, and `rclone` (if used)   | apt                                               | Backups, step 1               | `sudo apt remove age rclone`; leave `curl` unless this was the only reason it is installed                 |
@@ -912,6 +948,7 @@ Add these rows to the register when that variant is in use:
 | Images built here         | `hr-server-app`, `hr-server-web`                                                                | the code baked in                        |
 | Images pulled             | `postgres:16-alpine`, `ghcr.io/wg-easy/wg-easy:15`, `cloudflare/cloudflared:latest` (tunnel), build bases `php:8.4-fpm`, `node:24-trixie-slim`, `nginx:stable-alpine`, and `alpine` (the practice key command) | nothing of yours |
 | Networks                  | `hr-server_internal` 172.29.0.0/24, `hr-server_vpn` 172.30.0.0/24, `hr-server_edge` 172.31.0.0/24 | nothing                                  |
+| Bind mount                | the host's `/var/backups/hr-app` (`BACKUP_HOST_DIR`) at `/backups`, read-only, in `hr-server-app-1` only | nothing of its own: it shows the encrypted backups to the download button; it goes with the container |
 | **Volumes**               | `hr-server_pgdata` (the database), `hr-server_appstorage` (documents, photos, logos, leave attachments, logs), `hr-server_wgdata` (the VPN server key and every client's key) | **all personal data** |
 | Build cache               | `docker builder prune`                                                                          | nothing                                  |
 | Container logs            | inside Docker's own folder, capped at 5 x 10 MB each; deleted with their container             | sign-in attempts (NIK ending, address)   |
@@ -1031,6 +1068,8 @@ Server settings are in `docker/server/.env` (template: `docker/server/server.env
 | `INITIAL_ADMIN_NAME`, `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PASSWORD` | the first System Admin, created by `db:seed` on a real server; remove the password afterwards |
 | `ATTENDANCE_DEVICE_TIMEZONE`, `ATTENDANCE_WORK_START`, `ATTENDANCE_WORK_END`, `ATTENDANCE_WORK_END_FRIDAY`, `ATTENDANCE_LATE_GRACE_MINUTES` | attendance defaults (`Asia/Jakarta`, 08:00, 17:00, Friday 17:30, 10). Used until someone saves their own under **Jam kerja** in the admin panel, which also has a field for Friday's end; leave it empty there for a Friday that ends like the other days |
 | `AGE_RECIPIENT`, `BACKUP_DIR`, `BACKUP_KEEP_DAYS`, `BACKUP_REMOTE`, `BACKUP_REMOTE_KEEP_DAYS`, `BACKUP_OK_URL`, `BACKUP_FAIL_URL`, `BACKUP_IGNORE_PAGE` | not in `.env`: the backup settings live in `docker/server/backup.env` (template `backup.env.example`), and the admin page "Cadangan data" can override all but `BACKUP_DIR` and `BACKUP_IGNORE_PAGE`. See "Backups" |
+| `BACKUP_READER_GID`                      | in `backup.env`, not on the page. Empty by default (backups readable by root only). `33` lets the admin page's download button read them: see "Download from the admin page" |
+| `BACKUP_HOST_DIR`                        | in `docker/server/.env`: the host folder mounted read-only into `app` at `/backups` (default `/var/backups/hr-app`). Set it only when `BACKUP_DIR` is not the default. The application reads the mount at `BACKUP_DOWNLOAD_DIR` (`/backups`; leave it) |
 | `SESSION_LIFETIME`, `SESSION_ABSOLUTE_LIFETIME` | minutes a session may sit idle (480, so about one password and 2FA code per working day) and the most minutes one sign-in may last however active it is (1440; `0` = no cap). There is no "remember me": it would sign someone back in without the password or the 2FA code |
 | `REQUIRE_TWO_FACTOR`                     | on by default: elevated accounts (any role above Karyawan, anyone with reports, approvers, checklist owners) must set up two-factor sign-in before they can use the app, and cannot turn it off; an administrator resets it. `false` only for local development |
 | `UPLOADS_COMPRESS_PDF`, `UPLOADS_GHOSTSCRIPT`, `UPLOADS_PDF_PRESET` | shrink stored PDFs (`true`, `gs`, `/ebook`); `/screen` is smaller and softer, `/printer` larger and sharper. The code default is on; **`server.env.example` sets it off**, see "Uploaded files". See `backend/config/uploads.php` |

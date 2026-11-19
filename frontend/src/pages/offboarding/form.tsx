@@ -1,6 +1,7 @@
-import { Form, Head, Link, setLayoutProps } from '@inertiajs/react';
-import { ArrowRight, RefreshCw, Save, Send } from 'lucide-react';
+import { Form, Head, Link, router, setLayoutProps } from '@inertiajs/react';
+import { ArrowRight, RefreshCw, Save, Send, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import InputError from '@/components/input-error';
 import LimitedFileInput from '@/components/limited-file-input';
 import { PhaseActions } from '@/components/phase-actions';
@@ -9,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { WorkflowDiscussion } from '@/components/workflow-discussion';
-import { index, store, update } from '@/routes/offboarding';
+import { destroy, index, store, update } from '@/routes/offboarding';
 import {
     read as readComments,
     store as storeComment,
@@ -157,6 +158,43 @@ export default function OffboardingForm({
                                         </Button>
                                     ),
                                 },
+                                ...(existing?.canDelete
+                                    ? [
+                                          {
+                                              key: 'delete',
+                                              icon: Trash2,
+                                              label: 'Hapus draft',
+                                              short: 'Hapus',
+                                              rank: 3,
+                                              render: (
+                                                  label: ReactNode,
+                                                  className?: string,
+                                              ) => (
+                                                  <Button
+                                                      type="button"
+                                                      variant="ghost"
+                                                      className={className}
+                                                      data-test="delete-case"
+                                                      onClick={() => {
+                                                          if (
+                                                              window.confirm(
+                                                                  'Hapus draft ini?',
+                                                              )
+                                                          ) {
+                                                              router.delete(
+                                                                  destroy(
+                                                                      existing.id,
+                                                                  ).url,
+                                                              );
+                                                          }
+                                                      }}
+                                                  >
+                                                      {label}
+                                                  </Button>
+                                              ),
+                                          },
+                                      ]
+                                    : []),
                             ]}
                             extra={
                                 existing &&

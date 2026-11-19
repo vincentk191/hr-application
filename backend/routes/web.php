@@ -10,6 +10,7 @@ use App\Http\Controllers\AttendanceIssueController;
 use App\Http\Controllers\AttendancePunchController;
 use App\Http\Controllers\AttendanceRecapController;
 use App\Http\Controllers\AttendanceRekapController;
+use App\Http\Controllers\BackupDownloadController;
 use App\Http\Controllers\CalendarEventController;
 use App\Http\Controllers\CandidateFormController;
 use App\Http\Controllers\CompanySwitcherController;
@@ -62,6 +63,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::put('active-company', [CompanySwitcherController::class, 'update'])
         ->name('active-company.update');
+
+    // One finished backup as a single file, for a System Admin who confirmed their password (README, "Download from the
+    // admin page"). The gate is checked again in the controller.
+    Route::get('backups/{run}/download', BackupDownloadController::class)
+        ->middleware(['password.confirm', 'throttle:6,1'])
+        ->name('backups.download');
 
     // Offboarding: HR makes the case, Management approves, the supervisors work the checklist (OFF-*).
     Route::get('offboarding', [OffboardingCaseController::class, 'index'])->name('offboarding.index');
@@ -208,7 +215,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->middleware('feature:attendance_agents')
             ->name('attendance.agents.sync-now');
         Route::get('attendance/device', [AttendanceDeviceController::class, 'index'])->name('attendance.device');
+        Route::get('attendance/imports/sample', [AttendanceImportController::class, 'sample'])->name('attendance.imports.sample');
         Route::post('attendance/imports', [AttendanceImportController::class, 'store'])->name('attendance.imports.store');
+        // Before `rekaps/{rekap}`, or "sample" would be read as a rekapitulasi's id.
+        Route::get('attendance/rekaps/sample', [AttendanceRekapController::class, 'sample'])->name('attendance.rekaps.sample');
         Route::post('attendance/rekaps', [AttendanceRekapController::class, 'store'])->name('attendance.rekaps.store');
         Route::get('attendance/rekaps/{rekap}', [AttendanceRekapController::class, 'show'])->name('attendance.rekaps.show');
         Route::put('attendance/rekaps/{rekap}/rows/{row}', [AttendanceRekapController::class, 'linkRow'])->name('attendance.rekaps.rows.update');

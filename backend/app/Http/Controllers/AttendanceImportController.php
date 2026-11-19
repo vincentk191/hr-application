@@ -5,12 +5,24 @@ namespace App\Http\Controllers;
 use App\Actions\Attendance\ImportScanLog;
 use App\Http\Requests\StoreAttendanceImportRequest;
 use App\Support\Attendance\InvalidScanLog;
+use App\Support\Attendance\SampleWorkbooks;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AttendanceImportController extends Controller
 {
+    /**
+     * An example Laporan Absensi, for whoever uploads one to see the layout the import reads.
+     */
+    public function sample(SampleWorkbooks $samples): StreamedResponse
+    {
+        $this->authorize('manage-attendance-device');
+
+        return $samples->download($samples->scanLog(), 'contoh-laporan-absensi.xlsx');
+    }
+
     public function store(StoreAttendanceImportRequest $request, ImportScanLog $import): RedirectResponse
     {
         try {

@@ -14,6 +14,7 @@ use App\Models\Branch;
 use App\Models\Employee;
 use App\Support\Attendance\InvalidRekap;
 use App\Support\Attendance\PotonganCalculator;
+use App\Support\Attendance\SampleWorkbooks;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,6 +22,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * A branch's rekapitulasi, from upload to confirmation (ATT-REK). The upload becomes a draft; HR looks at
@@ -29,6 +31,16 @@ use Inertia\Response;
  */
 class AttendanceRekapController extends Controller
 {
+    /**
+     * An example rekapitulasi, for a Cabang's PIC to see the layout the upload reads.
+     */
+    public function sample(SampleWorkbooks $samples): StreamedResponse
+    {
+        $this->authorize('manage-attendance-device');
+
+        return $samples->download($samples->rekap(), 'contoh-rekapitulasi-cabang.xlsx');
+    }
+
     public function store(StoreAttendanceRekapRequest $request, ImportRekap $import): RedirectResponse
     {
         $branch = Branch::acrossCompanies()->findOrFail($request->integer('branch_id'));

@@ -83,6 +83,13 @@ services:
             DB_HOST: db
             DB_PORT: 5432
             RUN_MIGRATIONS: 'true'
+        volumes:
+            - appstorage:/var/www/backend/storage
+            # The encrypted backups, read-only, for the download button on the admin page "Cadangan data" (README, "Download
+            # from the admin page"). Only `app` gets it, never queue or scheduler. The files are readable to the web user only
+            # when BACKUP_READER_GID is set in docker/server/backup.env; without it this mount shows nothing, and the page says
+            # so. BACKUP_HOST_DIR must match BACKUP_DIR there if that was changed.
+            - ${BACKUP_HOST_DIR:-/var/backups/hr-app}:/backups:ro
         # Up to 12 PHP-FPM workers (docker/php/php-fpm-pool.conf).
         mem_limit: 1536m
         networks:

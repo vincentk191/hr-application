@@ -1,5 +1,5 @@
 import { Form, Head, router } from '@inertiajs/react';
-import { Save, Trash2, Upload } from 'lucide-react';
+import { Download, Save, Trash2, Upload } from 'lucide-react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
 import LimitedFileInput from '@/components/limited-file-input';
@@ -10,8 +10,12 @@ import { Label } from '@/components/ui/label';
 import { device } from '@/routes/attendance';
 import { syncNow } from '@/routes/attendance/agents';
 import { destroy, store as storeMap } from '@/routes/attendance/enrol-maps';
-import { store as storeImport } from '@/routes/attendance/imports';
 import {
+    sample as sampleImport,
+    store as storeImport,
+} from '@/routes/attendance/imports';
+import {
+    sample as sampleRekap,
     show as showRekap,
     store as storeRekap,
 } from '@/routes/attendance/rekaps';
@@ -42,6 +46,18 @@ type Props = {
     maps: EnrolMapRow[];
     employees: EmployeeOption[];
 };
+
+/** The example file beside an upload, so the layout the import expects can be seen before one is prepared. */
+function SampleLink({ href }: { href: string }) {
+    return (
+        <Button asChild variant="ghost" size="sm" className="-mr-2">
+            <a href={href}>
+                <Download className="size-4" aria-hidden />
+                Contoh berkas
+            </a>
+        </Button>
+    );
+}
 
 /** Delete a scanner-ID mapping after asking; the scans already recorded stay. */
 function confirmDeleteMap(map: EnrolMapRow) {
@@ -195,8 +211,9 @@ function UploadCard({
         >
             {({ processing, errors }) => (
                 <>
-                    <div className="sm:col-span-2">
+                    <div className="flex items-center justify-between gap-3 sm:col-span-2">
                         <h2 className="font-medium">Unggah Laporan Absensi</h2>
+                        <SampleLink href={sampleImport().url} />
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="device_sn">
@@ -265,7 +282,10 @@ function RekapCard({
 
     return (
         <section className="surface p-4">
-            <h2 className="font-medium">Unggah rekapitulasi cabang</h2>
+            <div className="flex items-center justify-between gap-3">
+                <h2 className="font-medium">Unggah rekapitulasi cabang</h2>
+                <SampleLink href={sampleRekap().url} />
+            </div>
 
             {branches.length === 0 ? (
                 <p className="mt-3 text-sm text-muted-foreground">

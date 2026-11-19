@@ -49,6 +49,10 @@ BACKUP_REMOTE_KEEP_DAYS="${BACKUP_REMOTE_KEEP_DAYS:-30}"
 BACKUP_OK_URL="${BACKUP_OK_URL:-}"
 BACKUP_FAIL_URL="${BACKUP_FAIL_URL:-}"
 BACKUP_IGNORE_PAGE="${BACKUP_IGNORE_PAGE:-false}"
+# Off by default: backups are readable by root only. A group number (33 = the app container's web user) lets the admin page
+# offer a download button, through a read-only mount of BACKUP_DIR (README, "Download from the admin page"). Only file
+# permissions change: the files stay encrypted, and the page cannot change or delete them.
+BACKUP_READER_GID="${BACKUP_READER_GID:-}"
 AGE_RECIPIENT="${AGE_RECIPIENT:-}"
 
 # Where each effective setting came from, for the report.
@@ -236,7 +240,20 @@ done
 [ -f "$STACK_ENV" ] || { echo "backup: $STACK_ENV not found" >&2; exit 2; }
 
 mkdir -p "$BACKUP_DIR"
-chmod 700 "$BACKUP_DIR"
+READER_GID=""
+if [ -n "$BACKUP_READER_GID" ]; then
+    if [[ "$BACKUP_READER_GID" =~ ^[0-9]{1,10}$ ]]; then
+        READER_GID="$BACKUP_READER_GID"
+    else
+        warn "BACKUP_READER_GID is not a group number, so backups stay readable by root only"
+    fi
+fi
+if [ -n "$READER_GID" ]; then
+    chgrp "$READER_GID" "$BACKUP_DIR"
+    chmod 750 "$BACKUP_DIR"
+else
+    chmod 700 "$BACKUP_DIR"
+fi
 exec 9>"$BACKUP_DIR/.lock"
 flock -n 9 || { log "another backup is still running; skipping this one"; exit 1; }
 
@@ -303,6 +320,13 @@ STEP="writing the checksums"
 
 # From here the backup on this server is good and stays, whatever happens to the copy.
 LOCAL_COMPLETE=true
+
+# Only a finished backup (MANIFEST.txt is written last) is opened to the reader group, never one still being written.
+if [ -n "$READER_GID" ]; then
+    chgrp -R "$READER_GID" "$RUN_DIR"
+    chmod 750 "$RUN_DIR"
+    chmod 640 "$RUN_DIR"/*
+fi
 
 # --- the copy off the server ------------------------------------------------------------------------------------------
 

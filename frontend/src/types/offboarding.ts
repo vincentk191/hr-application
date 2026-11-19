@@ -201,6 +201,8 @@ export type OffboardingCase = OffboardingRow & {
     /** HR may move a case whose checklist is complete on to sign-off. */
     canProceed: boolean;
     canEdit: boolean;
+    /** A draft (including one Management sent back) may be thrown away. */
+    canDelete: boolean;
     canDecide: boolean;
     canComment: boolean;
     canAddFiles: boolean;

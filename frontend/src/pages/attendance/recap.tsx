@@ -1,14 +1,20 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ChevronDown, MoreVertical, Printer } from 'lucide-react';
+import {
+    ChevronDown,
+    Download,
+    MoreVertical,
+    Printer,
+    Search,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { ChipMultiSelect } from '@/components/chip-multi-select';
 import {
     FilterButton,
+    FilterPill,
     FilterSection,
     FilterSheet,
 } from '@/components/filter-sheet';
-import { MultiSelectFilter } from '@/components/multi-select-filter';
 import { Pagination, usePagination } from '@/components/pagination';
 import { Button } from '@/components/ui/button';
 import {
@@ -123,9 +129,6 @@ const VIEWS: { value: View; label: string; short: string; column: string }[] = [
         column: 'Departemen',
     },
 ];
-
-const selectClasses =
-    'border-input bg-card h-10 rounded-xl border px-3 text-sm';
 
 const rupiah = new Intl.NumberFormat('id-ID', {
     style: 'currency',
@@ -554,6 +557,13 @@ export default function AttendanceRecap({
 
     const shownViews = printing ? VIEWS : VIEWS.filter((v) => v.value === view);
 
+    // The date range is always on, so it is not counted; the search, branches, departments and team are.
+    const filterCount =
+        filters.branches.length +
+        filters.departments.length +
+        (filters.team !== null ? 1 : 0) +
+        (filters.search !== '' ? 1 : 0);
+
     return (
         <>
             <Head title="Rekap absensi" />
@@ -588,12 +598,7 @@ export default function AttendanceRecap({
                     as a segmented row. From tablet width up the filters are inline. */}
                 <div className="flex items-center gap-2 md:hidden print:hidden">
                     <FilterButton
-                        count={
-                            filters.branches.length +
-                            filters.departments.length +
-                            (filters.team !== null ? 1 : 0) +
-                            (filters.search !== '' ? 1 : 0)
-                        }
+                        count={filterCount}
                         onClick={() => setFiltersOpen(true)}
                     />
                     <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
@@ -611,10 +616,22 @@ export default function AttendanceRecap({
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuItem asChild>
-                                <a href={exportUrl('xlsx')}>Unduh Excel</a>
+                                <a href={exportUrl('xlsx')}>
+                                    <Download
+                                        className="size-4 shrink-0"
+                                        aria-hidden
+                                    />
+                                    Excel
+                                </a>
                             </DropdownMenuItem>
                             <DropdownMenuItem asChild>
-                                <a href={exportUrl('csv')}>Unduh CSV</a>
+                                <a href={exportUrl('csv')}>
+                                    <Download
+                                        className="size-4 shrink-0"
+                                        aria-hidden
+                                    />
+                                    CSV
+                                </a>
                             </DropdownMenuItem>
                             <DropdownMenuItem onSelect={() => printReport()}>
                                 <Printer
@@ -641,100 +658,64 @@ export default function AttendanceRecap({
                     ))}
                 </div>
 
-                <div className="hidden flex-wrap items-end gap-3 md:flex print:hidden">
-                    <div className="grid gap-1">
-                        <label
-                            htmlFor="from"
-                            className="text-xs text-muted-foreground"
-                        >
-                            Dari
-                        </label>
-                        <Input
-                            id="from"
-                            type="date"
-                            className="w-44"
-                            value={filters.from}
-                            onChange={(event) =>
-                                go({ from: event.target.value })
-                            }
-                        />
-                    </div>
-                    <div className="grid gap-1">
-                        <label
-                            htmlFor="to"
-                            className="text-xs text-muted-foreground"
-                        >
-                            Sampai
-                        </label>
-                        <Input
-                            id="to"
-                            type="date"
-                            className="w-44"
-                            value={filters.to}
-                            onChange={(event) => go({ to: event.target.value })}
-                        />
-                    </div>
-
+                {/* From tablet width up: the search, the filter button (which opens the same sheet as the phone, from the right,
+                    like the calendar's) and the downloads, all on one row. */}
+                <div className="hidden flex-wrap items-center gap-2 md:flex md:gap-3 print:hidden">
                     <form
                         onSubmit={(event) => {
                             event.preventDefault();
                             go();
                         }}
-                        className="w-full sm:w-56"
+                        className="relative min-w-0 flex-1 md:max-w-sm"
                     >
+                        <Search
+                            className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground"
+                            aria-hidden
+                        />
                         <Input
                             value={search}
                             onChange={(event) => setSearch(event.target.value)}
                             placeholder="Cari nama atau ID…"
                             aria-label="Cari karyawan"
+                            className="h-11 rounded-full pl-10"
                         />
                     </form>
 
-                    <select
-                        aria-label="Tim"
-                        value={filters.team ?? ''}
-                        onChange={(event) =>
-                            go({
-                                team: event.target.value
-                                    ? Number(event.target.value)
-                                    : null,
-                            })
-                        }
-                        className={selectClasses}
-                    >
-                        <option value="">Semua tim</option>
-                        {options.teams.map((lead) => (
-                            <option key={lead.id} value={lead.id}>
-                                Tim {lead.full_name}
-                            </option>
-                        ))}
-                    </select>
+                    <FilterPill
+                        count={filterCount}
+                        onClick={() => setFiltersOpen(true)}
+                    />
 
-                    <MultiSelectFilter
-                        label="Cabang"
-                        options={options.branches}
-                        selected={filters.branches}
-                        onChange={(branches) => go({ branches })}
-                    />
-                    <MultiSelectFilter
-                        label="Departemen"
-                        options={options.departments}
-                        selected={filters.departments}
-                        onChange={(departments) => go({ departments })}
-                    />
+                    <span className="text-sm text-muted-foreground">
+                        {filters.from} s/d {filters.to}
+                    </span>
 
                     <div className="ml-auto flex gap-2">
-                        <Button asChild variant="outline" size="sm">
-                            <a href={exportUrl('xlsx')}>Unduh Excel</a>
+                        <Button
+                            asChild
+                            variant="outline"
+                            className="h-11 rounded-full px-5"
+                        >
+                            <a href={exportUrl('xlsx')}>
+                                <Download className="size-4" aria-hidden />
+                                Excel
+                            </a>
                         </Button>
-                        <Button asChild variant="ghost" size="sm">
-                            <a href={exportUrl('csv')}>CSV</a>
+                        <Button
+                            asChild
+                            variant="outline"
+                            className="h-11 rounded-full px-5"
+                        >
+                            <a href={exportUrl('csv')}>
+                                <Download className="size-4" aria-hidden />
+                                CSV
+                            </a>
                         </Button>
                         <Button
                             variant="outline"
-                            size="sm"
                             type="button"
                             onClick={printReport}
+                            className="h-11 rounded-full px-5"
                         >
                             <Printer className="size-4" aria-hidden />
                             Cetak / PDF
@@ -859,6 +840,7 @@ export default function AttendanceRecap({
                     });
                 }}
                 showLabel={`Tampilkan ${total.employees} karyawan`}
+                onDesktop
             >
                 <FilterSection title="Rentang tanggal">
                     <div className="grid grid-cols-2 gap-2">
