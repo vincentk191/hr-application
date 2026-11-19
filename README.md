@@ -948,7 +948,6 @@ Add these rows to the register when that variant is in use:
 | Images built here         | `hr-server-app`, `hr-server-web`                                                                | the code baked in                        |
 | Images pulled             | `postgres:16-alpine`, `ghcr.io/wg-easy/wg-easy:15`, `cloudflare/cloudflared:latest` (tunnel), build bases `php:8.4-fpm`, `node:24-trixie-slim`, `nginx:stable-alpine`, and `alpine` (the practice key command) | nothing of yours |
 | Networks                  | `hr-server_internal` 172.29.0.0/24, `hr-server_vpn` 172.30.0.0/24, `hr-server_edge` 172.31.0.0/24 | nothing                                  |
-| Bind mount                | the host's `/var/backups/hr-app` (`BACKUP_HOST_DIR`) at `/backups`, read-only, in `hr-server-app-1` only | nothing of its own: it shows the encrypted backups to the download button; it goes with the container |
 | **Volumes**               | `hr-server_pgdata` (the database), `hr-server_appstorage` (documents, photos, logos, leave attachments, logs), `hr-server_wgdata` (the VPN server key and every client's key) | **all personal data** |
 | Build cache               | `docker builder prune`                                                                          | nothing                                  |
 | Container logs            | inside Docker's own folder, capped at 5 x 10 MB each; deleted with their container             | sign-in attempts (NIK ending, address)   |

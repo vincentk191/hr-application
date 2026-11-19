@@ -313,3 +313,25 @@ it('refuses a file that claims to be Excel but is not', function () {
     $this->actingAs($this->hr)->post(route('employees.import.store'), ['file' => $file])->assertSessionHasErrors('file');
     expect(Employee::count())->toBe(0);
 });
+
+it('accepts the example row of its own template once the company, branch, department and position it names exist', function () {
+    $company = Company::factory()->create(['name' => 'PT Contoh Sejahtera']);
+    Branch::factory()->forCompany($company)->create(['name' => 'Pusat']);
+    $department = Department::factory()->forCompany($company)->create(['name' => 'Operasional']);
+    Position::factory()->forDepartment($department)->create(['name' => 'Admin Gudang']);
+    $hr = User::factory()->create(['company_id' => $company->id]);
+    $hr->assignRole(Role::HrAdmin->value);
+
+    $template = $this->actingAs($hr)->get(route('employees.import.template'))->assertOk()->streamedContent();
+    $path = tempnam(sys_get_temp_dir(), 'tpl').'.xlsx';
+    file_put_contents($path, $template);
+
+    // The template as downloaded, example row and all, checked without saving anything.
+    $this->actingAs($hr)
+        ->post(route('employees.import.store'), ['file' => new UploadedFile($path, 'templat.xlsx', null, null, true), 'dry_run' => '1'])
+        ->assertRedirect(route('employees.import'));
+
+    unlink($path);
+
+    expect(sheetImportResult())->toMatchArray(['total' => 1, 'created' => 1, 'rejected' => 0, 'dryRun' => true]);
+});

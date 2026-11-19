@@ -16,11 +16,12 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * The example files offered beside the two attendance uploads on "Data absensi": what a Laporan Absensi from the scanner
  * looks like, and what a Cabang's rekapitulasi looks like.
  *
- * They are built here rather than kept as files so they cannot drift from the readers: a test feeds each one back through
- * {@see ScanLogParser} and {@see RekapParser}. The layouts are the ones those readers were written against (the
- * Fingerspot software's daily report and raw log, and the branches' "Rekapitulasi absen karyawan"). Every name, PIN and
- * number in them is made up. Only the first sheet is read when a file is uploaded, so the explanation sits on a sheet of
- * its own after the data.
+ * They are built here rather than kept as files so they cannot drift from the readers, and they follow the real files
+ * rather than the readers' minimum: the same columns in the same order, the same kind of value in each (a number where the
+ * Fingerspot software writes a number, text where it writes text), and the same kinds of row (a day worked, a day on
+ * approved duty, a day absent). Tests compare them with the real exports kept in tests/Fixtures and feed each one back
+ * through {@see ScanLogParser} and {@see RekapParser}. Every name, PIN and number in them is made up. Only the first sheet is
+ * read when a file is uploaded, so the explanation sits on a sheet of its own after the data.
  */
 class SampleWorkbooks
 {
@@ -33,12 +34,15 @@ class SampleWorkbooks
 
     private const DEVICE_SN = '60000000000001';
 
+    /** A day on approved duty: the software counts it, and there are no scans. */
+    private const DUTY = 'dinas';
+
     /**
-     * Made-up people for the scanner sample, with each day's scans: [in, out], null for no scan. Wednesday of the first
-     * person is a day off the scanner never saw, the second arrives late on Tuesday, and the third forgets to scan out on
-     * Thursday.
+     * Made-up people for the scanner sample, with each day's scans: [in, out], null for a day absent, or self::DUTY.
+     * Wednesday of the first person is a day absent, the second arrives late on Tuesday, and the third is on duty on
+     * Wednesday and forgets to scan out on Thursday.
      *
-     * @var list<array{pin: string, nip: string, name: string, position: string, department: string, days: list<array{0: string, 1: string|null}|null>}>
+     * @var list<array{pin: string, nip: string, name: string, position: string, department: string, days: list<array{0: string, 1: string|null}|string|null>}>
      */
     private const PEOPLE = [
         [
@@ -51,7 +55,7 @@ class SampleWorkbooks
         ],
         [
             'pin' => '1003', 'nip' => '100000000000003', 'name' => 'Agus Wijaya', 'position' => 'PENYELIA', 'department' => 'GUDANG',
-            'days' => [['07:45:22', '17:15:03'], ['07:50:37', '17:08:41'], ['07:48:09', '17:12:26'], ['07:51:55', null], ['07:47:30', '17:40:12']],
+            'days' => [['07:45:22', '17:15:03'], ['07:50:37', '17:08:41'], self::DUTY, ['07:51:55', null], ['07:47:30', '17:40:12']],
         ],
     ];
 
@@ -89,6 +93,9 @@ class SampleWorkbooks
 
     private const REKAP_DATES = '21/09/2026 s.d 20/10/2026';
 
+    /** How the branches' own sheet writes rupiah: a dash for zero. */
+    private const ACCOUNTING = '_ * #,##0_ ;_ * \-#,##0_ ;_ * "-"_ ;_ @_ ';
+
     public function __construct(private PotonganCalculator $potongan) {}
 
     /**
@@ -111,12 +118,12 @@ class SampleWorkbooks
         $this->notes($book, 'Petunjuk', [
             'Contoh Laporan Absensi dari pemindai. Semua nama, PIN dan NIP di sini rekaan.',
             '',
-            'Yang bisa diimpor, dua bentuk (lembar pertama berkas yang dibaca):',
-            '1. Laporan harian Fingerspot (lembar "Laporan harian"): satu baris per karyawan per hari, dengan "Scan masuk", "Scan pulang" dan sampai dua "Scan Istirahat". Kolom yang dibaca: PIN, Tanggal, scan-scan itu, serta NIP dan SN bila ada. Kolom lain (jadwal, terlambat, lembur, dan seterusnya) diabaikan: aplikasi menghitungnya sendiri.',
+            'Yang bisa diimpor, dua bentuk (lembar pertama berkas yang dibaca; berkas CSV dengan kolom yang sama juga bisa):',
+            '1. Laporan harian Fingerspot (lembar "Laporan harian"): satu baris per karyawan per hari, dengan "Scan masuk", "Scan pulang" dan sampai dua "Scan Istirahat". Kolom yang dibaca: PIN, Tanggal, scan-scan itu, serta NIP dan SN bila ada. Kolom lain (Jadwal, Valid, Terlambat, Durasi, Dihitung, lembur, dan seterusnya) hanya catatan perangkat lunak pemindai dan diabaikan: aplikasi menghitung hadir, terlambat dan pulang awal sendiri dari scan, cuti dan jam kerjanya.',
             '2. Log scan (lembar "Log scan"): satu baris per scan, dengan PIN dan "Tanggal scan" (atau "Tanggal" dan "Jam" terpisah). NIP dan SN opsional.',
             '',
-            'Tanggal ditulis hari-dulu (13-11-2026). Jam memakai 24 jam (07:52:10).',
-            'Baris tanpa scan sama sekali (tidak hadir, libur) dilewati, bukan kesalahan.',
+            'Contoh ini memuat tiga macam hari yang ada di laporan sebenarnya: hari hadir dengan scan, hari tugas atau cuti (dihitung, tanpa scan) dan hari tidak hadir. Baris tanpa scan sama sekali dilewati, bukan kesalahan.',
+            'Tanggal ditulis hari-dulu (13-11-2026). Jam memakai 24 jam (07:52:10). PIN dan NIP berupa teks.',
             'PIN yang belum dikaitkan dengan karyawan ditahan, tidak dibuang: kaitkan di tab yang sama. Bila NIP ikut tertulis dan tepat satu karyawan memilikinya, PIN dikaitkan otomatis.',
             'Mengunggah berkas yang sama atau tumpang tindih dua kali tidak menambah apa pun.',
         ]);
@@ -173,7 +180,7 @@ class SampleWorkbooks
             }
 
             $sheet->setCellValue("J{$row}", $potongan);
-            $sheet->getStyle("J{$row}")->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->getStyle("J{$row}")->getNumberFormat()->setFormatCode(self::ACCOUNTING);
 
             $totals['alpa'] += $alpa;
             $totals['izin'] += $izin;
@@ -190,8 +197,25 @@ class SampleWorkbooks
         $sheet->setCellValue("H{$row}", $totals['sakit']);
         $sheet->setCellValue("I{$row}", $totals['telat']);
         $sheet->setCellValue("J{$row}", $totals['potongan']);
-        $sheet->getStyle("J{$row}")->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->getStyle("J{$row}")->getNumberFormat()->setFormatCode(self::ACCOUNTING);
         $sheet->getStyle("B{$row}:K{$row}")->getFont()->setBold(true);
+
+        // Under the table the branches' sheet keeps the rate of each Zona (which its own formulas read) and a signature
+        // block. They are for the people who sign it: the app reads neither, and uses its own rates.
+        $legend = $row + 2;
+        $sheet->setCellValue("C{$legend}", 'KETERANGAN');
+        $sheet->setCellValue("D{$legend}", 'JUMLAH');
+        $sheet->getStyle("C{$legend}:D{$legend}")->getFont()->setBold(true);
+        $sheet->setCellValue("K{$legend}", 'Penanggung Jawab');
+
+        foreach ([Zona::Hitam, Zona::Merah, Zona::Hijau] as $offset => $zona) {
+            $line = $legend + 1 + $offset;
+            $sheet->setCellValue("C{$line}", 'ZONA '.strtoupper($zona->label()));
+            $sheet->setCellValue("D{$line}", $this->potongan->rateFor($zona));
+            $sheet->getStyle("D{$line}")->getNumberFormat()->setFormatCode(self::ACCOUNTING);
+        }
+
+        $sheet->setCellValue('K'.($legend + 3), 'Kepala Cabang/HRD,');
 
         foreach (['A' => 3, 'B' => 14, 'C' => 24, 'D' => 28, 'E' => 10, 'F' => 8, 'G' => 8, 'H' => 8, 'I' => 8, 'J' => 18, 'K' => 28] as $column => $width) {
             $sheet->getColumnDimension($column)->setWidth($width);
@@ -203,9 +227,9 @@ class SampleWorkbooks
             'Di atas tabel isi sel berlabel: Cabang, Periode, dan Tanggal dengan bentuk '.self::REKAP_DATES.' (hari/bulan/tahun). Bila rentang tanggal tidak ada, bulan pada Periode (misalnya OKTOBER 2026) dipakai.',
             'Tabel memakai judul kolom NAMA, JABATAN / BAGIAN, ZONA, ALPA, IZIN, SAKIT, TELAT dan TOTAL POTONGAN. Kolom dicari dari judulnya, jadi urutannya boleh berbeda; kolom tambahan diabaikan.',
             'ALPA, IZIN, SAKIT dan TELAT berisi jumlah hari, bilangan bulat; kosong dibaca nol. ZONA: HIJAU, MERAH atau HITAM.',
-            'Akhiri tabel dengan baris JUMLAH. Baris setelahnya tidak dibaca.',
+            'Akhiri tabel dengan baris JUMLAH. Baris setelahnya (tarif per Zona, tanda tangan) tidak dibaca.',
             '',
-            'Potongan dihitung ulang oleh aplikasi dari ZONA: alpa dan izin sehari penuh, telat setengah, sakit tidak dipotong, dan Supervisor tidak dipotong. Selisih dengan angka di berkas ditandai merah saat memeriksa, dan angka aplikasi yang dipakai.',
+            'Potongan dihitung ulang oleh aplikasi dari ZONA dengan tarifnya sendiri, bukan tarif yang tertulis di bawah tabel: alpa dan izin sehari penuh, telat setengah, sakit tidak dipotong, dan Supervisor tidak dipotong. Selisih dengan angka di berkas ditandai merah saat memeriksa, dan angka aplikasi yang dipakai.',
             'Hanya lembar pertama yang dibaca. Setelah diunggah, berkas dibuka sebagai draft; belum ada yang dihitung sampai dikonfirmasi.',
         ]);
 
@@ -233,41 +257,54 @@ class SampleWorkbooks
         foreach (self::PEOPLE as $person) {
             foreach (self::DAY_NAMES as $index => $dayName) {
                 $date = CarbonImmutable::parse(self::WEEK_START)->addDays($index);
-                $scans = $person['days'][$index];
-                $friday = $dayName === 'JUMAT';
-                $end = $friday ? '17:30:00' : '17:00:00';
+                $day = $person['days'][$index];
+                $scans = is_array($day) ? $day : null;
+                $onDuty = $day === self::DUTY;
+                $end = $dayName === 'JUMAT' ? '17:30:00' : '17:00:00';
                 $in = $scans[0] ?? null;
                 $out = $scans[1] ?? null;
+                $late = $in === null ? 0 : max(0, $this->minutes($in) - $this->minutes('08:00:00'));
+                $early = $out === null ? 0 : max(0, $this->minutes($end) - $this->minutes($out));
+                $complete = $in !== null && $out !== null;
+                // As in the real report: the minutes credited against the schedule (late and early-leave taken off), not
+                // the time between the scans.
+                $credited = $complete ? max(0, $this->minutes($end) - $this->minutes('08:00:00') - $late - $early) : 0;
 
-                $values = [
+                // The three kinds of row the real report has: [Jadwal, Jam kerja, Valid, Dihitung].
+                [$schedule, $workDay, $valid, $counted] = match (true) {
+                    $scans !== null => ['JADWAL KERJA', $dayName, -1, $complete ? 1 : 0],
+                    $onDuty => ['Izin dinas (Izin keperluan kantor)', null, -1, 1],
+                    default => ['Tidak Hadir', 'Tidak Hadir', 0, 0],
+                };
+
+                $this->valueRow($sheet, $row++, [
                     $date->format('d-m-Y'),
-                    $scans === null ? 'Tidak Hadir' : 'JADWAL KERJA',
-                    $scans === null ? 'Tidak Hadir' : $dayName,
-                    $scans === null ? '0' : '-1',
+                    $schedule,
+                    $workDay,
+                    $valid,
                     $person['pin'],
                     $person['nip'],
                     $person['name'],
                     $person['position'],
                     $person['department'],
                     self::OFFICE,
-                    '0', '0', '0',
+                    0, 0, 0,
                     $scans === null ? '00:00:00' : '08:00:00',
-                    $in ?? '',
-                    $in === null ? '' : self::DEVICE_SN,
-                    '0',
-                    $in === null ? '0' : (string) max(0, $this->minutes($in) - $this->minutes('08:00:00')),
-                    '', '', '0', '0', '0',
-                    $out === null ? '0' : (string) max(0, $this->minutes($end) - $this->minutes($out)),
-                    $scans === null ? '00:00:00' : $end,
-                    $out ?? '',
-                    $out === null ? '' : self::DEVICE_SN,
-                    $in !== null && $out !== null ? $this->minutes($out) - $this->minutes($in) : 0,
-                    $scans === null ? 0 : 1,
+                    $in,
+                    $in === null ? null : self::DEVICE_SN,
                     0,
-                    $scans !== null && $out === null ? 'Tidak scan pulang' : '',
-                ];
-
-                $this->textRow($sheet, $row++, $values);
+                    $late,
+                    null, null,
+                    0, 0, 0,
+                    $early,
+                    $scans === null ? '00:00:00' : $end,
+                    $out,
+                    $out === null ? null : self::DEVICE_SN,
+                    $credited,
+                    $counted,
+                    0,
+                    $onDuty ? ' TUGAS KELUAR KOTA ' : ($scans !== null && $out === null ? 'Tidak scan pulang' : null),
+                ]);
             }
         }
 
@@ -279,15 +316,19 @@ class SampleWorkbooks
         $row = 2;
 
         foreach (self::PEOPLE as $person) {
-            foreach ($person['days'] as $index => $scans) {
+            foreach ($person['days'] as $index => $day) {
+                if (! is_array($day)) {
+                    continue;
+                }
+
                 $date = CarbonImmutable::parse(self::WEEK_START)->addDays($index);
 
-                foreach ($scans ?? [] as $time) {
+                foreach ($day as $time) {
                     if ($time === null) {
                         continue;
                     }
 
-                    $this->textRow($sheet, $row++, [
+                    $this->valueRow($sheet, $row++, [
                         $date->format('d-m-Y').' '.$time,
                         $date->format('d-m-Y'),
                         $time,
@@ -297,9 +338,9 @@ class SampleWorkbooks
                         $person['position'],
                         $person['department'],
                         self::OFFICE,
-                        '1',
-                        '1',
-                        '0',
+                        1,
+                        1,
+                        0,
                         self::DEVICE_SN,
                         'Mesin contoh',
                     ]);
@@ -321,13 +362,18 @@ class SampleWorkbooks
     }
 
     /**
-     * A row of cells kept as the text the scanner software writes, so Excel cannot turn a PIN or a date into a number.
+     * A row of cells as the scanner software writes them: a whole number stays a number, everything else is text so Excel
+     * cannot turn a PIN or a date into a number, and a null is an empty cell.
      *
-     * @param  list<string|int>  $values
+     * @param  list<string|int|null>  $values
      */
-    private function textRow(Worksheet $sheet, int $row, array $values): void
+    private function valueRow(Worksheet $sheet, int $row, array $values): void
     {
         foreach ($values as $index => $value) {
+            if ($value === null || $value === '') {
+                continue;
+            }
+
             $coordinate = $sheet->getCell([$index + 1, $row])->getCoordinate();
 
             is_int($value)
