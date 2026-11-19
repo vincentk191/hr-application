@@ -192,6 +192,16 @@
         @apply rounded-2xl border border-border/70 bg-card shadow-card;
     }
 
+    /* Thin diagonal stripes in the text colour: "nothing here yet" (a day the scanner data does not reach), drawn rather than
+       written. Put it on a box whose text is muted, so the stripes stay faint in both themes. */
+    .hatch {
+        background-image: repeating-linear-gradient(
+            135deg,
+            transparent 0 5px,
+            color-mix(in oklab, currentColor 22%, transparent) 5px 6px
+        );
+    }
+
     /* Small mono caps used for labels, captions and table headings. */
     .label-mono {
         @apply font-mono text-[10px] font-medium tracking-[0.12em] text-muted-foreground uppercase;

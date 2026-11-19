@@ -1,6 +1,7 @@
 import { Form, Head } from '@inertiajs/react';
-import { Upload } from 'lucide-react';
+import { Building2, Lock, TriangleAlert, Upload } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { InfoHint } from '@/components/info-hint';
 import InputError from '@/components/input-error';
 import LimitedFileInput from '@/components/limited-file-input';
 import { Badge } from '@/components/ui/badge';
@@ -44,13 +45,29 @@ export default function EmployeesImport({
             <Head title="Impor karyawan" />
 
             <div className="flex max-w-3xl flex-col gap-4 p-4">
-                <div>
+                <div className="flex flex-wrap items-center gap-2">
                     <p className="label-mono">Impor dari Excel atau CSV</p>
-                    <p className="text-sm text-muted-foreground">
-                        {company
-                            ? `Karyawan baru ditambahkan ke ${company}.`
-                            : 'Pilih satu perusahaan di pemilih perusahaan sebelum mengimpor.'}
-                    </p>
+                    {company ? (
+                        <Badge
+                            variant="secondary"
+                            className="gap-1 font-normal"
+                        >
+                            <Building2 aria-hidden />
+                            {company}
+                        </Badge>
+                    ) : (
+                        <Badge
+                            variant="outline"
+                            className="gap-1 border-amber-500/60 bg-amber-50 font-normal text-amber-900 dark:bg-amber-950/30 dark:text-amber-100"
+                        >
+                            <TriangleAlert aria-hidden />
+                            Pilih perusahaan
+                            <InfoHint label="Perusahaan belum dipilih">
+                                Pilih satu perusahaan di pemilih perusahaan
+                                sebelum mengimpor.
+                            </InfoHint>
+                        </Badge>
+                    )}
                 </div>
 
                 <Form
@@ -85,13 +102,26 @@ export default function EmployeesImport({
                             </label>
 
                             <div className="flex flex-wrap gap-2">
-                                <Button
-                                    type="submit"
-                                    disabled={processing || company === null}
+                                <span
+                                    title={
+                                        company === null
+                                            ? 'Pilih perusahaan dulu'
+                                            : undefined
+                                    }
                                 >
-                                    <Upload className="size-4" aria-hidden />
-                                    Impor
-                                </Button>
+                                    <Button
+                                        type="submit"
+                                        disabled={
+                                            processing || company === null
+                                        }
+                                    >
+                                        <Upload
+                                            className="size-4"
+                                            aria-hidden
+                                        />
+                                        Impor
+                                    </Button>
+                                </span>
                                 <Button asChild variant="outline">
                                     <a href={template().url}>Unduh templat</a>
                                 </Button>
@@ -199,11 +229,20 @@ function ResultCard({ result }: { result: ImportResult }) {
             </dl>
 
             {result.sensitiveSkipped && (
-                <p className="mt-3 text-sm text-amber-600 dark:text-amber-400">
-                    Kolom sensitif di berkas (rekening, NPWP, KK, BPJS, dan
-                    sejenisnya) tidak dibaca karena Anda tidak berhak
-                    mengelolanya.
-                </p>
+                <div className="mt-3">
+                    <Badge
+                        variant="outline"
+                        className="gap-1 border-amber-500/60 bg-amber-50 font-normal text-amber-900 dark:bg-amber-950/30 dark:text-amber-100"
+                    >
+                        <Lock aria-hidden />
+                        Kolom sensitif dilewati
+                        <InfoHint label="Kolom sensitif">
+                            Kolom sensitif di berkas (rekening, NPWP, KK, BPJS,
+                            dan sejenisnya) tidak dibaca karena Anda tidak
+                            berhak mengelolanya.
+                        </InfoHint>
+                    </Badge>
+                </div>
             )}
 
             {result.errors.length > 0 && (
@@ -282,7 +321,10 @@ function RulesCard({
                     </p>
                 </Rule>
 
-                <Rule label="Pilihan nilai">
+                <Rule
+                    label="Pilihan nilai"
+                    hint='Pilihan lainnya ada di sheet "Petunjuk" pada templat.'
+                >
                     <Choice
                         label="Status Karyawan"
                         items={['Tetap', 'Kontrak', 'Percobaan', 'Magang']}
@@ -297,10 +339,6 @@ function RulesCard({
                         items={['2026-12-31', '31/12/2026']}
                         note="hari dulu"
                     />
-                    <p className="text-muted-foreground">
-                        Pilihan lainnya ada di sheet &quot;Petunjuk&quot; pada
-                        templat.
-                    </p>
                 </Rule>
 
                 <Rule label="Dilewati">
@@ -324,11 +362,20 @@ function RulesCard({
 }
 
 /** One rule: its name on the left (above it on a phone) and what to do on the right. */
-function Rule({ label, children }: { label: string; children: ReactNode }) {
+function Rule({
+    label,
+    hint,
+    children,
+}: {
+    label: string;
+    hint?: string;
+    children: ReactNode;
+}) {
     return (
         <>
-            <dt className="mt-3 font-medium text-foreground first:mt-0 sm:mt-0">
+            <dt className="mt-3 flex items-start gap-1 font-medium text-foreground first:mt-0 sm:mt-0">
                 {label}
+                {hint && <InfoHint label={label}>{hint}</InfoHint>}
             </dt>
             <dd className="grid gap-1.5 text-muted-foreground">{children}</dd>
         </>

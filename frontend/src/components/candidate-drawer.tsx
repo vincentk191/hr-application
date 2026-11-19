@@ -2,10 +2,12 @@
 import {
     Ban,
     CalendarCheck,
+    CalendarClock,
     CalendarDays,
     CalendarPlus,
     CalendarX2,
     Clock,
+    Hourglass,
     Mail,
     MapPin,
     Pencil,
@@ -37,6 +39,7 @@ import {
 } from '@/components/candidate-invitation';
 import { LinkifiedText } from '@/components/linkified-text';
 import { shortDate } from '@/components/requisition-summary';
+import { InfoHint } from '@/components/info-hint';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -692,13 +695,57 @@ function Questionnaire({ candidate }: { candidate: Candidate }) {
                 <h3 className="mb-1 font-extrabold tracking-tight">
                     Formulir kandidat
                 </h3>
-                <p className="text-sm text-muted-foreground">
-                    {candidate.inviteState === 'none'
-                        ? 'Belum diundang interview, jadi belum ada formulir.'
-                        : candidate.inviteState === 'expired'
-                          ? 'Tautan formulir sudah kedaluwarsa sebelum diisi. Buat tautan baru di tab Interview.'
-                          : `Belum diisi. Tautan berlaku pada ${candidate.inviteExpiresOn ? shortDate(candidate.inviteExpiresOn) : 'hari interview'}.`}
-                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                    {candidate.inviteState === 'none' ? (
+                        <>
+                            <Badge
+                                variant="secondary"
+                                className="gap-1 font-normal"
+                            >
+                                <Clock aria-hidden />
+                                Belum diundang
+                            </Badge>
+                            <InfoHint label="Formulir belum ada">
+                                Belum diundang interview, jadi belum ada
+                                formulir.
+                            </InfoHint>
+                        </>
+                    ) : candidate.inviteState === 'expired' ? (
+                        <>
+                            <Badge
+                                variant="outline"
+                                className="gap-1 border-amber-500/60 bg-amber-50 font-normal text-amber-900 dark:bg-amber-950/30 dark:text-amber-100"
+                            >
+                                <CalendarX2 aria-hidden />
+                                Tautan kedaluwarsa
+                            </Badge>
+                            <InfoHint label="Tautan kedaluwarsa">
+                                Tautan formulir sudah kedaluwarsa sebelum diisi.
+                                Buat tautan baru di tab Interview.
+                            </InfoHint>
+                        </>
+                    ) : (
+                        <>
+                            <Badge
+                                variant="secondary"
+                                className="gap-1 font-normal"
+                            >
+                                <Hourglass aria-hidden />
+                                Belum diisi
+                            </Badge>
+                            <Badge
+                                variant="outline"
+                                className="gap-1 font-normal"
+                            >
+                                <CalendarClock aria-hidden />
+                                Berlaku{' '}
+                                {candidate.inviteExpiresOn
+                                    ? shortDate(candidate.inviteExpiresOn)
+                                    : 'hari interview'}
+                            </Badge>
+                        </>
+                    )}
+                </div>
             </section>
         );
     }

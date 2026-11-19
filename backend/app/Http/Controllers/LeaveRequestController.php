@@ -197,19 +197,26 @@ class LeaveRequestController extends Controller
         $employee = $validator->fails() ? null : Employee::find($request->integer('employee_id'));
 
         if ($employee === null || $request->user()->cannot('fileFor', [LeaveRequest::class, $employee])) {
-            return response()->json(['conflicts' => []]);
+            return response()->json(['conflicts' => [], 'workingDays' => null]);
         }
+
+        $startOn = CarbonImmutable::parse($request->string('start_on')->toString());
+        $endOn = CarbonImmutable::parse($request->string('end_on')->toString());
 
         $clashes = $conflicts->for(
             $employee,
-            CarbonImmutable::parse($request->string('start_on')->toString()),
-            CarbonImmutable::parse($request->string('end_on')->toString()),
+            $startOn,
+            $endOn,
             $request->filled('start_time') && $request->filled('end_time') ? $request->string('start_time')->toString() : null,
             $request->filled('start_time') && $request->filled('end_time') ? $request->string('end_time')->toString() : null,
             $request->filled('except') ? $request->integer('except') : null,
         );
 
-        return response()->json(['conflicts' => $clashes->map(fn (LeaveRequest $clash): array => $conflicts->describe($clash))->all()]);
+        return response()->json([
+            'conflicts' => $clashes->map(fn (LeaveRequest $clash): array => $conflicts->describe($clash))->all(),
+            // For the form's "N hari kerja": the same count the request is filed with, weekends and holidays left out.
+            'workingDays' => LeaveRequest::workingDays($startOn, $endOn, $employee),
+        ]);
     }
 
     /**

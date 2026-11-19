@@ -1,5 +1,6 @@
 import { Head, Link, router, setLayoutProps } from '@inertiajs/react';
-import { Download, Plus } from 'lucide-react';
+import { Download, Plus, SearchX } from 'lucide-react';
+import { EmptyNote } from '@/components/empty-note';
 import { Badge } from '@/components/ui/badge';
 import { statusDetail } from '@/components/requisition-summary';
 import { Button } from '@/components/ui/button';
@@ -240,9 +241,11 @@ export default function RecruitmentIndex({
                 </div>
 
                 {requisitions.length === 0 ? (
-                    <p className="surface p-6 text-center text-sm text-muted-foreground">
-                        Tidak ada lowongan yang cocok.
-                    </p>
+                    <div className="surface flex justify-center p-6">
+                        <EmptyNote icon={SearchX}>
+                            Tidak ada lowongan yang cocok
+                        </EmptyNote>
+                    </div>
                 ) : (
                     <>
                         <ul className="space-y-3 md:hidden">

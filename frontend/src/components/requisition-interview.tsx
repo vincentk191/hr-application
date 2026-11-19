@@ -28,10 +28,12 @@ import { CandidateDrawer } from '@/components/candidate-drawer';
 import type { CandidateTab } from '@/components/candidate-drawer';
 import { modeLabel } from '@/components/candidate-invitation';
 import { GoogleConnectionBar } from '@/components/google-connection';
+import { InfoHint } from '@/components/info-hint';
 import InputError from '@/components/input-error';
 import { InterviewerPicker } from '@/components/interviewer-picker';
 import { firstAddress, LinkifiedText } from '@/components/linkified-text';
 import { CopyButton } from '@/components/requisition-posting';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -371,13 +373,17 @@ export function InviteDialog({
                                 <InputError message={errors.interview_mode} />
                             </div>
                             {googleMakesRoom ? (
-                                <p
-                                    className="flex items-center gap-2 text-sm text-muted-foreground"
+                                <Badge
+                                    variant="secondary"
+                                    className="gap-1 self-start font-normal"
                                     data-test="meet-automatic"
                                 >
-                                    <Video className="size-4" aria-hidden />
-                                    Tautan Google Meet dibuat otomatis.
-                                </p>
+                                    <Video aria-hidden />
+                                    Meet otomatis
+                                    <InfoHint label="Tautan Google Meet">
+                                        Tautan Google Meet dibuat otomatis.
+                                    </InfoHint>
+                                </Badge>
                             ) : (
                                 <div className="grid gap-1">
                                     <Label htmlFor="interview-place">
@@ -1293,7 +1299,10 @@ function WeekCalendar({
                     )}
                 </span>
                 {canSchedule && (
-                    <span className="label-mono">Slot kosong bisa dipilih</span>
+                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <span className="size-3 rounded-sm border border-dashed" />
+                        Kosong, klik untuk memilih
+                    </span>
                 )}
             </footer>
         </section>

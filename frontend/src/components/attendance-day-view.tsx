@@ -1,5 +1,6 @@
 import { Link } from '@inertiajs/react';
-import { FileText, LogIn, LogOut, ScanLine } from 'lucide-react';
+import { FileText, LogIn, LogOut, ScanLine, SearchX } from 'lucide-react';
+import { EmptyNote } from '@/components/empty-note';
 import { STATUS_LABEL, STATUS_TILE } from '@/lib/attendance-status';
 import { cn } from '@/lib/utils';
 import { show as employeeShow } from '@/routes/employees';
@@ -247,9 +248,11 @@ export function DayView({
 
     if (rows.length === 0) {
         return (
-            <p className="surface p-6 text-center text-sm text-muted-foreground">
-                Tidak ada karyawan yang cocok.
-            </p>
+            <div className="surface flex justify-center p-6">
+                <EmptyNote icon={SearchX}>
+                    Tidak ada karyawan yang cocok
+                </EmptyNote>
+            </div>
         );
     }
 

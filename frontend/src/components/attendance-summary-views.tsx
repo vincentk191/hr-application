@@ -1,5 +1,7 @@
+import { SearchX } from 'lucide-react';
 import { Link } from '@inertiajs/react';
 import type { ReactNode } from 'react';
+import { EmptyNote } from '@/components/empty-note';
 import { STATUS_TILE } from '@/lib/attendance-status';
 import { show as employeeShow } from '@/routes/employees';
 import type {
@@ -147,6 +149,11 @@ export function MonthSummary({
                                 !day.isWorkday ||
                                 day.holiday !== null ||
                                 !day.covered;
+                            // A working day the data does not reach is drawn striped, so it cannot be read as nobody came.
+                            const noData =
+                                !day.covered &&
+                                day.isWorkday &&
+                                day.holiday === null;
 
                             return (
                                 <button
@@ -160,7 +167,7 @@ export function MonthSummary({
                                             : muted
                                               ? 'bg-muted/40 text-muted-foreground'
                                               : ''
-                                    } ${day.date === today ? 'ring-2 ring-foreground' : ''}`}
+                                    } ${noData ? 'hatch border-dashed' : ''} ${day.date === today ? 'ring-2 ring-foreground' : ''}`}
                                     style={
                                         counted && !low
                                             ? {
@@ -232,7 +239,11 @@ export function MonthSummary({
                             },
                             {
                                 swatch: 'bg-muted/40 border',
-                                label: 'Libur / akhir pekan / belum ada data',
+                                label: 'Libur / akhir pekan',
+                            },
+                            {
+                                swatch: 'hatch border border-dashed text-muted-foreground',
+                                label: 'Belum ada data',
                             },
                         ]}
                     />
@@ -249,7 +260,7 @@ export function MonthSummary({
                                 label: 'Cuti',
                             },
                             {
-                                swatch: 'bg-muted/40 border',
+                                swatch: 'hatch border border-dashed text-muted-foreground',
                                 label: 'Belum ada data',
                             },
                         ]}
@@ -285,9 +296,11 @@ function RekapMark({ period }: { period: string | null }) {
 function PeopleTable({ people }: { people: CalendarEmployeeFigures[] }) {
     if (people.length === 0) {
         return (
-            <p className="p-3 text-center text-sm text-muted-foreground">
-                Tidak ada karyawan yang cocok.
-            </p>
+            <div className="flex justify-center p-3">
+                <EmptyNote icon={SearchX}>
+                    Tidak ada karyawan yang cocok
+                </EmptyNote>
+            </div>
         );
     }
 

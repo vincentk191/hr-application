@@ -168,3 +168,15 @@ it('serves the question on the public entrance too', function () {
         ->getJson(route('leave-requests.conflicts', ['employee_id' => $this->staff->id, 'start_on' => '2026-10-21', 'end_on' => '2026-10-21']))
         ->assertOk()->assertJsonCount(1, 'conflicts');
 });
+
+it('tells the form how many working days the chosen dates are, leaving out the weekend', function () {
+    // Thursday to Monday: Thursday, Friday and Monday count.
+    $query = ['employee_id' => $this->staff->id, 'start_on' => '2026-10-22', 'end_on' => '2026-10-26'];
+
+    $this->actingAs($this->staffUser)->getJson(route('leave-requests.conflicts', $query))
+        ->assertOk()->assertJsonPath('workingDays', 3);
+
+    // Dates not filled in yet have no count.
+    $this->actingAs($this->staffUser)->getJson(route('leave-requests.conflicts', ['employee_id' => $this->staff->id]))
+        ->assertOk()->assertJsonPath('workingDays', null);
+});

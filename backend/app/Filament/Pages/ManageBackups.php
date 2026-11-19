@@ -74,15 +74,18 @@ class ManageBackups extends Page
 
     public function form(Schema $schema): Schema
     {
-        $blank = 'Kosong = pakai nilai di backup.env di server.';
+        // A blank field means "use the server's own value" (backup.env), so that is what an empty one says.
+        $followServer = 'Ikut server';
 
         return $schema->components([
             Toggle::make('enabled')
                 ->label('Cadangan otomatis aktif')
-                ->helperText('Dimatikan: jadwal di server tetap jalan tetapi tidak membuat cadangan, dan tidak mengirim tanda "berhasil" ke pemantauan.'),
+                ->hintIcon(Heroicon::OutlinedInformationCircle, tooltip: 'Dimatikan: jadwal di server tetap jalan tetapi tidak membuat cadangan, dan tidak mengirim tanda "berhasil" ke pemantauan.'),
             TextInput::make('age_recipient')
                 ->label('Kunci publik enkripsi (age)')
-                ->helperText('Dimulai dengan "age1". Buat pasangan kuncinya di komputer Anda dengan age-keygen; hanya kunci publik ini yang ditaruh di sini. Kunci privatnya jangan pernah ada di server: tanpanya cadangan tidak bisa dibuka. '.$blank)
+                ->helperText('Kunci privatnya jangan pernah ada di server: tanpanya cadangan tidak bisa dibuka.')
+                ->hintIcon(Heroicon::OutlinedInformationCircle, tooltip: 'Dimulai dengan "age1". Buat pasangan kuncinya di komputer Anda dengan age-keygen; hanya kunci publik ini yang ditaruh di sini.')
+                ->placeholder($followServer)
                 ->nullable()
                 ->maxLength(100)
                 ->autocomplete(false)
@@ -90,7 +93,9 @@ class ManageBackups extends Page
                 ->validationMessages(['regex' => 'Bukan kunci publik age yang sah: harus dimulai "age1" dan 62 karakter.']),
             TextInput::make('remote')
                 ->label('Tujuan salinan di luar server (rclone)')
-                ->helperText('Contoh: b2:nama-bucket/hr-app. Remote-nya dibuat dulu di server dengan "rclone config"; kredensialnya sengaja tidak diatur dari sini. Pakai folder khusus, cadangan lama di sana dihapus otomatis. '.$blank)
+                ->helperText('Pakai folder khusus: cadangan lama di sana dihapus otomatis.')
+                ->hintIcon(Heroicon::OutlinedInformationCircle, tooltip: 'Contoh: b2:nama-bucket/hr-app. Remote-nya dibuat dulu di server dengan "rclone config"; kredensialnya sengaja tidak diatur dari sini.')
+                ->placeholder($followServer)
                 ->nullable()
                 ->maxLength(200)
                 ->autocomplete(false)
@@ -98,7 +103,7 @@ class ManageBackups extends Page
                 ->validationMessages(['regex' => 'Harus berbentuk nama:folder, misalnya b2:nama-bucket/hr-app. Nama diawali huruf, angka atau garis bawah; folder tidak boleh memuat "..".']),
             TextInput::make('keep_days')
                 ->label('Simpan di server (hari)')
-                ->helperText($blank)
+                ->placeholder($followServer)
                 ->numeric()
                 ->integer()
                 ->minValue(1)
@@ -106,7 +111,7 @@ class ManageBackups extends Page
                 ->nullable(),
             TextInput::make('remote_keep_days')
                 ->label('Simpan di luar server (hari)')
-                ->helperText($blank)
+                ->placeholder($followServer)
                 ->numeric()
                 ->integer()
                 ->minValue(1)
@@ -114,7 +119,8 @@ class ManageBackups extends Page
                 ->nullable(),
             TextInput::make('ok_url')
                 ->label('Alamat pemantauan: berhasil')
-                ->helperText('Layanan seperti healthchecks.io menunggu panggilan ini tiap hari dan memberi tahu Anda bila tidak datang. Alamat ini memuat token rahasia. '.$blank)
+                ->hintIcon(Heroicon::OutlinedInformationCircle, tooltip: 'Layanan seperti healthchecks.io menunggu panggilan ini tiap hari dan memberi tahu Anda bila tidak datang. Alamat ini memuat token rahasia.')
+                ->placeholder($followServer)
                 ->nullable()
                 ->maxLength(500)
                 ->autocomplete(false)
@@ -122,7 +128,7 @@ class ManageBackups extends Page
                 ->validationMessages(['regex' => 'Harus berupa alamat yang diawali https://.']),
             TextInput::make('fail_url')
                 ->label('Alamat pemantauan: gagal')
-                ->helperText($blank)
+                ->placeholder($followServer)
                 ->nullable()
                 ->maxLength(500)
                 ->autocomplete(false)

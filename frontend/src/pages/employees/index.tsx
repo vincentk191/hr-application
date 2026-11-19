@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, FilterX, X } from 'lucide-react';
 import { useState } from 'react';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import { EmployeeDrawer } from '@/components/employee-drawer';
@@ -138,12 +138,56 @@ export default function EmployeesIndex({
         });
     };
 
-    const isFiltered =
-        filters.search !== '' ||
-        filters.branches.length > 0 ||
-        filters.departments.length > 0 ||
-        filters.positions.length > 0 ||
-        filters.statuses.length > 0;
+    // One chip for each filter that is on, each with its own way off, so the combination can be read and undone piece by piece.
+    const filterChips: { key: string; label: string; remove: () => void }[] = [
+        ...(filters.search !== ''
+            ? [
+                  {
+                      key: 'search',
+                      label: `“${filters.search}”`,
+                      remove: () => {
+                          setSearch('');
+                          apply({ search: '' });
+                      },
+                  },
+              ]
+            : []),
+        ...filters.branches.map((name) => ({
+            key: `branch-${name}`,
+            label: name,
+            remove: () =>
+                apply({
+                    branches: filters.branches.filter((item) => item !== name),
+                }),
+        })),
+        ...filters.departments.map((name) => ({
+            key: `department-${name}`,
+            label: name,
+            remove: () =>
+                apply({
+                    departments: filters.departments.filter(
+                        (item) => item !== name,
+                    ),
+                }),
+        })),
+        ...filters.positions.map((name) => ({
+            key: `position-${name}`,
+            label: name,
+            remove: () =>
+                apply({
+                    positions: filters.positions.filter(
+                        (item) => item !== name,
+                    ),
+                }),
+        })),
+        ...filters.statuses.map((value) => ({
+            key: `status-${value}`,
+            label:
+                statuses.find((status) => status.value === value)?.label ??
+                value,
+            remove: () => toggleStatus(value),
+        })),
+    ];
 
     return (
         <>
@@ -248,21 +292,31 @@ export default function EmployeesIndex({
                     />
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                    <span>
-                        Menampilkan{' '}
-                        <span className="font-medium text-foreground">
-                            {employees.length}
-                        </span>{' '}
-                        dari {total} karyawan
-                    </span>
-                    {isFiltered && (
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <Badge variant="secondary" className="text-sm font-normal">
+                        {employees.length} dari {total} karyawan
+                    </Badge>
+                    {filterChips.map((chip) => (
+                        <button
+                            key={chip.key}
+                            type="button"
+                            onClick={chip.remove}
+                            aria-label={`Hapus filter ${chip.label}`}
+                            className="inline-flex items-center gap-1 rounded-full border bg-card px-2.5 py-1 text-xs hover:bg-muted"
+                        >
+                            {chip.label}
+                            <X className="size-3" aria-hidden />
+                        </button>
+                    ))}
+                    {filterChips.length > 1 && (
                         <button
                             type="button"
                             onClick={clearFilters}
-                            className="underline"
+                            aria-label="Hapus semua filter"
+                            title="Hapus semua filter"
+                            className="inline-flex size-6 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
                         >
-                            Hapus filter
+                            <FilterX className="size-4" aria-hidden />
                         </button>
                     )}
                 </div>

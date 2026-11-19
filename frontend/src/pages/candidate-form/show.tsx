@@ -1,5 +1,5 @@
 import { Form, Head } from '@inertiajs/react';
-import { Send } from 'lucide-react';
+import { Send, Info, Lock } from 'lucide-react';
 import InputError from '@/components/input-error';
 import { LinkifiedText } from '@/components/linkified-text';
 import { RupiahInput } from '@/components/rupiah-input';
@@ -56,10 +56,13 @@ function Questions({
                 <h2 className="text-lg font-extrabold tracking-tight">
                     Kesesuaian dengan persyaratan
                 </h2>
-                <p className="text-sm text-muted-foreground">
-                    Jawab Ya atau Tidak dengan jujur. Jawaban Tidak tidak
-                    otomatis menggugurkan Anda.
-                </p>
+                <div className="mt-2 flex items-start gap-2 rounded-xl bg-muted/50 p-3 text-sm text-muted-foreground">
+                    <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
+                    <p>
+                        Jawab Ya atau Tidak dengan jujur. Jawaban Tidak tidak
+                        otomatis menggugurkan Anda.
+                    </p>
+                </div>
             </div>
 
             {Object.entries(groups).map(([group, items]) => (
@@ -274,7 +277,8 @@ export default function CandidateForm(props: Props) {
                                 <Send className="size-4" aria-hidden />
                                 Kirim formulir
                             </Button>
-                            <p className="text-center text-xs text-muted-foreground">
+                            <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
+                                <Lock className="size-3" aria-hidden />
                                 Formulir hanya bisa dikirim sekali.
                             </p>
                         </>

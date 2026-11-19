@@ -1,7 +1,9 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Check, Plus, RotateCcw, X } from 'lucide-react';
+import { Check, CircleCheck, Plus, RotateCcw, X } from 'lucide-react';
 import { useState } from 'react';
 import { ChipMultiSelect } from '@/components/chip-multi-select';
+import { EmptyNote } from '@/components/empty-note';
+import { InfoHint } from '@/components/info-hint';
 import {
     FilterButton,
     FilterSection,
@@ -9,6 +11,7 @@ import {
 } from '@/components/filter-sheet';
 import InputError from '@/components/input-error';
 import { MultiSelectFilter } from '@/components/multi-select-filter';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { issues as issuesRoute } from '@/routes/attendance';
@@ -90,6 +93,31 @@ function correctionUrl(issue: Issue): string {
  * Tablet and up show a table; a phone shows one card per issue, with its filters in a bottom sheet and the
  * "excuse" bar pinned above the tab bar.
  */
+/** The longest range one view holds, as the server clamps it (AttendanceIssueController). */
+const MAX_DAYS = 62;
+
+/** An ISO date moved by whole days. */
+function shiftDay(iso: string, days: number): string {
+    const date = new Date(`${iso}T00:00:00Z`);
+    date.setUTCDate(date.getUTCDate() + days);
+
+    return date.toISOString().slice(0, 10);
+}
+
+/** The limit, said once as a chip; the date pickers already refuse a longer range. */
+function RangeLimit() {
+    return (
+        <span className="inline-flex items-center gap-1.5">
+            <Badge variant="outline" className="font-normal">
+                maks. {MAX_DAYS} hari
+            </Badge>
+            <InfoHint label="Batas rentang">
+                Satu tampilan memuat paling banyak {MAX_DAYS} hari.
+            </InfoHint>
+        </span>
+    );
+}
+
 export default function AttendanceIssues({
     issues,
     truncated,
@@ -285,6 +313,8 @@ export default function AttendanceIssues({
                             id="from"
                             type="date"
                             className="w-44"
+                            min={shiftDay(filters.to, 1 - MAX_DAYS)}
+                            max={filters.to}
                             value={filters.from}
                             onChange={(event) =>
                                 go({ from: event.target.value })
@@ -302,6 +332,8 @@ export default function AttendanceIssues({
                             id="to"
                             type="date"
                             className="w-44"
+                            min={filters.from}
+                            max={shiftDay(filters.from, MAX_DAYS - 1)}
                             value={filters.to}
                             onChange={(event) => go({ to: event.target.value })}
                         />
@@ -320,9 +352,7 @@ export default function AttendanceIssues({
                         ))}
                     </div>
 
-                    <p className="text-xs text-muted-foreground">
-                        Maksimal 62 hari sekali tampil.
-                    </p>
+                    <RangeLimit />
                 </div>
 
                 <div className="hidden flex-wrap items-center gap-2 md:flex">
@@ -395,9 +425,11 @@ export default function AttendanceIssues({
                 )}
 
                 {issues.length === 0 ? (
-                    <p className="surface p-6 text-center text-sm text-muted-foreground">
-                        Tidak ada masalah pada rentang ini.
-                    </p>
+                    <div className="surface flex justify-center p-6">
+                        <EmptyNote icon={CircleCheck} tone="ok">
+                            Tidak ada masalah pada rentang ini
+                        </EmptyNote>
+                    </div>
                 ) : (
                     <>
                         <div className="surface hidden overflow-x-auto md:block">
@@ -600,6 +632,8 @@ export default function AttendanceIssues({
                             <Input
                                 id="sheet-from"
                                 type="date"
+                                min={shiftDay(filters.to, 1 - MAX_DAYS)}
+                                max={filters.to}
                                 value={filters.from}
                                 onChange={(event) =>
                                     go({ from: event.target.value })
@@ -616,6 +650,8 @@ export default function AttendanceIssues({
                             <Input
                                 id="sheet-to"
                                 type="date"
+                                min={filters.from}
+                                max={shiftDay(filters.from, MAX_DAYS - 1)}
                                 value={filters.to}
                                 onChange={(event) =>
                                     go({ to: event.target.value })
@@ -623,9 +659,7 @@ export default function AttendanceIssues({
                             />
                         </div>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                        Maksimal 62 hari sekali tampil.
-                    </p>
+                    <RangeLimit />
                 </FilterSection>
 
                 <FilterSection title="Jenis masalah">

@@ -1,6 +1,7 @@
 import { Head, Link, router, setLayoutProps, usePage } from '@inertiajs/react';
 import {
     ArrowLeft,
+    Lock,
     MoreVertical,
     Power,
     RefreshCw,
@@ -10,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { EmployeeAttendance } from '@/components/employee-attendance';
+import { InfoHint } from '@/components/info-hint';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import { EmployeeDocuments } from '@/components/employee-documents';
 import { EmployeeTeamTab } from '@/components/employee-team';
@@ -85,12 +87,25 @@ function rupiah(value: number | null): string {
 function RestrictedCard({ title }: { title: string }) {
     return (
         <section className="surface p-4">
-            <h3 className="mb-2 text-base font-extrabold tracking-tight">
-                {title}
-            </h3>
-            <p className="text-sm text-muted-foreground">
-                Data ini dibatasi dan tidak dapat Anda lihat.
-            </p>
+            <div className="flex items-center justify-between gap-2">
+                <h3 className="text-base font-extrabold tracking-tight">
+                    {title}
+                </h3>
+                <span className="flex items-center gap-1.5">
+                    <Badge variant="outline" className="gap-1 font-normal">
+                        <Lock aria-hidden />
+                        Terbatas
+                    </Badge>
+                    <InfoHint label="Data dibatasi">
+                        Data ini dibatasi dan tidak dapat Anda lihat.
+                    </InfoHint>
+                </span>
+            </div>
+            <div
+                role="img"
+                aria-label="Data dibatasi"
+                className="hatch mt-3 h-14 rounded-xl border border-dashed text-muted-foreground"
+            />
         </section>
     );
 }

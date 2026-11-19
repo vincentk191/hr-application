@@ -1,6 +1,7 @@
 import { router } from '@inertiajs/react';
 import { Check, Lock, Plus, RefreshCw, X } from 'lucide-react';
 import { useState } from 'react';
+import { InfoHint } from '@/components/info-hint';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -382,11 +383,27 @@ export function OffboardingChecklistPanel({
                 {progress.ready ? (
                     <Badge>Lengkap · sign-off bisa dibuka</Badge>
                 ) : (
-                    <p className="max-w-xl text-sm text-amber-700 dark:text-amber-300">
-                        Kasus belum bisa lanjut ke sign-off:{' '}
-                        {progress.blockers.join(' ')} Sign-off atasan dan HR
-                        terkunci sampai semuanya selesai.
-                    </p>
+                    <div className="flex max-w-xl flex-wrap items-center gap-2">
+                        <Badge
+                            variant="outline"
+                            className="gap-1 border-amber-500/60 bg-amber-50 font-normal text-amber-900 dark:bg-amber-950/30 dark:text-amber-100"
+                        >
+                            <Lock aria-hidden />
+                            Sign-off terkunci
+                            <InfoHint label="Kapan sign-off terbuka">
+                                Kasus belum bisa lanjut ke sign-off. Sign-off
+                                atasan dan HR terkunci sampai semuanya selesai.
+                            </InfoHint>
+                        </Badge>
+                        {progress.blockers.map((blocker) => (
+                            <span
+                                key={blocker}
+                                className="inline-flex items-center rounded-full border border-amber-500/40 bg-background/60 px-3 py-1 text-xs"
+                            >
+                                {blocker}
+                            </span>
+                        ))}
+                    </div>
                 )}
             </section>
 

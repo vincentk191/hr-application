@@ -1,9 +1,10 @@
 import { Form, router } from '@inertiajs/react';
-import { Plus, Save, Trash2, Wand2 } from 'lucide-react';
+import { Plus, Save, Trash2, Users, Wand2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { CandidateDrawer } from '@/components/candidate-drawer';
 import type { CandidateTab } from '@/components/candidate-drawer';
+import { EmptyNote } from '@/components/empty-note';
 import InputError from '@/components/input-error';
 import LimitedFileInput from '@/components/limited-file-input';
 import { Badge } from '@/components/ui/badge';
@@ -191,14 +192,28 @@ function Shortlist({ item, list }: { item: Requisition; list: Candidate[] }) {
             </header>
 
             {list.length === 0 ? (
-                <p
-                    className="p-4 text-sm text-muted-foreground"
+                <div
+                    className="flex flex-wrap items-center justify-between gap-3 p-4"
                     data-test="no-candidates"
                 >
-                    Belum ada kandidat. Saring pelamar di platform, lalu
-                    tambahkan yang layak lanjut lewat tombol “Tambah kandidat”
-                    di atas.
-                </p>
+                    <EmptyNote
+                        icon={Users}
+                        hint="Saring pelamar di platform, lalu tambahkan yang layak lanjut."
+                    >
+                        Belum ada kandidat
+                    </EmptyNote>
+                    {item.canManageScreening && (
+                        <AddCandidateDialog
+                            item={item}
+                            trigger={
+                                <Button size="sm">
+                                    <Plus className="size-4" aria-hidden />
+                                    Tambah kandidat
+                                </Button>
+                            }
+                        />
+                    )}
+                </div>
             ) : (
                 <ul className="divide-y">
                     {list.map((candidate) => (

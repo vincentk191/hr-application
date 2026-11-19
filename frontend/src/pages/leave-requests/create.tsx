@@ -1,10 +1,12 @@
 import { Form, Head } from '@inertiajs/react';
-import { Send } from 'lucide-react';
+import { Paperclip, Send } from 'lucide-react';
 import { useState } from 'react';
+import { InfoHint } from '@/components/info-hint';
 import InputError from '@/components/input-error';
 import { LeaveConflictNotice } from '@/components/leave-conflict-notice';
 import LimitedFileInput from '@/components/limited-file-input';
 import { TimeframeFields } from '@/components/timeframe-fields';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -166,11 +168,6 @@ export default function LeaveRequestCreate({
                             <TimeframeFields errors={errors} />
                             <LeaveConflictNotice />
 
-                            <p className="-mt-3 text-xs text-muted-foreground">
-                                Yang dihitung hanya hari kerja: akhir pekan dan
-                                hari libur tidak termasuk.
-                            </p>
-
                             <div className="grid gap-2">
                                 <Label htmlFor="reason">Catatan</Label>
                                 <textarea
@@ -183,24 +180,57 @@ export default function LeaveRequestCreate({
                             </div>
 
                             <div className="grid gap-2">
-                                <Label htmlFor="attachments">
-                                    Lampiran{' '}
-                                    <span className="text-muted-foreground">
-                                        {isSakit ? '(wajib)' : '(opsional)'}
-                                    </span>
+                                <Label
+                                    htmlFor="attachments"
+                                    className="flex items-center gap-1.5"
+                                >
+                                    <Paperclip className="size-4" aria-hidden />
+                                    Lampiran
+                                    {isSakit && (
+                                        <span
+                                            className="text-destructive"
+                                            title="Wajib untuk sakit"
+                                        >
+                                            *
+                                        </span>
+                                    )}
                                 </Label>
-                                <LimitedFileInput
-                                    id="attachments"
-                                    name="attachments[]"
-                                    multiple
-                                    accept=".pdf,.jpg,.jpeg,.png"
-                                    maxSizeMb={5}
-                                    maxFiles={5}
-                                />
-                                <p className="text-xs text-muted-foreground">
-                                    Mis. surat dokter. PDF, JPG, atau PNG,
-                                    maksimal 5 berkas @ 5 MB.
-                                </p>
+                                <div
+                                    className={
+                                        isSakit
+                                            ? 'rounded-xl ring-1 ring-destructive/60'
+                                            : undefined
+                                    }
+                                >
+                                    <LimitedFileInput
+                                        id="attachments"
+                                        name="attachments[]"
+                                        multiple
+                                        accept=".pdf,.jpg,.jpeg,.png"
+                                        maxSizeMb={5}
+                                        maxFiles={5}
+                                        aria-required={isSakit}
+                                    />
+                                </div>
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                    {[
+                                        'PDF',
+                                        'JPG',
+                                        'PNG',
+                                        '5 berkas @ 5 MB',
+                                    ].map((item) => (
+                                        <Badge
+                                            key={item}
+                                            variant="outline"
+                                            className="font-normal"
+                                        >
+                                            {item}
+                                        </Badge>
+                                    ))}
+                                    <InfoHint label="Contoh lampiran">
+                                        Mis. surat dokter.
+                                    </InfoHint>
+                                </div>
                                 <InputError message={errors.attachments} />
                                 <InputError message={errors['attachments.0']} />
                             </div>

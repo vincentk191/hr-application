@@ -157,11 +157,6 @@ export default function LeaveRequestEdit({
                                 exceptId={request.id}
                             />
 
-                            <p className="-mt-3 text-xs text-muted-foreground">
-                                Yang dihitung hanya hari kerja: akhir pekan dan
-                                hari libur tidak termasuk.
-                            </p>
-
                             <div className="grid gap-2">
                                 <Label htmlFor="reason">Catatan</Label>
                                 <textarea

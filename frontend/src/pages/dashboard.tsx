@@ -26,6 +26,7 @@ import { LeaveDecisionDialog } from '@/components/leave-decision-dialog';
 import { InterviewPanel } from '@/components/requisition-interview';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { shortDate } from '@/lib/short-date';
 import { dashboard } from '@/routes';
 import { device } from '@/routes/attendance';
 import { show } from '@/routes/employees';
@@ -116,19 +117,6 @@ function ExpiringDocumentsCard({ data }: { data: ExpiringDocuments }) {
             )}
         </section>
     );
-}
-
-/** "13 Nov" from an ISO date or date-time, read as the calendar day it names. */
-function shortDate(iso: string | null): string {
-    if (iso === null) {
-        return '—';
-    }
-
-    return new Intl.DateTimeFormat('id-ID', {
-        day: 'numeric',
-        month: 'short',
-        timeZone: 'UTC',
-    }).format(new Date(`${iso.slice(0, 10)}T00:00:00Z`));
 }
 
 /**

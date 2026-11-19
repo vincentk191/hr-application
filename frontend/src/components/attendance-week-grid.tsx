@@ -1,11 +1,12 @@
 import { Link } from '@inertiajs/react';
-import { FileText } from 'lucide-react';
+import { FileText, SearchX } from 'lucide-react';
 import {
     expectedOf,
     HATCH,
     isCounted,
     LOW_DAY_SHARE,
 } from '@/components/attendance-summary-views';
+import { EmptyNote } from '@/components/empty-note';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import { STATUS_LABEL, STATUS_TILE } from '@/lib/attendance-status';
 import { cn } from '@/lib/utils';
@@ -302,9 +303,11 @@ export function WeekGrid({
                     </div>
 
                     {rows.length === 0 ? (
-                        <p className="border-t p-6 text-center text-sm text-muted-foreground">
-                            Tidak ada karyawan yang cocok.
-                        </p>
+                        <div className="flex justify-center border-t p-6">
+                            <EmptyNote icon={SearchX}>
+                                Tidak ada karyawan yang cocok
+                            </EmptyNote>
+                        </div>
                     ) : (
                         rows.map((row) => (
                             <div

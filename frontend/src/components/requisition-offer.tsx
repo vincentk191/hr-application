@@ -23,6 +23,7 @@ import type { CandidateTab } from '@/components/candidate-drawer';
 import { DecisionDialog } from '@/components/decision-dialog';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import InputError from '@/components/input-error';
+import { InfoHint } from '@/components/info-hint';
 import { shortDate } from '@/components/requisition-summary';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -346,8 +347,12 @@ function OfferTerms({
                     </div>
                     {others.length > 0 && (
                         <fieldset className="space-y-2">
-                            <legend className="text-sm font-semibold text-muted-foreground">
+                            <legend className="flex items-center gap-1 text-sm font-semibold text-muted-foreground">
                                 Terapkan juga ke
+                                <InfoHint label="Yang ikut diterapkan">
+                                    Tanggal mulai, masa percobaan dan catatan.
+                                    Nomor surat tetap sendiri-sendiri.
+                                </InfoHint>
                             </legend>
                             {others.map((other) => (
                                 <label
@@ -364,10 +369,6 @@ function OfferTerms({
                                     {other.name}
                                 </label>
                             ))}
-                            <p className="label-mono">
-                                Tanggal mulai, masa percobaan dan catatan. Nomor
-                                surat tetap sendiri-sendiri.
-                            </p>
                             <InputError message={errors.also_for} />
                         </fieldset>
                     )}
@@ -688,10 +689,34 @@ function AcceptOffer({
             confirmLabel="Tandai diterima"
             extra={(errors) => (
                 <>
-                    <p className="text-sm text-muted-foreground">
-                        Kandidat menerima penawaran, dan dihitung sebagai satu
-                        tempat terisi.
-                    </p>
+                    <div
+                        className="flex flex-wrap items-center gap-3 text-sm"
+                        data-test="quota-meter"
+                    >
+                        <span className="flex flex-wrap gap-1" aria-hidden>
+                            {Array.from({
+                                length: Math.min(
+                                    Math.max(item.quota ?? 0, item.filled + 1),
+                                    12,
+                                ),
+                            }).map((_, index) => (
+                                <span
+                                    key={index}
+                                    className={`size-3 rounded-full border ${
+                                        index < item.filled
+                                            ? 'border-emerald-500 bg-emerald-500'
+                                            : index === item.filled
+                                              ? 'border-emerald-500 motion-safe:animate-pulse'
+                                              : 'bg-muted'
+                                    }`}
+                                />
+                            ))}
+                        </span>
+                        <span className="font-medium">
+                            Terisi {item.filled} → {item.filled + 1}
+                            {item.quota !== null ? ` dari ${item.quota}` : ''}
+                        </span>
+                    </div>
                     <InputError message={errors.answer} />
                     {offer.welcomeDraft && (
                         <WelcomeEmailFields

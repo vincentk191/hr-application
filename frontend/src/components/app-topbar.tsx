@@ -1,5 +1,7 @@
+import { ShieldAlert } from 'lucide-react';
 import { Link, usePage } from '@inertiajs/react';
 import { useEffect } from 'react';
+import { InfoHint } from '@/components/info-hint';
 import { CompanySwitcher } from '@/components/company-switcher';
 import { GlobalSearch } from '@/components/global-search';
 import { InstallBanner } from '@/components/install-banner';
@@ -80,12 +82,16 @@ export function TopbarNotices() {
             {entrance?.limited && (
                 <div
                     role="status"
-                    className="border-b bg-amber-500/10 px-3 py-2 text-sm text-amber-800 sm:px-6 dark:text-amber-200"
+                    className="flex items-center gap-2 border-b bg-amber-500/10 px-3 py-1.5 text-sm text-amber-800 sm:px-6 dark:text-amber-200"
                     data-test="limited-view"
                 >
-                    Anda masuk lewat jalur publik, jadi hanya halaman pribadi
-                    Anda yang tersedia. Fitur lain (tim, persetujuan, laporan)
-                    hanya bisa dibuka lewat VPN.
+                    <ShieldAlert className="size-4 shrink-0" aria-hidden />
+                    <span className="font-medium">Mode terbatas</span>
+                    <InfoHint label="Mode terbatas">
+                        Anda masuk lewat jalur publik, jadi hanya halaman
+                        pribadi Anda yang tersedia. Fitur lain (tim,
+                        persetujuan, laporan) hanya bisa dibuka lewat VPN.
+                    </InfoHint>
                 </div>
             )}
         </>

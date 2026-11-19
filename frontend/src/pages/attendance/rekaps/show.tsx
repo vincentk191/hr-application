@@ -1,5 +1,5 @@
 import { Form, Head, router } from '@inertiajs/react';
-import { Check } from 'lucide-react';
+import { CalendarRange, Check, FileSpreadsheet, User } from 'lucide-react';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -183,15 +183,30 @@ export default function AttendanceRekapShow({
                             }
                         </Badge>
                     </div>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                        {rekap.periodStart} s.d {rekap.periodEnd}
-                        {rekap.periodLabel
-                            ? ` · Periode ${rekap.periodLabel}`
-                            : ''}
-                        {' · '}
-                        {rekap.file ?? 'berkas'}
-                        {rekap.by ? ` · diunggah ${rekap.by}` : ''}
-                    </p>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className="gap-1 font-normal">
+                            <CalendarRange aria-hidden />
+                            {rekap.periodStart} s.d {rekap.periodEnd}
+                        </Badge>
+                        {rekap.periodLabel && (
+                            <Badge variant="outline" className="font-normal">
+                                Periode {rekap.periodLabel}
+                            </Badge>
+                        )}
+                        <Badge variant="outline" className="gap-1 font-normal">
+                            <FileSpreadsheet aria-hidden />
+                            {rekap.file ?? 'berkas'}
+                        </Badge>
+                        {rekap.by && (
+                            <Badge
+                                variant="outline"
+                                className="gap-1 font-normal"
+                            >
+                                <User aria-hidden />
+                                {rekap.by}
+                            </Badge>
+                        )}
+                    </div>
                 </section>
 
                 {rekap.branchMismatch && (

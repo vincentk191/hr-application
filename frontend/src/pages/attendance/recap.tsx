@@ -1,13 +1,16 @@
 import { Head, Link, router } from '@inertiajs/react';
 import {
+    CalendarCheck,
     ChevronDown,
     Download,
     MoreVertical,
     Printer,
     Search,
+    TriangleAlert,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { flushSync } from 'react-dom';
+import { CaptureChip } from '@/components/capture-chip';
 import { ChipMultiSelect } from '@/components/chip-multi-select';
 import {
     FilterButton,
@@ -15,7 +18,9 @@ import {
     FilterSection,
     FilterSheet,
 } from '@/components/filter-sheet';
+import { InfoHint } from '@/components/info-hint';
 import { Pagination, usePagination } from '@/components/pagination';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -28,6 +33,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { formatMinutes } from '@/lib/attendance-status';
 import { printReport } from '@/lib/print';
+import { shortDate } from '@/lib/short-date';
 import { recap as recapRoute } from '@/routes/attendance';
 import { show as employeeShow } from '@/routes/employees';
 import type { BreadcrumbItem } from '@/types';
@@ -569,16 +575,7 @@ export default function AttendanceRecap({
             <Head title="Rekap absensi" />
 
             <div className="flex flex-col gap-4 p-4">
-                {capture.state !== 'current' && (
-                    <p className="surface border-amber-500/60 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
-                        Laporan Absensi{' '}
-                        {capture.state === 'never'
-                            ? 'belum pernah diunggah'
-                            : `baru sampai ${dataThrough}`}
-                        . Hari setelahnya dihitung "belum ada data", bukan tidak
-                        hadir.
-                    </p>
-                )}
+                <CaptureChip capture={capture} dataThrough={dataThrough} />
 
                 {rekapNotes.length > 0 && (
                     <p className="surface border-amber-500/60 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
@@ -785,6 +782,42 @@ export default function AttendanceRecap({
                                     <span className="text-sm text-muted-foreground">
                                         ({cut.hint})
                                     </span>
+                                    <span className="ml-auto flex flex-wrap items-center justify-end gap-2">
+                                        {item.value === 'employee' &&
+                                            truncated && (
+                                                <Badge
+                                                    variant="outline"
+                                                    className="gap-1 border-amber-500/60 bg-amber-50 font-normal text-amber-900 dark:bg-amber-950/30 dark:text-amber-100"
+                                                >
+                                                    <TriangleAlert
+                                                        aria-hidden
+                                                    />
+                                                    500 dari {total.employees}
+                                                    <InfoHint label="Daftar dipotong">
+                                                        Hanya 500 karyawan
+                                                        pertama yang
+                                                        ditampilkan; subtotal
+                                                        departemen dan total
+                                                        mencakup semuanya.
+                                                        Persempit dengan filter,
+                                                        atau unduh CSV.
+                                                    </InfoHint>
+                                                </Badge>
+                                            )}
+                                        <Badge
+                                            variant="outline"
+                                            className="font-normal"
+                                        >
+                                            hari-orang
+                                        </Badge>
+                                        <Badge
+                                            variant="outline"
+                                            className="gap-1 font-normal"
+                                        >
+                                            <CalendarCheck aria-hidden />
+                                            Data sampai {shortDate(dataThrough)}
+                                        </Badge>
+                                    </span>
                                 </div>
 
                                 <div className="hidden overflow-x-auto md:block print:block">
@@ -807,23 +840,9 @@ export default function AttendanceRecap({
                                 {item.value === 'employee' && !printing && (
                                     <Pagination pagination={pagination} />
                                 )}
-
-                                {item.value === 'employee' && truncated && (
-                                    <p className="border-t p-3 text-sm text-muted-foreground">
-                                        Hanya 500 karyawan pertama yang
-                                        ditampilkan; subtotal departemen dan
-                                        total mencakup semuanya. Persempit
-                                        dengan filter, atau unduh CSV.
-                                    </p>
-                                )}
                             </section>
                         );
                     })}
-
-                    <p className="text-xs text-muted-foreground">
-                        Angka dalam hari-orang. Data sampai {dataThrough ?? '—'}
-                        .
-                    </p>
                 </div>
             </div>
 

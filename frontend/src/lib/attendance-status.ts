@@ -10,7 +10,7 @@ export const STATUS_STYLE: Record<DayStatus, string> = {
     absent: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200',
     leave: 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200',
     off: 'bg-muted text-muted-foreground',
-    no_data: 'border border-dashed text-muted-foreground bg-transparent',
+    no_data: 'hatch border border-dashed text-muted-foreground bg-transparent',
 };
 
 /** The same colours as a bordered tile carrying the status letter, as the week grid and its legend draw it. */
@@ -23,7 +23,8 @@ export const STATUS_TILE: Record<DayStatus, string> = {
     absent: 'border-red-500/40 bg-red-500/15 text-red-700 dark:text-red-300',
     leave: 'border-sky-500/40 bg-sky-500/15 text-sky-700 dark:text-sky-300',
     off: 'border-border bg-muted/50 text-muted-foreground',
-    no_data: 'border-dashed border-border bg-transparent text-muted-foreground',
+    no_data:
+        'hatch border-dashed border-border bg-transparent text-muted-foreground',
 };
 
 export const STATUS_LABEL: Record<DayStatus, string> = {

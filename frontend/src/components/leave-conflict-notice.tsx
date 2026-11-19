@@ -1,5 +1,7 @@
-import { TriangleAlert } from 'lucide-react';
+import { CalendarDays, TriangleAlert } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { InfoHint } from '@/components/info-hint';
+import { Badge } from '@/components/ui/badge';
 import { conflicts as conflictsRoute } from '@/routes/leave-requests';
 
 type Clash = {
@@ -28,6 +30,8 @@ export function LeaveConflictNotice({
 }) {
     const anchor = useRef<HTMLDivElement>(null);
     const [clashes, setClashes] = useState<Clash[]>([]);
+    // The working days of the chosen dates, as the request will be filed with them; null until both dates are chosen.
+    const [workingDays, setWorkingDays] = useState<number | null>(null);
 
     useEffect(() => {
         const form = anchor.current?.closest('form');
@@ -52,6 +56,7 @@ export function LeaveConflictNotice({
 
             if (!employee || !startOn || !endOn || endOn < startOn) {
                 setClashes([]);
+                setWorkingDays(null);
 
                 return;
             }
@@ -78,14 +83,23 @@ export function LeaveConflictNotice({
                 },
             )
                 .then((response) =>
-                    response.ok ? response.json() : { conflicts: [] },
+                    response.ok
+                        ? response.json()
+                        : { conflicts: [], workingDays: null },
                 )
-                .then((body: { conflicts: Clash[] }) =>
-                    setClashes(body.conflicts),
+                .then(
+                    (body: {
+                        conflicts: Clash[];
+                        workingDays: number | null;
+                    }) => {
+                        setClashes(body.conflicts);
+                        setWorkingDays(body.workingDays);
+                    },
                 )
                 .catch(() => {
                     if (!signal.aborted) {
                         setClashes([]);
+                        setWorkingDays(null);
                     }
                 });
         };
@@ -109,7 +123,22 @@ export function LeaveConflictNotice({
     }, [employeeId, exceptId]);
 
     return (
-        <div ref={anchor} aria-live="polite">
+        <div ref={anchor} aria-live="polite" className="grid gap-3">
+            {workingDays !== null && (
+                <div
+                    className="flex items-center gap-1.5"
+                    data-test="working-days"
+                >
+                    <Badge variant="secondary" className="gap-1.5 text-sm">
+                        <CalendarDays aria-hidden />
+                        {workingDays} hari kerja
+                    </Badge>
+                    <InfoHint label="Cara hari dihitung">
+                        Yang dihitung hanya hari kerja: akhir pekan dan hari
+                        libur tidak termasuk.
+                    </InfoHint>
+                </div>
+            )}
             {clashes.length > 0 && (
                 <div
                     className="flex gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm"

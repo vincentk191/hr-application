@@ -3,6 +3,7 @@ import { Send, X } from 'lucide-react';
 import InputError from '@/components/input-error';
 import { PhotoInput } from '@/components/photo-input';
 import { ProfileChangeDiff } from '@/components/profile-change-diff';
+import { InfoHint } from '@/components/info-hint';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -96,7 +97,12 @@ export default function ProfileChangeRequestPage({
                                 {open.reference} ·{' '}
                                 <Badge variant="secondary">
                                     {open.statusLabel}
-                                </Badge>
+                                </Badge>{' '}
+                                <InfoHint label="Pengajuan berikutnya">
+                                    Anda baru bisa mengajukan perubahan lain
+                                    setelah HR memutuskan atau Anda menarik
+                                    permintaan ini.
+                                </InfoHint>
                             </p>
                             {open.canWithdraw && (
                                 <Button
@@ -110,10 +116,6 @@ export default function ProfileChangeRequestPage({
                             )}
                         </div>
                         <ProfileChangeDiff change={open} />
-                        <p className="text-xs text-muted-foreground">
-                            Anda baru bisa mengajukan perubahan lain setelah HR
-                            memutuskan atau Anda menarik permintaan ini.
-                        </p>
                     </div>
                 ) : (
                     <Form

@@ -1,10 +1,27 @@
 import { Form, Head, router } from '@inertiajs/react';
-import { Download, Save, Trash2, Upload } from 'lucide-react';
+import {
+    ChevronDown,
+    Download,
+    FileSpreadsheet,
+    Save,
+    Settings,
+    Sparkles,
+    Trash2,
+    Unplug,
+    Upload,
+} from 'lucide-react';
 import { useState } from 'react';
+import { EmptyNote } from '@/components/empty-note';
+import { InfoHint } from '@/components/info-hint';
 import InputError from '@/components/input-error';
 import LimitedFileInput from '@/components/limited-file-input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { device } from '@/routes/attendance';
@@ -120,11 +137,6 @@ function StatusCard({ status }: { status: CaptureStatus }) {
                     <dd className="font-medium">{status.unmapped} scan</dd>
                 </div>
             </dl>
-            {status.state !== 'current' && (
-                <p className="mt-3 text-sm text-muted-foreground">
-                    Laporan Absensi belum diunggah sampai hari kerja terakhir.
-                </p>
-            )}
         </section>
     );
 }
@@ -157,10 +169,14 @@ function AgentsCard({ agents }: { agents: SyncAgent[] }) {
             </div>
 
             {agents.length === 0 ? (
-                <p className="mt-2 text-sm text-muted-foreground">
-                    Belum ada agen terdaftar. Data masuk lewat unggah manual di
-                    bawah. Agen didaftarkan di panel admin (Agen sinkronisasi).
-                </p>
+                <div className="mt-3">
+                    <EmptyNote
+                        icon={Unplug}
+                        hint="Data masuk lewat unggah manual di bawah. Agen didaftarkan di panel admin (Agen sinkronisasi)."
+                    >
+                        Tanpa agen
+                    </EmptyNote>
+                </div>
             ) : (
                 <ul className="mt-2 divide-y text-sm">
                     {agents.map((agent) => (
@@ -217,16 +233,14 @@ function UploadCard({
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="device_sn">
-                            Nomor seri pemindai (SN){' '}
-                            <span className="font-normal text-muted-foreground">
-                                — jika tidak ada di berkas
-                            </span>
+                            Nomor seri pemindai (SN)
                         </Label>
                         <Input
                             id="device_sn"
                             name="device_sn"
                             list="known-devices"
                             defaultValue={lastDeviceSn ?? ''}
+                            placeholder="Isi bila tidak ada di berkas"
                         />
                         <datalist id="known-devices">
                             {knownDevices.map((serial) => (
@@ -246,11 +260,22 @@ function UploadCard({
                         />
                         <InputError message={errors.file} />
                     </div>
-                    <p className="text-xs text-muted-foreground sm:col-span-2">
-                        Laporan Absensi harian Fingerspot, atau log scan per
-                        baris (PIN/ID dan waktu scan). Tanggal dibaca hari-dulu
-                        (31/12/2026).
-                    </p>
+                    <div className="flex flex-wrap items-center gap-1.5 sm:col-span-2">
+                        {['.xlsx', '.xls', '.csv', '20 MB'].map((item) => (
+                            <Badge
+                                key={item}
+                                variant="outline"
+                                className="font-normal"
+                            >
+                                {item}
+                            </Badge>
+                        ))}
+                        <InfoHint label="Isi berkas">
+                            Laporan Absensi harian Fingerspot, atau log scan per
+                            baris (PIN/ID dan waktu scan). Tanggal dibaca
+                            hari-dulu (31/12/2026).
+                        </InfoHint>
+                    </div>
                     <div className="sm:col-span-2">
                         <Button type="submit" disabled={processing}>
                             <Upload className="size-4" aria-hidden />
@@ -281,17 +306,29 @@ function RekapCard({
     };
 
     return (
-        <section className="surface p-4">
+        <section
+            className={`surface p-4 ${branches.length === 0 ? 'border-dashed bg-muted/40' : ''}`}
+        >
             <div className="flex items-center justify-between gap-3">
                 <h2 className="font-medium">Unggah rekapitulasi cabang</h2>
                 <SampleLink href={sampleRekap().url} />
             </div>
 
             {branches.length === 0 ? (
-                <p className="mt-3 text-sm text-muted-foreground">
-                    Belum ada cabang yang memakai rekapitulasi. Atur “Sumber
-                    absensi” cabang di panel admin (Cabang).
-                </p>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                    <EmptyNote
+                        icon={FileSpreadsheet}
+                        hint="Atur “Sumber absensi” cabang menjadi Rekapitulasi di panel admin (Cabang)."
+                    >
+                        Belum ada cabang rekapitulasi
+                    </EmptyNote>
+                    <Button asChild size="sm" variant="outline">
+                        <a href="/admin/branches">
+                            <Settings className="size-4" aria-hidden />
+                            Atur cabang
+                        </a>
+                    </Button>
+                </div>
             ) : (
                 <Form
                     action={storeRekap().url}
@@ -500,15 +537,73 @@ function WaitingMapForm({
                         Petakan
                     </Button>
                     {row.suggestedEmployeeId !== null && (
-                        <span className="text-xs text-muted-foreground">
-                            saran: ID sama dengan nomor karyawan
-                        </span>
+                        <Badge
+                            variant="secondary"
+                            className="gap-1 font-normal"
+                        >
+                            <Sparkles aria-hidden />
+                            Saran
+                            <InfoHint label="Alasan saran">
+                                ID sama dengan nomor karyawan.
+                            </InfoHint>
+                        </Badge>
                     )}
                     <InputError message={errors.pin} />
                     <InputError message={errors.employee_id} />
                 </>
             )}
         </Form>
+    );
+}
+
+/**
+ * The dates a PIN mapping holds for, folded away because most mappings need none. It opens by itself when the server refused
+ * a date, so the error is never hidden.
+ */
+function OptionalValidity({
+    errors,
+}: {
+    errors: { valid_from?: string; valid_to?: string };
+}) {
+    const [open, setOpen] = useState(
+        Boolean(errors.valid_from || errors.valid_to),
+    );
+
+    return (
+        <Collapsible open={open} onOpenChange={setOpen}>
+            <div className="flex items-center gap-1.5">
+                <CollapsibleTrigger asChild>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="-ml-2"
+                    >
+                        <ChevronDown
+                            className={`size-4 transition-transform ${open ? 'rotate-180' : ''}`}
+                            aria-hidden
+                        />
+                        Rentang tanggal (opsional)
+                    </Button>
+                </CollapsibleTrigger>
+                <InfoHint label="Kapan rentang tanggal diisi">
+                    Isi hanya bila PIN yang sama dipakai orang lain pada waktu
+                    berbeda (karyawan keluar, nomor dipakai ulang).
+                </InfoHint>
+            </div>
+            <CollapsibleContent className="mt-2 flex flex-wrap items-start gap-3">
+                <div className="grid w-44 gap-2">
+                    <Label htmlFor="map-from">Berlaku dari</Label>
+                    <Input id="map-from" name="valid_from" type="date" />
+                    <InputError message={errors.valid_from} />
+                </div>
+                <div className="grid w-44 gap-2">
+                    <Label htmlFor="map-to">Sampai</Label>
+                    <Input id="map-to" name="valid_to" type="date" />
+                    <InputError message={errors.valid_to} />
+                </div>
+            </CollapsibleContent>
+        </Collapsible>
     );
 }
 
@@ -616,27 +711,12 @@ function AddMapCard({
                         </div>
                     </div>
 
-                    <div className="flex flex-wrap items-start gap-3">
-                        <div className="grid w-44 gap-2">
-                            <Label htmlFor="map-from">Berlaku dari</Label>
-                            <Input
-                                id="map-from"
-                                name="valid_from"
-                                type="date"
-                            />
-                            <InputError message={errors.valid_from} />
-                        </div>
-                        <div className="grid w-44 gap-2">
-                            <Label htmlFor="map-to">Sampai</Label>
-                            <Input id="map-to" name="valid_to" type="date" />
-                            <InputError message={errors.valid_to} />
-                        </div>
-                        <p className="max-w-md self-end pb-2 text-xs text-muted-foreground">
-                            Tanggal opsional. Isi hanya bila PIN yang sama
-                            dipakai orang lain pada waktu berbeda (karyawan
-                            keluar, nomor dipakai ulang).
-                        </p>
-                    </div>
+                    <OptionalValidity
+                        errors={{
+                            valid_from: errors.valid_from,
+                            valid_to: errors.valid_to,
+                        }}
+                    />
 
                     <div>
                         <Button type="submit" disabled={processing}>

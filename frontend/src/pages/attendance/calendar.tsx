@@ -13,6 +13,8 @@ import {
     YearSummary,
 } from '@/components/attendance-summary-views';
 import { DayView } from '@/components/attendance-day-view';
+import { CaptureChip } from '@/components/capture-chip';
+import { InfoHint } from '@/components/info-hint';
 import {
     FilterBar,
     SourceToggle,
@@ -22,6 +24,7 @@ import { StatusPanel } from '@/components/attendance-status-panel';
 import { WeekGrid } from '@/components/attendance-week-grid';
 import { CalendarEvents } from '@/components/calendar-events';
 import { FilterSection, FilterSheet } from '@/components/filter-sheet';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Collapsible,
@@ -45,7 +48,6 @@ import {
 import { STATUS_STYLE } from '@/lib/attendance-status';
 import { printReport } from '@/lib/print';
 import { cn } from '@/lib/utils';
-import { device } from '@/routes/attendance';
 import { calendar } from '@/routes/attendance';
 import { recap } from '@/routes/attendance';
 import { exportMethod as exportRoute } from '@/routes/attendance/calendar';
@@ -310,10 +312,15 @@ function OnLeavePanel({
                 </ul>
             )}
             {onLeave.more > 0 && (
-                <p className="mt-2 text-xs text-muted-foreground">
-                    +{onLeave.more} lainnya. Persempit dengan filter atau pindah
-                    ke tampilan yang lebih pendek.
-                </p>
+                <div className="mt-2 flex items-center gap-1.5">
+                    <Badge variant="outline" className="font-normal">
+                        +{onLeave.more} lainnya
+                    </Badge>
+                    <InfoHint label="Daftar dipotong">
+                        Persempit dengan filter atau pindah ke tampilan yang
+                        lebih pendek.
+                    </InfoHint>
+                </div>
             )}
         </section>
     );
@@ -485,25 +492,12 @@ export default function AttendanceCalendar(props: Props) {
                     </DropdownMenu>
                 </div>
 
-                {features.attendance && capture.state !== 'current' && (
-                    <p className="surface border-amber-500/60 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
-                        {capture.state === 'never'
-                            ? 'Belum ada Laporan Absensi yang diunggah.'
-                            : `Laporan Absensi terakhir sampai ${dataThrough}; seharusnya sampai ${capture.expectedThrough}.`}{' '}
-                        Hari setelah data terakhir ditandai "belum ada data",
-                        bukan tidak hadir.
-                        {canManageAttendance && (
-                            <>
-                                {' '}
-                                <Link
-                                    href={device()}
-                                    className="underline underline-offset-4"
-                                >
-                                    Unggah laporan
-                                </Link>
-                            </>
-                        )}
-                    </p>
+                {features.attendance && (
+                    <CaptureChip
+                        capture={capture}
+                        dataThrough={dataThrough}
+                        canUpload={canManageAttendance}
+                    />
                 )}
 
                 {/* The same toolbar for every view: the view switch is never moved by what is chosen. Below desktop width it sits over the date row. */}

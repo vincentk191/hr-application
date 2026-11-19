@@ -1,10 +1,23 @@
 import { Form, Head, Link, router, setLayoutProps } from '@inertiajs/react';
-import { ArrowRight, RefreshCw, Save, Send, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import {
+    ArrowRight,
+    ChevronRight,
+    CircleCheck,
+    ListChecks,
+    RefreshCw,
+    Save,
+    Send,
+    ShieldCheck,
+    Trash2,
+    TriangleAlert,
+} from 'lucide-react';
+import { Fragment, useState } from 'react';
 import type { ReactNode } from 'react';
+import { InfoHint } from '@/components/info-hint';
 import InputError from '@/components/input-error';
 import LimitedFileInput from '@/components/limited-file-input';
 import { PhaseActions } from '@/components/phase-actions';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -446,17 +459,61 @@ export default function OffboardingForm({
                                         </div>
                                     </div>
                                     {given !== null && (
-                                        <p
-                                            className={`text-sm ${short ? 'font-medium text-destructive' : 'text-muted-foreground'}`}
+                                        <div
+                                            className="grid gap-1.5"
                                             data-test="notice-check"
                                         >
-                                            Masa pemberitahuan {given} hari
-                                            {short
-                                                ? ` · kurang dari ${required} hari kontrak`
-                                                : required !== null
-                                                  ? ` · memenuhi ${required} hari kontrak`
-                                                  : ''}
-                                        </p>
+                                            <div className="flex items-center justify-between gap-2 text-sm">
+                                                <span
+                                                    className={`inline-flex items-center gap-1.5 font-medium ${short ? 'text-destructive' : 'text-muted-foreground'}`}
+                                                >
+                                                    {short ? (
+                                                        <TriangleAlert
+                                                            className="size-4"
+                                                            aria-hidden
+                                                        />
+                                                    ) : (
+                                                        <CircleCheck
+                                                            className="size-4"
+                                                            aria-hidden
+                                                        />
+                                                    )}
+                                                    Masa pemberitahuan{' '}
+                                                    {Math.max(0, given)} hari
+                                                    {required !== null
+                                                        ? ` dari ${required} hari kontrak`
+                                                        : ''}
+                                                </span>
+                                                <InfoHint label="Masa pemberitahuan">
+                                                    Selisih tanggal
+                                                    pemberitahuan dan hari
+                                                    terakhir kerja, dibandingkan
+                                                    hari pemberitahuan di
+                                                    kontrak karyawan.
+                                                </InfoHint>
+                                            </div>
+                                            {required !== null &&
+                                                required > 0 && (
+                                                    <div
+                                                        role="progressbar"
+                                                        aria-label="Masa pemberitahuan"
+                                                        aria-valuemin={0}
+                                                        aria-valuemax={required}
+                                                        aria-valuenow={Math.max(
+                                                            0,
+                                                            given,
+                                                        )}
+                                                        className="h-2 overflow-hidden rounded-full bg-muted"
+                                                    >
+                                                        <div
+                                                            className={`h-full rounded-full transition-[width] ${short ? 'bg-red-500' : 'bg-emerald-500'}`}
+                                                            style={{
+                                                                width: `${Math.min(100, (Math.max(0, given) / required) * 100)}%`,
+                                                            }}
+                                                        />
+                                                    </div>
+                                                )}
+                                        </div>
                                     )}
                                     <div className="grid gap-2">
                                         <Label htmlFor="reason">Alasan</Label>
@@ -598,10 +655,24 @@ export default function OffboardingForm({
                                             </div>
                                         );
                                     })}
-                                    <p className="text-xs text-muted-foreground">
-                                        PDF, JPG, PNG, DOC atau DOCX, maksimal
-                                        10 MB per berkas.
-                                    </p>
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                        {[
+                                            'PDF',
+                                            'JPG',
+                                            'PNG',
+                                            'DOC',
+                                            'DOCX',
+                                            '10 MB per berkas',
+                                        ].map((item) => (
+                                            <Badge
+                                                key={item}
+                                                variant="outline"
+                                                className="font-normal"
+                                            >
+                                                {item}
+                                            </Badge>
+                                        ))}
+                                    </div>
                                 </fieldset>
 
                                 <Button
@@ -685,19 +756,49 @@ export default function OffboardingForm({
                                     </p>
                                 </section>
 
-                                <section className="surface space-y-2 p-4 text-sm">
-                                    <h2 className="label-mono">
-                                        Alur persetujuan
-                                    </h2>
-                                    <p>
-                                        01 · Manajemen menyetujui, lalu
-                                        checklist dimulai
-                                    </p>
-                                    <p className="text-muted-foreground">
-                                        Kasus dikirim ke Manajemen di atas
-                                        karyawan ini pada garis pelaporan, atau
-                                        ke Manajemen mana pun bila tidak ada.
-                                    </p>
+                                <section className="surface space-y-3 p-4 text-sm">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <h2 className="label-mono">
+                                            Alur persetujuan
+                                        </h2>
+                                        <InfoHint label="Siapa yang menyetujui">
+                                            Kasus dikirim ke Manajemen di atas
+                                            karyawan ini pada garis pelaporan,
+                                            atau ke Manajemen mana pun bila
+                                            tidak ada.
+                                        </InfoHint>
+                                    </div>
+                                    <ol className="flex flex-wrap items-center gap-x-2 gap-y-2">
+                                        {[
+                                            { icon: Send, label: 'Dikirim' },
+                                            {
+                                                icon: ShieldCheck,
+                                                label: 'Manajemen menyetujui',
+                                            },
+                                            {
+                                                icon: ListChecks,
+                                                label: 'Checklist dimulai',
+                                            },
+                                        ].map((step, index) => (
+                                            <Fragment key={step.label}>
+                                                {index > 0 && (
+                                                    <ChevronRight
+                                                        className="size-4 text-muted-foreground"
+                                                        aria-hidden
+                                                    />
+                                                )}
+                                                <li className="flex items-center gap-2">
+                                                    <span className="flex size-8 items-center justify-center rounded-full border bg-muted">
+                                                        <step.icon
+                                                            className="size-4"
+                                                            aria-hidden
+                                                        />
+                                                    </span>
+                                                    {step.label}
+                                                </li>
+                                            </Fragment>
+                                        ))}
+                                    </ol>
                                 </section>
 
                                 {Object.keys(errors).length > 0 && (

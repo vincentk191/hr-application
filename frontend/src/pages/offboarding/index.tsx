@@ -1,4 +1,6 @@
+import { SearchX } from 'lucide-react';
 import { Head, Link, router, setLayoutProps } from '@inertiajs/react';
+import { EmptyNote } from '@/components/empty-note';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { UnreadComments } from '@/components/unread-comments';
@@ -182,9 +184,11 @@ export default function OffboardingIndex({
                 </div>
 
                 {cases.length === 0 ? (
-                    <p className="surface p-6 text-center text-sm text-muted-foreground">
-                        Tidak ada kasus yang cocok.
-                    </p>
+                    <div className="surface flex justify-center p-6">
+                        <EmptyNote icon={SearchX}>
+                            Tidak ada kasus yang cocok
+                        </EmptyNote>
+                    </div>
                 ) : (
                     <div className="surface overflow-x-auto">
                         <table className="w-full text-sm">

@@ -6,9 +6,18 @@ import {
     setLayoutProps,
     usePage,
 } from '@inertiajs/react';
-import { ArrowRight, Plus, Save, Send, Trash2, X } from 'lucide-react';
+import {
+    ArrowRight,
+    LockOpen,
+    Plus,
+    Save,
+    Send,
+    Trash2,
+    X,
+} from 'lucide-react';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
+import { InfoHint } from '@/components/info-hint';
 import InputError from '@/components/input-error';
 import { LineListEditor } from '@/components/line-list-editor';
 import { PhaseActions } from '@/components/phase-actions';
@@ -20,6 +29,7 @@ import {
     lineCount,
 } from '@/components/requisition-summary';
 import { RequisitionWizardSteps } from '@/components/requisition-wizard-steps';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -632,11 +642,20 @@ export default function RequisitionForm({
                         />
                     </div>
                     {sent && (
-                        <p className="mt-2 text-sm text-muted-foreground">
-                            Belum ada yang memutuskan, jadi pengajuan ini masih
-                            bisa diperbaiki. Perubahan langsung terlihat oleh
-                            penyetuju.
-                        </p>
+                        <div className="mt-2 flex items-center gap-1.5">
+                            <Badge
+                                variant="outline"
+                                className="gap-1 font-normal"
+                            >
+                                <LockOpen aria-hidden />
+                                Dapat diedit
+                            </Badge>
+                            <InfoHint label="Selama belum diputuskan">
+                                Belum ada yang memutuskan, jadi pengajuan ini
+                                masih bisa diperbaiki. Perubahan langsung
+                                terlihat oleh penyetuju.
+                            </InfoHint>
+                        </div>
                     )}
                     <div className="mt-3">
                         <RequisitionWizardSteps
