@@ -1,7 +1,14 @@
 import { Link, router, usePage } from '@inertiajs/react';
-import { ArrowRight, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import {
+    ArrowRight,
+    ChevronLeft,
+    ChevronRight,
+    Inbox,
+    Plus,
+} from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { MonthGrid } from '@/components/attendance-summary-views';
+import { EmptyNote } from '@/components/empty-note';
 import { openInPlace } from '@/lib/open-in-place';
 import { Button } from '@/components/ui/button';
 import { show as employeeShow } from '@/routes/employees';
@@ -159,9 +166,6 @@ export function AttendanceToday({
                     <h2 className="font-semibold">Absensi hari ini</h2>
                     <Badge tone={data.tone}>{data.statusLabel}</Badge>
                 </div>
-                <p className="mt-3 text-sm text-muted-foreground">
-                    Absensi cabang Anda lewat rekapitulasi.
-                </p>
             </Link>
         );
     }
@@ -383,9 +387,11 @@ export function OpenRequests({
             </div>
 
             {requests.length === 0 ? (
-                <p className="surface rounded-2xl p-5 text-sm text-muted-foreground md:rounded-none md:border-0 md:px-6 md:shadow-none">
-                    Tidak ada pengajuan yang sedang berjalan.
-                </p>
+                <div className="surface rounded-2xl p-5 md:rounded-none md:border-0 md:px-6 md:shadow-none">
+                    <EmptyNote icon={Inbox}>
+                        Tidak ada pengajuan berjalan
+                    </EmptyNote>
+                </div>
             ) : (
                 <>
                     <ul className="space-y-3 md:hidden">

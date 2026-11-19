@@ -1,8 +1,9 @@
 import { Link, router } from '@inertiajs/react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CircleCheck } from 'lucide-react';
 import { useState } from 'react';
 import { MonthGrid } from '@/components/attendance-summary-views';
 import { daysOfMonth } from '@/components/dashboard-overview';
+import { EmptyNote } from '@/components/empty-note';
 import { Button } from '@/components/ui/button';
 import { openInPlace } from '@/lib/open-in-place';
 import { index as leaveIndex } from '@/routes/leave-requests';
@@ -49,9 +50,11 @@ export function WaitingCard({
             </div>
 
             {data.total === 0 ? (
-                <p className="px-4 pb-4 text-sm text-muted-foreground">
-                    Tidak ada yang menunggu keputusan Anda.
-                </p>
+                <div className="px-4 pb-4">
+                    <EmptyNote icon={CircleCheck} tone="ok">
+                        Tidak ada yang menunggu
+                    </EmptyNote>
+                </div>
             ) : (
                 data.items
                     .filter((item) => item.count > 0)

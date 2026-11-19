@@ -1,4 +1,15 @@
 import { Head, Link, router } from '@inertiajs/react';
+import {
+    ArrowRight,
+    CalendarClock,
+    CalendarX,
+    CircleCheck,
+    Link2,
+    Unlink,
+    Upload,
+    WifiOff,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 import {
     AdminCalendarCard,
@@ -10,9 +21,11 @@ import {
     OverviewHeader,
     useScannerMinutes,
 } from '@/components/dashboard-overview';
+import { EmptyNote } from '@/components/empty-note';
 import { LeaveDecisionDialog } from '@/components/leave-decision-dialog';
 import { InterviewPanel } from '@/components/requisition-interview';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { dashboard } from '@/routes';
 import { device } from '@/routes/attendance';
 import { show } from '@/routes/employees';
@@ -49,10 +62,15 @@ function ExpiringDocumentsCard({ data }: { data: ExpiringDocuments }) {
             <h2 className="font-medium">Dokumen segera berakhir</h2>
 
             {data.total === 0 ? (
-                <p className="mt-2 text-sm text-muted-foreground">
-                    Tidak ada dokumen yang kedaluwarsa atau akan berakhir dalam
-                    30 hari.
-                </p>
+                <div className="mt-3">
+                    <EmptyNote
+                        icon={CircleCheck}
+                        tone="ok"
+                        hint="Tidak ada dokumen yang kedaluwarsa atau akan berakhir dalam 30 hari."
+                    >
+                        Semua dokumen berlaku
+                    </EmptyNote>
+                </div>
             ) : (
                 <>
                     <ul className="mt-2 divide-y text-sm">
@@ -100,9 +118,23 @@ function ExpiringDocumentsCard({ data }: { data: ExpiringDocuments }) {
     );
 }
 
+/** "13 Nov" from an ISO date or date-time, read as the calendar day it names. */
+function shortDate(iso: string | null): string {
+    if (iso === null) {
+        return '—';
+    }
+
+    return new Intl.DateTimeFormat('id-ID', {
+        day: 'numeric',
+        month: 'short',
+        timeZone: 'UTC',
+    }).format(new Date(`${iso.slice(0, 10)}T00:00:00Z`));
+}
+
 /**
  * How current the scanner data is, for the person who loads it by hand (ATT-DEV-001). Shown only
- * to them, and only when something needs doing, so it does not become noise on a good day.
+ * to them, and only when something needs doing, so it does not become noise on a good day. Each thing that is
+ * wrong is a chip, and the one button does what the first of them needs.
  */
 function AttendanceStatusCard({
     status,
@@ -117,30 +149,80 @@ function AttendanceStatusCard({
         return null;
     }
 
+    const issues: { key: string; icon: LucideIcon; text: string }[] = [];
+
+    if (status.state === 'never') {
+        issues.push({
+            key: 'never',
+            icon: CalendarX,
+            text: 'Belum ada Laporan Absensi',
+        });
+    } else if (status.state === 'late') {
+        issues.push({
+            key: 'late',
+            icon: CalendarClock,
+            text: `Data sampai ${shortDate(status.lastScanAt)} (seharusnya ${shortDate(status.expectedThrough)})`,
+        });
+    }
+
+    if (status.unmapped > 0) {
+        issues.push({
+            key: 'unmapped',
+            icon: Unlink,
+            text: `${status.unmapped} scan menunggu pemetaan`,
+        });
+    }
+
+    if (status.agentStale) {
+        issues.push({
+            key: 'agent',
+            icon: WifiOff,
+            text: 'Agen belum melapor lebih dari 3 jam',
+        });
+    }
+
+    // The button does what the first problem needs: load the data, map the waiting IDs, or look at the agent.
+    const action =
+        status.state !== 'current'
+            ? { label: 'Unggah', icon: Upload }
+            : status.unmapped > 0
+              ? { label: 'Petakan', icon: Link2 }
+              : { label: 'Periksa', icon: ArrowRight };
+
     return (
-        <section className="surface p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="font-medium">Data absensi perlu diperbarui</h2>
-                <Link
-                    href={device()}
-                    className="text-sm text-primary underline-offset-4 hover:underline"
-                >
-                    Buka data absensi
-                </Link>
+        <section
+            role="status"
+            className="surface border-amber-500/60 bg-amber-50 p-4 dark:bg-amber-950/30"
+            data-test="attendance-status"
+        >
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                    <span className="relative flex size-2.5" aria-hidden>
+                        <span className="absolute inline-flex size-full rounded-full bg-amber-500 opacity-75 motion-safe:animate-ping" />
+                        <span className="relative inline-flex size-2.5 rounded-full bg-amber-500" />
+                    </span>
+                    <h2 className="font-medium">
+                        Data absensi perlu diperbarui
+                    </h2>
+                </div>
+                <Button asChild size="sm">
+                    <Link href={device()}>
+                        <action.icon className="size-4" aria-hidden />
+                        {action.label}
+                    </Link>
+                </Button>
             </div>
-            <p className="mt-2 text-sm text-muted-foreground">
-                {status.state === 'never'
-                    ? 'Belum ada Laporan Absensi yang diunggah.'
-                    : status.state === 'late'
-                      ? `Laporan Absensi terakhir berhenti sebelum ${status.expectedThrough}. Unggah Laporan Absensi hari kerja terbaru.`
-                      : null}
-                {status.unmapped > 0
-                    ? ` ${status.unmapped} scan menunggu pemetaan ID ke karyawan.`
-                    : ''}
-                {status.agentStale
-                    ? ' Agen sinkronisasi belum melapor lebih dari 3 jam pada jam kerja.'
-                    : ''}
-            </p>
+            <ul className="mt-3 flex flex-wrap gap-2">
+                {issues.map((issue) => (
+                    <li
+                        key={issue.key}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-background/60 px-3 py-1 text-xs"
+                    >
+                        <issue.icon className="size-3.5" aria-hidden />
+                        {issue.text}
+                    </li>
+                ))}
+            </ul>
         </section>
     );
 }

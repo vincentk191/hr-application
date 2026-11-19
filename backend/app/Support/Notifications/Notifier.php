@@ -232,7 +232,7 @@ class Notifier
             $owner->notify(new InAppNotice(
                 'offboarding',
                 "Offboarding {$case->employee->full_name}: pilih item untuk departemen Anda",
-                "{$case->reference()} · hari terakhir {$case->last_working_on?->toDateString()}. Tandai item yang berlaku, lalu tekan Daftar selesai.",
+                "{$case->reference()} · hari terakhir {$case->last_working_on?->toDateString()}. Tandai item yang berlaku, lalu tekan Kunci Checklist.",
                 route('offboarding.show', $case, absolute: false),
             ));
         }

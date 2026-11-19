@@ -1,10 +1,11 @@
 import { router } from '@inertiajs/react';
-import { Check, Plus, RefreshCw, X } from 'lucide-react';
+import { Check, Lock, Plus, RefreshCw, X } from 'lucide-react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 import {
     adhoc,
     confirm,
@@ -163,13 +164,21 @@ function Group({
     caseId: number;
     ownerOptions: OffboardingChecklist['ownerOptions'];
 }) {
+    // A department set aside is greyed out as a whole, so it reads as switched off at a glance. Only "Ikutkan lagi" keeps its
+    // full strength: it is the way back.
+    const dimmed = group.notInvolved;
+
     return (
         <section
-            className="surface space-y-3 p-4"
+            className={cn(
+                'surface space-y-3 p-4',
+                dimmed && 'border-dashed bg-muted/40',
+            )}
             data-test={`group-${group.name}`}
+            data-not-involved={dimmed || undefined}
         >
             <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
+                <div className={cn(dimmed && 'opacity-50 grayscale')}>
                     <h3 className="font-semibold">{group.name}</h3>
                     <p className="label-mono">
                         {group.ownerIsHr
@@ -188,7 +197,10 @@ function Group({
                     )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant={STATUS_VARIANT[group.status]}>
+                    <Badge
+                        variant={STATUS_VARIANT[group.status]}
+                        className={cn(dimmed && 'opacity-50 grayscale')}
+                    >
                         {group.statusLabel}
                     </Badge>
                     {group.canReassign && (
@@ -206,7 +218,10 @@ function Group({
                                     visit,
                                 )
                             }
-                            className="h-8 max-w-64 rounded-xl border border-input bg-card px-2 text-xs"
+                            className={cn(
+                                'h-8 max-w-64 rounded-xl border border-input bg-card px-2 text-xs',
+                                dimmed && 'opacity-50 grayscale',
+                            )}
                             data-test="reassign-owner"
                         >
                             <option value="">Admin HR</option>
@@ -321,13 +336,9 @@ function Group({
                             )
                         }
                     >
-                        <Check className="size-4" aria-hidden />
-                        Daftar selesai
+                        <Lock className="size-4" aria-hidden />
+                        Kunci Checklist
                     </Button>
-                    <span className="label-mono">
-                        Mengunci pilihan; tekan walau tidak ada item yang
-                        berlaku
-                    </span>
                 </div>
             )}
         </section>
@@ -336,7 +347,7 @@ function Group({
 
 /**
  * Stage 2 · Checklist (OFF-CHK): a group for each department, owned by its supervisor. They pick which
- * items apply, confirm the list with "Daftar selesai", then tick the items with their checkbox as they are done. The case
+ * items apply, lock the list with "Kunci Checklist", then tick the items with their checkbox as they are done. The case
  * cannot go on to sign-off until every list is confirmed and every item is ticked (OFF-CHK-001).
  */
 export function OffboardingChecklistPanel({

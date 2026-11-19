@@ -78,7 +78,7 @@ class OffboardingChecklistController extends Controller
     }
 
     /**
-     * "Daftar selesai": the list is settled, even when nothing applies (OFF-CHK-008).
+     * "Kunci Checklist": the list is settled, even when nothing applies (OFF-CHK-008).
      */
     public function confirm(Request $request, OffboardingCase $offboardingCase, OffboardingCaseDepartment $group): RedirectResponse
     {

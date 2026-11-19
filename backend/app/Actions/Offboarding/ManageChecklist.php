@@ -87,7 +87,7 @@ class ManageChecklist
     }
 
     /**
-     * "Daftar selesai": the owner is happy with the list, even when no item applies (OFF-CHK-008).
+     * "Kunci Checklist": the owner is happy with the list, even when no item applies (OFF-CHK-008).
      */
     public function confirm(OffboardingCaseDepartment $group, User $by): void
     {
