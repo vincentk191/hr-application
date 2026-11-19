@@ -3,8 +3,9 @@ import {
     ArrowRight,
     Check,
     Clock,
+    Download,
+    Eye,
     Lock,
-    MessageSquare,
     Paperclip,
     RefreshCw,
     Send,
@@ -16,8 +17,14 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { DecisionDialog } from '@/components/decision-dialog';
 import { EmployeeAvatar } from '@/components/employee-avatar';
-import { LeaveAttachments } from '@/components/leave-request-detail';
+import { useFilePreview } from '@/components/file-preview';
 import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { requestTypeIcon } from '@/lib/request-type-icons';
 import {
     Sheet,
@@ -26,7 +33,11 @@ import {
     SheetTitle,
 } from '@/components/ui/sheet';
 import { decision, edit } from '@/routes/leave-requests';
-import type { LeaveRequestRow, WorkflowStepSummary } from '@/types/leave';
+import type {
+    LeaveAttachmentRow,
+    LeaveRequestRow,
+    WorkflowStepSummary,
+} from '@/types/leave';
 
 const weekdayFormat = new Intl.DateTimeFormat('id-ID', { weekday: 'short' });
 const monthFormat = new Intl.DateTimeFormat('id-ID', { month: 'short' });
@@ -66,6 +77,112 @@ function briefName(name: string | null): string {
 }
 
 /** The icon of a request's type: the one picked in the admin panel, else guessed from its name. */
+/**
+ * The paperclip of a request that has files, and the only way to them from this drawer. A request with pictures only opens
+ * the first in the preview pop-up (the others are an arrow away); one with a PDF among its files lists them instead, since a
+ * PDF cannot be previewed and can only be downloaded. Nothing is drawn when there are no files, so no icon is left that
+ * looks pressable and does nothing.
+ */
+function AttachmentButton({ files }: { files: LeaveAttachmentRow[] }) {
+    const { open, dialog } = useFilePreview(files);
+
+    if (files.length === 0) {
+        return null;
+    }
+
+    const circle =
+        'relative flex size-11 items-center justify-center rounded-full bg-foreground text-background transition-opacity hover:opacity-85 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none';
+    const label =
+        files.length > 1 ? `Lihat ${files.length} lampiran` : 'Lihat lampiran';
+    const icon = (
+        <>
+            <Paperclip className="size-5" aria-hidden />
+            {files.length > 1 && (
+                <span className="absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full border-2 border-background bg-primary text-[10px] font-semibold text-primary-foreground">
+                    {files.length}
+                </span>
+            )}
+        </>
+    );
+
+    if (files.every((file) => file.previewUrl !== null)) {
+        return (
+            <>
+                <button
+                    type="button"
+                    onClick={() => open(files[0])}
+                    className={circle}
+                    aria-label={label}
+                    title={label}
+                    data-test="open-attachments"
+                >
+                    {icon}
+                </button>
+                {dialog}
+            </>
+        );
+    }
+
+    if (files.length === 1) {
+        return (
+            <a
+                href={files[0].downloadUrl}
+                className={circle}
+                aria-label={`Unduh ${files[0].name}`}
+                title={`Unduh ${files[0].name}`}
+                data-test="open-attachments"
+            >
+                {icon}
+            </a>
+        );
+    }
+
+    return (
+        <>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <button
+                        type="button"
+                        className={circle}
+                        aria-label={label}
+                        title={label}
+                        data-test="open-attachments"
+                    >
+                        {icon}
+                    </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    {files.map((file) =>
+                        file.previewUrl !== null ? (
+                            <DropdownMenuItem
+                                key={file.id}
+                                // The pop-up opens after the menu has closed, or the two fight over focus.
+                                onSelect={() =>
+                                    window.setTimeout(() => open(file), 0)
+                                }
+                            >
+                                <Eye className="size-4 shrink-0" aria-hidden />
+                                {file.name}
+                            </DropdownMenuItem>
+                        ) : (
+                            <DropdownMenuItem key={file.id} asChild>
+                                <a href={file.downloadUrl}>
+                                    <Download
+                                        className="size-4 shrink-0"
+                                        aria-hidden
+                                    />
+                                    {file.name}
+                                </a>
+                            </DropdownMenuItem>
+                        ),
+                    )}
+                </DropdownMenuContent>
+            </DropdownMenu>
+            {dialog}
+        </>
+    );
+}
+
 function TypeIcon({ label, picked }: { label: string; picked: string | null }) {
     const Icon = requestTypeIcon(picked, label);
 
@@ -423,34 +540,10 @@ export function LeaveDecisionDialog({
                                                 />
                                             </>
                                         )}
-                                        <span className="ml-auto flex shrink-0 gap-2">
-                                            <span
-                                                title={
-                                                    request.reason
-                                                        ? 'Ada catatan'
-                                                        : 'Tanpa catatan'
-                                                }
-                                                className={`flex size-11 items-center justify-center rounded-full ${request.reason ? 'bg-foreground text-background' : 'border border-dashed text-muted-foreground'}`}
-                                            >
-                                                <MessageSquare
-                                                    className="size-5"
-                                                    aria-hidden
-                                                />
-                                            </span>
-                                            <span
-                                                title={
-                                                    request.attachments.length >
-                                                    0
-                                                        ? 'Ada lampiran'
-                                                        : 'Tanpa lampiran'
-                                                }
-                                                className={`flex size-11 items-center justify-center rounded-full ${request.attachments.length > 0 ? 'bg-foreground text-background' : 'border border-dashed text-muted-foreground'}`}
-                                            >
-                                                <Paperclip
-                                                    className="size-5"
-                                                    aria-hidden
-                                                />
-                                            </span>
+                                        <span className="ml-auto flex shrink-0">
+                                            <AttachmentButton
+                                                files={request.attachments}
+                                            />
                                         </span>
                                     </div>
                                     {request.timeframe && (
@@ -478,15 +571,6 @@ export function LeaveDecisionDialog({
                                     >
                                         {request.reason}
                                     </p>
-                                </div>
-                            )}
-
-                            {request.attachments.length > 0 && (
-                                <div className="space-y-2 p-5 text-sm">
-                                    <p className="label-mono">Lampiran</p>
-                                    <LeaveAttachments
-                                        files={request.attachments}
-                                    />
                                 </div>
                             )}
 
