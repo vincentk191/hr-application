@@ -8,7 +8,6 @@ use App\Http\Requests\StoreEmployeeImportRequest;
 use App\Models\Company;
 use App\Models\Employee;
 use App\Support\CompanyContext;
-use App\Support\Employees\EmployeeSheet;
 use App\Support\Employees\EmployeeTemplateWorkbook;
 use App\Support\Employees\InvalidEmployeeImport;
 use Illuminate\Http\RedirectResponse;
@@ -29,8 +28,6 @@ class EmployeeImportController extends Controller
 
         return Inertia::render('employees/import', [
             'company' => $companyId === null ? null : Company::query()->whereKey($companyId)->value('name'),
-            // The sensitive ones are marked: they are read only for someone with the sensitive-data permission.
-            'columns' => array_map(fn (array $column): array => ['name' => $column[0], 'sensitive' => $column[2]], EmployeeSheet::COLUMNS),
             'canImportSensitive' => $request->user()->can(Permission::ViewSensitiveData->value),
             'maxRows' => ImportEmployees::MAX_ROWS,
             'result' => $request->session()->get('employee_import_result'),
