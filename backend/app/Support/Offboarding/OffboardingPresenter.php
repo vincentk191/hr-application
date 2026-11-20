@@ -244,25 +244,36 @@ class OffboardingPresenter
                 'ownerUnavailable' => $ownerGone,
                 'status' => match (true) {
                     $group->not_involved => 'not_involved',
+                    $group->isAwaitingLock() => 'review',
                     $group->confirmed_at === null => 'choosing',
                     $pending > 0 => 'running',
                     default => 'done',
                 },
                 'statusLabel' => match (true) {
                     $group->not_involved => 'Tidak terkait',
+                    $group->isAwaitingLock() => 'Menunggu kunci HR',
                     $group->confirmed_at === null => 'Menunggu daftar',
                     $pending > 0 => 'Berjalan',
                     default => 'Selesai',
                 },
                 'confirmed' => $group->confirmed_at !== null,
+                'lockRequested' => $group->isAwaitingLock(),
+                'unlockRequested' => $group->isAwaitingUnlock(),
                 'notInvolved' => $group->not_involved,
                 'done' => $items->filter->isDone()->count(),
                 'total' => $items->count(),
                 'canWork' => $canWork,
                 'canAddItem' => $open && $viewer->can('addItem', $group),
                 'canSetAside' => $open && ! $group->confirmed_at && $items->isEmpty() && $viewer->can('setAside', $group),
+                // "Kunci Checklist" is HR's; the owner asks for it, and for it to be opened again.
+                'canLock' => $open && $viewer->can('lockGroup', $group),
+                'canRequestLock' => $open && $viewer->can('requestLock', $group),
+                'canDeclineLock' => $open && $viewer->can('declineLock', $group),
+                'canRequestUnlock' => $open && $viewer->can('requestUnlock', $group),
+                'canUnlock' => $open && $viewer->can('unlockGroup', $group),
+                'canDeclineUnlock' => $open && $viewer->can('declineUnlock', $group),
                 'canReassign' => $canReassign,
-                'canSelect' => $canWork && ! $group->isSettled(),
+                'canSelect' => $canWork && $group->isOpenForOwner(),
                 'items' => $items->map(fn (OffboardingCaseItem $item): array => [
                     'id' => $item->id,
                     'name' => $item->name,
@@ -275,7 +286,7 @@ class OffboardingPresenter
                     'canTick' => $open && $group->confirmed_at !== null && $canWork,
                     'canRemove' => $open && ! $item->isDone() && ($item->is_adhoc || ! $group->isSettled()) && $viewer->can('removeItem', $item),
                 ])->values()->all(),
-                'available' => $canWork && ! $group->isSettled()
+                'available' => $canWork && $group->isOpenForOwner()
                     ? collect($group->item_ids ?? [])
                         ->reject(fn (int $id): bool => in_array($id, $chosen, true))
                         ->map(fn (int $id) => $master->get($id))

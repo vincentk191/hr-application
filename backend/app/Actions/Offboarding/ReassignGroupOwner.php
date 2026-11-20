@@ -47,7 +47,7 @@ class ReassignGroupOwner
         ]);
 
         if ($owner !== null) {
-            app(Notifier::class)->offboardingEvent($case, [$owner], $by, "Offboarding {$case->employee->full_name}: Anda ditunjuk untuk {$group->name}", 'Pilih item yang berlaku, konfirmasi daftar, lalu centang saat selesai.');
+            app(Notifier::class)->offboardingEvent($case, [$owner], $by, "Offboarding {$case->employee->full_name}: Anda ditunjuk untuk {$group->name}", 'Pilih item yang berlaku, ajukan kunci checklist ke HR, lalu centang saat selesai.');
         }
     }
 }

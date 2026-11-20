@@ -160,9 +160,11 @@ it('lets the owner do their checklist work across companies, and nothing else', 
     $by = $this->actingAs($this->ivan->user);
 
     $by->post(route('offboarding.checklist.select', [$case, $group]), ['offboarding_item_id' => $this->laptop->id])->assertRedirect();
-    $by->post(route('offboarding.checklist.confirm', [$case, $group]))->assertRedirect();
+    $by->post(route('offboarding.checklist.request-lock', [$case, $group]))->assertRedirect();
+    $this->actingAs($this->hrB)->post(route('offboarding.checklist.confirm', [$case, $group]))->assertRedirect();
 
     $item = $group->items()->firstOrFail();
+    $by = $this->actingAs($this->ivan->user);
     $by->put(route('offboarding.checklist.done', $item), ['note' => 'Diterima'])->assertRedirect();
 
     expect($item->refresh()->isDone())->toBeTrue();
@@ -232,7 +234,7 @@ it('has HR do the work of a group whose owner has been deactivated, and lets HR 
     expect($group->refresh()->owner_user_id)->toBe($ina->user_id)
         ->and($ina->user->notifications()->count())->toBe(1);
 
-    $this->actingAs($ina->user)->post(route('offboarding.checklist.confirm', [$case, $group]))->assertRedirect();
+    $this->actingAs($ina->user)->post(route('offboarding.checklist.request-lock', [$case, $group]))->assertRedirect();
 });
 
 it('refuses a new owner who cannot take it, and lets HR take a group back', function () {
@@ -324,11 +326,12 @@ it('adds items created since the checklist opened to their owners, and tells the
     expect($this->ivan->user->notifications()->count())->toBe(1);
 });
 
-it('puts a new item in a group of its own when its owner has already confirmed their list', function () {
+it('puts a new item in a group of its own when its owner has already had their list locked', function () {
     $case = owCase();
     $group = owGroup($case, (string) $this->ivan->user_id);
     $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.select', [$case, $group]), ['offboarding_item_id' => $this->laptop->id])->assertRedirect();
-    $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.confirm', [$case, $group]))->assertRedirect();
+    $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.request-lock', [$case, $group]))->assertRedirect();
+    $this->actingAs($this->hrB)->post(route('offboarding.checklist.confirm', [$case, $group]))->assertRedirect();
     $confirmedAt = $group->refresh()->confirmed_at;
 
     $token = OffboardingItem::factory()->create(['name' => 'Token dikembalikan', 'department_name' => 'IT', 'owner_employee_id' => $this->ivan->id]);
@@ -360,4 +363,18 @@ it('leaves out inactive items, and offers the button to HR only while the case i
 
     $case->workflow->update(['current_stage' => 'sign_off']);
     $this->actingAs($this->hrB)->post(route('offboarding.checklist.refresh', $case))->assertForbidden();
+});
+
+it('also puts a new item in a group of its own while the owner\'s list is waiting for HR to lock it', function () {
+    $case = owCase();
+    $group = owGroup($case, (string) $this->ivan->user_id);
+    $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.request-lock', [$case, $group]))->assertRedirect();
+
+    $token = OffboardingItem::factory()->create(['name' => 'Token dikembalikan', 'department_name' => 'IT', 'owner_employee_id' => $this->ivan->id]);
+    $this->actingAs($this->hrB)->post(route('offboarding.checklist.refresh', $case))->assertRedirect();
+
+    $extra = OffboardingCaseDepartment::where('offboarding_case_id', $case->id)->where('owner_user_id', $this->ivan->user_id)->where('id', '!=', $group->id)->firstOrFail();
+
+    expect($group->refresh()->item_ids)->toBe([$this->laptop->id, $this->vpn->id])
+        ->and($extra->item_ids)->toBe([$token->id]);
 });

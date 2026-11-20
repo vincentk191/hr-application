@@ -2291,7 +2291,7 @@ table, the checklist and the screens.
 | `OFF-APR`                         | Stage 1 Diajukan         | 7   | 5   | ✅     | Built 10-15, **with Management as the approver** (not the supervisor), the comment thread, and rejection back to draft. The HR approval step (004) is dropped |
 | `OFF-CHK`                         | Stage 2 Checklist        | 11  | 10  | ✅     | Built 10-15: groups per department owned by its supervisor (HR Admin when none), owner-only ticking with a checkbox, the blocked-completion guard and banner, ad-hoc items, HR notified. Access revocation (010) built 10-16, see the sign-off rules below |
 | `OFF-SIG`                         | Stage 3 Sign-off         | 9   | 5   | ✅     | Built 10-16: the exit details, then HR closes (no signatures since 10-19), the exit interview, exit documents, the print-ready berita acara, send back to the checklist, close, cancel, and the dossier lock. Waiting on one decision: re-routing approvals that were waiting on the leaver |
-| `OFF-ITM`                         | Checklist builder        | 7   | 3   | ✅     | Built 10-15: the supervisors pick the items that apply (007) from the master list (001, 004), add their own for the case, and confirm with "Kunci Checklist". Pre-ticking from a register (002) is deferred with the register (006) |
+| `OFF-ITM`                         | Checklist builder        | 7   | 3   | ✅     | Built 10-15: the supervisors pick the items that apply (007) from the master list (001, 004), add their own for the case, and ask HR to lock the list ("Kunci Checklist" is HR's, 2026-11-20). Pre-ticking from a register (002) is deferred with the register (006) |
 | `OFF-TPL`                         | Master item list (admin) | 4   | 2   | 🟡     | "Item offboarding" in the admin panel (001, 002): kind, department, order, retire. Seeded with defaults the first time a company needs them. Template variants (003) and default owners (004) are covered by the department supervisor rule |
 
 ### Phase 6 — Home, search, employee app
@@ -2782,7 +2782,7 @@ This differs from `../docs/context.md` §9.4, which still describes the earlier 
   this order: **the person named on the item** (anyone with a login, from any company; their job title and
   department are read from their own record), else **the supervisor of the department the item names, in the
   leaver's company**, else **HR Admin**. After approval each owner gets one group holding their items, picks
-  which apply, adds ad-hoc ones, confirms with "Kunci Checklist" (even for none), then follows the items to done.
+  which apply, adds ad-hoc ones, asks HR to lock the list (even for none; HR presses "Kunci Checklist"), then follows the items to done.
   - Someone cannot own an item if they have no login, are deactivated, or are the person leaving; it then falls
     to the next owner in the order above. A group whose owner is deactivated later is handled by HR Admin until
     it is handed on.
@@ -2817,9 +2817,17 @@ This differs from `../docs/context.md` §9.4, which still describes the earlier 
     "Offboarding" list and badge in the same limited form. (The routes find a case in any company and every
     action then asks the policy; the checklist tables carry no company scope for that reason.)
   - The leaver sees the checklist as a read-only handover reference.
+  - **Locking is HR's (2026-11-20).** An owner cannot lock their own list: `request-lock` sets
+    `lock_requested_at` and tells every account holding `manage-offboarding` for the company; HR then locks it
+    (`confirm`, which sets `confirmed_at` and tells the owner) or sends it back (`decline-lock`). While a request
+    waits, and once the list is locked, only HR may add or remove items (`OffboardingCasePolicy::addItem`; a new
+    master item from "Perbarui dari daftar induk" then goes into a "(tambahan)" group). To add to a locked list the
+    owner sends `request-unlock` (once; `unlock_requested_at`), and HR opens it (`unlock`: clears the lock, keeps
+    ticked items, takes back HR's approval of the checklist) or turns it down (`decline-unlock`). A group with no
+    owner is HR's own, so HR locks it directly.
   - After "Kunci Checklist" the chosen items cannot be removed (the list is the record of what was agreed), but an
-    item added for this case alone can be, until it is ticked; HR and the owner may still add one, and it must
-    be done like the rest.
+    item added for this case alone can be by HR, until it is ticked; the owner can no longer add one, and an item
+    added by HR must be done like the rest.
   - HR may set a department aside as "Tidak terkait" while its list is empty and unconfirmed, and take it back.
   - **Sign-off stays locked** until every department is confirmed or set aside and no chosen item is open
     (`ChecklistComplete` guard). HR presses "Lanjut ke sign-off" in the action bar, disabled with the reason

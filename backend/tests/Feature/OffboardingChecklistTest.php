@@ -85,7 +85,16 @@ function ckMaster(string $name): OffboardingItem
 }
 
 /**
- * Pick every master item of a department, then confirm the list.
+ * The owner asks HR to lock the list and HR does: the only way a list gets locked.
+ */
+function ckLock(User $owner, OffboardingCase $case, OffboardingCaseDepartment $group): void
+{
+    test()->actingAs($owner)->post(route('offboarding.checklist.request-lock', [$case, $group]))->assertRedirect();
+    test()->actingAs(test()->hr)->post(route('offboarding.checklist.confirm', [$case, $group]))->assertRedirect();
+}
+
+/**
+ * Pick every master item of a department, then have the list locked.
  */
 function ckPickAll(User $owner, OffboardingCase $case, OffboardingCaseDepartment $group): void
 {
@@ -93,7 +102,7 @@ function ckPickAll(User $owner, OffboardingCase $case, OffboardingCaseDepartment
         test()->actingAs($owner)->post(route('offboarding.checklist.select', [$case, $group]), ['offboarding_item_id' => $item->id])->assertRedirect();
     }
 
-    test()->actingAs($owner)->post(route('offboarding.checklist.confirm', [$case, $group]))->assertRedirect();
+    ckLock($owner, $case, $group);
 }
 
 function ckTickAll(User $owner, OffboardingCaseDepartment $group): void
@@ -206,20 +215,22 @@ it('shows the owner only the items still to pick, and the leaver the list withou
 
 // --- Confirming and working the list ---
 
-it('locks the list once it is confirmed, even when no item applies', function () {
+it('locks the list once HR has locked it, even when no item applies', function () {
     $case = checklistCase();
     $facilities = ckGroup($case, 'Fasilitas');
 
-    $this->actingAs($this->fani->user)->post(route('offboarding.checklist.confirm', [$case, $facilities]))->assertRedirect();
+    ckLock($this->fani->user, $case, $facilities);
 
-    expect($facilities->refresh()->confirmed_at)->not->toBeNull();
+    expect($facilities->refresh()->confirmed_at)->not->toBeNull()
+        ->and($facilities->confirmed_by_user_id)->toBe($this->hr->id)
+        ->and($facilities->lock_requested_at)->toBeNull();
 
     $this->actingAs($this->fani->user)->post(route('offboarding.checklist.select', [$case, $facilities]), ['offboarding_item_id' => ckMaster('Kendaraan operasional diserahkan')->id])
         ->assertSessionHasErrors('group');
-    $this->actingAs($this->fani->user)->post(route('offboarding.checklist.confirm', [$case, $facilities]))->assertSessionHasErrors('group');
+    $this->actingAs($this->hr)->post(route('offboarding.checklist.confirm', [$case, $facilities]))->assertForbidden();
 });
 
-it('takes an item off an unconfirmed list, but not off a confirmed one, except what was added for this case', function () {
+it('takes an item off an unlocked list, but not off a locked one, except what was added for this case', function () {
     $case = checklistCase();
     $it = ckGroup($case, 'IT');
     $vpn = ckMaster('Akses VPN dicabut');
@@ -231,12 +242,16 @@ it('takes an item off an unconfirmed list, but not off a confirmed one, except w
     expect($it->items()->count())->toBe(0);
 
     $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.select', [$case, $it]), ['offboarding_item_id' => $vpn->id])->assertRedirect();
-    $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.confirm', [$case, $it]))->assertRedirect();
-    $this->actingAs($this->ivan->user)->delete(route('offboarding.checklist.remove', $it->items()->firstOrFail()))->assertSessionHasErrors('item');
+    $this->actingAs($this->hr)->post(route('offboarding.checklist.adhoc', [$case, $it]), ['name' => 'Teruskan email ke atasan', 'kind' => 'process'])->assertRedirect();
+    ckLock($this->ivan->user, $case, $it);
 
-    $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.adhoc', [$case, $it]), ['name' => 'Teruskan email ke atasan', 'kind' => 'process'])->assertRedirect();
+    // Locked: the owner may not touch the list at all; HR may take off only what was added for this case.
+    $this->actingAs($this->ivan->user)->delete(route('offboarding.checklist.remove', $it->items()->where('is_adhoc', false)->firstOrFail()))->assertForbidden();
+    $this->actingAs($this->hr)->delete(route('offboarding.checklist.remove', $it->items()->where('is_adhoc', false)->firstOrFail()))->assertSessionHasErrors('item');
+
     $adhoc = $it->items()->where('is_adhoc', true)->firstOrFail();
-    $this->actingAs($this->ivan->user)->delete(route('offboarding.checklist.remove', $adhoc))->assertRedirect();
+    $this->actingAs($this->ivan->user)->delete(route('offboarding.checklist.remove', $adhoc))->assertForbidden();
+    $this->actingAs($this->hr)->delete(route('offboarding.checklist.remove', $adhoc))->assertRedirect();
 
     expect($it->items()->count())->toBe(1);
 });
@@ -256,7 +271,7 @@ it('lets the owner or HR add an item for this case alone, and nobody else', func
     $this->actingAs($this->hr)->post(route('offboarding.checklist.adhoc', [$case, $it]), ['name' => 'X', 'kind' => 'lain'])->assertSessionHasErrors('kind');
 });
 
-it('lets only the owner tick an item, and only after the list is confirmed', function () {
+it('lets only the owner tick an item, and only after the list is locked', function () {
     $case = checklistCase();
     $it = ckGroup($case, 'IT');
     $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.select', [$case, $it]), ['offboarding_item_id' => ckMaster('Akses VPN dicabut')->id])->assertRedirect();
@@ -264,7 +279,7 @@ it('lets only the owner tick an item, and only after the list is confirmed', fun
 
     $this->actingAs($this->ivan->user)->put(route('offboarding.checklist.done', $item), ['note' => 'x'])->assertSessionHasErrors('item');
 
-    $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.confirm', [$case, $it]))->assertRedirect();
+    ckLock($this->ivan->user, $case, $it);
 
     $this->actingAs($this->fani->user)->put(route('offboarding.checklist.done', $item))->assertForbidden();
     $this->actingAs($this->hr)->put(route('offboarding.checklist.done', $item))->assertForbidden();
@@ -301,16 +316,16 @@ it('will not mix up a group with another case', function () {
     $case = checklistCase();
     $other = OffboardingCase::factory()->create(['company_id' => $this->company->id]);
 
-    $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.confirm', [$other, ckGroup($case, 'IT')]))->assertNotFound();
+    $this->actingAs($this->hr)->post(route('offboarding.checklist.confirm', [$other, ckGroup($case, 'IT')]))->assertNotFound();
 });
 
 // --- Sign-off waits for the checklist ---
 
-it('keeps sign-off locked and says why, until every list is confirmed and every item ticked', function () {
+it('keeps sign-off locked and says why, until every list is locked and every item ticked', function () {
     $case = checklistCase();
 
     $this->actingAs($this->hr)->post(route('offboarding.proceed', $case))
-        ->assertSessionHasErrors(['proceed' => 'Kasus belum bisa lanjut ke sign-off: 5 departemen belum mengonfirmasi daftarnya. HR belum menyetujui checklist.']);
+        ->assertSessionHasErrors(['proceed' => 'Kasus belum bisa lanjut ke sign-off: 5 departemen belum dikunci. HR belum menyetujui checklist.']);
 
     ckPickAll($this->ivan->user, $case, ckGroup($case, 'IT'));
     ckPickAll($this->fani->user, $case, ckGroup($case, 'Fasilitas'));
@@ -368,7 +383,7 @@ it('does not count a department set aside, and counts an item added later', func
     $this->actingAs($this->hr)->post(route('offboarding.proceed', $case))->assertSessionHasErrors('proceed');
 });
 
-it('tells HR when a department confirms, and when the checklist is complete', function () {
+it('tells HR when a department asks for its list to be locked, and when the checklist is complete', function () {
     $case = checklistCase();
     $this->hr->notifications()->delete();
 
@@ -377,7 +392,7 @@ it('tells HR when a department confirms, and when the checklist is complete', fu
         ckTickAll($owner, ckGroup($case, $name));
     }
 
-    expect($this->hr->notifications()->get()->pluck('data.body')->all())->toContain('IT: daftar item sudah dikonfirmasi');
+    expect($this->hr->notifications()->get()->pluck('data.title')->contains(fn (string $title): bool => str_contains($title, 'IT meminta kunci checklist')))->toBeTrue();
 
     foreach (['HR', 'Keuangan', 'Tanpa departemen'] as $name) {
         $this->actingAs($this->hr)->put(route('offboarding.checklist.involvement', [$case, ckGroup($case, $name)]), ['not_involved' => true])->assertRedirect();
@@ -393,4 +408,164 @@ it('lets HR manage the master list from the admin panel', function () {
 
     $this->actingAs($groupHr)->get('/admin/offboarding-items')->assertOk();
     $this->actingAs($this->ivan->user)->get('/admin/offboarding-items')->assertForbidden();
+});
+
+// --- Locking is HR's: the owner asks ---
+
+function ckGroupFlags(User $viewer, OffboardingCase $case, OffboardingCaseDepartment $group): array
+{
+    $groups = test()->actingAs($viewer)->get(route('offboarding.show', $case))->assertOk()->viewData('page')['props']['case']['checklist']['groups'];
+
+    return collect($groups)->firstWhere('id', $group->id);
+}
+
+it('does not let an owner lock their own list; they ask HR, and HR is told', function () {
+    $case = checklistCase();
+    $it = ckGroup($case, 'IT');
+    $this->hr->notifications()->delete();
+
+    $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.confirm', [$case, $it]))->assertForbidden();
+    expect($it->refresh()->confirmed_at)->toBeNull();
+
+    $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.request-lock', [$case, $it]))->assertRedirect();
+
+    expect($it->refresh()->lock_requested_at)->not->toBeNull()
+        ->and($it->confirmed_at)->toBeNull()
+        ->and($this->hr->notifications()->get()->pluck('data.title')->contains(fn (string $title): bool => str_contains($title, 'IT meminta kunci checklist')))->toBeTrue();
+
+    // Someone else's list, and a list already waiting.
+    $this->actingAs($this->fani->user)->post(route('offboarding.checklist.request-lock', [$case, $it]))->assertForbidden();
+    $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.request-lock', [$case, $it]))->assertForbidden();
+});
+
+it('stops the owner changing a list that is waiting for HR, while HR still can', function () {
+    $case = checklistCase();
+    $it = ckGroup($case, 'IT');
+    $vpn = ckMaster('Akses VPN dicabut');
+    $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.request-lock', [$case, $it]))->assertRedirect();
+
+    $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.select', [$case, $it]), ['offboarding_item_id' => $vpn->id])->assertSessionHasErrors('group');
+    $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.adhoc', [$case, $it]), ['name' => 'Alihkan klien', 'kind' => 'process'])->assertForbidden();
+
+    expect($it->items()->count())->toBe(0);
+
+    $this->actingAs($this->hr)->post(route('offboarding.checklist.adhoc', [$case, $it]), ['name' => 'Alihkan klien', 'kind' => 'process'])->assertRedirect();
+    expect($it->items()->count())->toBe(1);
+
+    $owner = ckGroupFlags($this->ivan->user, $case, $it);
+    expect($owner['status'])->toBe('review')
+        ->and($owner['lockRequested'])->toBeTrue()
+        ->and($owner['canSelect'])->toBeFalse()
+        ->and($owner['canAddItem'])->toBeFalse()
+        ->and($owner['canRequestLock'])->toBeFalse()
+        ->and($owner['canLock'])->toBeFalse()
+        ->and($owner['available'])->toBe([]);
+
+    $hr = ckGroupFlags($this->hr, $case, $it);
+    expect($hr['canLock'])->toBeTrue()->and($hr['canDeclineLock'])->toBeTrue()->and($hr['canAddItem'])->toBeTrue();
+});
+
+it('lets HR send a list back so its owner can change it and ask again', function () {
+    $case = checklistCase();
+    $it = ckGroup($case, 'IT');
+    $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.request-lock', [$case, $it]))->assertRedirect();
+    $this->ivan->user->notifications()->delete();
+
+    $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.decline-lock', [$case, $it]))->assertForbidden();
+    $this->actingAs($this->hr)->post(route('offboarding.checklist.decline-lock', [$case, $it]))->assertRedirect();
+
+    expect($it->refresh()->lock_requested_at)->toBeNull()
+        ->and($this->ivan->user->notifications()->count())->toBe(1);
+
+    $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.select', [$case, $it]), ['offboarding_item_id' => ckMaster('Akses VPN dicabut')->id])->assertRedirect();
+    $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.request-lock', [$case, $it]))->assertRedirect();
+});
+
+it('tells the owner when HR locks the list', function () {
+    $case = checklistCase();
+    $it = ckGroup($case, 'IT');
+    $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.request-lock', [$case, $it]))->assertRedirect();
+    $this->ivan->user->notifications()->delete();
+
+    $this->actingAs($this->hr)->post(route('offboarding.checklist.confirm', [$case, $it]))->assertRedirect();
+
+    expect($this->ivan->user->notifications()->get()->pluck('data.body')->contains(fn (string $body): bool => str_contains($body, 'daftar dikunci HR')))->toBeTrue();
+});
+
+it('keeps a locked list closed to its owner, who asks HR to open it', function () {
+    $case = checklistCase();
+    $it = ckGroup($case, 'IT');
+    $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.select', [$case, $it]), ['offboarding_item_id' => ckMaster('Akses VPN dicabut')->id])->assertRedirect();
+    ckLock($this->ivan->user, $case, $it);
+    $this->hr->notifications()->delete();
+
+    $add = fn (User $by) => $this->actingAs($by)->post(route('offboarding.checklist.adhoc', [$case, $it]), ['name' => 'Alihkan klien', 'kind' => 'process']);
+    $add($this->ivan->user)->assertForbidden();
+
+    $locked = ckGroupFlags($this->ivan->user, $case, $it);
+    expect($locked['canAddItem'])->toBeFalse()->and($locked['canRequestUnlock'])->toBeTrue()->and($locked['canRequestLock'])->toBeFalse();
+
+    $this->actingAs($this->fani->user)->post(route('offboarding.checklist.request-unlock', [$case, $it]))->assertForbidden();
+    $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.request-unlock', [$case, $it]))->assertRedirect();
+
+    expect($it->refresh()->unlock_requested_at)->not->toBeNull()
+        ->and($it->confirmed_at)->not->toBeNull()
+        ->and($this->hr->notifications()->get()->pluck('data.title')->contains(fn (string $title): bool => str_contains($title, 'IT meminta buka kunci checklist')))->toBeTrue();
+
+    // Once asked, not again.
+    $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.request-unlock', [$case, $it]))->assertForbidden();
+    $add($this->ivan->user)->assertForbidden();
+});
+
+it('lets HR open a locked list, after which the owner can add to it and must ask for the lock again', function () {
+    $case = checklistCase();
+    $it = ckGroup($case, 'IT');
+    $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.select', [$case, $it]), ['offboarding_item_id' => ckMaster('Akses VPN dicabut')->id])->assertRedirect();
+    ckLock($this->ivan->user, $case, $it);
+    $item = $it->items()->firstOrFail();
+    $this->actingAs($this->ivan->user)->put(route('offboarding.checklist.done', $item), ['note' => 'Beres'])->assertRedirect();
+    $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.request-unlock', [$case, $it]))->assertRedirect();
+    $this->ivan->user->notifications()->delete();
+
+    $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.unlock', [$case, $it]))->assertForbidden();
+    $this->actingAs($this->hr)->post(route('offboarding.checklist.unlock', [$case, $it]))->assertRedirect();
+
+    expect($it->refresh()->confirmed_at)->toBeNull()
+        ->and($it->unlock_requested_at)->toBeNull()
+        ->and($item->refresh()->isDone())->toBeTrue()
+        ->and($this->ivan->user->notifications()->count())->toBe(1);
+
+    $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.adhoc', [$case, $it]), ['name' => 'Alihkan klien', 'kind' => 'process'])->assertRedirect();
+    $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.request-lock', [$case, $it]))->assertRedirect();
+    $this->actingAs($this->hr)->post(route('offboarding.checklist.confirm', [$case, $it]))->assertRedirect();
+
+    expect($it->refresh()->confirmed_at)->not->toBeNull();
+});
+
+it('lets HR turn down a request to open a locked list', function () {
+    $case = checklistCase();
+    $it = ckGroup($case, 'IT');
+    ckLock($this->ivan->user, $case, $it);
+    $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.request-unlock', [$case, $it]))->assertRedirect();
+
+    $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.decline-unlock', [$case, $it]))->assertForbidden();
+    $this->actingAs($this->hr)->post(route('offboarding.checklist.decline-unlock', [$case, $it]))->assertRedirect();
+
+    expect($it->refresh()->unlock_requested_at)->toBeNull()->and($it->confirmed_at)->not->toBeNull();
+
+    // Free to ask again.
+    $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.request-unlock', [$case, $it]))->assertRedirect();
+});
+
+it('takes a department set aside out of the requests, and counts a list waiting for HR as a blocker', function () {
+    $case = checklistCase();
+    $it = ckGroup($case, 'IT');
+    $this->actingAs($this->ivan->user)->post(route('offboarding.checklist.request-lock', [$case, $it]))->assertRedirect();
+
+    $this->actingAs($this->hr)->get(route('offboarding.show', $case))
+        ->assertInertia(fn (Assert $page) => $page->where('case.checklist.progress.blockers', fn ($blockers) => collect($blockers)->contains('1 menunggu persetujuan HR.')));
+
+    $this->actingAs($this->hr)->put(route('offboarding.checklist.involvement', [$case, $it]), ['not_involved' => true])->assertRedirect();
+
+    expect($it->refresh()->lock_requested_at)->toBeNull();
 });

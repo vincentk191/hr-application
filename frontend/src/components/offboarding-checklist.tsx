@@ -1,5 +1,14 @@
 import { router } from '@inertiajs/react';
-import { Check, Lock, Plus, RefreshCw, X } from 'lucide-react';
+import {
+    Check,
+    Lock,
+    LockOpen,
+    Plus,
+    RefreshCw,
+    Send,
+    Undo2,
+    X,
+} from 'lucide-react';
 import { useState } from 'react';
 import { InfoHint } from '@/components/info-hint';
 import { Badge } from '@/components/ui/badge';
@@ -10,13 +19,18 @@ import { cn } from '@/lib/utils';
 import {
     adhoc,
     confirm,
+    declineLock,
+    declineUnlock,
     done,
     involvement,
     owner as reassignOwner,
     refresh,
     remove,
     reopen,
+    requestLock,
+    requestUnlock,
     select,
+    unlock,
 } from '@/routes/offboarding/checklist';
 import type {
     OffboardingChecklist,
@@ -29,6 +43,7 @@ const STATUS_VARIANT: Record<
     'default' | 'secondary' | 'outline'
 > = {
     choosing: 'secondary',
+    review: 'outline',
     running: 'default',
     done: 'default',
     not_involved: 'outline',
@@ -153,6 +168,122 @@ function ItemRow({ item }: { item: OffboardingChecklistItem }) {
                 )}
             </div>
         </li>
+    );
+}
+
+/**
+ * Locking a list is HR's: HR presses "Kunci Checklist", and the owner asks for it. While a request waits, or once the list is
+ * locked, the owner cannot change it; they ask HR to open it again.
+ */
+function LockActions({
+    group,
+    caseId,
+}: {
+    group: OffboardingChecklistGroup;
+    caseId: number;
+}) {
+    const post = (url: string) => router.post(url, {}, visit);
+
+    const waiting = group.lockRequested || group.unlockRequested;
+    const hasAction =
+        group.canLock ||
+        group.canRequestLock ||
+        group.canDeclineLock ||
+        group.canRequestUnlock ||
+        group.canUnlock ||
+        group.canDeclineUnlock;
+
+    if (!waiting && !hasAction) {
+        return null;
+    }
+
+    return (
+        <div className="flex flex-wrap items-center gap-3 border-t pt-3">
+            {group.canLock && (
+                <Button
+                    size="sm"
+                    data-test="lock-list"
+                    onClick={() => post(confirm([caseId, group.id]).url)}
+                >
+                    <Lock className="size-4" aria-hidden />
+                    Kunci Checklist
+                </Button>
+            )}
+            {group.canDeclineLock && (
+                <Button
+                    size="sm"
+                    variant="outline"
+                    data-test="decline-lock"
+                    onClick={() => post(declineLock([caseId, group.id]).url)}
+                >
+                    <Undo2 className="size-4" aria-hidden />
+                    Kembalikan
+                </Button>
+            )}
+            {group.canRequestLock && (
+                <Button
+                    size="sm"
+                    data-test="request-lock"
+                    onClick={() => post(requestLock([caseId, group.id]).url)}
+                >
+                    <Send className="size-4" aria-hidden />
+                    Ajukan kunci
+                </Button>
+            )}
+            {group.canRequestUnlock && (
+                <Button
+                    size="sm"
+                    variant="outline"
+                    data-test="request-unlock"
+                    onClick={() => post(requestUnlock([caseId, group.id]).url)}
+                >
+                    <LockOpen className="size-4" aria-hidden />
+                    Minta buka kunci
+                </Button>
+            )}
+            {group.canUnlock && (
+                <Button
+                    size="sm"
+                    variant="outline"
+                    data-test="unlock-list"
+                    onClick={() => post(unlock([caseId, group.id]).url)}
+                >
+                    <LockOpen className="size-4" aria-hidden />
+                    Buka kunci
+                </Button>
+            )}
+            {group.canDeclineUnlock && (
+                <Button
+                    size="sm"
+                    variant="ghost"
+                    data-test="decline-unlock"
+                    onClick={() => post(declineUnlock([caseId, group.id]).url)}
+                >
+                    <X className="size-4" aria-hidden />
+                    Tolak
+                </Button>
+            )}
+            {group.lockRequested && !group.canDeclineLock && (
+                <span className="text-sm text-muted-foreground">
+                    Menunggu HR mengunci daftar.
+                </span>
+            )}
+            {group.lockRequested && group.canDeclineLock && (
+                <span className="text-sm text-muted-foreground">
+                    Pemilik meminta kunci.
+                </span>
+            )}
+            {group.unlockRequested && !group.canUnlock && (
+                <span className="text-sm text-muted-foreground">
+                    Menunggu HR membuka kunci.
+                </span>
+            )}
+            {group.unlockRequested && group.canUnlock && (
+                <span className="text-sm text-muted-foreground">
+                    Pemilik meminta buka kunci.
+                </span>
+            )}
+        </div>
     );
 }
 
@@ -324,32 +455,16 @@ function Group({
                 <AdhocForm caseId={caseId} groupId={group.id} />
             )}
 
-            {group.canSelect && (
-                <div className="flex items-center gap-3 border-t pt-3">
-                    <Button
-                        size="sm"
-                        data-test="confirm-list"
-                        onClick={() =>
-                            router.post(
-                                confirm([caseId, group.id]).url,
-                                {},
-                                visit,
-                            )
-                        }
-                    >
-                        <Lock className="size-4" aria-hidden />
-                        Kunci Checklist
-                    </Button>
-                </div>
-            )}
+            <LockActions group={group} caseId={caseId} />
         </section>
     );
 }
 
 /**
  * Stage 2 · Checklist (OFF-CHK): a group for each department, owned by its supervisor. They pick which
- * items apply, lock the list with "Kunci Checklist", then tick the items with their checkbox as they are done. The case
- * cannot go on to sign-off until every list is confirmed and every item is ticked (OFF-CHK-001).
+ * items apply and ask HR to lock the list ("Kunci Checklist" is HR's), then tick the items with their checkbox as they are
+ * done. A locked list is opened again only by HR, on the owner's request. The case cannot go on to sign-off until every list is
+ * locked and every item is ticked (OFF-CHK-001).
  */
 export function OffboardingChecklistPanel({
     checklist,
@@ -377,7 +492,7 @@ export function OffboardingChecklistPanel({
                     </p>
                     <p className="label-mono">
                         {progress.settled} dari {progress.groups} departemen
-                        sudah mengonfirmasi daftarnya
+                        sudah dikunci
                     </p>
                 </div>
                 {progress.ready ? (

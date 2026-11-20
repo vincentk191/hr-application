@@ -12,8 +12,9 @@ use Illuminate\Support\Carbon;
 
 /**
  * One department's part of a case's checklist (OFF-CHK-002). Its owner is the department's supervisor
- * (or HR Admin when there is none): they pick the items that apply, confirm the list with "Daftar
- * selesai", and tick the items off. HR can mark a department as not involved.
+ * (or HR Admin when there is none): they pick the items that apply, ask HR to lock the list ("Kunci Checklist"
+ * is HR's to press), and tick the items off. A locked list is opened again only by HR, on the owner's request.
+ * HR can mark a department as not involved.
  *
  * @property int $id
  * @property int $company_id
@@ -24,11 +25,13 @@ use Illuminate\Support\Carbon;
  * @property string|null $owner_title
  * @property string|null $owner_department
  * @property list<int>|null $item_ids the master items this group was given
- * @property Carbon|null $confirmed_at
+ * @property Carbon|null $confirmed_at when HR locked the list
  * @property int|null $confirmed_by_user_id
+ * @property Carbon|null $lock_requested_at the owner has asked HR to lock the list
+ * @property Carbon|null $unlock_requested_at the owner has asked HR to open the locked list again
  * @property bool $not_involved
  */
-#[Fillable(['company_id', 'offboarding_case_id', 'department_id', 'name', 'owner_user_id', 'owner_title', 'owner_department', 'item_ids', 'confirmed_at', 'confirmed_by_user_id', 'not_involved'])]
+#[Fillable(['company_id', 'offboarding_case_id', 'department_id', 'name', 'owner_user_id', 'owner_title', 'owner_department', 'item_ids', 'confirmed_at', 'confirmed_by_user_id', 'lock_requested_at', 'unlock_requested_at', 'not_involved'])]
 class OffboardingCaseDepartment extends Model
 {
     /**
@@ -44,7 +47,7 @@ class OffboardingCaseDepartment extends Model
      */
     protected function casts(): array
     {
-        return ['confirmed_at' => 'datetime', 'not_involved' => 'boolean', 'item_ids' => 'array'];
+        return ['confirmed_at' => 'datetime', 'lock_requested_at' => 'datetime', 'unlock_requested_at' => 'datetime', 'not_involved' => 'boolean', 'item_ids' => 'array'];
     }
 
     /**
@@ -72,10 +75,34 @@ class OffboardingCaseDepartment extends Model
     }
 
     /**
-     * The list is settled: confirmed by its owner, or set aside as not involved.
+     * The list is settled: locked by HR, or set aside as not involved.
      */
     public function isSettled(): bool
     {
         return $this->not_involved || $this->confirmed_at !== null;
+    }
+
+    /**
+     * The owner has asked for the list to be locked and HR has not answered: nobody but HR changes it meanwhile.
+     */
+    public function isAwaitingLock(): bool
+    {
+        return ! $this->isSettled() && $this->lock_requested_at !== null;
+    }
+
+    /**
+     * The list is locked and its owner has asked for it to be opened again.
+     */
+    public function isAwaitingUnlock(): bool
+    {
+        return $this->confirmed_at !== null && $this->unlock_requested_at !== null;
+    }
+
+    /**
+     * The owner may still choose and add items: the list is neither locked nor waiting for HR to lock it.
+     */
+    public function isOpenForOwner(): bool
+    {
+        return ! $this->isSettled() && $this->lock_requested_at === null;
     }
 }

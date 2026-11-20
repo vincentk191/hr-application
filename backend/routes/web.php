@@ -81,6 +81,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('offboarding/{offboardingCase}/checklist/{group}/items', [OffboardingChecklistController::class, 'select'])->name('offboarding.checklist.select');
     Route::post('offboarding/{offboardingCase}/checklist/{group}/adhoc', [OffboardingChecklistController::class, 'adhoc'])->name('offboarding.checklist.adhoc');
     Route::post('offboarding/{offboardingCase}/checklist/{group}/confirm', [OffboardingChecklistController::class, 'confirm'])->name('offboarding.checklist.confirm');
+    Route::post('offboarding/{offboardingCase}/checklist/{group}/request-lock', [OffboardingChecklistController::class, 'requestLock'])->name('offboarding.checklist.request-lock');
+    Route::post('offboarding/{offboardingCase}/checklist/{group}/decline-lock', [OffboardingChecklistController::class, 'declineLock'])->name('offboarding.checklist.decline-lock');
+    Route::post('offboarding/{offboardingCase}/checklist/{group}/request-unlock', [OffboardingChecklistController::class, 'requestUnlock'])->name('offboarding.checklist.request-unlock');
+    Route::post('offboarding/{offboardingCase}/checklist/{group}/unlock', [OffboardingChecklistController::class, 'unlock'])->name('offboarding.checklist.unlock');
+    Route::post('offboarding/{offboardingCase}/checklist/{group}/decline-unlock', [OffboardingChecklistController::class, 'declineUnlock'])->name('offboarding.checklist.decline-unlock');
     Route::put('offboarding/{offboardingCase}/checklist/{group}/involvement', [OffboardingChecklistController::class, 'involvement'])->name('offboarding.checklist.involvement');
     Route::post('offboarding/{offboardingCase}/checklist/approve', [OffboardingChecklistController::class, 'approve'])->name('offboarding.checklist.approve');
     Route::post('offboarding/{offboardingCase}/checklist/refresh', [OffboardingChecklistController::class, 'refresh'])->name('offboarding.checklist.refresh');

@@ -13,7 +13,7 @@ import type {
     OffboardingRow,
 } from '@/types/offboarding';
 
-const STEPS = ['Pilih item', 'Kunci Checklist', 'Centang selesai'];
+const STEPS = ['Pilih item', 'Ajukan kunci', 'Centang selesai'];
 
 /**
  * How far along the owner is, the least advanced of their parts counting (a department set aside does not count): none

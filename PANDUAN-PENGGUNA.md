@@ -328,7 +328,7 @@ dimaafkan dilakukan HR.
 
 Anda melihat kasus offboarding bawahan Anda **setelah dikirim** HR (menu **Offboarding**). Anda tidak menyetujui atau
 menandatanganinya. Bila Anda memimpin sebuah departemen yang punya item checklist (IT, Fasilitas, dan sejenisnya), Anda
-mendapat daftar item yang menjadi tugas Anda: pilih yang berlaku, tandai selesai, lalu klik **Kunci Checklist** (Bagian
+mendapat daftar item yang menjadi tugas Anda: pilih yang berlaku, klik **Ajukan kunci** (HR yang mengunci), lalu tandai selesai (Bagian
 4.8). Sebelum kasus ditutup, HR memindahkan bawahan orang yang keluar ke atasan baru.
 
 ---
@@ -596,8 +596,10 @@ Hanya **HR yang memulai** kasus. Urutannya:
    (wajib untuk pengunduran diri). Kirim.
 2. **Manajemen menyetujui** (Bagian 3.5). Bila ditolak, kasus kembali menjadi draft.
 3. **Checklist:** setelah disetujui, tiap **pemilik item** (departemen atau orang yang ditunjuk, atau HR bila tidak ada)
-   menerima daftarnya: pilih item yang berlaku, tambah item khusus bila perlu, klik **Kunci Checklist**, lalu tandai item
-   satu per satu. HR dapat **Alihkan pemilik** untuk satu kasus, menandai departemen **Tidak terkait**, dan **Perbarui dari
+   menerima daftarnya: pilih item yang berlaku, tambah item khusus bila perlu, lalu klik **Ajukan kunci**. HR meninjau dan
+   menekan **Kunci Checklist** (atau **Kembalikan** untuk diperbaiki); HR diberi tahu lewat notifikasi. Selama menunggu dan
+   setelah terkunci, pemilik tidak bisa menambah atau menghapus item; untuk menambah, klik **Minta buka kunci** dan HR
+   memilih **Buka kunci** atau **Tolak**. Setelah terkunci, pemilik menandai item satu per satu. HR dapat **Alihkan pemilik** untuk satu kasus, menandai departemen **Tidak terkait**, dan **Perbarui dari
    daftar induk** bila ada item baru. Daftar induk diatur di **Panel admin** > **Item offboarding**.
 4. HR klik **Setujui checklist** (setelah semua pemilik selesai), lalu **Lanjut ke sign-off**.
 5. **Sign-off:** isi **exit interview** (atau lewati dengan alasan), pindahkan **bawahan** orang itu ke atasan baru, lalu **Tutup

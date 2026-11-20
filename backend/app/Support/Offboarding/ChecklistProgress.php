@@ -9,7 +9,7 @@ use App\Models\OffboardingCaseDepartment;
  * Where a case's checklist stands, and what still stands in the way of sign-off (OFF-CHK-001, OFF-CHK-011).
  *
  * The checklist is complete when there is at least one department group, every group is settled
- * (its owner confirmed the list, or HR set it aside as not involved), and no chosen item is still open.
+ * (HR locked the list, or set it aside as not involved), and no chosen item is still open.
  */
 class ChecklistProgress
 {
@@ -23,6 +23,7 @@ class ChecklistProgress
         $items = $groups->reject->not_involved->flatMap->items;
         $open = $items->reject->isDone()->count();
         $unsettled = $groups->reject->isSettled()->count();
+        $awaiting = $groups->filter->isAwaitingLock()->count();
 
         $blockers = [];
 
@@ -31,7 +32,11 @@ class ChecklistProgress
         }
 
         if ($unsettled > 0) {
-            $blockers[] = "{$unsettled} departemen belum mengonfirmasi daftarnya.";
+            $blockers[] = "{$unsettled} departemen belum dikunci.";
+        }
+
+        if ($awaiting > 0) {
+            $blockers[] = "{$awaiting} menunggu persetujuan HR.";
         }
 
         if ($open > 0) {

@@ -73,7 +73,7 @@ class RefreshChecklist
                 [$entry['owner']],
                 $by,
                 "Offboarding {$case->employee->full_name}: {$entry['count']} item baru untuk Anda",
-                'Buka kasus, pilih item yang berlaku, lalu konfirmasi daftar.',
+                'Buka kasus, pilih item yang berlaku, lalu ajukan kunci checklist ke HR.',
             );
         }
 
@@ -81,7 +81,7 @@ class RefreshChecklist
     }
 
     /**
-     * The group an item goes into: its owner's, if they have not confirmed it, else a new one.
+     * The group an item goes into: its owner's, if it is still open to them (not locked, not waiting to be), else a new one.
      */
     private function groupFor(OffboardingCase $case, OffboardingItem $item, ?User $owner): OffboardingCaseDepartment
     {
@@ -93,7 +93,7 @@ class RefreshChecklist
                 fn ($query) => $query->where('owner_user_id', $owner->id))
             ->orderBy('id')->get();
 
-        $open = $mine->first(fn (OffboardingCaseDepartment $group): bool => ! $group->isSettled());
+        $open = $mine->first(fn (OffboardingCaseDepartment $group): bool => $group->isOpenForOwner());
 
         if ($open !== null) {
             return $open;

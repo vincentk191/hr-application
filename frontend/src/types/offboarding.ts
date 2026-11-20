@@ -97,9 +97,14 @@ export type OffboardingChecklistGroup = {
     ownerId: number | null;
     ownerUnavailable: boolean;
     canReassign: boolean;
-    status: 'choosing' | 'running' | 'done' | 'not_involved';
+    status: 'choosing' | 'review' | 'running' | 'done' | 'not_involved';
     statusLabel: string;
+    /** HR has locked the list. */
     confirmed: boolean;
+    /** The owner has asked HR to lock it, and HR has not answered. */
+    lockRequested: boolean;
+    /** The list is locked and its owner has asked HR to open it again. */
+    unlockRequested: boolean;
     notInvolved: boolean;
     done: number;
     total: number;
@@ -107,6 +112,16 @@ export type OffboardingChecklistGroup = {
     canAddItem: boolean;
     canSetAside: boolean;
     canSelect: boolean;
+    /** "Kunci Checklist" is HR's alone. */
+    canLock: boolean;
+    /** The owner asks HR to lock the list. */
+    canRequestLock: boolean;
+    /** HR sends a requested list back to its owner. */
+    canDeclineLock: boolean;
+    /** The owner of a locked list asks HR to open it. */
+    canRequestUnlock: boolean;
+    canUnlock: boolean;
+    canDeclineUnlock: boolean;
     items: OffboardingChecklistItem[];
     /** Master items of the department not yet picked, for the owner. */
     available: { id: number; name: string; kind: string }[];

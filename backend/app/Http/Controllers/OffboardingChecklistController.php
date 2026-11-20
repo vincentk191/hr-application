@@ -21,8 +21,8 @@ use Inertia\Inertia;
 
 /**
  * The checklist stage of an offboarding case (OFF-ITM, OFF-CHK): each department's owner picks the
- * items that apply, confirms the list and ticks the items off; HR sets departments aside and, once
- * everything is done, moves the case on to sign-off.
+ * items that apply, asks HR to lock the list and ticks the items off once it is locked; HR locks and
+ * unlocks lists, sets departments aside and, once everything is done, moves the case on to sign-off.
  */
 class OffboardingChecklistController extends Controller
 {
@@ -78,16 +78,91 @@ class OffboardingChecklistController extends Controller
     }
 
     /**
-     * "Kunci Checklist": the list is settled, even when nothing applies (OFF-CHK-008).
+     * "Kunci Checklist", HR's alone: the list is settled, even when nothing applies (OFF-CHK-008).
      */
     public function confirm(Request $request, OffboardingCase $offboardingCase, OffboardingCaseDepartment $group): RedirectResponse
     {
-        $this->authorize('workGroup', $group);
+        $this->authorize('lockGroup', $group);
         $this->belongs($offboardingCase, $group);
 
-        $this->checklist->confirm($group, $request->user());
+        $this->checklist->lock($group, $request->user());
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => "Daftar {$group->name} dikonfirmasi."]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => "Daftar {$group->name} dikunci."]);
+
+        return back();
+    }
+
+    /**
+     * The owner asks HR to lock their list. From then on only HR changes it.
+     */
+    public function requestLock(Request $request, OffboardingCase $offboardingCase, OffboardingCaseDepartment $group): RedirectResponse
+    {
+        $this->authorize('requestLock', $group);
+        $this->belongs($offboardingCase, $group);
+
+        $this->checklist->requestLock($group, $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Permintaan kunci dikirim ke HR.']);
+
+        return back();
+    }
+
+    /**
+     * HR sends a list back to its owner instead of locking it.
+     */
+    public function declineLock(Request $request, OffboardingCase $offboardingCase, OffboardingCaseDepartment $group): RedirectResponse
+    {
+        $this->authorize('declineLock', $group);
+        $this->belongs($offboardingCase, $group);
+
+        $this->checklist->declineLock($group, $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "Daftar {$group->name} dikembalikan ke pemiliknya."]);
+
+        return back();
+    }
+
+    /**
+     * The owner of a locked list asks HR to open it again before they can add to it.
+     */
+    public function requestUnlock(Request $request, OffboardingCase $offboardingCase, OffboardingCaseDepartment $group): RedirectResponse
+    {
+        $this->authorize('requestUnlock', $group);
+        $this->belongs($offboardingCase, $group);
+
+        $this->checklist->requestUnlock($group, $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Permintaan buka kunci dikirim ke HR.']);
+
+        return back();
+    }
+
+    /**
+     * HR opens a locked list again.
+     */
+    public function unlock(Request $request, OffboardingCase $offboardingCase, OffboardingCaseDepartment $group): RedirectResponse
+    {
+        $this->authorize('unlockGroup', $group);
+        $this->belongs($offboardingCase, $group);
+
+        $this->checklist->unlock($group, $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "Kunci daftar {$group->name} dibuka."]);
+
+        return back();
+    }
+
+    /**
+     * HR turns down a request to open a locked list.
+     */
+    public function declineUnlock(Request $request, OffboardingCase $offboardingCase, OffboardingCaseDepartment $group): RedirectResponse
+    {
+        $this->authorize('declineUnlock', $group);
+        $this->belongs($offboardingCase, $group);
+
+        $this->checklist->declineUnlock($group, $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Permintaan buka kunci ditolak.']);
 
         return back();
     }

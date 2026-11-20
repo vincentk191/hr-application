@@ -156,14 +156,79 @@ class OffboardingCasePolicy
     }
 
     /**
-     * HR may add an item for this case to any department, whoever owns it (OFF-CHK-006).
+     * Adding an item for this case to a department's list (OFF-CHK-006). HR may add to any department, whoever owns it and
+     * whether or not it is locked; the owner only while the list is still theirs to change: once it is waiting for HR to lock
+     * it, or locked, they ask for it to be opened instead.
      */
     public function addItem(User $user, OffboardingCaseDepartment $group): bool
     {
         $case = OffboardingCase::acrossCompanies()->find($group->offboarding_case_id);
 
-        return $this->workGroup($user, $group)
-            || ($case instanceof OffboardingCase && $case->stage() === OffboardingCaseStage::Checklist && $this->manages($user, $case));
+        if (! $case instanceof OffboardingCase || $case->stage() !== OffboardingCaseStage::Checklist) {
+            return false;
+        }
+
+        return $this->manages($user, $case) || ($this->workGroup($user, $group) && $group->isOpenForOwner());
+    }
+
+    /**
+     * "Kunci Checklist" is HR's alone: it settles the list, so an owner cannot do it for themselves.
+     */
+    public function lockGroup(User $user, OffboardingCaseDepartment $group): bool
+    {
+        $case = OffboardingCase::acrossCompanies()->find($group->offboarding_case_id);
+
+        return $case instanceof OffboardingCase
+            && $case->stage() === OffboardingCaseStage::Checklist
+            && $this->manages($user, $case)
+            && $this->view($user, $case)
+            && ! $group->isSettled();
+    }
+
+    /**
+     * The owner asks HR to lock a list they have finished choosing, even when no item applies.
+     */
+    public function requestLock(User $user, OffboardingCaseDepartment $group): bool
+    {
+        return $this->workGroup($user, $group) && $group->isOpenForOwner();
+    }
+
+    /**
+     * HR sends a list back to its owner instead of locking it.
+     */
+    public function declineLock(User $user, OffboardingCaseDepartment $group): bool
+    {
+        return $group->isAwaitingLock() && $this->lockGroup($user, $group);
+    }
+
+    /**
+     * HR opens a locked list again, so its owner can add to it.
+     */
+    public function unlockGroup(User $user, OffboardingCaseDepartment $group): bool
+    {
+        $case = OffboardingCase::acrossCompanies()->find($group->offboarding_case_id);
+
+        return $case instanceof OffboardingCase
+            && $case->stage() === OffboardingCaseStage::Checklist
+            && $this->manages($user, $case)
+            && $this->view($user, $case)
+            && $group->confirmed_at !== null;
+    }
+
+    /**
+     * The owner asks HR to open their locked list again, once.
+     */
+    public function requestUnlock(User $user, OffboardingCaseDepartment $group): bool
+    {
+        return $this->workGroup($user, $group) && $group->confirmed_at !== null && $group->unlock_requested_at === null;
+    }
+
+    /**
+     * HR turns down a request to open a locked list.
+     */
+    public function declineUnlock(User $user, OffboardingCaseDepartment $group): bool
+    {
+        return $group->isAwaitingUnlock() && $this->unlockGroup($user, $group);
     }
 
     /**
@@ -182,11 +247,11 @@ class OffboardingCasePolicy
     }
 
     /**
-     * Taking an item off the list: its owner, or HR for anything added to the case.
+     * Taking an item off the list: the same people as may add one, so an owner cannot change a list HR has locked or been asked to.
      */
     public function removeItem(User $user, OffboardingCaseItem $item): bool
     {
-        return $this->workGroup($user, $item->group) || $this->addItem($user, $item->group);
+        return $this->addItem($user, $item->group);
     }
 
     /**

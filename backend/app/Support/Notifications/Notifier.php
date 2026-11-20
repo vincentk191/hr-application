@@ -11,6 +11,7 @@ use App\Models\EmployeeDocument;
 use App\Models\GoogleConnection;
 use App\Models\LeaveRequest;
 use App\Models\OffboardingCase;
+use App\Models\OffboardingCaseDepartment;
 use App\Models\ProfileChangeRequest;
 use App\Models\Requisition;
 use App\Models\User;
@@ -232,7 +233,7 @@ class Notifier
             $owner->notify(new InAppNotice(
                 'offboarding',
                 "Offboarding {$case->employee->full_name}: pilih item untuk departemen Anda",
-                "{$case->reference()} · hari terakhir {$case->last_working_on?->toDateString()}. Tandai item yang berlaku, lalu tekan Kunci Checklist.",
+                "{$case->reference()} · hari terakhir {$case->last_working_on?->toDateString()}. Tandai item yang berlaku, lalu ajukan Kunci Checklist ke HR.",
                 route('offboarding.show', $case, absolute: false),
             ));
         }
@@ -255,6 +256,37 @@ class Notifier
             $message,
             route('offboarding.show', $case, absolute: false),
         ));
+    }
+
+    /**
+     * A checklist owner asks HR to lock their list, or to open a locked one again: every HR who can run offboarding for the
+     * case's company is told, with a link to the case.
+     */
+    public function offboardingLockRequested(OffboardingCase $case, OffboardingCaseDepartment $group, User $actor, bool $unlock): void
+    {
+        $case->loadMissing('employee');
+
+        $this->offboardingEvent(
+            $case,
+            $this->offboardingManagers($case->company_id),
+            $actor,
+            $unlock
+                ? "Offboarding {$case->employee->full_name}: {$group->name} meminta buka kunci checklist"
+                : "Offboarding {$case->employee->full_name}: {$group->name} meminta kunci checklist",
+            $unlock
+                ? "{$case->reference()} · {$actor->name} ingin menambah item pada daftar yang sudah dikunci. Tinjau, lalu buka kunci atau tolak."
+                : "{$case->reference()} · {$actor->name} sudah memilih item untuk {$group->name}. Tinjau daftarnya, lalu Kunci Checklist atau kembalikan.",
+        );
+    }
+
+    /**
+     * HR answered a request about a list (locked it, sent it back, opened it, or refused): the owner hears of it.
+     */
+    public function offboardingLockAnswered(OffboardingCase $case, OffboardingCaseDepartment $group, User $actor, string $message): void
+    {
+        $case->loadMissing('employee');
+
+        $this->offboardingEvent($case, [$group->owner], $actor, "Offboarding {$case->employee->full_name}: checklist {$group->name}", $message);
     }
 
     /**
@@ -947,6 +979,20 @@ class Notifier
     private function timeframeSuffix(LeaveRequest $leave): string
     {
         return $leave->timeframe() === null ? '' : " ({$leave->timeframe()})";
+    }
+
+    /**
+     * Whoever holds the permission to run offboarding (HR Admin by default), chosen in the database.
+     *
+     * @return Collection<int, User>
+     */
+    private function offboardingManagers(int $companyId): Collection
+    {
+        return User::query()
+            ->where('is_active', true)
+            ->permission(Permission::ManageOffboarding->value)
+            ->accessingCompany($companyId)
+            ->get();
     }
 
     /**
