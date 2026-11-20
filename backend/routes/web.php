@@ -194,6 +194,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('documents/{document}', [EmployeeDocumentController::class, 'destroy'])->name('documents.destroy');
     Route::post('documents/{document}/versions', [EmployeeDocumentController::class, 'storeVersion'])
         ->name('documents.versions.store');
+    Route::post('documents/{document}/signed-copy', [EmployeeDocumentController::class, 'storeSignedCopy'])
+        ->name('documents.signed-copy.store');
     Route::get('documents/{document}/versions/{version}', [EmployeeDocumentController::class, 'download'])
         ->scopeBindings()
         ->name('documents.download');

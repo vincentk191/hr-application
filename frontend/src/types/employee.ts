@@ -147,6 +147,10 @@ export type EmployeeDocumentRow = {
     expiresOn: string | null;
     expiryStatus: 'expired' | 'expiring' | null;
     canUpdate: boolean;
+    /** The form is waiting for its signed copy, and this viewer may file it. */
+    canFileSignedCopy: boolean;
+    awaitsSignedCopy: boolean;
+    signedAt: string | null;
     /** Newest first. */
     versions: EmployeeDocumentVersion[];
 };

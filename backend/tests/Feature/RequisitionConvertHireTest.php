@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\Recruitment\InviteCandidate;
+use App\Enums\DocumentCategory;
 use App\Enums\EmploymentType;
 use App\Enums\RequisitionStage;
 use App\Enums\Role;
@@ -200,7 +201,7 @@ it('files the candidate\'s CV on the new employee\'s documents, restricted', fun
     hireConvert($this->requisition, $this->offer)->assertSessionDoesntHaveErrors();
 
     $employee = Employee::query()->where('employee_number', 'EMP-0100')->sole();
-    $document = $employee->documents()->sole();
+    $document = $employee->documents()->where('category', DocumentCategory::Other)->sole();
     $version = $document->versions()->sole();
 
     expect($document->title)->toBe('CV — '.$this->requisition->reference())
@@ -216,7 +217,7 @@ it('files the candidate\'s CV on the new employee\'s documents, restricted', fun
 it('files no document for a hire without a CV, and still makes the employee', function () {
     hireConvert($this->requisition, $this->offer)->assertSessionDoesntHaveErrors();
 
-    expect(Employee::query()->where('employee_number', 'EMP-0100')->sole()->documents()->count())->toBe(0);
+    expect(Employee::query()->where('employee_number', 'EMP-0100')->sole()->documents()->where('category', '!=', 'form')->count())->toBe(0);
 });
 
 it('puts the profile in the requisition\'s company even for HR who views every company', function () {
@@ -282,4 +283,14 @@ it('tells HR which hires can be made employees on the Terisi tab', function () {
     expect($offers($this->hr)[0]['canConvert'])->toBeTrue()
         ->and($offers($this->management)[0]['canConvert'])->toBeFalse()
         ->and($offers($this->boss)[0]['canConvert'])->toBeFalse();
+});
+
+it('files the induction form on the new employee when a hire becomes an employee', function () {
+    hireConvert($this->requisition, $this->offer)->assertSessionHasNoErrors();
+
+    $employee = Employee::firstWhere('national_id', '3201010101010001');
+    $form = $employee->documents()->where('kind', 'induction_form')->first();
+
+    expect($form)->not->toBeNull()
+        ->and($form->expires_on->toDateString())->toBe('2026-11-11');
 });

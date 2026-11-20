@@ -1437,6 +1437,14 @@ address beyond `address` (`residence_*`), the KTP address (`id_*`), and the sens
 `mother_name`, `ptkp_status`, `bank_branch`, `bpjs_employment_number`, `bpjs_health_number` (the old health group and `employee_insurance` were dropped on 2026-11-04).
 `companies` gained `npwp_15` and `npwp_22` (and `npwp_16`, 2026-11-20). Nothing here is unique (a KK is shared by a household).
 
+**Induction form (2026-11-20).** Adding an employee by hand, or converting a recruitment hire, queues `CreateInductionFormJob`, which
+files `Formulir data induk karyawan` (the company's paper form, as a dompdf PDF filled from the employee, salary left blank) as an
+`employee_documents` row with `kind = induction_form` and `expires_on` a week out. The employee (or HR) files the signed scan through
+`documents.signed-copy.store` (public route; `EmployeeDocumentPolicy::fileSignedCopy`, once only), which sets `signed_at` and clears
+the expiry; unsigned, it just shows as expired on the existing expiring-documents card. Bulk import makes no form. The form's header
+comes from `companies.address`/`tax_method` and per-Cabang `nitku`, `npwp_15`, `bpjs_employment_number`, `bpjs_health_number`, all
+edited in the Filament panel. The job is idempotent, so a retry never files a second form.
+
 ### The approval workflow engine
 
 ```mermaid

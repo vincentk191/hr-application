@@ -16,6 +16,7 @@ enum DocumentCategory: string
     case Certificate = 'certificate';
     case Tax = 'tax';
     case Medical = 'medical';
+    case Form = 'form';
     case Other = 'other';
 
     /**
@@ -29,6 +30,7 @@ enum DocumentCategory: string
             self::Certificate => 'Sertifikat',
             self::Tax => 'Pajak',
             self::Medical => 'Medis',
+            self::Form => 'Formulir',
             self::Other => 'Lainnya',
         };
     }

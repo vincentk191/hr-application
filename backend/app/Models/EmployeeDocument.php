@@ -29,14 +29,16 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int $company_id
  * @property int $employee_id
  * @property DocumentCategory $category
+ * @property string|null $kind set on a document the app made itself and expects back signed
  * @property string $title
  * @property bool $is_restricted
  * @property Carbon|null $expires_on
+ * @property Carbon|null $signed_at when the signed copy was filed
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property Carbon|null $deleted_at
  */
-#[Fillable(['company_id', 'employee_id', 'category', 'title', 'is_restricted', 'expires_on'])]
+#[Fillable(['company_id', 'employee_id', 'category', 'kind', 'title', 'is_restricted', 'expires_on', 'signed_at'])]
 class EmployeeDocument extends Model
 {
     /** @use HasFactory<EmployeeDocumentFactory> */
@@ -47,6 +49,12 @@ class EmployeeDocument extends Model
      */
     public const EXPIRING_WITHIN_DAYS = 30;
 
+    /** The "Formulir data induk karyawan" made when an employee is added, to be printed, signed and filed back. */
+    public const KIND_INDUCTION_FORM = 'induction_form';
+
+    /** How long the employee has to file the signed copy before the form counts as expired. */
+    public const INDUCTION_FORM_DAYS = 7;
+
     /**
      * @return array<string, string>
      */
@@ -56,6 +64,7 @@ class EmployeeDocument extends Model
             'category' => DocumentCategory::class,
             'is_restricted' => 'boolean',
             'expires_on' => 'date',
+            'signed_at' => 'datetime',
         ];
     }
 
@@ -65,6 +74,23 @@ class EmployeeDocument extends Model
     public function employee(): BelongsTo
     {
         return $this->belongsTo(Employee::class);
+    }
+
+    /**
+     * Whether this is the induction form the app made and is waiting to get back signed. Once the signed copy is filed it is
+     * no longer waiting, and nothing but HR may add to it.
+     */
+    public function awaitsSignedCopy(): bool
+    {
+        return $this->kind === self::KIND_INDUCTION_FORM && $this->signed_at === null;
+    }
+
+    /**
+     * The signed copy has come in: the form stops waiting and stops expiring.
+     */
+    public function markSigned(): void
+    {
+        $this->forceFill(['signed_at' => now(), 'expires_on' => null])->save();
     }
 
     /**

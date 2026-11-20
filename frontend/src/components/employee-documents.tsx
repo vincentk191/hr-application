@@ -2,7 +2,9 @@ import { Form, router } from '@inertiajs/react';
 import {
     Download,
     Eye,
+    FileSignature,
     Lock,
+    PenLine,
     RefreshCw,
     Save,
     Trash2,
@@ -18,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { destroy, store, update } from '@/routes/documents';
+import { store as storeSignedCopy } from '@/routes/documents/signed-copy';
 import { store as storeVersion } from '@/routes/documents/versions';
 import type { EmployeeDocumentRow, ValueOption } from '@/types/employee';
 
@@ -141,10 +144,10 @@ function DocumentCard({
     /** Shows a picture version in the pop-up. */
     preview: (file: PreviewableFile) => void;
 }) {
-    const [panel, setPanel] = useState<'history' | 'version' | 'edit' | null>(
-        null,
-    );
-    const toggle = (next: 'history' | 'version' | 'edit') =>
+    const [panel, setPanel] = useState<
+        'history' | 'version' | 'edit' | 'signed' | null
+    >(null);
+    const toggle = (next: 'history' | 'version' | 'edit' | 'signed') =>
         setPanel((current) => (current === next ? null : next));
 
     const current = document.versions[0];
@@ -161,6 +164,18 @@ function DocumentCard({
                         {document.isRestricted && (
                             <Badge variant="outline" className="gap-1">
                                 <Lock className="size-3" /> Terbatas
+                            </Badge>
+                        )}
+                        {document.awaitsSignedCopy && (
+                            <Badge variant="outline" className="gap-1">
+                                <PenLine className="size-3" /> Menunggu tanda
+                                tangan
+                            </Badge>
+                        )}
+                        {document.signedAt && (
+                            <Badge variant="secondary" className="gap-1">
+                                <FileSignature className="size-3" />{' '}
+                                Ditandatangani {document.signedAt}
                             </Badge>
                         )}
                         <ExpiryBadge document={document} />
@@ -194,6 +209,16 @@ function DocumentCard({
                             <a href={current.downloadUrl}>
                                 <Download /> Unduh
                             </a>
+                        </Button>
+                    )}
+                    {document.canFileSignedCopy && (
+                        <Button
+                            size="sm"
+                            type="button"
+                            onClick={() => toggle('signed')}
+                            data-test="file-signed-copy"
+                        >
+                            <Upload /> Unggah salinan bertanda tangan
                         </Button>
                     )}
                     {document.versions.length > 1 && (
@@ -285,6 +310,40 @@ function DocumentCard({
                         </li>
                     ))}
                 </ul>
+            )}
+
+            {panel === 'signed' && (
+                <Form
+                    action={storeSignedCopy(document.id).url}
+                    method="post"
+                    resetOnSuccess
+                    onSuccess={() => setPanel(null)}
+                    className="mt-3 grid gap-3 rounded-lg border p-3"
+                >
+                    {({ processing, errors }) => (
+                        <>
+                            <div className="grid gap-2">
+                                <Label htmlFor={`signed-${document.id}`}>
+                                    Salinan bertanda tangan
+                                </Label>
+                                <LimitedFileInput
+                                    id={`signed-${document.id}`}
+                                    name="file"
+                                    accept=".pdf,.jpg,.jpeg,.png,.webp"
+                                    maxSizeMb={10}
+                                    required
+                                />
+                                <InputError message={errors.file} />
+                            </div>
+                            <div>
+                                <Button type="submit" disabled={processing}>
+                                    <Upload className="size-4" aria-hidden />
+                                    Unggah
+                                </Button>
+                            </div>
+                        </>
+                    )}
+                </Form>
             )}
 
             {panel === 'version' && (

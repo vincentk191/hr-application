@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\Permission;
 use App\Http\Requests\StoreEmployeeDocumentRequest;
 use App\Http\Requests\StoreEmployeeDocumentVersionRequest;
+use App\Http\Requests\StoreSignedCopyRequest;
 use App\Http\Requests\UpdateEmployeeDocumentRequest;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
@@ -82,6 +83,27 @@ class EmployeeDocumentController extends Controller
         });
 
         $this->flash('Versi baru ditambahkan.');
+
+        return back();
+    }
+
+    /**
+     * File the signed copy of a form that waits for one. Marks the form signed and lifts its expiry; the generated form stays
+     * as version 1, the signed copy becomes the current version.
+     */
+    public function storeSignedCopy(StoreSignedCopyRequest $request, EmployeeDocument $document): RedirectResponse
+    {
+        DB::transaction(function () use ($request, $document): void {
+            $this->addVersion($document, $request->file('file'), 'Salinan bertanda tangan.');
+            $document->markSigned();
+
+            activity('documents')
+                ->performedOn($document)
+                ->causedBy(auth()->user())
+                ->log('Salinan formulir bertanda tangan diunggah');
+        });
+
+        $this->flash('Salinan bertanda tangan diunggah.');
 
         return back();
     }

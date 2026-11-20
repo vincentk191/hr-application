@@ -18,11 +18,15 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property int $company_id
  * @property string $name
+ * @property string|null $nitku this office's 22-digit tax number
+ * @property string|null $npwp_15 this office's 15-digit tax number
+ * @property string|null $bpjs_employment_number the company's BPJS Ketenagakerjaan registration for this office
+ * @property string|null $bpjs_health_number the company's BPJS Kesehatan registration for this office
  * @property AttendanceSource $attendance_source where this Cabang's attendance comes from, set by HR
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['company_id', 'name', 'attendance_source'])]
+#[Fillable(['company_id', 'name', 'nitku', 'npwp_15', 'bpjs_employment_number', 'bpjs_health_number', 'attendance_source'])]
 class Branch extends Model
 {
     /** @use HasFactory<BranchFactory> */

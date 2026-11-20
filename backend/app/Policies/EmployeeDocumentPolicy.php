@@ -48,6 +48,20 @@ class EmployeeDocumentPolicy
             && $this->view($user, $document);
     }
 
+    /**
+     * Filing the signed copy of a form that is waiting for one (the induction form). The employee it belongs to may do it
+     * themselves, as may whoever manages documents, who might be holding the signed paper; once it is in, nobody may, since
+     * it would be a second "signed copy" for the same form.
+     */
+    public function fileSignedCopy(User $user, EmployeeDocument $document): bool
+    {
+        if (! $document->awaitsSignedCopy() || $document->is_restricted) {
+            return false;
+        }
+
+        return $this->isOwner($user, $document) || $this->update($user, $document);
+    }
+
     public function delete(User $user, EmployeeDocument $document): bool
     {
         return $this->update($user, $document);

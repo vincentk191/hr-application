@@ -52,6 +52,24 @@ class BranchResource extends Resource
                     ignoreRecord: true,
                     modifyRuleUsing: fn (Unique $rule, Get $get) => $rule->where('company_id', $get('company_id')),
                 ),
+            TextInput::make('nitku')
+                ->label('NITKU')
+                ->helperText('Nomor 22 digit kantor ini. Tercetak di Formulir data induk karyawan.')
+                ->maxLength(30)
+                ->disabled(fn (): bool => auth()->user()?->can(Permission::ManageCompanies->value) !== true),
+            TextInput::make('npwp_15')
+                ->label('NPWP 15 digit')
+                ->maxLength(30)
+                ->disabled(fn (): bool => auth()->user()?->can(Permission::ManageCompanies->value) !== true),
+            TextInput::make('bpjs_employment_number')
+                ->label('Nomor BPJS Ketenagakerjaan perusahaan')
+                ->helperText('Nomor pendaftaran perusahaan untuk kantor ini, bukan kartu karyawan.')
+                ->maxLength(50)
+                ->disabled(fn (): bool => auth()->user()?->can(Permission::ManageCompanies->value) !== true),
+            TextInput::make('bpjs_health_number')
+                ->label('Nomor BPJS Kesehatan perusahaan')
+                ->maxLength(50)
+                ->disabled(fn (): bool => auth()->user()?->can(Permission::ManageCompanies->value) !== true),
             Select::make('attendance_source')
                 ->label('Sumber absensi')
                 ->helperText('Pemindai: HR mengunggah Laporan Absensi dari mesin di cabang ini. Rekapitulasi: cabang tanpa mesin, PIC-nya mengirim rekap per periode.')

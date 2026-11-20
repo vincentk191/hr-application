@@ -3,6 +3,7 @@
 namespace App\Actions\Recruitment;
 
 use App\Enums\DocumentCategory;
+use App\Jobs\CreateInductionFormJob;
 use App\Models\Candidate;
 use App\Models\CandidateOffer;
 use App\Models\Employee;
@@ -43,6 +44,9 @@ class ConvertHireToEmployee
             ]);
 
             $locked->forceFill(['employee_id' => $employee->id])->save();
+
+            // The form the new employee prints, signs and files back, made once this has been saved.
+            CreateInductionFormJob::dispatch($employee->id)->afterCommit();
 
             $this->fileCandidateCv($requisition, $offer, $employee, $by);
 

@@ -2,12 +2,15 @@
 
 namespace App\Filament\Resources\Companies\Schemas;
 
+use App\Enums\TaxMethod;
 use App\Models\Company;
 use App\Support\Branding;
 use App\Support\Recruitment\InterviewEvent;
 use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Text;
@@ -43,6 +46,11 @@ class CompanyForm
                     ->label('Nama')
                     ->required()
                     ->maxLength(255),
+                Textarea::make('address')
+                    ->label('Alamat')
+                    ->helperText('Tercetak di kop Formulir data induk karyawan.')
+                    ->rows(2)
+                    ->maxLength(500),
                 TextInput::make('npwp_15')
                     ->label('NPWP 15 digit')
                     ->helperText('Nomor pokok wajib pajak perusahaan, format lama. Terisi dari berkas impor karyawan bila masih kosong.')
@@ -55,6 +63,11 @@ class CompanyForm
                     ->label('NPWP 22 digit')
                     ->helperText('Nomor 22 digit (NITKU) yang kini dipakai kantor pajak. Terisi dari berkas impor karyawan bila masih kosong.')
                     ->maxLength(30),
+                Select::make('tax_method')
+                    ->label('Metode perpajakan')
+                    ->options(collect(TaxMethod::cases())->mapWithKeys(fn (TaxMethod $method): array => [$method->value => $method->label()])->all())
+                    ->placeholder('Belum ditentukan')
+                    ->native(false),
                 ColorPicker::make('brand_color')
                     ->label('Warna perusahaan')
                     ->helperText('Warna utama aplikasi saat perusahaan ini dipilih. Kosongkan untuk warna bawaan.')

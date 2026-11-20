@@ -8,6 +8,7 @@ use App\Enums\EmploymentStatus;
 use App\Enums\Permission;
 use App\Http\Requests\StoreEmployeeRequest;
 use App\Http\Requests\UpdateEmployeeRequest;
+use App\Jobs\CreateInductionFormJob;
 use App\Models\Company;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
@@ -283,6 +284,9 @@ class EmployeeController extends Controller
             'photo_path' => $request->file('photo')?->store('employee-photos', Employee::PHOTO_DISK),
         ]);
 
+        // The form the new employee prints, signs and files back; made on the queue, so it never holds this up.
+        CreateInductionFormJob::dispatch($employee->id)->afterCommit();
+
         Inertia::flash('toast', [
             'type' => 'success',
             'message' => "{$employee->full_name} ditambahkan.",
@@ -507,6 +511,9 @@ class EmployeeController extends Controller
                 'expiresOn' => $document->expires_on?->toDateString(),
                 'expiryStatus' => $document->expiryStatus(),
                 'canUpdate' => $user->can('update', $document),
+                'canFileSignedCopy' => $user->can('fileSignedCopy', $document),
+                'signedAt' => $document->signed_at?->toDateString(),
+                'awaitsSignedCopy' => $document->awaitsSignedCopy(),
                 'versions' => $document->versions->map(fn (EmployeeDocumentVersion $version): array => [
                     'id' => $version->id,
                     'versionNo' => $version->version_no,

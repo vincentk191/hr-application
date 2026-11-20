@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\TaxMethod;
 use Database\Factories\CompanyFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -23,18 +24,20 @@ use Illuminate\Support\Facades\Storage;
  * @property int $id
  * @property string $code
  * @property string $name
+ * @property string|null $address
  * @property string|null $brand_color
  * @property string|null $logo_path
  * @property string|null $logo_dark_path
  * @property string|null $npwp_15
  * @property string|null $npwp_16
  * @property string|null $npwp_22
+ * @property TaxMethod|null $tax_method how it pays tax on pay, printed on the employee induction form
  * @property string|null $google_sender_email the one Google account interview invitations may be sent from
  * @property bool $is_active
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['code', 'name', 'brand_color', 'logo_path', 'logo_dark_path', 'npwp_15', 'npwp_16', 'npwp_22', 'google_sender_email', 'is_active'])]
+#[Fillable(['code', 'name', 'brand_color', 'logo_path', 'logo_dark_path', 'address', 'npwp_15', 'npwp_16', 'npwp_22', 'tax_method', 'google_sender_email', 'is_active'])]
 class Company extends Model
 {
     /** @use HasFactory<CompanyFactory> */
@@ -46,6 +49,7 @@ class Company extends Model
     protected function casts(): array
     {
         return [
+            'tax_method' => TaxMethod::class,
             'is_active' => 'boolean',
         ];
     }
