@@ -151,6 +151,16 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     }
 
     /**
+     * Whether this account's reach follows its team into other companies: a company-pinned Supervisor on the private
+     * entrance. The role is the label for it, so a senior colleague given a junior is not widened by that alone. HR and
+     * Management are parent-wide or see every company already, and the public entrance serves everyone as an employee.
+     */
+    public function reachesAcrossCompanies(): bool
+    {
+        return $this->company_id !== null && $this->isA(Role::Supervisor);
+    }
+
+    /**
      * Limit a query to the accounts that may look at the given company's data: its own accounts and
      * every parent-wide one. The same rule as canAccessCompany(), for when the people are chosen in
      * the database rather than filtered afterwards.

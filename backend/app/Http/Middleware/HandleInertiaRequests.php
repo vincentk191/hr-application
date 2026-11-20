@@ -14,6 +14,7 @@ use App\Models\Requisition;
 use App\Models\WorkflowStep;
 use App\Support\Access\AccessTier;
 use App\Support\Access\Entrance;
+use App\Support\Access\SupervisorReach;
 use App\Support\Branding;
 use App\Support\CompanyContext;
 use App\Support\Features;
@@ -167,8 +168,11 @@ class HandleInertiaRequests extends Middleware
 
         $context = app(CompanyContext::class);
 
+        // A pinned account is offered its own company, and a Supervisor also those their team works in.
+        $reachable = app(SupervisorReach::class)->companyIds($user);
+
         $companies = Company::active()
-            ->when(! $user->isParentWide(), fn ($query) => $query->whereKey($user->company_id))
+            ->when(! $user->isParentWide(), fn ($query) => $query->whereKey($reachable === [] ? [$user->company_id] : $reachable))
             ->orderBy('name')
             ->get(['id', 'code', 'name']);
 
@@ -178,11 +182,11 @@ class HandleInertiaRequests extends Middleware
                 'code' => $company->code,
                 'name' => $company->name,
             ])->all(),
-            'selected' => $context->isCombined()
+            'selected' => $context->isCombined() || $context->isSet()
                 ? SetActiveCompany::COMBINED
                 : (string) $context->companyId(),
-            'canCombine' => $user->isParentWide(),
-            'locked' => ! $user->isParentWide(),
+            'canCombine' => $user->isParentWide() || count($reachable) > 1,
+            'locked' => ! $user->isParentWide() && count($reachable) <= 1,
         ];
     }
 }

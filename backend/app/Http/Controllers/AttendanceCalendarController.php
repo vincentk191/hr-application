@@ -283,7 +283,7 @@ class AttendanceCalendarController extends Controller
     private function events(Request $request, CarbonImmutable $from, CarbonImmutable $to, array $branchNames = []): array
     {
         $user = $request->user();
-        $activeCompany = app(CompanyContext::class)->companyId();
+        $activeCompanies = app(CompanyContext::class)->companyIds();
 
         $sizes = [];
 
@@ -291,8 +291,8 @@ class AttendanceCalendarController extends Controller
             ->with(['company:id,code', 'department:id,name', 'branch:id,name'])
             ->whereDate('starts_on', '<=', $to->toDateString())
             ->whereDate('ends_on', '>=', $from->toDateString())
-            ->when($activeCompany !== null, fn (Builder $query) => $query->where(
-                fn (Builder $inner) => $inner->whereNull('company_id')->orWhere('company_id', $activeCompany),
+            ->when($activeCompanies !== null, fn (Builder $query) => $query->where(
+                fn (Builder $inner) => $inner->whereNull('company_id')->orWhereIn('company_id', $activeCompanies),
             ))
             ->when($branchNames !== [], fn (Builder $query) => $query->where(
                 fn (Builder $inner) => $inner->whereNull('branch_id')->orWhereIn('branch_id', Branch::query()->whereIn('name', $branchNames)->select('id')),

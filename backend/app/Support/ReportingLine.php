@@ -53,6 +53,50 @@ class ReportingLine
     }
 
     /**
+     * Every employee below this one at any depth, in whichever company they work. For a supervisor whose team spans
+     * companies; `downlineIds()` stays inside the manager's own company, which is what every other caller wants.
+     *
+     * @return list<int>
+     */
+    public function downlineIdsAcrossCompanies(Employee $manager): array
+    {
+        return array_map(static fn (array $row): int => $row['id'], $this->walkAcrossCompanies($manager));
+    }
+
+    /**
+     * The companies the people below this employee work in, whichever they are.
+     *
+     * @return list<int>
+     */
+    public function downlineCompanyIds(Employee $manager): array
+    {
+        return array_values(array_unique(array_map(static fn (array $row): int => $row['company_id'], $this->walkAcrossCompanies($manager))));
+    }
+
+    /**
+     * @return list<array{id: int, company_id: int}>
+     */
+    private function walkAcrossCompanies(Employee $manager): array
+    {
+        $rows = DB::select(<<<'SQL'
+            WITH RECURSIVE downline AS (
+                SELECT id, company_id FROM employees WHERE manager_id = ?
+                UNION
+                SELECT e.id, e.company_id
+                FROM employees e
+                INNER JOIN downline d ON e.manager_id = d.id
+            )
+            SELECT id, company_id FROM downline
+        SQL, [$manager->id]);
+
+        return array_values(array_map(static function (object $row): array {
+            $values = (array) $row;
+
+            return ['id' => (int) $values['id'], 'company_id' => (int) $values['company_id']];
+        }, $rows));
+    }
+
+    /**
      * The downline plus the manager themselves — "my team including me", which is what most
      * screens actually want.
      *
@@ -84,7 +128,14 @@ class ReportingLine
             return null;
         }
 
-        return $own === null ? [] : $this->scopeIds($own);
+        if ($own === null) {
+            return [];
+        }
+
+        // A supervisor's team may span companies; everyone else's line stays within their own.
+        return $user->reachesAcrossCompanies()
+            ? [$own->id, ...$this->downlineIdsAcrossCompanies($own)]
+            : $this->scopeIds($own);
     }
 
     /**

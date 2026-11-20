@@ -343,14 +343,14 @@ class AdminOverview
      */
     private function events(User $user, CarbonImmutable $from, CarbonImmutable $to, ?Employee $for = null): array
     {
-        $company = app(CompanyContext::class)->companyId() ?? ($user->isParentWide() ? null : $user->company_id);
+        $companies = app(CompanyContext::class)->companyIds() ?? ($user->isParentWide() ? null : [$user->company_id]);
         $entries = [];
 
         CalendarEvent::query()
             ->whereDate('starts_on', '<=', $to->toDateString())
             ->whereDate('ends_on', '>=', $from->toDateString())
-            ->when($for === null && $company !== null, fn (Builder $query) => $query->where(
-                fn (Builder $inner) => $inner->whereNull('company_id')->orWhere('company_id', $company),
+            ->when($for === null && $companies !== null, fn (Builder $query) => $query->where(
+                fn (Builder $inner) => $inner->whereNull('company_id')->orWhereIn('company_id', $companies),
             ))
             ->get()
             ->when($for !== null, fn (Collection $events) => $events->filter(

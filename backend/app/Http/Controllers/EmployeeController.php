@@ -314,7 +314,7 @@ class EmployeeController extends Controller
         $this->authorize('update', $employee);
 
         return Inertia::render('employees/edit', [
-            ...$this->formOptions(),
+            ...$this->formOptions($employee),
             'employee' => $this->detail($employee, $request->user()->can(Permission::ViewSensitiveData->value)),
             'canEditSensitive' => $request->user()->can(Permission::ViewSensitiveData->value),
         ]);
@@ -351,9 +351,9 @@ class EmployeeController extends Controller
      *
      * @return array<string, mixed>
      */
-    private function formOptions(): array
+    private function formOptions(?Employee $editing = null): array
     {
-        return EmployeeFormOptions::make();
+        return EmployeeFormOptions::make($editing);
     }
 
     /**

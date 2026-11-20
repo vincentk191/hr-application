@@ -29,13 +29,20 @@ class CompanyScope implements Scope
     {
         $context = app(CompanyContext::class);
 
-        if (! $context->isConstrained()) {
+        $companyIds = $context->companyIds();
+
+        if ($companyIds === null) {
             return;
         }
 
-        $builder->where(
-            $model->qualifyColumn('company_id'),
-            $context->companyId(),
-        );
+        $column = $model->qualifyColumn('company_id');
+
+        if (count($companyIds) === 1) {
+            $builder->where($column, $companyIds[0]);
+
+            return;
+        }
+
+        $builder->whereIn($column, $companyIds);
     }
 }

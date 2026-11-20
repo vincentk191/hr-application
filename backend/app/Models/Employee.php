@@ -192,6 +192,27 @@ class Employee extends Model
      * The name on a person's login is the one on their employee record: a change to the record (an HR edit, an
      * approved change request, an import) carries over to the account. Nobody edits the account's name itself.
      */
+    /**
+     * A person's own profile opens whichever company they are viewing: a supervisor whose team spans companies may have
+     * picked another one, and must not lose their own page to the company filter. Anyone else's record still goes through it.
+     *
+     * @param  mixed  $value
+     * @param  string|null  $field
+     */
+    public function resolveRouteBinding($value, $field = null): ?Model
+    {
+        $found = parent::resolveRouteBinding($value, $field);
+
+        if ($found !== null || auth()->id() === null) {
+            return $found;
+        }
+
+        return $this->newQueryWithoutScopes()
+            ->where($field ?? $this->getRouteKeyName(), $value)
+            ->where('user_id', auth()->id())
+            ->first();
+    }
+
     protected static function booted(): void
     {
         static::updated(function (self $employee): void {

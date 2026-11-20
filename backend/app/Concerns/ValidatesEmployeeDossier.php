@@ -54,8 +54,14 @@ trait ValidatesEmployeeDossier
                 ->when($companyId !== null, fn ($rule) => $rule->where('company_id', $companyId))],
             'position_id' => ['nullable', 'integer', Rule::exists(Position::class, 'id')
                 ->when($companyId !== null, fn ($rule) => $rule->where('company_id', $companyId))],
+            // A manager already set stays valid when the record is saved: a supervisor's team may span companies, and
+            // saving a report must not force its manager out because the manager works in another one.
             'manager_id' => ['nullable', 'integer', Rule::exists(Employee::class, 'id')
-                ->when($companyId !== null, fn ($rule) => $rule->where('company_id', $companyId))],
+                ->when($companyId !== null, fn ($rule) => $rule->where(
+                    fn ($query) => $query->where(fn ($inCompany) => $inCompany
+                        ->where('company_id', $companyId)
+                        ->when($ignoring?->manager_id, fn ($same, $current) => $same->orWhere('id', $current))),
+                ))],
             // A profile is only closed by an offboarding case, and only brought back by reactivating it.
             'employment_status' => ['required', Rule::enum(EmploymentStatus::class)->only(EmploymentStatus::Active)],
             'employment_type' => ['nullable', Rule::enum(EmploymentType::class)],

@@ -3,6 +3,8 @@
 namespace App\Http\Middleware;
 
 use App\Models\Company;
+use App\Models\User;
+use App\Support\Access\SupervisorReach;
 use App\Support\CompanyContext;
 use Closure;
 use Illuminate\Http\Request;
@@ -12,9 +14,11 @@ use Symfony\Component\HttpFoundation\Response;
  * Resolves which company the signed-in user is looking at, for the rest of the request.
  *
  * The decision is made here, from the user's own record, and never from what the browser
- * sent. A company-pinned user is always resolved to their own company whatever the session
- * happens to hold, which is what makes the switcher's lock a server-side guarantee rather
- * than a hidden UI control (CORE-NAV-004).
+ * sent. A company-pinned user is resolved to their own company whatever the session happens
+ * to hold, which is what makes the switcher's lock a server-side guarantee rather than a
+ * hidden UI control (CORE-NAV-004). The one exception is a Supervisor whose team works in other
+ * companies: they may pick among the companies their team reaches (SupervisorReach), and only
+ * those, checked here on every request.
  */
 class SetActiveCompany
 {
@@ -28,7 +32,7 @@ class SetActiveCompany
      */
     public const COMBINED = 'all';
 
-    public function __construct(private CompanyContext $context) {}
+    public function __construct(private CompanyContext $context, private SupervisorReach $reach) {}
 
     public function handle(Request $request, Closure $next): Response
     {
@@ -39,8 +43,7 @@ class SetActiveCompany
         }
 
         if (! $user->isParentWide()) {
-            // Pinned accounts ignore the session entirely.
-            $this->context->setCompany($user->company_id);
+            $this->resolvePinned($request, $user);
 
             return $next($request);
         }
@@ -66,6 +69,34 @@ class SetActiveCompany
         $this->context->setCompany($company);
 
         return $next($request);
+    }
+
+    /**
+     * A pinned account is in its own company, unless it is a Supervisor whose team reaches others and has chosen one of
+     * those (or all of them) in the session. A selection outside the reach is ignored, whatever the session holds.
+     */
+    private function resolvePinned(Request $request, User $user): void
+    {
+        $this->reach->flush();
+        $reachable = $this->reach->companyIds($user);
+
+        if (count($reachable) > 1) {
+            $selected = $request->session()->get(self::SESSION_KEY);
+
+            if ($selected === self::COMBINED) {
+                $this->context->setCompanies($reachable, (int) $user->company_id);
+
+                return;
+            }
+
+            if (is_numeric($selected) && in_array((int) $selected, $reachable, strict: true)) {
+                $this->context->setCompany((int) $selected);
+
+                return;
+            }
+        }
+
+        $this->context->setCompany((int) $user->company_id);
     }
 
     /**

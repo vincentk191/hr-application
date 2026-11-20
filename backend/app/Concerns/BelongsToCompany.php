@@ -28,7 +28,7 @@ trait BelongsToCompany
                 return;
             }
 
-            $companyId = app(CompanyContext::class)->companyId();
+            $companyId = app(CompanyContext::class)->creationCompanyId();
 
             if ($companyId !== null) {
                 $model->setAttribute('company_id', $companyId);

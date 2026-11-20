@@ -1437,6 +1437,16 @@ address beyond `address` (`residence_*`), the KTP address (`id_*`), and the sens
 `mother_name`, `ptkp_status`, `bank_branch`, `bpjs_employment_number`, `bpjs_health_number` (the old health group and `employee_insurance` were dropped on 2026-11-04).
 `companies` gained `npwp_15` and `npwp_22` (and `npwp_16`, 2026-11-20). Nothing here is unique (a KK is shared by a household).
 
+**Supervisor reach across companies (2026-11-20).** A company-pinned account with the Supervisor role, on the private entrance
+(`User::reachesAcrossCompanies()`), may look at the companies its team works in: `SupervisorReach::companyIds()` is its own company plus
+the companies of its whole downline (`ReportingLine::downlineIdsAcrossCompanies()`), read from the line each request, never stored. The
+switcher offers those, "Semua perusahaan" only with two or more, and `SetActiveCompany` honours a session selection only inside the reach.
+"All" is a set, not the parent-wide combined view: `CompanyContext::setCompanies()` and a `whereIn` in `CompanyScope`; new records fall
+back to the person's own company (`creationCompanyId()`). It widens seeing only: `EmployeePolicy::view` and `LeaveRequestPolicy::view` accept
+a covered company, while `canAccessCompany()` stays single-company, so no HR-style action (edit, documents, attendance, salary) opens up.
+A Karyawan with reports, HR, Management and the public entrance are unchanged. A person's own profile opens whichever company is being
+viewed (`Employee::resolveRouteBinding`), and the employee form keeps a manager already set in another company.
+
 **Induction form (2026-11-20).** Adding an employee by hand, or converting a recruitment hire, queues `CreateInductionFormJob`, which
 files `Formulir data induk karyawan` (the company's paper form, as a dompdf PDF filled from the employee, salary left blank) as an
 `employee_documents` row with `kind = induction_form` and `expires_on` a week out. The employee (or HR) files the signed scan through
@@ -2357,7 +2367,7 @@ what the Inertia shared props carry on every page, and the leaver's own read-onl
 entrance (offboarding is private for now). Both are noted here so they are not forgotten. **The shared props were
 audited 2026-11-17** (`HandleInertiaRequests::share`): every `can*` flag and every badge count is false or 0 on the
 public entrance, `pendingForMe` is empty there because `WorkflowStep::waitingOn` returns nothing on it, the company
-switcher offers a company-pinned account only its own company, and `auth.user` is the person's own account with the
+switcher offers a company-pinned account only its own company (a Supervisor on the private entrance also gets the companies their team works in, below), and `auth.user` is the person's own account with the
 password, 2FA secret, recovery codes and remember token hidden. Nothing about other people reaches the page. The leaver's
 read-only view is a feature, not an audit, and was decided against on 2026-11-17.
 

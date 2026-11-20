@@ -10,6 +10,7 @@ use App\Models\LeaveRequest;
 use App\Models\User;
 use App\Models\WorkflowStep;
 use App\Support\Access\Entrance;
+use App\Support\Access\SupervisorReach;
 use App\Support\ReportingLine;
 
 /**
@@ -36,7 +37,8 @@ class LeaveRequestPolicy
             return false;
         }
 
-        if (! $user->canAccessCompany($leaveRequest->company_id)) {
+        // A supervisor also reaches the companies their team works in, to see their reports' requests.
+        if (! $user->canAccessCompany($leaveRequest->company_id) && ! app(SupervisorReach::class)->covers($user, $leaveRequest->company_id)) {
             return false;
         }
 

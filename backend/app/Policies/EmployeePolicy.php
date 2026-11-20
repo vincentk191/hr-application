@@ -6,6 +6,7 @@ use App\Enums\EmploymentStatus;
 use App\Enums\Permission;
 use App\Models\Employee;
 use App\Models\User;
+use App\Support\Access\SupervisorReach;
 use App\Support\Features;
 use App\Support\ReportingLine;
 
@@ -39,7 +40,9 @@ class EmployeePolicy
             return true;
         }
 
-        if (! $user->canAccessCompany($employee->company_id)) {
+        // A supervisor reaches the companies their team works in, to see the people who report to them. Only to see:
+        // every other check below keeps canAccessCompany(), so nothing is opened up for editing there.
+        if (! $user->canAccessCompany($employee->company_id) && ! app(SupervisorReach::class)->covers($user, $employee->company_id)) {
             return false;
         }
 

@@ -491,6 +491,11 @@ Di **Direktori**, cek siapa yang belum mendaftar dan ingatkan. Kasus yang sering
 - **Ubah data:** buka profil > **Ubah data**. Terkunci bila karyawan sudah keluar (gunakan **Aktifkan kembali**).
 - **Dokumen:** tab **Dokumen** di profil: unggah dokumen, tambahkan versi baru, dan unduh. Kartu **Dokumen segera berakhir**
   di Beranda mengingatkan masa berlaku yang mendekati batas.
+- **Supervisor dengan tim lintas perusahaan:** bila anggota tim Anda bekerja di perusahaan lain, **pemilih perusahaan**
+  menampilkan perusahaan Anda dan perusahaan tim Anda; **Semua perusahaan** muncul bila ada lebih dari satu. Anda hanya melihat
+  anggota tim Anda di sana (profil tanpa data sensitif, daftar tim, dan pengajuan mereka), tanpa dokumen, absensi, gaji, atau
+  hak mengubah. Berlaku hanya untuk peran **Supervisor** lewat pintu privat; karyawan biasa yang memiliki bawahan tetap di
+  perusahaannya sendiri.
 - **Formulir data induk:** setiap karyawan baru (lewat **Tambah karyawan** atau dari rekrutmen, bukan impor massal) otomatis
   mendapat dokumen **Formulir data induk karyawan** berformat PDF di tab **Dokumen**, terisi data yang sudah ada. Karyawan
   mencetak, melengkapi, menandatangani, lalu mengunggah salinannya lewat **Unggah salinan bertanda tangan** (HR juga bisa
