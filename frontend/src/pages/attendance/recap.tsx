@@ -33,6 +33,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { formatMinutes } from '@/lib/attendance-status';
 import { printReport } from '@/lib/print';
+import { cn } from '@/lib/utils';
 import { shortDate } from '@/lib/short-date';
 import { recap as recapRoute } from '@/routes/attendance';
 import { show as employeeShow } from '@/routes/employees';
@@ -113,6 +114,9 @@ type TableRow = {
     /** Only on a line that is one person. */
     person?: Pick<Row, 'zona' | 'source' | 'rekapMissing'>;
 };
+
+/** A table of this many lines or fewer is printed whole on one page rather than split across two. */
+const SHORT_TABLE_ROWS = 14;
 
 const VIEWS: { value: View; label: string; short: string; column: string }[] = [
     {
@@ -732,13 +736,19 @@ export default function AttendanceRecap({
                         return (
                             <section
                                 key={item.value}
-                                className="surface print:break-inside-auto"
+                                className={cn(
+                                    'surface',
+                                    // A short table stays whole on one page; a long one runs over, keeping its heading with its first rows.
+                                    cut.rows.length <= SHORT_TABLE_ROWS
+                                        ? 'print:break-inside-avoid'
+                                        : 'print:break-inside-auto',
+                                )}
                             >
                                 <p className="px-3 pt-3 text-sm text-muted-foreground md:hidden print:hidden">
                                     {item.label} ({cut.hint})
                                 </p>
 
-                                <div className="hidden items-center gap-2 p-3 md:flex print:flex">
+                                <div className="hidden items-center gap-2 p-3 md:flex print:flex print:break-after-avoid">
                                     <h2 className="font-medium">
                                         {printing ? (
                                             item.label

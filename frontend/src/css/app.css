@@ -436,8 +436,45 @@ html[data-keyboard='open'] [data-hide-on-keyboard] {
         print-color-adjust: exact;
     }
 
-    [data-print-area] [role='row'] {
+    [data-print-area] [role='row'],
+    [data-print-area] tr {
         break-inside: avoid;
+    }
+
+    /*
+     * A table prints as a table, not as the scrolling box it is on screen: no scroll bar, no minimum width that pushes
+     * columns off the paper, and nothing stuck to the edge of a box that no longer scrolls. It is set a little smaller so
+     * its columns fit the width of the page.
+     */
+    [data-print-area] .overflow-x-auto,
+    [data-print-area] .overflow-auto,
+    [data-print-area] .overflow-y-auto {
+        overflow: visible !important;
+        max-height: none !important;
+    }
+
+    [data-print-area] table {
+        width: 100% !important;
+        min-width: 0 !important;
+        font-size: 9pt;
+    }
+
+    [data-print-area] th,
+    [data-print-area] td {
+        padding: 3px 6px !important;
+    }
+
+    [data-print-area] .sticky {
+        position: static !important;
+    }
+
+    /* The headings repeat on each page a long table runs over; the total is printed once, at the end, not on every page. */
+    [data-print-area] thead {
+        display: table-header-group;
+    }
+
+    [data-print-area] tfoot {
+        display: table-row-group;
     }
 }
 
