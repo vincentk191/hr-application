@@ -62,6 +62,7 @@ class ImportEmployees
     public const ALIASES = [
         'company' => ['namaperusahaan', 'perusahaan', 'company', 'companyname'],
         'company_npwp_15' => ['npwp15perusahaan', 'npwpperusahaan15'],
+        'company_npwp_16' => ['npwp16perusahaan', 'npwpperusahaan16'],
         'company_npwp_22' => ['npwp22perusahaan', 'npwp22peresuhaan', 'npwpperusahaan22'],
         'employee_number' => ['idkaryawan', 'nomorindukkaryawan', 'employeenumber', 'employeeid', 'nomorkaryawan', 'nip', 'empno', 'id'],
         'full_name' => ['nama', 'namakaryawan', 'namalengkap', 'fullname', 'name'],
@@ -173,7 +174,7 @@ class ImportEmployees
 
         $valid = [];
         $duplicates = 0;
-        $companyNumbers = ['npwp_15' => null, 'npwp_22' => null];
+        $companyNumbers = ['npwp_15' => null, 'npwp_16' => null, 'npwp_22' => null];
 
         foreach ($rows as $row) {
             $key = mb_strtolower($row['employee_number']);
@@ -202,6 +203,7 @@ class ImportEmployees
             $takenNiks[$record['national_id']] = true;
 
             $companyNumbers['npwp_15'] ??= $this->digitsOnly($row['company_npwp_15']);
+            $companyNumbers['npwp_16'] ??= $this->digitsOnly($row['company_npwp_16']);
             $companyNumbers['npwp_22'] ??= $this->digitsOnly($row['company_npwp_22']);
 
             $valid[$key] = ['line' => $row['line'], 'manager' => $row['manager'], 'record' => $record];
@@ -806,7 +808,7 @@ class ImportEmployees
      * The company's NPWP numbers come from the file only while the company has none, so an import never overwrites
      * what someone typed in the admin panel.
      *
-     * @param  array{npwp_15: string|null, npwp_22: string|null}  $numbers
+     * @param  array{npwp_15: string|null, npwp_16: string|null, npwp_22: string|null}  $numbers
      */
     private function fillCompanyNumbers(Company $company, array $numbers): void
     {

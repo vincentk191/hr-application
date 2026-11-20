@@ -272,11 +272,13 @@ it('serves an Excel template with HR\'s columns and a sheet of instructions', fu
     unlink($path);
 
     expect($book->getSheetNames())->toBe(['Data karyawan', 'Petunjuk'])
-        ->and(array_slice($book->getSheet(0)->rangeToArray('A1:AW1', null, false, false, false)[0], 0, 4))
-        ->toBe(['Nama Perusahaan', 'NPWP 15 PERUSAHAAN', 'NPWP 22_PERESUHAAN', 'Nomor Induk Karyawan'])
-        ->and($book->getSheet(0)->getCell('AW1')->getValue())->toBe('Supervisor')
+        ->and(array_slice($book->getSheet(0)->rangeToArray('A1:AX1', null, false, false, false)[0], 0, 5))
+        ->toBe(['Nama Perusahaan', 'NPWP 15 PERUSAHAAN', 'NPWP 16 PERUSAHAAN', 'NPWP 22_PERESUHAAN', 'Nomor Induk Karyawan'])
+        ->and($book->getSheet(0)->getCell('AX1')->getValue())->toBe('Supervisor')
         // The sample row's NIK is kept as text, so Excel cannot turn it into 3,17E+15.
-        ->and($book->getSheet(0)->getCell('V2')->getValue())->toBe('3174000000000001');
+        ->and($book->getSheet(0)->getCell('W2')->getValue())->toBe('3174000000000001')
+        // So are the company's numbers: a 16-digit one would otherwise lose its leading zero.
+        ->and($book->getSheet(0)->getCell('C2')->getValue())->toBe('0012345678901000');
 });
 
 it('exports the filtered directory in the sheet\'s columns, without payroll', function () {

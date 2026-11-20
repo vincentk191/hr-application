@@ -109,6 +109,7 @@ function budiOnTheSheet(array $overrides = []): array
     return [
         'company' => test()->company->name,
         'company_npwp_15' => '01.234.567.8-901.000',
+        'company_npwp_16' => '0012345678901000',
         'company_npwp_22' => '0123456789012000000000',
         'employee_number' => 'K-1',
         'full_name' => 'Budi Santoso',
@@ -230,12 +231,15 @@ it('refuses a sheet that names another company, and fills the company\'s NPWP on
         ->and(sheetImportResult()['errors'][0])->toContain('Baris 2')->toContain('bukan perusahaan yang dipilih');
 
     $this->company->refresh();
-    expect($this->company->npwp_15)->toBe('012345678901000')->and($this->company->npwp_22)->toBe('0123456789012000000000');
+    expect($this->company->npwp_15)->toBe('012345678901000')
+        ->and($this->company->npwp_16)->toBe('0012345678901000')
+        ->and($this->company->npwp_22)->toBe('0123456789012000000000');
 
-    $this->company->update(['npwp_15' => '999999999999999']);
+    $this->company->update(['npwp_15' => '999999999999999', 'npwp_16' => '9999999999999999']);
     importEmployeeWorkbook([sheetRow(budiOnTheSheet(['employee_number' => 'K-3', 'national_id' => 3174000000000006]))]);
 
-    expect($this->company->fresh()->npwp_15)->toBe('999999999999999');
+    expect($this->company->fresh()->npwp_15)->toBe('999999999999999')
+        ->and($this->company->fresh()->npwp_16)->toBe('9999999999999999');
 });
 
 it('accepts a company name without PT, and a dry run changes nothing, company included', function () {
@@ -245,7 +249,8 @@ it('accepts a company name without PT, and a dry run changes nothing, company in
 
     expect(sheetImportResult())->toMatchArray(['created' => 1, 'rejected' => 0, 'dryRun' => true])
         ->and(Employee::count())->toBe(0)
-        ->and($this->company->fresh()->npwp_15)->toBeNull();
+        ->and($this->company->fresh()->npwp_15)->toBeNull()
+        ->and($this->company->fresh()->npwp_16)->toBeNull();
 });
 
 it('finds the Supervisor by employee number or by full name, and refuses a name two people share', function () {

@@ -47,6 +47,10 @@ class CompanyForm
                     ->label('NPWP 15 digit')
                     ->helperText('Nomor pokok wajib pajak perusahaan, format lama. Terisi dari berkas impor karyawan bila masih kosong.')
                     ->maxLength(30),
+                TextInput::make('npwp_16')
+                    ->label('NPWP 16 digit')
+                    ->helperText('Nomor pokok wajib pajak perusahaan 16 digit. Terisi dari berkas impor karyawan bila masih kosong.')
+                    ->maxLength(30),
                 TextInput::make('npwp_22')
                     ->label('NPWP 22 digit')
                     ->helperText('Nomor 22 digit (NITKU) yang kini dipakai kantor pajak. Terisi dari berkas impor karyawan bila masih kosong.')

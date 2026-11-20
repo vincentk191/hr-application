@@ -23,6 +23,7 @@ class EmployeeSheet
     public const COLUMNS = [
         ['Nama Perusahaan', 'company', false],
         ['NPWP 15 PERUSAHAAN', 'company_npwp_15', false],
+        ['NPWP 16 PERUSAHAAN', 'company_npwp_16', false],
         ['NPWP 22_PERESUHAAN', 'company_npwp_22', false],
         ['Nomor Induk Karyawan', 'employee_number', false],
         ['Nama Karyawan', 'full_name', false],
@@ -79,7 +80,7 @@ class EmployeeSheet
      * @var list<string>
      */
     public const TEXT_FIELDS = [
-        'company_npwp_15', 'company_npwp_22', 'employee_number', 'residence_postal_code', 'family_card_number',
+        'company_npwp_15', 'company_npwp_16', 'company_npwp_22', 'employee_number', 'residence_postal_code', 'family_card_number',
         'national_id', 'id_rt', 'id_rw', 'id_house_number', 'id_postal_code', 'bank_account_number', 'tax_number',
         'phone', 'bpjs_employment_number', 'bpjs_health_number',
     ];
@@ -117,6 +118,7 @@ class EmployeeSheet
         $value = match ($field) {
             'company' => $employee->company?->name,
             'company_npwp_15' => $employee->company?->npwp_15,
+            'company_npwp_16' => $employee->company?->npwp_16,
             'company_npwp_22' => $employee->company?->npwp_22,
             'branch' => $employee->branch?->name,
             'department' => $employee->department?->name,
@@ -141,7 +143,7 @@ class EmployeeSheet
     public static function sample(): array
     {
         $values = [
-            'company' => 'PT Contoh Sejahtera', 'company_npwp_15' => '01.234.567.8-901.000', 'company_npwp_22' => '0123456789012000000000',
+            'company' => 'PT Contoh Sejahtera', 'company_npwp_15' => '01.234.567.8-901.000', 'company_npwp_16' => '0012345678901000', 'company_npwp_22' => '0123456789012000000000',
             'employee_number' => 'EMP-001', 'full_name' => 'Budi Santoso', 'gender' => 'Laki-laki', 'branch' => 'Pusat',
             'ptkp_status' => 'K/1', 'joined_on' => '2024-01-15', 'exited_on' => '', 'birth_place' => 'Surabaya',
             'birth_date' => '1990-05-20', 'religion' => 'Islam', 'marital_status' => 'Kawin',

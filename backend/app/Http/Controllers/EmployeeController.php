@@ -132,7 +132,7 @@ class EmployeeController extends Controller
         $withSensitive = $request->user()->can(Permission::ViewSensitiveData->value);
 
         $employees = $this->filteredQuery($this->filtersFrom($request), $request->user())
-            ->with(['company:id,name,npwp_15,npwp_22', 'branch:id,name', 'department:id,name', 'position:id,name', 'manager:id,full_name'])
+            ->with(['company:id,name,npwp_15,npwp_16,npwp_22', 'branch:id,name', 'department:id,name', 'position:id,name', 'manager:id,full_name'])
             ->get();
 
         activity('employee')

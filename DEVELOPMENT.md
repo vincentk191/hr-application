@@ -847,7 +847,7 @@ security pass (Phase 7). What remains is listed in the checklist below. Recruitm
     16-digit numbers typed as numbers are restored; a mobile number that lost its leading zero gets it back. The
     sheet's two "No KTP" columns are told apart by order: the second is the **house number** of the KTP address. The
     **company named in the file must be the selected one** (ignoring PT/CV and case, and either name containing the
-    other); the company's NPWP 15/22 are filled from the file only while empty. A **Posisi** that exists under several
+    other); the company's NPWP 15/16/22 are filled from the file only while empty. A **Posisi** that exists under several
     departments is picked by the row's Divisi, else refused. **Supervisor** may be an employee number or a full name
     (compared without case, spacing or punctuation); a name two people share is refused. NPWP, NIK and KK are read as their
     digits. **Sensitive columns are read only when the importer holds `view-sensitive-data`**; otherwise they are left
@@ -859,7 +859,7 @@ security pass (Phase 7). What remains is listed in the checklist below. Recruitm
     another company.
   - **Screens:** the form has Data pribadi, Alamat tinggal and Alamat KTP, and (sensitive) Identitas keluarga, the
     bank card with cabang bank and PTKP, and BPJS & asuransi; the profile shows the same cards, with a "restricted"
-    card in place of each sensitive one. The company form in the admin panel has the two NPWP fields.
+    card in place of each sensitive one. The company form in the admin panel has the three NPWP fields (15, 16 and 22 digits; the 16-digit one was added 2026-11-20).
   - **Checked:** `EmployeeSheetImportTest` (8 cases), `EmployeeImportTest` and `EmployeeDirectoryTest` updated and extended;
     Pint, TypeScript and the formatter clean.
   - **Not done / to know:** the profile change request (`ProfileChangeRequest::FIELDS`) still offers only the fields it
@@ -1435,7 +1435,7 @@ Since 2026-11-03 it also holds HR's data sheet (`Lembar data field karyawan`), 2
 personal (`gender`, `birth_place`, `birth_date`, `religion`, `marital_status`, `education_level`, `job_title`), the home
 address beyond `address` (`residence_*`), the KTP address (`id_*`), and the sensitive `family_card_number`,
 `mother_name`, `ptkp_status`, `bank_branch`, `bpjs_employment_number`, `bpjs_health_number` (the old health group and `employee_insurance` were dropped on 2026-11-04).
-`companies` gained `npwp_15` and `npwp_22`. Nothing here is unique (a KK is shared by a household).
+`companies` gained `npwp_15` and `npwp_22` (and `npwp_16`, 2026-11-20). Nothing here is unique (a KK is shared by a household).
 
 ### The approval workflow engine
 
