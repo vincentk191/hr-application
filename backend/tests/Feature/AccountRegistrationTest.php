@@ -219,7 +219,8 @@ it('labels a record nobody has claimed as "Belum terdaftar" in the directory', f
     $deactivated->user->forceFill(['is_active' => false])->save();
 
     $labels = collect(
-        $this->actingAs($hr)->get(route('employees.index'))->viewData('page')['props']['employees'],
+        // A switched-off account is only listed when inactive people are asked for.
+        $this->actingAs($hr)->get(route('employees.index', ['inactive' => 1]))->viewData('page')['props']['employees'],
     )->pluck('accountLabel', 'name');
 
     expect($labels[$this->profile->full_name])->toBe('Belum terdaftar')
