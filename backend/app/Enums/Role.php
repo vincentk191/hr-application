@@ -36,6 +36,18 @@ enum Role: string
     }
 
     /**
+     * Whether an account in this role works across every company, so it has none of its own. Both hold
+     * the admin-panel permission, and the panel is open only to a parent-wide account (CORE-NAV-003).
+     */
+    public function isGroupWide(): bool
+    {
+        return match ($this) {
+            self::SystemAdmin, self::HrAdmin => true,
+            default => false,
+        };
+    }
+
+    /**
      * The permissions this role holds (CORE-RBA-002).
      *
      * @return list<Permission>

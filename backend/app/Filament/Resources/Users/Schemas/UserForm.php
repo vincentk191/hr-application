@@ -7,6 +7,8 @@ use App\Models\User;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Spatie\Permission\Models\Role;
 
@@ -43,20 +45,47 @@ class UserForm
                     ->label('Perusahaan')
                     ->relationship('company', 'name')
                     ->placeholder('Tingkat grup (semua perusahaan)')
-                    ->helperText('Akun yang terikat pada satu perusahaan hanya melihat data perusahaan itu.'),
+                    ->disabled(fn (Get $get): bool => RoleEnum::tryFrom((string) $get('role_name'))?->isGroupWide() === true)
+                    ->helperText(fn (Get $get): string => RoleEnum::tryFrom((string) $get('role_name'))?->isGroupWide() === true
+                        ? 'Admin HR dan Admin Sistem selalu di tingkat grup (semua perusahaan).'
+                        : 'Akun yang terikat pada satu perusahaan hanya melihat data perusahaan itu.'),
                 // Deliberately not a relationship field: role changes must go through
                 // syncRoles() so LogRoleChange audits them (CORE-RBA-007).
-                Select::make('role_names')
+                Select::make('role_name')
                     ->label('Peran')
-                    ->multiple()
+                    ->required()
+                    ->live()
+                    ->afterStateUpdated(function (Set $set, ?string $state): void {
+                        if (RoleEnum::tryFrom((string) $state)?->isGroupWide() === true) {
+                            $set('company_id', null);
+                        }
+                    })
                     ->options(fn (): array => self::roleOptions())
                     ->afterStateHydrated(fn (Select $component, ?User $record) => $component->state(
-                        $record?->getRoleNames()->all() ?? [],
+                        $record === null ? null : self::primaryRoleName($record),
                     ))
                     ->disabled(fn (?User $record): bool => $record !== null
                         && auth()->user()?->can('assignRoles', $record) !== true)
                     ->helperText('Anda tidak dapat mengubah peran akun Anda sendiri.'),
             ]);
+    }
+
+    /**
+     * The one role an account is shown with: the highest in the Role enum's order. An account that
+     * already holds several (from when roles were a multi-select) shows its most privileged one and
+     * is brought down to it the next time roles are saved.
+     */
+    public static function primaryRoleName(User $user): ?string
+    {
+        $held = $user->getRoleNames();
+
+        foreach (RoleEnum::cases() as $role) {
+            if ($held->contains($role->value)) {
+                return $role->value;
+            }
+        }
+
+        return $held->first();
     }
 
     /**

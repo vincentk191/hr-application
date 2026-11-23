@@ -78,7 +78,7 @@ it('creates a user with a role, verified, and audits the role grant', function (
             'email' => 'sari@example.test',
             'password' => 'a-long-enough-pass',
             'company_id' => $company->id,
-            'role_names' => [Role::Supervisor->value],
+            'role_name' => Role::Supervisor->value,
         ])
         ->call('create')
         ->assertHasNoFormErrors();
@@ -96,7 +96,7 @@ it('does not change roles on the account you are signed in as', function () {
     $this->actingAs($admin);
 
     Livewire::test(EditUser::class, ['record' => $admin->getKey()])
-        ->fillForm(['name' => 'Renamed', 'role_names' => [Role::Employee->value]])
+        ->fillForm(['name' => 'Renamed', 'role_name' => Role::Employee->value])
         ->call('save');
 
     expect($admin->fresh()->name)->toBe('Renamed')
@@ -104,9 +104,57 @@ it('does not change roles on the account you are signed in as', function () {
         ->and($admin->fresh()->isA(Role::Employee))->toBeFalse();
 });
 
+it('shows an account that holds several roles with its highest one and keeps a single role on save', function () {
+    $this->actingAs(adminFor(Role::SystemAdmin));
+    $target = User::factory()->create();
+    $target->assignRole(Role::Employee->value, Role::HrAdmin->value);
+
+    Livewire::test(EditUser::class, ['record' => $target->getKey()])
+        ->assertFormSet(['role_name' => Role::HrAdmin->value])
+        ->fillForm(['role_name' => Role::Supervisor->value])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($target->fresh()->getRoleNames()->all())->toBe([Role::Supervisor->value]);
+});
+
+it('makes an account group-wide when it is given the Admin HR or Admin Sistem role', function (Role $role) {
+    $this->actingAs(adminFor(Role::SystemAdmin));
+    $company = Company::factory()->create();
+    $target = User::factory()->create(['company_id' => $company->id]);
+    $target->assignRole(Role::Employee->value);
+
+    Livewire::test(EditUser::class, ['record' => $target->getKey()])
+        ->fillForm(['role_name' => $role->value])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($target->fresh()->company_id)->toBeNull()
+        ->and($target->fresh()->canAccessAdminPanel())->toBeTrue();
+})->with([Role::SystemAdmin, Role::HrAdmin]);
+
+it('leaves the company of a Supervisor account as it was set', function () {
+    $this->actingAs(adminFor(Role::SystemAdmin));
+    $company = Company::factory()->create();
+
+    Livewire::test(CreateUser::class)
+        ->fillForm([
+            'name' => 'Sari',
+            'email' => 'sari@example.test',
+            'password' => 'a-long-enough-pass',
+            'company_id' => $company->id,
+            'role_name' => Role::Supervisor->value,
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    expect(User::where('email', 'sari@example.test')->firstOrFail()->company_id)->toBe($company->id);
+});
+
 it('keeps the current password when the field is left blank on edit', function () {
     $this->actingAs(adminFor(Role::SystemAdmin));
     $target = User::factory()->create();
+    $target->assignRole(Role::Employee->value);
     $hash = $target->password;
 
     Livewire::test(EditUser::class, ['record' => $target->getKey()])
