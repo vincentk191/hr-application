@@ -78,7 +78,7 @@ class EmployeeController extends Controller
      * The directory's filters as read from the query string, shared by the list and its export so
      * the file always matches what is on screen.
      *
-     * @return array{search: string, branches: list<string>, departments: list<string>, positions: list<string>, statuses: list<mixed>, sort: string, view: string}
+     * @return array{search: string, branches: list<string>, departments: list<string>, positions: list<string>, statuses: list<mixed>, inactive: bool, sort: string, view: string}
      */
     private function filtersFrom(Request $request): array
     {
@@ -91,6 +91,9 @@ class EmployeeController extends Controller
                 (array) $request->input('statuses', []),
                 array_column(EmploymentStatus::cases(), 'value'),
             )),
+            // Off by default: the directory shows who is working and can sign in. On, it also lists closed profiles and
+            // accounts that have been switched off, those after everyone else.
+            'inactive' => $request->boolean('inactive'),
             'sort' => in_array($request->string('sort')->toString(), ['name', 'joined'], true)
                 ? $request->string('sort')->toString()
                 : 'name',
@@ -101,7 +104,7 @@ class EmployeeController extends Controller
     }
 
     /**
-     * @param  array{search: string, branches: list<string>, departments: list<string>, positions: list<string>, statuses: list<mixed>, sort: string, view: string}  $filters
+     * @param  array{search: string, branches: list<string>, departments: list<string>, positions: list<string>, statuses: list<mixed>, inactive: bool, sort: string, view: string}  $filters
      * @return Builder<Employee>
      */
     private function filteredQuery(array $filters, User $viewer): Builder
@@ -117,6 +120,16 @@ class EmployeeController extends Controller
             ->when($filters['departments'] !== [], fn (Builder $query) => $query->whereHas('department', fn (Builder $department) => $department->whereIn('name', $filters['departments'])))
             ->when($filters['positions'] !== [], fn (Builder $query) => $query->whereHas('position', fn (Builder $position) => $position->whereIn('name', $filters['positions'])))
             ->when($filters['statuses'] !== [], fn (Builder $query) => $query->whereIn('employment_status', $filters['statuses']))
+            // By default: still employed, and not an account that was switched off. An account waiting for HR to activate it
+            // and a person with no account yet stay, since HR has something to do about them. Choosing a status by hand overrides this.
+            ->when(! $filters['inactive'] && $filters['statuses'] === [], fn (Builder $query) => $query
+                ->where('employment_status', EmploymentStatus::Active->value)
+                ->whereDoesntHave('user', fn (Builder $user) => $user->where('is_active', false)->where('awaiting_activation', false)))
+            // With them included, those still working and able to sign in come first.
+            ->when($filters['inactive'], fn (Builder $query) => $query
+                ->withExists(['user as account_disabled' => fn (Builder $user) => $user->where('is_active', false)->where('awaiting_activation', false)])
+                ->orderByRaw('case when employment_status = ? then 0 else 1 end', [EmploymentStatus::Active->value])
+                ->orderBy('account_disabled'))
             ->when($filters['sort'] === 'joined', fn (Builder $query) => $query->orderByDesc('joined_on'))
             ->when($filters['sort'] === 'name', fn (Builder $query) => $query->orderBy('full_name'));
     }

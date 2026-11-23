@@ -110,6 +110,8 @@ export default function EmployeesIndex({
         });
     };
 
+    const toggleInactive = () => apply({ inactive: !filters.inactive });
+
     // The export follows whatever the list is showing right now.
     const exportUrl = `${exportMethod().url}?${new URLSearchParams([
         ['search', search],
@@ -118,6 +120,7 @@ export default function EmployeesIndex({
         ...filters.departments.map((name) => ['departments[]', name]),
         ...filters.positions.map((name) => ['positions[]', name]),
         ...filters.statuses.map((value) => ['statuses[]', value]),
+        ...(filters.inactive ? [['inactive', '1']] : []),
     ]).toString()}`;
 
     const activeFilters =
@@ -125,7 +128,8 @@ export default function EmployeesIndex({
         filters.branches.length +
         filters.departments.length +
         filters.positions.length +
-        filters.statuses.length;
+        filters.statuses.length +
+        (filters.inactive ? 1 : 0);
 
     const clearFilters = () => {
         setSearch('');
@@ -135,6 +139,7 @@ export default function EmployeesIndex({
             departments: [],
             positions: [],
             statuses: [],
+            inactive: false,
         });
     };
 
@@ -187,6 +192,15 @@ export default function EmployeesIndex({
                 value,
             remove: () => toggleStatus(value),
         })),
+        ...(filters.inactive
+            ? [
+                  {
+                      key: 'inactive',
+                      label: 'Termasuk nonaktif',
+                      remove: toggleInactive,
+                  },
+              ]
+            : []),
     ];
 
     return (
@@ -271,6 +285,16 @@ export default function EmployeesIndex({
                             {status.label}
                         </button>
                     ))}
+
+                    <button
+                        type="button"
+                        onClick={toggleInactive}
+                        className="chip"
+                        data-on={filters.inactive}
+                        data-test="include-inactive"
+                    >
+                        Termasuk nonaktif
+                    </button>
 
                     <MultiSelectFilter
                         label="Cabang"
@@ -622,6 +646,14 @@ export default function EmployeesIndex({
                                 {status.label}
                             </button>
                         ))}
+                        <button
+                            type="button"
+                            className="chip"
+                            data-on={filters.inactive}
+                            onClick={toggleInactive}
+                        >
+                            Termasuk nonaktif
+                        </button>
                     </div>
                 </FilterSection>
 

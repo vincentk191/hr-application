@@ -117,6 +117,8 @@ export type EmployeeFilters = {
     departments: string[];
     positions: string[];
     statuses: string[];
+    /** Also list closed profiles and switched-off accounts, after everyone else. */
+    inactive: boolean;
     sort: 'name' | 'joined';
     view: 'list' | 'grid' | 'chart';
 };

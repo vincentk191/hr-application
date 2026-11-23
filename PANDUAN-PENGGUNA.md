@@ -502,6 +502,9 @@ Di **Direktori**, cek siapa yang belum mendaftar dan ingatkan. Kasus yang sering
   mengunggahnya). Selama belum ada salinan, dokumen berlaku 7 hari lalu tampil kedaluwarsa. Bagian gaji sengaja dikosongkan.
   Alamat perusahaan dan metode pajak diisi di panel admin pada data Perusahaan; NITKU, NPWP 15, dan nomor BPJS per Cabang
   diisi di data Cabang.
+- **Karyawan nonaktif:** secara bawaan Direktori hanya menampilkan karyawan yang masih bekerja dan akunnya tidak
+  **Dinonaktifkan** (akun **Menunggu aktivasi** dan **Belum terdaftar** tetap tampil). Klik **Termasuk nonaktif** untuk melihat
+  semuanya; yang masih aktif tampil lebih dulu. Memilih status **Nonaktif** langsung menampilkan karyawan yang sudah keluar.
 - **Ekspor:** **Direktori** > **Ekspor** untuk daftar karyawan.
 - **Aktifkan kembali:** di profil karyawan yang sudah keluar (kembali bekerja, atau kasus offboarding keliru ditutup).
   Akun masuk aktif lagi; pemetaan PIN mesin absensi **tidak** kembali, petakan ulang.

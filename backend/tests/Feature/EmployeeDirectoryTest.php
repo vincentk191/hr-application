@@ -517,3 +517,63 @@ it('keeps the sheet\'s identity, tax and cover fields from anyone without the se
         ->toBe(['3174000000000002', 'Siti Aminah', 'KCP Menteng', '0001234567890'])
         ->and($employee->ptkp_status->value)->toBe('K/1');
 });
+
+// --- Who the directory lists by default ---
+
+/**
+ * One employee for each case the directory tells apart, named for what it is.
+ */
+function directoryCases(Company $company): void
+{
+    $account = fn (array $state = []): int => User::factory()->create(['company_id' => $company->id, ...$state])->id;
+
+    Employee::factory()->forCompany($company)->create(['full_name' => 'Aktif Bisa Masuk', 'user_id' => $account()]);
+    Employee::factory()->forCompany($company)->create(['full_name' => 'Aktif Tanpa Akun', 'user_id' => null]);
+    Employee::factory()->forCompany($company)->create(['full_name' => 'Aktif Menunggu', 'user_id' => $account(['is_active' => false, 'awaiting_activation' => true])]);
+    Employee::factory()->forCompany($company)->create(['full_name' => 'Aktif Akun Mati', 'user_id' => $account(['is_active' => false, 'awaiting_activation' => false])]);
+    Employee::factory()->forCompany($company)->create(['full_name' => 'Sudah Keluar', 'employment_status' => EmploymentStatus::Inactive, 'user_id' => $account(['is_active' => false])]);
+}
+
+function directoryNamesFor(array $query = []): array
+{
+    $rows = test()->actingAs(test()->hr)->get(route('employees.index', $query))->assertOk()->viewData('page')['props']['employees'];
+
+    return collect($rows)->pluck('name')->values()->all();
+}
+
+it('lists by default only people still employed whose account has not been switched off', function () {
+    directoryCases($this->company);
+
+    // An account waiting for HR, and a person with no account yet, stay: HR has something to do about them.
+    expect(directoryNamesFor())->toEqualCanonicalizing(['Aktif Bisa Masuk', 'Aktif Tanpa Akun', 'Aktif Menunggu']);
+});
+
+it('lists everyone when asked, the ones still working and able to sign in first', function () {
+    directoryCases($this->company);
+
+    $names = directoryNamesFor(['inactive' => '1']);
+
+    expect($names)->toHaveCount(5)
+        ->and(array_slice($names, 0, 3))->toEqualCanonicalizing(['Aktif Bisa Masuk', 'Aktif Tanpa Akun', 'Aktif Menunggu'])
+        ->and(array_slice($names, 3))->toEqualCanonicalizing(['Aktif Akun Mati', 'Sudah Keluar']);
+});
+
+it('lets a status chosen by hand override the default', function () {
+    directoryCases($this->company);
+
+    expect(directoryNamesFor(['statuses' => ['inactive']]))->toBe(['Sudah Keluar']);
+});
+
+it('exports what the directory is showing', function () {
+    directoryCases($this->company);
+
+    $csv = fn (array $query = []): string => $this->actingAs($this->hr)->get(route('employees.export', $query))->streamedContent();
+
+    expect($csv())->toContain('Aktif Bisa Masuk')->not->toContain('Sudah Keluar')->not->toContain('Aktif Akun Mati')
+        ->and($csv(['inactive' => '1']))->toContain('Sudah Keluar')->toContain('Aktif Akun Mati');
+});
+
+it('tells the page whether closed and switched-off people are included', function () {
+    $this->actingAs($this->hr)->get(route('employees.index'))->assertInertia(fn (Assert $page) => $page->where('filters.inactive', false));
+    $this->actingAs($this->hr)->get(route('employees.index', ['inactive' => '1']))->assertInertia(fn (Assert $page) => $page->where('filters.inactive', true));
+});
