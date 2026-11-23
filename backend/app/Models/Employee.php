@@ -465,4 +465,18 @@ class Employee extends Model
     {
         $query->where('employment_status', EmploymentStatus::Active);
     }
+
+    /**
+     * Who may be named in another record, such as someone's atasan langsung: still employed, and not holding an account that
+     * was switched off. A person with no account yet, or one waiting for HR to activate it, still counts, since both are
+     * about to start. The directory shows the same people by default.
+     *
+     * @param  Builder<static>  $query
+     */
+    #[Scope]
+    protected function assignable(Builder $query): void
+    {
+        $query->where('employment_status', EmploymentStatus::Active)
+            ->whereDoesntHave('user', fn (Builder $user) => $user->where('is_active', false)->where('awaiting_activation', false));
+    }
 }

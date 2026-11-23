@@ -577,3 +577,63 @@ it('tells the page whether closed and switched-off people are included', functio
     $this->actingAs($this->hr)->get(route('employees.index'))->assertInertia(fn (Assert $page) => $page->where('filters.inactive', false));
     $this->actingAs($this->hr)->get(route('employees.index', ['inactive' => '1']))->assertInertia(fn (Assert $page) => $page->where('filters.inactive', true));
 });
+
+it('does not offer a closed profile or a switched-off account as an atasan langsung', function () {
+    directoryCases($this->company);
+
+    $offered = collect($this->actingAs($this->hr)->get(route('employees.create'))->assertOk()->viewData('page')['props']['managers'])
+        ->pluck('label')->map(fn (string $label): string => preg_replace('/ \(.*\)$/', '', $label))->all();
+
+    expect($offered)->toEqualCanonicalizing(['Aktif Bisa Masuk', 'Aktif Tanpa Akun', 'Aktif Menunggu']);
+});
+
+it('refuses a closed profile or a switched-off account as an atasan langsung when saving', function (string $name) {
+    directoryCases($this->company);
+    $manager = Employee::query()->where('full_name', $name)->firstOrFail();
+    $report = Employee::factory()->forCompany($this->company)->create();
+
+    $this->actingAs($this->hr)->from(route('employees.edit', $report))
+        ->put(route('employees.update', $report), [
+            'employee_number' => $report->employee_number,
+            'national_id' => $report->national_id,
+            'full_name' => $report->full_name,
+            'employment_status' => EmploymentStatus::Active->value,
+            'manager_id' => $manager->id,
+        ])
+        ->assertSessionHasErrors(['manager_id' => 'Atasan langsung harus karyawan aktif dengan akun yang tidak dinonaktifkan.']);
+
+    expect($report->fresh()->manager_id)->toBeNull();
+})->with(['Aktif Akun Mati', 'Sudah Keluar']);
+
+it('accepts someone whose account is still waiting for activation as an atasan langsung', function () {
+    directoryCases($this->company);
+    $manager = Employee::query()->where('full_name', 'Aktif Menunggu')->firstOrFail();
+    $report = Employee::factory()->forCompany($this->company)->create();
+
+    $this->actingAs($this->hr)->put(route('employees.update', $report), [
+        'employee_number' => $report->employee_number,
+        'national_id' => $report->national_id,
+        'full_name' => $report->full_name,
+        'employment_status' => EmploymentStatus::Active->value,
+        'manager_id' => $manager->id,
+    ])->assertSessionHasNoErrors();
+
+    expect($report->fresh()->manager_id)->toBe($manager->id);
+});
+
+it('keeps the atasan already set when a profile is saved, even after their account was switched off', function () {
+    $manager = Employee::factory()->forCompany($this->company)->create([
+        'user_id' => User::factory()->create(['company_id' => $this->company->id, 'is_active' => false])->id,
+    ]);
+    $report = Employee::factory()->forCompany($this->company)->create(['manager_id' => $manager->id]);
+
+    $this->actingAs($this->hr)->put(route('employees.update', $report), [
+        'employee_number' => $report->employee_number,
+        'national_id' => $report->national_id,
+        'full_name' => 'Nama Baru',
+        'employment_status' => EmploymentStatus::Active->value,
+        'manager_id' => $manager->id,
+    ])->assertSessionHasNoErrors();
+
+    expect($report->fresh())->full_name->toBe('Nama Baru')->manager_id->toBe($manager->id);
+});

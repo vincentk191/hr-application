@@ -921,7 +921,7 @@ class RequisitionController extends Controller
                 'needsMonths' => Requisition::typeNeedsMonths($type),
             ], EmploymentType::cases()),
             'ownEmployeeId' => Employee::acrossCompanies()->where('user_id', $user->id)->value('id'),
-            'managers' => Employee::acrossCompanies()->whereIn('company_id', $companies)->where('employment_status', EmploymentStatus::Active)
+            'managers' => Employee::acrossCompanies()->whereIn('company_id', $companies)->assignable()
                 ->orderBy('full_name')
                 ->get(['id', 'full_name', 'employee_number', 'company_id'])
                 ->map(fn (Employee $employee): array => [

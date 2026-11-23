@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\EmploymentStatus;
 use App\Enums\Role;
 use App\Models\Company;
 use App\Models\Department;
@@ -161,6 +162,18 @@ it('needs a position name and a whole quota of at least one even for a draft', f
     draftRequisition($this->rudi->user, $this->gudang, ['quota' => 1.5])->assertSessionHasErrors('quota');
 
     expect(Requisition::count())->toBe(0);
+});
+
+it('will not name a switched-off account or a closed profile as the direct superior, and does not offer them', function () {
+    $this->mira->user->forceFill(['is_active' => false])->save();
+    $this->lukas->update(['employment_status' => EmploymentStatus::Inactive]);
+
+    draftRequisition($this->hr, $this->gudang, ['manager_employee_id' => $this->mira->id])->assertSessionHasErrors('manager_employee_id');
+    draftRequisition($this->hr, $this->gudang, ['manager_employee_id' => $this->lukas->id])->assertSessionHasErrors('manager_employee_id');
+
+    $offered = collect($this->actingAs($this->hr)->get(route('recruitment.create'))->viewData('page')['props']['managers'])->pluck('name');
+
+    expect($offered)->toContain('Rudi')->not->toContain('Mira')->not->toContain('Lukas');
 });
 
 it('drops blank lines and empty subtitles', function () {

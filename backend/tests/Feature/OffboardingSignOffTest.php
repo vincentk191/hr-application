@@ -262,6 +262,15 @@ it('moves the leaver\'s reports to a new Atasan, and refuses a bad move', functi
     expect($this->dewi->refresh()->manager_id)->toBe($this->rudi->id);
 });
 
+it('will not move reports to someone whose account was switched off, and does not offer them', function () {
+    $case = soCaseAtSignOff();
+    $this->rudi->user->forceFill(['is_active' => false])->save();
+
+    $this->actingAs($this->hr)->post(route('offboarding.reports', $case), ['moves' => [$this->dewi->id => $this->rudi->id]])->assertSessionHasErrors('moves');
+
+    expect($this->dewi->refresh()->manager_id)->not->toBe($this->rudi->id);
+});
+
 it('will not put someone under a person who works for them', function () {
     $case = soCaseAtSignOff();
     $deeper = soMember('Bawahan Dewi', $this->dewi, Role::Employee, $this->company);

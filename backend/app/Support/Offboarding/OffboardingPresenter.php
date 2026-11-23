@@ -205,7 +205,7 @@ class OffboardingPresenter
         return [
             'reports' => $reports->map(fn (Employee $employee): array => ['id' => $employee->id, 'name' => $employee->full_name, 'number' => $employee->employee_number])->values()->all(),
             'defaultManagerId' => $leaver?->manager_id,
-            'options' => Employee::query()->where('employment_status', EmploymentStatus::Active)->whereKeyNot($case->employee_id)->orderBy('full_name')->get(['id', 'full_name', 'employee_number'])
+            'options' => Employee::query()->assignable()->whereKeyNot($case->employee_id)->orderBy('full_name')->get(['id', 'full_name', 'employee_number'])
                 ->map(fn (Employee $employee): array => ['id' => $employee->id, 'label' => "{$employee->full_name} ({$employee->employee_number})"])->values()->all(),
             'headOf' => Department::query()->where('supervisor_employee_id', $case->employee_id)->pluck('name')->all(),
         ];

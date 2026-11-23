@@ -15,6 +15,7 @@ use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Position;
 use App\Support\CompanyContext;
+use Closure;
 use Illuminate\Validation\Rule;
 
 /**
@@ -61,7 +62,17 @@ trait ValidatesEmployeeDossier
                     fn ($query) => $query->where(fn ($inCompany) => $inCompany
                         ->where('company_id', $companyId)
                         ->when($ignoring?->manager_id, fn ($same, $current) => $same->orWhere('id', $current))),
-                ))],
+                )),
+                // Only someone still employed whose account is not switched off can be named; the manager already set is left alone.
+                function (string $attribute, mixed $value, Closure $fail) use ($ignoring): void {
+                    if ((int) $value === $ignoring?->manager_id) {
+                        return;
+                    }
+
+                    if (! Employee::acrossCompanies()->assignable()->whereKey($value)->exists()) {
+                        $fail('Atasan langsung harus karyawan aktif dengan akun yang tidak dinonaktifkan.');
+                    }
+                }],
             // A profile is only closed by an offboarding case, and only brought back by reactivating it.
             'employment_status' => ['required', Rule::enum(EmploymentStatus::class)->only(EmploymentStatus::Active)],
             'employment_type' => ['nullable', Rule::enum(EmploymentType::class)],

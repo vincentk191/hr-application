@@ -29,7 +29,7 @@ class ReassignReports
 
             foreach ($moves as $employeeId => $managerId) {
                 $employee = Employee::query()->whereKey((int) $employeeId)->where('manager_id', $case->employee_id)->first();
-                $manager = Employee::query()->whereKey((int) $managerId)->where('employment_status', EmploymentStatus::Active)->first();
+                $manager = Employee::query()->whereKey((int) $managerId)->assignable()->first();
 
                 if ($employee === null) {
                     throw ValidationException::withMessages(['moves' => 'Karyawan ini bukan bawahan langsung lagi.']);

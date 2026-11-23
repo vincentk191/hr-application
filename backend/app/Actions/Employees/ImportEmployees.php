@@ -170,6 +170,10 @@ class ImportEmployees
         $existing = $people->mapWithKeys(fn (Employee $employee): array => [mb_strtolower($employee->employee_number) => $employee->id])->all();
         $namesTaken = $this->namesToKeys($people->mapWithKeys(fn (Employee $employee): array => [mb_strtolower($employee->employee_number) => $employee->full_name])->all());
 
+        // Already in the company but not to be named as an atasan: closed profiles and switched-off accounts.
+        $assignableIds = Employee::acrossCompanies()->assignable()->where('company_id', $companyId)->pluck('id')->flip()->all();
+        $unassignable = array_filter($existing, fn (int $id): bool => ! isset($assignableIds[$id]));
+
         $takenNiks = Employee::acrossCompanies()->whereNotNull('national_id')->pluck('national_id')->flip()->all();
 
         $valid = [];
@@ -210,7 +214,7 @@ class ImportEmployees
         }
 
         $valid = $this->resolveManagerNames($valid, $existing, $namesTaken, $errors);
-        $valid = $this->dropBrokenManagerLinks($valid, $existing, $errors);
+        $valid = $this->dropBrokenManagerLinks($valid, $existing, $unassignable, $errors);
 
         if (! $dryRun && $valid !== []) {
             $this->create($valid, $existing, $companyId, $by);
@@ -709,10 +713,11 @@ class ImportEmployees
      *
      * @param  array<string, array{line: int, manager: string|null, record: array<string, mixed>}>  $valid
      * @param  array<string, int>  $existing
+     * @param  array<string, int>  $unassignable  the stored numbers that cannot be named as an atasan
      * @param  list<string>  $errors
      * @return array<string, array{line: int, manager: string|null, record: array<string, mixed>}>
      */
-    private function dropBrokenManagerLinks(array $valid, array $existing, array &$errors): array
+    private function dropBrokenManagerLinks(array $valid, array $existing, array $unassignable, array &$errors): array
     {
         do {
             $changed = false;
@@ -729,6 +734,8 @@ class ImportEmployees
                     $problem = 'karyawan tidak bisa menjadi atasan dirinya sendiri.';
                 } elseif (! isset($valid[$manager]) && ! isset($existing[$manager])) {
                     $problem = "atasan \"{$row['manager']}\" tidak ditemukan.";
+                } elseif (! isset($valid[$manager]) && isset($unassignable[$manager])) {
+                    $problem = "atasan \"{$row['manager']}\" sudah tidak aktif atau akunnya dinonaktifkan.";
                 } elseif ($this->loopsBack($key, $valid)) {
                     $problem = 'rantai atasan berputar kembali ke karyawan ini.';
                 }

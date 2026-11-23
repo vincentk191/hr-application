@@ -79,7 +79,7 @@ class SubmitRequisition
         if ($requisition->manager_employee_id === null) {
             $problems['manager_employee_id'] = 'Pilih atasan langsung.';
         } elseif (! Employee::acrossCompanies()->whereKey($requisition->manager_employee_id)->where('company_id', $requisition->company_id)
-            ->where('employment_status', EmploymentStatus::Active)->exists()) {
+            ->assignable()->exists()) {
             $problems['manager_employee_id'] = 'Atasan langsung sudah tidak aktif. Pilih yang lain.';
         }
 

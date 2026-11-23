@@ -122,9 +122,7 @@ class EmployeeController extends Controller
             ->when($filters['statuses'] !== [], fn (Builder $query) => $query->whereIn('employment_status', $filters['statuses']))
             // By default: still employed, and not an account that was switched off. An account waiting for HR to activate it
             // and a person with no account yet stay, since HR has something to do about them. Choosing a status by hand overrides this.
-            ->when(! $filters['inactive'] && $filters['statuses'] === [], fn (Builder $query) => $query
-                ->where('employment_status', EmploymentStatus::Active->value)
-                ->whereDoesntHave('user', fn (Builder $user) => $user->where('is_active', false)->where('awaiting_activation', false)))
+            ->when(! $filters['inactive'] && $filters['statuses'] === [], fn (Builder $query) => $query->assignable())
             // With them included, those still working and able to sign in come first.
             ->when($filters['inactive'], fn (Builder $query) => $query
                 ->withExists(['user as account_disabled' => fn (Builder $user) => $user->where('is_active', false)->where('awaiting_activation', false)])

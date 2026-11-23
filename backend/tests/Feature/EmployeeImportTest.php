@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\EmploymentStatus;
 use App\Enums\Role;
 use App\Http\Middleware\SetActiveCompany;
 use App\Models\Branch;
@@ -182,6 +183,23 @@ it('rejects an unknown manager, a self-reference and a loop, and anyone stranded
     expect($result['created'])->toBe(1)
         ->and($result['rejected'])->toBe(5)
         ->and(Employee::pluck('employee_number')->all())->toBe(['F']);
+});
+
+it('rejects a manager whose profile is closed or whose account was switched off', function () {
+    Employee::factory()->forCompany($this->company)->create(['employee_number' => 'GONE', 'employment_status' => EmploymentStatus::Inactive]);
+    Employee::factory()->forCompany($this->company)->create([
+        'employee_number' => 'LOCKED',
+        'user_id' => User::factory()->create(['company_id' => $this->company->id, 'is_active' => false])->id,
+    ]);
+    Employee::factory()->forCompany($this->company)->create(['employee_number' => 'FINE']);
+
+    importEmployeesCsv("ID,Nama,ID atasan\nA,Satu,GONE\nB,Dua,LOCKED\nC,Tiga,FINE\n");
+
+    $result = employeeImportResult();
+
+    expect($result['created'])->toBe(1)
+        ->and($result['rejected'])->toBe(2)
+        ->and(Employee::whereIn('employee_number', ['A', 'B', 'C'])->pluck('employee_number')->all())->toBe(['C']);
 });
 
 it('writes nothing on a dry run but reports what would happen', function () {

@@ -55,7 +55,10 @@ class DepartmentResource extends Resource
                 ->relationship(
                     'supervisor',
                     'full_name',
-                    fn (Builder $query, Get $get) => $query->where('company_id', $get('company_id')),
+                    function (Builder $query, Get $get): Builder {
+                        /** @var Builder<Employee> $query */
+                        return $query->assignable()->where('company_id', $get('company_id'));
+                    },
                 )
                 ->getOptionLabelFromRecordUsing(fn (Employee $employee): string => "{$employee->full_name} ({$employee->employee_number})")
                 ->searchable(['full_name', 'employee_number'])

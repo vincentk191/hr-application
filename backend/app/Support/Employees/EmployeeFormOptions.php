@@ -35,7 +35,7 @@ class EmployeeFormOptions
             'branches' => Branch::orderBy('name')->get(['id', 'name', 'company_id']),
             'departments' => Department::orderBy('name')->get(['id', 'name', 'company_id']),
             'positions' => Position::orderBy('name')->get(['id', 'name', 'department_id', 'company_id']),
-            'managers' => Employee::query()->active()->orderBy('full_name')->get(['id', 'full_name', 'employee_number', 'company_id'])
+            'managers' => Employee::query()->assignable()->orderBy('full_name')->get(['id', 'full_name', 'employee_number', 'company_id'])
                 ->when(
                     $editing?->manager_id !== null,
                     // The manager already set, even from another company, so editing does not drop them from the list.

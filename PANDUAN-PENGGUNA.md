@@ -505,6 +505,9 @@ Di **Direktori**, cek siapa yang belum mendaftar dan ingatkan. Kasus yang sering
 - **Karyawan nonaktif:** secara bawaan Direktori hanya menampilkan karyawan yang masih bekerja dan akunnya tidak
   **Dinonaktifkan** (akun **Menunggu aktivasi** dan **Belum terdaftar** tetap tampil). Klik **Termasuk nonaktif** untuk melihat
   semuanya; yang masih aktif tampil lebih dulu. Memilih status **Nonaktif** langsung menampilkan karyawan yang sudah keluar.
+  Karyawan yang sudah keluar atau akunnya **Dinonaktifkan** juga tidak bisa dipilih sebagai **atasan langsung** (di formulir
+  karyawan, impor, permintaan rekrutmen, dan saat memindahkan bawahan di offboarding) maupun kepala departemen. Atasan yang
+  sudah terpasang tidak berubah sampai HR menggantinya.
 - **Ekspor:** **Direktori** > **Ekspor** untuk daftar karyawan.
 - **Aktifkan kembali:** di profil karyawan yang sudah keluar (kembali bekerja, atau kasus offboarding keliru ditutup).
   Akun masuk aktif lagi; pemetaan PIN mesin absensi **tidak** kembali, petakan ulang.

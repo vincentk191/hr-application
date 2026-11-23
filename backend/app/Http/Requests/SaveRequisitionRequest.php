@@ -159,8 +159,8 @@ class SaveRequisitionRequest extends FormRequest
                 $manager = $this->integer('manager_employee_id');
 
                 if ($manager !== 0 && ! Employee::acrossCompanies()->whereKey($manager)->where('company_id', $department->company_id)
-                    ->where('employment_status', EmploymentStatus::Active)->exists()) {
-                    $validator->errors()->add('manager_employee_id', 'Atasan langsung harus karyawan aktif di perusahaan ini.');
+                    ->assignable()->exists()) {
+                    $validator->errors()->add('manager_employee_id', 'Atasan langsung harus karyawan aktif di perusahaan ini, dengan akun yang tidak dinonaktifkan.');
                 }
             },
         ];
