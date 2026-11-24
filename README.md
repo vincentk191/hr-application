@@ -18,6 +18,40 @@ Attendance arrives by **upload**: head office's Fingerspot export, and a per-per
 scanner (see [Attendance data](#attendance-data)). The automatic on-site agent lives in the separate `fingerspot-toolkit`
 folder and is switched off (`FEATURE_ATTENDANCE_AGENTS`).
 
+## Use case
+
+**Problem:** HR and management keep employee data in a Microsoft Access database, Excel workbooks and scattered PDFs on one PC, so the same fact lives in several places, updates are repeated by hand, and nobody can check a leave request or an attendance record without sitting at that PC.
+**Solution:** One internal web application that is the single source of truth: HR and management work in the dashboard, staff file and follow their own requests from a phone, and every approval runs through one workflow with an audit trail.
+
+## Customers
+
+**Target:** A parent group of three operating companies, about 150-200 employees (warehouse staff are on record but do not use the self-service side), with HR and management as the main users and every employee as a self-service user.
+**Current users:** None yet, because the security review and go-live come first (the app holds NIK, bank and health data)
+
+## Features
+
+- [x] **Employee directory** - One profile per employee with company and Cabang scoping, Excel import and export, and documents.
+- [x] **Pengajuan (requests)** - Leave, Izin and Sakit requests with attachments, approved along the reporting line.
+- [x] **Offboarding** - Exit checklist per employee with owners per item, approvals and a scheduled exit date.
+- [x] **Profile change requests** - Employees ask for changes to their own data and HR approves them.
+- [x] **Roles, companies and entrances** - Permissions per role, a filter per company, 2FA, and a private (WireGuard) and a public entrance.
+- [x] **Admin panel** - Companies, users, roles, departments, leave kinds and Cabang at `/admin`, with an audit log and nightly backups.
+- [x] **Attendance by upload** - Fingerspot export for head office and a per-period rekap from each Cabang; can be switched off with `FEATURE_ATTENDANCE`.
+- [~] **Recruitment** - Requisition, posting, screening, interviews, offer and hire as an employee profile; on the `feature/recruitement` branch.
+- [ ] **Recruitment funnel figures** - The dashboard numbers for the recruitment funnel.
+- [ ] **Automatic attendance sync** - On-site agent that posts scanner punches over WireGuard; built, switched off (`FEATURE_ATTENDANCE_AGENTS`).
+- [ ] **Employee mobile app** - A companion app for staff; not part of the current release.
+
+## Installation
+
+```
+docker compose up -d
+docker compose exec app php artisan migrate
+docker compose exec app php artisan db:seed --class=DevAccountSeeder
+```
+
+Open http://localhost:8001. Docker is all that is needed on the host. Running it on a server is described under [Deploying to a server](#deploying-to-a-server).
+
 ---
 
 ## Contents
