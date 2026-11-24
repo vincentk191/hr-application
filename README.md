@@ -44,7 +44,7 @@ folder and is switched off (`FEATURE_ATTENDANCE_AGENTS`).
 
 ## Screenshots
 
-![Main screen](docs/screenshots/flock_login.png)
+![Main screen](frontend/docs/screenshots/flock_login.png)
 
 ## Installation
 
