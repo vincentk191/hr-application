@@ -42,6 +42,10 @@ folder and is switched off (`FEATURE_ATTENDANCE_AGENTS`).
 - [ ] **Automatic attendance sync** - On-site agent that posts scanner punches over WireGuard; built, switched off (`FEATURE_ATTENDANCE_AGENTS`).
 - [ ] **Employee mobile app** - A companion app for staff; not part of the current release.
 
+## Screenshots
+
+![Main screen](docs/screenshots/flock_login.png)
+
 ## Installation
 
 ```
