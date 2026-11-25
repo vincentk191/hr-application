@@ -468,7 +468,7 @@ function QuickAdd({ item }: { item: Requisition }) {
 
                         {errors.duplicate && (
                             <div
-                                className="space-y-2 rounded-xl border border-amber-500/50 bg-amber-500/10 p-3 text-sm"
+                                className="space-y-2 rounded-xl border border-pending/50 bg-pending/10 p-3 text-sm"
                                 data-test="duplicate-warning"
                             >
                                 <p>{errors.duplicate}</p>

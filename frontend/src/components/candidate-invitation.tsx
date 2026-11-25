@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { CopyButton } from '@/components/requisition-posting';
-import { shortDate } from '@/components/requisition-summary';
+import { formatDate } from '@/lib/format';
 import type { Candidate } from '@/types/recruitment';
+import { inviteStateTone } from '@/lib/status';
+import type { StatusTone } from '@/lib/status';
 
 /** Where a candidate's invitation stands, in words and in the badge's colour. */
 export const INVITE_STATE: Record<
@@ -10,28 +12,28 @@ export const INVITE_STATE: Record<
         label: string;
         /** The same in a few words, for a badge with room for little. */
         shortLabel: string;
-        variant: 'secondary' | 'default' | 'outline' | 'destructive';
+        tone: StatusTone;
     }
 > = {
     none: {
         label: 'Belum diundang',
         shortLabel: 'Belum diundang',
-        variant: 'secondary',
+        tone: inviteStateTone('none'),
     },
     invited: {
         label: 'Diundang · menunggu formulir',
         shortLabel: 'Menunggu formulir',
-        variant: 'outline',
+        tone: inviteStateTone('invited'),
     },
     expired: {
         label: 'Tautan kedaluwarsa',
         shortLabel: 'Tautan kedaluwarsa',
-        variant: 'destructive',
+        tone: inviteStateTone('expired'),
     },
     submitted: {
         label: 'Formulir terkirim',
         shortLabel: 'Formulir terkirim',
-        variant: 'default',
+        tone: inviteStateTone('submitted'),
     },
 };
 
@@ -55,8 +57,8 @@ function sentLabel(sentAt: string | null, sentOn: string | null): string {
     const found = sentAt?.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2})$/);
 
     return found
-        ? `${shortDate(`${found[1]}-${found[2]}-${found[3]}`)}, ${found[4]} WIB`
-        : shortDate(sentOn);
+        ? `${formatDate(`${found[1]}-${found[2]}-${found[3]}`)}, ${found[4]} WIB`
+        : formatDate(sentOn);
 }
 
 /**

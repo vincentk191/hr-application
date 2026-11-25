@@ -54,6 +54,7 @@ import type {
     OpenedInterview,
     Requisition,
 } from '@/types/recruitment';
+import { businessNow } from '@/lib/format';
 
 const selectClasses =
     'border-input bg-card h-10 rounded-xl border px-3 text-sm';
@@ -593,7 +594,7 @@ function AvailabilityWarning({
 
     return (
         <p
-            className="rounded-xl border border-amber-500/50 bg-amber-500/10 p-3 text-sm"
+            className="rounded-xl border border-pending/50 bg-pending/10 p-3 text-sm"
             data-test="availability-warning"
         >
             {holidays.map((entry) => `Hari libur: ${entry.title}. `)}
@@ -637,20 +638,20 @@ const RECOMMENDATION_STYLE: Record<
 > = {
     continue: {
         label: 'Lanjut',
-        stroke: 'stroke-green-500',
-        fill: 'bg-green-500',
+        stroke: 'stroke-success',
+        fill: 'bg-success',
         icon: Check,
     },
     consider: {
         label: 'Pertimbangkan',
-        stroke: 'stroke-amber-500',
-        fill: 'bg-amber-500',
+        stroke: 'stroke-pending',
+        fill: 'bg-pending',
         icon: Minus,
     },
     reject: {
         label: 'Tidak lanjut',
-        stroke: 'stroke-red-500',
-        fill: 'bg-red-500',
+        stroke: 'stroke-danger',
+        fill: 'bg-danger',
         icon: X,
     },
 };
@@ -859,7 +860,7 @@ function CandidateSummaryRow({
                     {at ? (
                         <>
                             <span
-                                className={`inline-flex items-center gap-1.5 ${sameDay(at, now) ? 'text-red-500' : ''}`}
+                                className={`inline-flex items-center gap-1.5 ${sameDay(at, now) ? 'text-danger-text' : ''}`}
                             >
                                 <CalendarDays className="size-4" aria-hidden />
                                 {weekdayFormat.format(at)} {at.getDate()}
@@ -889,13 +890,13 @@ function CandidateSummaryRow({
                     )}
                     {candidate.isSelected && (
                         <UserCheck
-                            className="size-4 text-emerald-600"
+                            className="size-4 text-success-text"
                             aria-label="Dipilih"
                         />
                     )}
                     {candidate.googleMissing && (
                         <CalendarX2
-                            className="size-4 text-amber-600"
+                            className="size-4 text-pending-text"
                             aria-label="Acara dihapus di Google"
                         />
                     )}
@@ -1402,7 +1403,7 @@ export function InterviewTab({
     /** A candidate whose panel is open from the start, when a link asked for it (the dashboard's calendar). */
     openCandidateId?: number | null;
 }) {
-    const [now] = useState(() => new Date());
+    const [now] = useState(() => businessNow());
     // Who is being invited and from which slot: from a candidate's card the person is known; from a free slot of the
     // calendar the dialog asks for them, and the date and time are the slot's.
     const [inviting, setInviting] = useState<{

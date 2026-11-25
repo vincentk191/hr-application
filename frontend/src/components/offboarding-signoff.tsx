@@ -41,7 +41,7 @@ export function OffboardingImpactPanel({ item }: { item: OffboardingCase }) {
 
     return (
         <section
-            className="surface space-y-3 border-amber-500/50 p-4"
+            className="surface space-y-3 border-pending/50 p-4"
             data-test="impact-panel"
         >
             <h2 className="label-mono">
@@ -110,7 +110,7 @@ export function OffboardingImpactPanel({ item }: { item: OffboardingCase }) {
             )}
 
             {impact.headOf.length > 0 && (
-                <p className="text-sm text-amber-700 dark:text-amber-300">
+                <p className="text-sm text-pending-text">
                     {item.employee.name} adalah kepala departemen{' '}
                     {impact.headOf.join(', ')}. Tetapkan kepala baru di panel
                     admin (Departemen); sampai itu, checklist departemen
@@ -383,7 +383,7 @@ export function OffboardingSignOffPanel({
             )}
 
             {!closed && signoff.closeBlockers.length > 0 && item.canClose && (
-                <p className="text-sm text-amber-700 dark:text-amber-300">
+                <p className="text-sm text-pending-text">
                     Belum bisa ditutup: {signoff.closeBlockers.join(' ')}
                 </p>
             )}

@@ -24,6 +24,7 @@ import { destroy, store, update } from '@/routes/documents';
 import { store as storeSignedCopy } from '@/routes/documents/signed-copy';
 import { store as storeVersion } from '@/routes/documents/versions';
 import type { EmployeeDocumentRow, ValueOption } from '@/types/employee';
+import { StatusPill } from '@/components/status-pill';
 
 const selectClasses =
     'border-input bg-card h-10 rounded-xl border px-3 text-sm';
@@ -41,20 +42,17 @@ function formatSize(bytes: number): string {
 function ExpiryBadge({ document }: { document: EmployeeDocumentRow }) {
     if (document.expiryStatus === 'expired') {
         return (
-            <Badge variant="destructive">
+            <StatusPill tone="danger">
                 Kedaluwarsa {document.expiresOn}
-            </Badge>
+            </StatusPill>
         );
     }
 
     if (document.expiryStatus === 'expiring') {
         return (
-            <Badge
-                variant="outline"
-                className="border-amber-500 text-amber-700"
-            >
+            <StatusPill tone="caution">
                 Segera berakhir {document.expiresOn}
-            </Badge>
+            </StatusPill>
         );
     }
 

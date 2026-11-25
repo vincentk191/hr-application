@@ -49,6 +49,8 @@ import type {
     SyncAgent,
     WaitingId,
 } from '@/types/attendance';
+import { StatusPill } from '@/components/status-pill';
+import { rekapStatusTone } from '@/lib/status';
 
 type Props = {
     status: CaptureStatus;
@@ -96,16 +98,16 @@ function formatDateTime(iso: string | null): string {
 
 function StatusCard({ status }: { status: CaptureStatus }) {
     const badge = {
-        current: { label: 'Terkini', variant: 'default' as const },
-        late: { label: 'Terlambat', variant: 'destructive' as const },
-        never: { label: 'Belum ada data', variant: 'secondary' as const },
+        current: { label: 'Terkini', tone: 'success' as const },
+        late: { label: 'Terlambat', tone: 'danger' as const },
+        never: { label: 'Belum ada data', tone: 'neutral' as const },
     }[status.state];
 
     return (
         <section className="surface p-4">
             <div className="flex flex-wrap items-center gap-3">
                 <h2 className="font-medium">Status data absensi</h2>
-                <Badge variant={badge.variant}>{badge.label}</Badge>
+                <StatusPill tone={badge.tone}>{badge.label}</StatusPill>
             </div>
             <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
                 <div>
@@ -189,13 +191,11 @@ function AgentsCard({ agents }: { agents: SyncAgent[] }) {
                                         : ''}
                                 </div>
                             </div>
-                            <Badge
-                                variant={
-                                    agent.stale ? 'destructive' : 'default'
-                                }
+                            <StatusPill
+                                tone={agent.stale ? 'danger' : 'success'}
                             >
                                 {agent.stale ? 'Diam' : 'Melapor'}
-                            </Badge>
+                            </StatusPill>
                         </li>
                     ))}
                 </ul>
@@ -384,17 +384,11 @@ function RekapCard({
                                     <span className="font-semibold">
                                         {rekap.branch}
                                     </span>
-                                    <Badge
-                                        variant={
-                                            rekap.status === 'draft'
-                                                ? 'secondary'
-                                                : rekap.status === 'confirmed'
-                                                  ? 'default'
-                                                  : 'outline'
-                                        }
+                                    <StatusPill
+                                        tone={rekapStatusTone(rekap.status)}
                                     >
                                         {statusLabel[rekap.status]}
-                                    </Badge>
+                                    </StatusPill>
                                 </div>
                                 <p className="text-sm">
                                     {rekap.periodStart} s.d {rekap.periodEnd} ·{' '}
@@ -449,18 +443,11 @@ function RekapCard({
                                     </td>
                                     <td className="p-3">{rekap.rows}</td>
                                     <td className="p-3">
-                                        <Badge
-                                            variant={
-                                                rekap.status === 'draft'
-                                                    ? 'secondary'
-                                                    : rekap.status ===
-                                                        'confirmed'
-                                                      ? 'default'
-                                                      : 'outline'
-                                            }
+                                        <StatusPill
+                                            tone={rekapStatusTone(rekap.status)}
                                         >
                                             {statusLabel[rekap.status]}
-                                        </Badge>
+                                        </StatusPill>
                                     </td>
                                     <td className="p-3 text-right">
                                         <Button

@@ -17,6 +17,14 @@ const badgeVariants = cva(
           "border-transparent bg-destructive text-white [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
         outline:
           "text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
+        // What a record is up to (see StatusPill): a tint of the status colour with its readable text colour.
+        success: "border-transparent bg-success/15 text-success-text",
+        pending: "border-transparent bg-pending/15 text-pending-text",
+        danger: "border-transparent bg-danger/15 text-danger-text",
+        info: "border-transparent bg-info/15 text-info-text",
+        caution: "border-transparent bg-caution/15 text-caution-text",
+        neutral: "border-border bg-muted text-muted-foreground",
+        void: "border-border bg-transparent text-muted-foreground line-through",
       },
     },
     defaultVariants: {

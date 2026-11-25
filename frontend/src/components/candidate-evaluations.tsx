@@ -3,7 +3,7 @@ import { Check, Minus, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import InputError from '@/components/input-error';
-import { shortDate } from '@/components/requisition-summary';
+import { formatDate } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import {
     Sheet,
@@ -42,29 +42,29 @@ const STYLE: Record<
     continue: {
         label: 'Lanjut',
         icon: Check,
-        dot: 'bg-green-500',
-        text: 'text-green-700 dark:text-green-400',
-        pill: 'border-green-500/50 bg-green-500/10 text-green-700 dark:text-green-400',
-        card: 'has-[:checked]:border-green-500 has-[:checked]:bg-green-500/10 has-[:checked]:text-green-700 dark:has-[:checked]:text-green-400',
-        badge: 'group-has-[:checked]:bg-green-500 group-has-[:checked]:text-white',
+        dot: 'bg-success',
+        text: 'text-success-text',
+        pill: 'border-success/50 bg-success/10 text-success-text',
+        card: 'has-[:checked]:border-success has-[:checked]:bg-success/10 has-[:checked]:text-success-text',
+        badge: 'group-has-[:checked]:bg-success group-has-[:checked]:text-white',
     },
     consider: {
         label: 'Pertimbangkan',
         icon: Minus,
-        dot: 'bg-amber-500',
-        text: 'text-amber-700 dark:text-amber-400',
-        pill: 'border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-400',
-        card: 'has-[:checked]:border-amber-500 has-[:checked]:bg-amber-500/10 has-[:checked]:text-amber-700 dark:has-[:checked]:text-amber-400',
-        badge: 'group-has-[:checked]:bg-amber-500 group-has-[:checked]:text-white',
+        dot: 'bg-pending',
+        text: 'text-pending-text',
+        pill: 'border-pending/50 bg-pending/10 text-pending-text',
+        card: 'has-[:checked]:border-pending has-[:checked]:bg-pending/10 has-[:checked]:text-pending-text',
+        badge: 'group-has-[:checked]:bg-pending group-has-[:checked]:text-white',
     },
     reject: {
         label: 'Tidak lanjut',
         icon: X,
-        dot: 'bg-red-500',
-        text: 'text-red-700 dark:text-red-400',
-        pill: 'border-red-500/50 bg-red-500/10 text-red-700 dark:text-red-400',
-        card: 'has-[:checked]:border-red-500 has-[:checked]:bg-red-500/10 has-[:checked]:text-red-700 dark:has-[:checked]:text-red-400',
-        badge: 'group-has-[:checked]:bg-red-500 group-has-[:checked]:text-white',
+        dot: 'bg-danger',
+        text: 'text-danger-text',
+        pill: 'border-danger/50 bg-danger/10 text-danger-text',
+        card: 'has-[:checked]:border-danger has-[:checked]:bg-danger/10 has-[:checked]:text-danger-text',
+        badge: 'group-has-[:checked]:bg-danger group-has-[:checked]:text-white',
     },
 };
 
@@ -246,7 +246,7 @@ function MyCard({ entry }: { entry: CandidateEvaluation }) {
                     <p className="text-lg font-bold">Anda</p>
                     {entry.writtenOn && (
                         <p className="label-mono">
-                            {shortDate(entry.writtenOn)}
+                            {formatDate(entry.writtenOn)}
                         </p>
                     )}
                 </div>
@@ -324,7 +324,7 @@ function OtherCard({ entry }: { entry: CandidateEvaluation }) {
                                         ·
                                     </span>
                                     <span className="font-mono text-muted-foreground">
-                                        {shortDate(entry.writtenOn)}
+                                        {formatDate(entry.writtenOn)}
                                     </span>
                                 </>
                             )}

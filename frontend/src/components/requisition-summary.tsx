@@ -5,6 +5,7 @@ import type {
     RequisitionContent,
     ResponsibilityGroup,
 } from '@/types/recruitment';
+import { formatDate } from '@/lib/format';
 
 /**
  * What the status line says beyond the stage's name: "Menunggu persetujuan Manajemen", "Diposting di Glints". Past
@@ -65,19 +66,6 @@ export function checklistCounts(checklist: RequisitionContent['checklist']) {
         bonus: sum(['bonus']),
         all: sum(['education', 'experience', 'hard', 'soft', 'bonus']),
     };
-}
-
-/** "1 Okt 2026", the way the design writes a date. */
-export function shortDate(date: string | null): string {
-    if (!date) {
-        return '—';
-    }
-
-    return new Date(`${date}T00:00:00`).toLocaleDateString('id-ID', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-    });
 }
 
 const LETTERS = 'abcdefghijklmnopqrstuvwxyz';
@@ -230,7 +218,7 @@ export function RequisitionSummary({
                         {data.contractLabel ?? '—'}
                     </Cell>
                     <Cell label="Target mulai kerja">
-                        {shortDate(data.targetStartOn)}
+                        {formatDate(data.targetStartOn)}
                     </Cell>
                     <Cell label="Atasan langsung">{data.manager ?? '—'}</Cell>
                 </dl>

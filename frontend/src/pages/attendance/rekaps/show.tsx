@@ -4,11 +4,14 @@ import { useConfirm } from '@/components/confirm-dialog';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { formatRupiah } from '@/lib/format';
 import { device } from '@/routes/attendance';
 import { confirm, destroy } from '@/routes/attendance/rekaps';
 import { update as updateRow } from '@/routes/attendance/rekaps/rows';
 import type { BreadcrumbItem } from '@/types';
 import type { RekapLine, RekapStatus, RekapSummary } from '@/types/attendance';
+import { StatusPill } from '@/components/status-pill';
+import { rekapStatusTone } from '@/lib/status';
 
 type Props = {
     rekap: {
@@ -35,12 +38,6 @@ type Props = {
     employees: { id: number; label: string }[];
     errors: { confirm?: string };
 };
-
-const rupiah = new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    maximumFractionDigits: 0,
-});
 
 const selectClasses =
     'border-input bg-card h-9 max-w-56 min-w-0 rounded-xl border px-2 text-sm';
@@ -177,7 +174,7 @@ export default function AttendanceRekapShow({
                         <h1 className="text-lg font-semibold">
                             Rekapitulasi {rekap.branch}
                         </h1>
-                        <Badge variant={draft ? 'secondary' : 'default'}>
+                        <StatusPill tone={rekapStatusTone(rekap.status)}>
                             {
                                 {
                                     draft: 'Draf — belum berlaku',
@@ -185,7 +182,7 @@ export default function AttendanceRekapShow({
                                     superseded: 'Sudah diganti',
                                 }[rekap.status]
                             }
-                        </Badge>
+                        </StatusPill>
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                         <Badge variant="outline" className="gap-1 font-normal">
@@ -259,11 +256,11 @@ export default function AttendanceRekapShow({
                     />
                     <Tile
                         label="Total potongan di berkas"
-                        value={rupiah.format(summary.fileTotal)}
+                        value={formatRupiah(summary.fileTotal)}
                     />
                     <Tile
                         label="Total potongan hitungan aplikasi"
-                        value={rupiah.format(summary.computedTotal)}
+                        value={formatRupiah(summary.computedTotal)}
                         alert={summary.fileTotal !== summary.computedTotal}
                     />
                 </div>
@@ -332,7 +329,7 @@ export default function AttendanceRekapShow({
                                     <span
                                         className={`font-bold ${line.potonganMismatch ? 'text-destructive' : ''}`}
                                     >
-                                        {rupiah.format(line.computedPotongan)}
+                                        {formatRupiah(line.computedPotongan)}
                                     </span>
                                 </div>
                                 {line.exempt && (
@@ -343,7 +340,7 @@ export default function AttendanceRekapShow({
                                 {line.potonganMismatch && (
                                     <p className="text-xs font-medium text-destructive">
                                         Berkas menulis{' '}
-                                        {rupiah.format(line.filePotongan ?? 0)}
+                                        {formatRupiah(line.filePotongan ?? 0)}
                                     </p>
                                 )}
 
@@ -353,15 +350,15 @@ export default function AttendanceRekapShow({
                                             {line.employee}
                                         </p>
                                     ) : (
-                                        <Badge
-                                            variant={
+                                        <StatusPill
+                                            tone={
                                                 line.status === 'skipped'
-                                                    ? 'secondary'
-                                                    : 'destructive'
+                                                    ? 'neutral'
+                                                    : 'danger'
                                             }
                                         >
                                             {line.statusLabel}
-                                        </Badge>
+                                        </StatusPill>
                                     )}
                                     {draft && line.status !== 'matched' && (
                                         <div className="mt-2">
@@ -428,7 +425,7 @@ export default function AttendanceRekapShow({
                                         <td
                                             className={`p-3 whitespace-nowrap ${line.potonganMismatch ? 'font-medium text-destructive' : ''}`}
                                         >
-                                            {rupiah.format(
+                                            {formatRupiah(
                                                 line.computedPotongan,
                                             )}
                                             {line.exempt && (
@@ -439,7 +436,7 @@ export default function AttendanceRekapShow({
                                             {line.potonganMismatch && (
                                                 <div className="text-xs">
                                                     berkas:{' '}
-                                                    {rupiah.format(
+                                                    {formatRupiah(
                                                         line.filePotongan ?? 0,
                                                     )}
                                                 </div>
@@ -449,16 +446,16 @@ export default function AttendanceRekapShow({
                                             {line.status === 'matched' ? (
                                                 line.employee
                                             ) : (
-                                                <Badge
-                                                    variant={
+                                                <StatusPill
+                                                    tone={
                                                         line.status ===
                                                         'skipped'
-                                                            ? 'secondary'
-                                                            : 'destructive'
+                                                            ? 'neutral'
+                                                            : 'danger'
                                                     }
                                                 >
                                                     {line.statusLabel}
-                                                </Badge>
+                                                </StatusPill>
                                             )}
                                             {draft &&
                                                 line.status !== 'matched' && (

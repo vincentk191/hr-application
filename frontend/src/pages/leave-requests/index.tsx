@@ -10,14 +10,15 @@ import {
 import { LeaveDecisionDialog } from '@/components/leave-decision-dialog';
 import { ServerPagination } from '@/components/pagination';
 import type { ServerPage } from '@/components/pagination';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { stageVariant } from '@/lib/leave-stage';
 import { create, decision, exportMethod, index } from '@/routes/leave-requests';
 import type { BreadcrumbItem } from '@/types';
 import type { ValueOption } from '@/types/employee';
 import type { LeaveRequestFilters, LeaveRequestRow } from '@/types/leave';
+import { StatusPill } from '@/components/status-pill';
+import { daysSince, formatDate } from '@/lib/format';
+import { ageTone, decisionTone } from '@/lib/status';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Pengajuan', href: '/leave-requests' },
@@ -34,6 +35,31 @@ const STATUSES: { value: LeaveRequestFilters['status']; label: string }[] = [
 /**
  * The requests queue (REQ-DSH). A row opens the decision dialog over the table.
  */
+/**
+ * Who a request is waiting on and for how long, in a colour that warms with the wait (pending, then orange from 3 days,
+ * then red from 7) so the oldest stand out. The days count from the day it was filed, so a request sent back and filed
+ * again shows its whole age.
+ */
+function WaitingPill({ row }: { row: LeaveRequestRow }) {
+    if (!row.waitingOn) {
+        return <span className="text-muted-foreground">—</span>;
+    }
+
+    const days = row.submittedAt ? daysSince(row.submittedAt) : 0;
+
+    return (
+        <StatusPill
+            tone={ageTone(days)}
+            title={`Menunggu ${row.waitingOn}${row.submittedAt ? ` sejak ${formatDate(row.submittedAt)}` : ''}`}
+            className={row.canDecide ? 'font-bold' : 'font-medium'}
+        >
+            {row.waitingOn}
+            {row.canDecide && ' (Anda)'} ·{' '}
+            {days === 0 ? 'hari ini' : `${days} hari`}
+        </StatusPill>
+    );
+}
+
 export default function LeaveRequestsIndex({
     requests,
     pagination,
@@ -296,29 +322,14 @@ export default function LeaveRequestsIndex({
                                     </td>
                                     <td className="p-3">{row.days}</td>
                                     <td className="p-3">
-                                        <Badge
-                                            variant={stageVariant(row.stage)}
+                                        <StatusPill
+                                            tone={decisionTone(row.stage)}
                                         >
                                             {row.stageLabel}
-                                        </Badge>
+                                        </StatusPill>
                                     </td>
                                     <td className="p-3">
-                                        {row.waitingOn ? (
-                                            <span
-                                                className={
-                                                    row.canDecide
-                                                        ? 'font-medium'
-                                                        : 'text-muted-foreground'
-                                                }
-                                            >
-                                                {row.waitingOn}
-                                                {row.canDecide && ' (Anda)'}
-                                            </span>
-                                        ) : (
-                                            <span className="text-muted-foreground">
-                                                —
-                                            </span>
-                                        )}
+                                        <WaitingPill row={row} />
                                     </td>
                                     <td className="p-3 whitespace-nowrap text-muted-foreground">
                                         {row.submittedAt ?? '—'}
@@ -465,14 +476,14 @@ export default function LeaveRequestsIndex({
                                             {row.endOn} · {row.days} hari
                                         </span>
                                         {row.waitingOn && (
-                                            <span className="block truncate text-xs text-muted-foreground">
-                                                Menunggu {row.waitingOn}
+                                            <span className="mt-1 block">
+                                                <WaitingPill row={row} />
                                             </span>
                                         )}
                                     </span>
-                                    <Badge variant={stageVariant(row.stage)}>
+                                    <StatusPill tone={decisionTone(row.stage)}>
                                         {row.stageLabel}
-                                    </Badge>
+                                    </StatusPill>
                                 </button>
                             ))}
                         </section>

@@ -58,6 +58,22 @@
     --color-chart-4: var(--chart-4);
     --color-chart-5: var(--chart-5);
 
+    /*
+     * What a record is up to, in one palette (UI/UX audit UX-04). The plain name is the fill (dots, bars, tints such as
+     * bg-success/15); the -text name is the same colour made readable as text on the page in each theme. Red is also the
+     * brand accent, so status red is its own token and the accent is never used to mean "problem".
+     */
+    --color-success: var(--status-success);
+    --color-success-text: var(--status-success-text);
+    --color-pending: var(--status-pending);
+    --color-pending-text: var(--status-pending-text);
+    --color-danger: var(--status-danger);
+    --color-danger-text: var(--status-danger-text);
+    --color-info: var(--status-info);
+    --color-info-text: var(--status-info-text);
+    --color-caution: var(--status-caution);
+    --color-caution-text: var(--status-caution-text);
+
     --color-sidebar: var(--sidebar);
     --color-sidebar-foreground: var(--sidebar-foreground);
     --color-sidebar-primary: var(--sidebar-primary);
@@ -96,6 +112,17 @@
     --chart-4: oklch(0.828 0.189 84.429);
     --chart-5: oklch(0.769 0.188 70.08);
     --radius: 0.875rem;
+    /* Done and good / waiting on someone / a problem / active / needs a look sooner than waiting (orange). */
+    --status-success: oklch(0.696 0.17 162.48);
+    --status-success-text: oklch(0.432 0.095 166.913);
+    --status-pending: oklch(0.769 0.188 70.08);
+    --status-pending-text: oklch(0.473 0.137 46.201);
+    --status-danger: oklch(0.637 0.237 25.331);
+    --status-danger-text: oklch(0.505 0.213 27.518);
+    --status-info: oklch(0.685 0.169 237.323);
+    --status-info-text: oklch(0.443 0.11 240.79);
+    --status-caution: oklch(0.705 0.213 47.604);
+    --status-caution-text: oklch(0.47 0.157 37.304);
     --sidebar: oklch(1 0 0);
     --sidebar-foreground: oklch(0.18 0.005 60);
     --sidebar-primary: var(--brand, oklch(0.62 0.235 31));
@@ -133,6 +160,16 @@
     --chart-3: oklch(0.696 0.17 162.48);
     --chart-4: oklch(0.769 0.188 70.08);
     --chart-5: oklch(0.645 0.246 16.439);
+    --status-success: oklch(0.696 0.17 162.48);
+    --status-success-text: oklch(0.765 0.177 163.223);
+    --status-pending: oklch(0.769 0.188 70.08);
+    --status-pending-text: oklch(0.828 0.189 84.429);
+    --status-danger: oklch(0.637 0.237 25.331);
+    --status-danger-text: oklch(0.704 0.191 22.216);
+    --status-info: oklch(0.685 0.169 237.323);
+    --status-info-text: oklch(0.746 0.16 232.661);
+    --status-caution: oklch(0.705 0.213 47.604);
+    --status-caution-text: oklch(0.75 0.183 55.934);
     --sidebar: oklch(0.2 0.004 60);
     --sidebar-foreground: oklch(0.97 0.003 90);
     --sidebar-primary: var(--brand-dark, oklch(0.66 0.23 31));

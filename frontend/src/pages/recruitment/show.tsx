@@ -26,6 +26,7 @@ import InputError from '@/components/input-error';
 import { PhaseActions } from '@/components/phase-actions';
 import type { PhaseAction } from '@/components/phase-actions';
 import { RupiahInput } from '@/components/rupiah-input';
+import { businessNow, formatRupiah } from '@/lib/format';
 import { RequisitionMobileStatus } from '@/components/requisition-mobile-status';
 import {
     RequisitionSummary,
@@ -63,12 +64,6 @@ import {
 import type { BreadcrumbItem } from '@/types';
 import type { Requisition, RequisitionTab } from '@/types/recruitment';
 import type { WorkflowDiscussionData } from '@/types/workflow';
-
-const rupiah = new Intl.NumberFormat('id-ID');
-
-function money(value: number | null): string {
-    return value === null ? '—' : `Rp ${rupiah.format(value)}`;
-}
 
 /**
  * The six stages with the date each was reached (REC-PIP-002). A stage not reached yet is locked and cannot be
@@ -194,7 +189,7 @@ function SubmittedTab({ item }: { item: Requisition }) {
                     <h2 className="label-mono">Ekspektasi Gaji</h2>
                     <p className="text-sm">
                         {item.salary.set
-                            ? `${money(item.salary.min)} – ${money(item.salary.max)}`
+                            ? `${formatRupiah(item.salary.min)} – ${formatRupiah(item.salary.max)}`
                             : 'Belum ditetapkan. Manajemen menetapkannya sebelum menyetujui.'}
                     </p>
                     {item.canSaveSalary && (
@@ -288,7 +283,7 @@ export default function RequisitionShow({
     const scheduled = (item.shortlist ?? []).filter((candidate) => {
         const at = parseLocal(candidate.interviewAtInput);
 
-        return !candidate.isRejected && at !== null && at > new Date();
+        return !candidate.isRejected && at !== null && at > businessNow();
     });
     const scheduledInterviews = scheduled.length;
     const emailableInterviews = scheduled.filter(

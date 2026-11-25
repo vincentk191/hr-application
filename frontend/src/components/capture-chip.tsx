@@ -2,7 +2,7 @@ import { Link } from '@inertiajs/react';
 import { Upload } from 'lucide-react';
 import { InfoHint } from '@/components/info-hint';
 import { Button } from '@/components/ui/button';
-import { shortDate } from '@/lib/short-date';
+import { formatDay } from '@/lib/format';
 import { device } from '@/routes/attendance';
 import type { CaptureStatus } from '@/types/attendance';
 
@@ -28,17 +28,17 @@ export function CaptureChip({
     return (
         <div
             role="status"
-            className="inline-flex max-w-full flex-wrap items-center gap-x-2.5 gap-y-1 self-start rounded-full border border-amber-500/50 bg-amber-50 py-1.5 pr-2 pl-3.5 text-sm dark:bg-amber-950/30"
+            className="inline-flex max-w-full flex-wrap items-center gap-x-2.5 gap-y-1 self-start rounded-full border border-pending/50 bg-pending/10 py-1.5 pr-2 pl-3.5 text-sm"
             data-test="capture-chip"
         >
             <span className="relative flex size-2.5 shrink-0" aria-hidden>
-                <span className="absolute inline-flex size-full rounded-full bg-amber-500 opacity-75 motion-safe:animate-ping" />
-                <span className="relative inline-flex size-2.5 rounded-full bg-amber-500" />
+                <span className="absolute inline-flex size-full rounded-full bg-pending opacity-75 motion-safe:animate-ping" />
+                <span className="relative inline-flex size-2.5 rounded-full bg-pending" />
             </span>
             <span className="font-medium">
                 {capture.state === 'never'
                     ? 'Belum ada Laporan Absensi'
-                    : `Data sampai ${shortDate(dataThrough)} (seharusnya ${shortDate(capture.expectedThrough)})`}
+                    : `Data sampai ${formatDay(dataThrough)} (seharusnya ${formatDay(capture.expectedThrough)})`}
             </span>
             <InfoHint label="Arti data yang tertinggal">
                 Hari setelah data terakhir digaris-garis dan dihitung

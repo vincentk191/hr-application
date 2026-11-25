@@ -57,11 +57,11 @@ export function StatusPanel({
             {showRequestKey && (
                 <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                     <span className="inline-flex items-center gap-1.5">
-                        <span className="size-2 rounded-full bg-amber-400" />
+                        <span className="size-2 rounded-full bg-pending" />
                         Pengajuan menunggu
                     </span>
                     <span className="inline-flex items-center gap-1.5">
-                        <span className="size-2 rounded-full bg-emerald-500" />
+                        <span className="size-2 rounded-full bg-success" />
                         Disetujui
                     </span>
                 </p>

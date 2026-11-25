@@ -12,7 +12,7 @@ import {
 import { useState } from 'react';
 import { useConfirm } from '@/components/confirm-dialog';
 import InputError from '@/components/input-error';
-import { shortDate } from '@/components/requisition-summary';
+import { formatDate } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -318,7 +318,7 @@ function PostingRow({
             <div>
                 <p className="font-semibold">{posting.label}</p>
                 <p className="label-mono">
-                    {shortDate(posting.postedOn)}
+                    {formatDate(posting.postedOn)}
                     {posting.postedBy ? ` · oleh ${posting.postedBy}` : ''}
                 </p>
                 {posting.url && (

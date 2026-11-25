@@ -309,7 +309,7 @@ export default function OffboardingForm({
                                         (candidate.reportsCount > 0 ||
                                             candidate.headOf.length > 0) && (
                                             <div
-                                                className="rounded-xl border border-amber-500/50 p-3 text-sm text-amber-700 dark:text-amber-300"
+                                                className="rounded-xl border border-pending/50 p-3 text-sm text-pending-text"
                                                 data-test="leaver-warning"
                                             >
                                                 {candidate.reportsCount > 0 && (
@@ -513,7 +513,7 @@ export default function OffboardingForm({
                                                         className="h-2 overflow-hidden rounded-full bg-muted"
                                                     >
                                                         <div
-                                                            className={`h-full rounded-full transition-[width] ${short ? 'bg-red-500' : 'bg-emerald-500'}`}
+                                                            className={`h-full rounded-full transition-[width] ${short ? 'bg-danger' : 'bg-success'}`}
                                                             style={{
                                                                 width: `${Math.min(100, (Math.max(0, given) / required) * 100)}%`,
                                                             }}

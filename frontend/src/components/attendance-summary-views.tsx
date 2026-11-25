@@ -179,7 +179,7 @@ export function MonthSummary({
                                     {day.leave > 0 && (
                                         <span
                                             aria-hidden
-                                            className="absolute top-1 right-1 size-1.5 rounded-full bg-sky-500 sm:hidden"
+                                            className="absolute top-1 right-1 size-1.5 rounded-full bg-info sm:hidden"
                                         />
                                     )}
                                     <span className="text-xs">{day.day}</span>
@@ -226,7 +226,7 @@ export function MonthSummary({
                         className="hidden sm:flex"
                         items={[
                             {
-                                swatch: 'bg-emerald-500/20',
+                                swatch: 'bg-success/20',
                                 label: 'Sedikit hadir',
                             },
                             {
@@ -250,13 +250,13 @@ export function MonthSummary({
                     <Legend
                         className="sm:hidden"
                         items={[
-                            { swatch: 'bg-emerald-500', label: 'Hadir' },
+                            { swatch: 'bg-success', label: 'Hadir' },
                             {
                                 swatch: 'rounded-full border-2 border-destructive',
                                 label: '< 60%',
                             },
                             {
-                                swatch: 'rounded-full bg-sky-500',
+                                swatch: 'rounded-full bg-info',
                                 label: 'Cuti',
                             },
                             {
@@ -461,8 +461,8 @@ export function YearSummary({
                                     month.rate === null
                                         ? `${HATCH} border-border`
                                         : month.rate < LOW_RATE
-                                          ? 'border-transparent bg-amber-400'
-                                          : 'border-transparent bg-emerald-500'
+                                          ? 'border-transparent bg-pending'
+                                          : 'border-transparent bg-success'
                                 }`}
                                 style={{
                                     height: `${month.rate === null ? 8 : Math.max(month.rate, 3)}%`,
@@ -484,10 +484,10 @@ export function YearSummary({
             <Legend
                 items={[
                     {
-                        swatch: 'bg-emerald-500',
+                        swatch: 'bg-success',
                         label: `${LOW_RATE}% atau lebih`,
                     },
-                    { swatch: 'bg-amber-400', label: `Di bawah ${LOW_RATE}%` },
+                    { swatch: 'bg-pending', label: `Di bawah ${LOW_RATE}%` },
                     { swatch: `${HATCH} border`, label: 'Belum ada data' },
                 ]}
             />

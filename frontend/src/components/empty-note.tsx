@@ -25,7 +25,7 @@ export function EmptyNote({
                 className={cn(
                     'flex size-9 shrink-0 items-center justify-center rounded-full',
                     tone === 'ok'
-                        ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                        ? 'bg-success/15 text-success-text'
                         : 'bg-muted text-muted-foreground',
                 )}
                 aria-hidden

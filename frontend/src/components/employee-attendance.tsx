@@ -525,8 +525,8 @@ function YearView({
                                     month.rate === null
                                         ? 'h-2 border border-dashed'
                                         : month.rate < 90
-                                          ? 'bg-amber-400'
-                                          : 'bg-emerald-500'
+                                          ? 'bg-pending'
+                                          : 'bg-success'
                                 }`}
                                 style={
                                     month.rate === null

@@ -1,7 +1,6 @@
 import { Link } from '@inertiajs/react';
 import { RefreshCw } from 'lucide-react';
 import { FileLink, useFilePreview } from '@/components/file-preview';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { edit } from '@/routes/leave-requests';
 import type {
@@ -9,6 +8,8 @@ import type {
     LeaveHistoryRow,
     WorkflowStepSummary,
 } from '@/types/leave';
+import { StatusPill } from '@/components/status-pill';
+import { decisionTone } from '@/lib/status';
 
 type Detail = {
     id: number;
@@ -68,17 +69,9 @@ export function LeaveHistory({ history }: { history: LeaveHistoryRow[] }) {
             {history.map((item, index) => (
                 <li key={index} className="flex flex-col gap-0.5">
                     <span className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                        <Badge
-                            variant={
-                                item.stage === 'rejected'
-                                    ? 'destructive'
-                                    : item.stage === 'approved'
-                                      ? 'default'
-                                      : 'secondary'
-                            }
-                        >
+                        <StatusPill tone={decisionTone(item.stage)}>
                             {item.stageLabel}
-                        </Badge>
+                        </StatusPill>
                         {item.author}
                         {item.at ? ` · ${item.at}` : ''}
                     </span>
@@ -144,17 +137,11 @@ export function LeaveRequestDetail({ row }: { row: Detail }) {
                                 className="flex flex-col gap-0.5"
                             >
                                 <span className="flex flex-wrap items-center gap-2">
-                                    <Badge
-                                        variant={
-                                            step.status === 'approved'
-                                                ? 'default'
-                                                : step.status === 'rejected'
-                                                  ? 'destructive'
-                                                  : 'secondary'
-                                        }
+                                    <StatusPill
+                                        tone={decisionTone(step.status)}
                                     >
                                         {step.statusLabel}
-                                    </Badge>
+                                    </StatusPill>
                                     <span>{step.label}</span>
                                     {step.decidedBy && (
                                         <span className="text-xs text-muted-foreground">

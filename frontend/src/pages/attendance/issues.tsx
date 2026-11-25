@@ -66,17 +66,14 @@ const STATES: { value: State; label: string }[] = [
 ];
 
 const TYPE_STYLE: Record<string, string> = {
-    late: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200',
-    early_leave:
-        'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-200',
-    unapproved_absence:
-        'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200',
+    late: 'bg-pending/15 text-pending-text',
+    early_leave: 'bg-caution/15 text-caution-text',
+    unapproved_absence: 'bg-danger/15 text-danger-text',
     missing_checkout:
         'bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-200',
     duplicate_punch:
         'bg-slate-200 text-slate-800 dark:bg-slate-700/50 dark:text-slate-200',
-    scan_on_leave:
-        'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200',
+    scan_on_leave: 'bg-info/15 text-info-text',
 };
 
 /** The profile's attendance tab, opened on the month the issue is in. */
@@ -255,7 +252,7 @@ export default function AttendanceIssues({
 
             <div className="flex flex-col gap-4 p-4">
                 {capture.state !== 'current' && (
-                    <p className="surface border-amber-500/60 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+                    <p className="surface border-pending/60 bg-pending/10 p-3 text-sm text-pending-text">
                         Laporan Absensi{' '}
                         {capture.state === 'never'
                             ? 'belum pernah diunggah'

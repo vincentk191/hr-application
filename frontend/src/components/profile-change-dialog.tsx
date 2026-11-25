@@ -1,7 +1,6 @@
 import { Form, Link } from '@inertiajs/react';
 import { Check, X } from 'lucide-react';
 import { ProfileChangeDiff } from '@/components/profile-change-diff';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -13,13 +12,8 @@ import {
 import { show } from '@/routes/employees';
 import { decide } from '@/routes/profile-changes';
 import type { ProfileChange } from '@/types/profile-change';
-
-export function profileChangeBadgeVariant(status: ProfileChange['status']) {
-    if (status === 'approved') return 'default' as const;
-    if (status === 'pending') return 'secondary' as const;
-
-    return 'destructive' as const;
-}
+import { StatusPill } from '@/components/status-pill';
+import { decisionTone } from '@/lib/status';
 
 /**
  * One profile change request opened over the list (EMP-CHG-003): the changed fields as now → asked, and for the
@@ -51,11 +45,9 @@ export function ProfileChangeDialog({
                         <span className="text-muted-foreground">
                             · {change.reference}
                         </span>
-                        <Badge
-                            variant={profileChangeBadgeVariant(change.status)}
-                        >
+                        <StatusPill tone={decisionTone(change.status)}>
                             {change.statusLabel}
-                        </Badge>
+                        </StatusPill>
                     </DialogTitle>
                     <DialogDescription>
                         {change.employee.number} · diajukan {change.submittedAt}

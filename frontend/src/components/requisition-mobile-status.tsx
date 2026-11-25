@@ -1,5 +1,6 @@
 import { Check } from 'lucide-react';
-import { shortDate, statusDetail } from '@/components/requisition-summary';
+import { statusDetail } from '@/components/requisition-summary';
+import { formatDate } from '@/lib/format';
 import type { Requisition } from '@/types/recruitment';
 
 /**
@@ -30,7 +31,7 @@ export function RequisitionMobileStatus({
         viewingCurrent || viewed === null
             ? statusDetail(item)
             : viewed.reachedAt
-              ? `Selesai · ${shortDate(viewed.reachedAt)}`
+              ? `Selesai · ${formatDate(viewed.reachedAt)}`
               : 'Selesai';
 
     return (
@@ -143,7 +144,7 @@ export function RequisitionMobileStatus({
                 <div>
                     <dt className="label-mono tracking-[0.2em]">DIAJUKAN</dt>
                     <dd className="mt-1 font-bold">
-                        {shortDate(item.submittedAt)}
+                        {formatDate(item.submittedAt)}
                     </dd>
                 </div>
             </dl>

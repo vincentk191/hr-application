@@ -1,7 +1,6 @@
 import { SearchX } from 'lucide-react';
 import { Head, Link, router, setLayoutProps } from '@inertiajs/react';
 import { EmptyNote } from '@/components/empty-note';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { UnreadComments } from '@/components/unread-comments';
 import { create, index, show } from '@/routes/offboarding';
@@ -11,6 +10,8 @@ import type {
     OffboardingRow,
     OffboardingSummary,
 } from '@/types/offboarding';
+import { StatusPill } from '@/components/status-pill';
+import { offboardingStageTone } from '@/lib/status';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Offboarding', href: '/offboarding' },
@@ -232,16 +233,14 @@ export default function OffboardingIndex({
                                                 {row.reference} ·{' '}
                                                 {row.exitType ?? '—'}
                                             </div>
-                                            <Badge
-                                                variant={
-                                                    row.stage === 'closed'
-                                                        ? 'secondary'
-                                                        : 'default'
-                                                }
+                                            <StatusPill
+                                                tone={offboardingStageTone(
+                                                    row.stage,
+                                                )}
                                                 className="mt-1"
                                             >
                                                 {row.statusLabel}
-                                            </Badge>
+                                            </StatusPill>
                                         </td>
                                         <td className="hidden p-3 md:table-cell">
                                             {[

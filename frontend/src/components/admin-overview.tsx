@@ -19,6 +19,7 @@ import type {
     AdminWaiting,
     RecruitmentOverview,
 } from '@/types/dashboard';
+import { businessToday } from '@/lib/format';
 
 const WAITING_LINKS: Record<AdminWaiting['items'][number]['key'], string> = {
     leave: leaveIndex({ query: { status: 'waiting' } }).url,
@@ -145,12 +146,12 @@ export function WaitingCard({
 }
 
 const KIND_STYLE: Record<AdminCalendarEntry['kind'], string> = {
-    leave: 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200',
+    leave: 'bg-info/15 text-info-text',
     interview:
         'bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-200',
     holiday: 'bg-muted text-muted-foreground',
-    event: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200',
-    start: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200',
+    event: 'bg-pending/15 text-pending-text',
+    start: 'bg-success/15 text-success-text',
     lastday: 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200',
 };
 
@@ -171,13 +172,6 @@ const KINDS_OF_SCOPE: Record<
     me: ['leave', 'interview', 'lastday', 'event', 'holiday'],
     others: ['leave', 'start', 'lastday', 'event', 'holiday'],
 };
-
-function localToday(): string {
-    const now = new Date();
-    const pad = (value: number) => String(value).padStart(2, '0');
-
-    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-}
 
 const longDay = new Intl.DateTimeFormat('id-ID', {
     weekday: 'long',
@@ -201,7 +195,7 @@ export function AdminCalendarCard({
     /** Opens a candidate's interview panel over the dashboard, for the interviews on their own view. */
     onOpenInterview?: (candidateId: number) => void;
 }) {
-    const today = localToday();
+    const today = businessToday();
     const [year, month] = data.month.split('-').map(Number);
     const days = daysOfMonth(year, month - 1);
     const byDate = new Map<string, AdminCalendarEntry[]>();
@@ -328,16 +322,16 @@ export function AdminCalendarCard({
                                 aria-hidden
                             >
                                 {leave > 0 && (
-                                    <span className="size-1.5 rounded-full bg-sky-500" />
+                                    <span className="size-1.5 rounded-full bg-info" />
                                 )}
                                 {interviews > 0 && (
                                     <span className="size-1.5 rounded-full bg-violet-500" />
                                 )}
                                 {events > 0 && (
-                                    <span className="size-1.5 rounded-full bg-amber-500" />
+                                    <span className="size-1.5 rounded-full bg-pending" />
                                 )}
                                 {starts > 0 && (
-                                    <span className="size-1.5 rounded-full bg-emerald-500" />
+                                    <span className="size-1.5 rounded-full bg-success" />
                                 )}
                                 {lastDays > 0 && (
                                     <span className="size-1.5 rounded-full bg-rose-500" />
@@ -394,7 +388,7 @@ export function AdminCalendarCard({
                         </li>
                     ))}
                 <li className="flex items-center gap-1.5">
-                    <span className="size-3 rounded-sm border border-dashed border-sky-500" />
+                    <span className="size-3 rounded-sm border border-dashed border-info" />
                     Cuti menunggu persetujuan
                 </li>
             </ul>
@@ -415,7 +409,7 @@ export function AdminCalendarCard({
                                     <span
                                         className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium ${KIND_STYLE[entry.kind]} ${
                                             entry.status === 'submitted'
-                                                ? 'border border-dashed border-sky-500 bg-transparent'
+                                                ? 'border border-dashed border-info bg-transparent'
                                                 : ''
                                         }`}
                                     >

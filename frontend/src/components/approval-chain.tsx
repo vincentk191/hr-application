@@ -1,4 +1,5 @@
 import { Check, X } from 'lucide-react';
+import { formatDay } from '@/lib/format';
 
 export type ApprovalChainStep = {
     label: string;
@@ -12,30 +13,23 @@ export type ApprovalChainStep = {
 };
 
 const STATE: Record<ApprovalChainStep['status'], string> = {
-    pending: 'border-primary/40 bg-primary/10',
+    pending: 'border-pending/40 bg-pending/10',
     approved: 'border-border/70 bg-card',
-    rejected: 'border-destructive/40 bg-destructive/5',
+    rejected: 'border-danger/40 bg-danger/5',
     locked: 'border-border/70 bg-muted/40 text-muted-foreground',
 };
 
 /** The round marker of a row on a phone: green for done, amber for the open step, red for a rejection. */
 const MARKER: Record<ApprovalChainStep['status'], string> = {
-    approved: 'bg-emerald-500/15 text-emerald-500 dark:text-emerald-400',
-    pending: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
-    rejected: 'bg-destructive/15 text-destructive',
+    approved: 'bg-success/15 text-success-text',
+    pending: 'bg-pending/15 text-pending-text',
+    rejected: 'bg-danger/15 text-danger-text',
     locked: 'bg-muted text-muted-foreground',
 };
 
 /** "28 Okt" from a "2026-10-28" date, the short form the phone list shows. */
 function dayMonth(date: string | null): string | null {
-    if (!date) {
-        return null;
-    }
-
-    return new Date(`${date}T00:00:00`).toLocaleDateString('id-ID', {
-        day: 'numeric',
-        month: 'short',
-    });
+    return date ? formatDay(date) : null;
 }
 
 /**
@@ -149,7 +143,7 @@ export function ApprovalChain({
             >
                 {withRequester && (
                     <li className="flex flex-1 items-center gap-3 rounded-2xl border border-border/70 bg-card p-3 shadow-xs">
-                        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
+                        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-success/15 text-success-text">
                             <Check className="size-4" />
                         </span>
                         <div className="min-w-0">
@@ -183,9 +177,9 @@ export function ApprovalChain({
                             <span
                                 className={`flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                                     step.status === 'pending'
-                                        ? 'bg-foreground text-background'
+                                        ? 'bg-pending/15 text-pending-text'
                                         : step.status === 'approved'
-                                          ? 'bg-foreground text-background'
+                                          ? 'bg-success/15 text-success-text'
                                           : 'border border-current'
                                 }`}
                             >

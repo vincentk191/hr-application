@@ -1,3 +1,5 @@
+import { formatInstant } from '@/lib/format';
+
 /**
  * "5 menit lalu", "kemarin", or the date for anything older: enough for a notification list without
  * pulling in a date library.
@@ -37,9 +39,5 @@ export function relativeTime(
         return `${days} hari lalu`;
     }
 
-    return then.toLocaleDateString('id-ID', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-    });
+    return formatInstant(then);
 }

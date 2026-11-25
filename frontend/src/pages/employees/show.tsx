@@ -27,7 +27,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { stageVariant } from '@/lib/leave-stage';
+import { formatRupiah } from '@/lib/format';
 import { edit, index as employeesIndex, reactivate } from '@/routes/employees';
 import { activate, reject } from '@/routes/employees/activation';
 import { create as requestChange } from '@/routes/employees/changes';
@@ -40,6 +40,8 @@ import type {
     LeaveRow,
     ValueOption,
 } from '@/types/employee';
+import { StatusPill } from '@/components/status-pill';
+import { decisionTone } from '@/lib/status';
 
 type Props = {
     employee: EmployeeDetail;
@@ -76,17 +78,7 @@ type TabKey = (typeof TABS)[number]['key'];
 
 /** Rupiah, formatted from an integer — the only representation money has here. */
 function rupiah(value: number | string | null): string {
-    if (typeof value === 'string') {
-        return value;
-    }
-
-    return value === null
-        ? '—'
-        : new Intl.NumberFormat('id-ID', {
-              style: 'currency',
-              currency: 'IDR',
-              maximumFractionDigits: 0,
-          }).format(value);
+    return typeof value === 'string' ? value : formatRupiah(value);
 }
 
 /** Shown in place of a sensitive card the viewer may not read (EMP-DET-006). */
@@ -188,9 +180,9 @@ function RequestCard({ row }: { row: LeaveRow }) {
                         <span className="block font-semibold">{row.type}</span>
                         <span className="label-mono">{row.reference}</span>
                     </span>
-                    <Badge variant={stageVariant(row.stage)}>
+                    <StatusPill tone={decisionTone(row.stage)}>
                         {row.stageLabel}
-                    </Badge>
+                    </StatusPill>
                 </span>
                 <span className="text-sm">
                     {row.startOn} – {row.endOn} · {row.days} hari
@@ -429,7 +421,7 @@ export default function EmployeeShow({
 
                 {accountPending && canActivateAccount && (
                     <section
-                        className="surface flex flex-wrap items-center justify-between gap-3 border-amber-500/50 p-4"
+                        className="surface flex flex-wrap items-center justify-between gap-3 border-pending/50 p-4"
                         data-test="pending-account"
                     >
                         <p className="max-w-2xl text-sm">
@@ -478,14 +470,12 @@ export default function EmployeeShow({
                     </div>
                     <div className="surface p-4">
                         <p className="label-mono">Status</p>
-                        <Badge
-                            variant={
-                                employee.isActive ? 'default' : 'secondary'
-                            }
+                        <StatusPill
+                            tone={employee.isActive ? 'success' : 'neutral'}
                             className="mt-1"
                         >
                             {employee.status}
-                        </Badge>
+                        </StatusPill>
                     </div>
                     <div className="surface p-4">
                         <p className="label-mono">Atasan</p>

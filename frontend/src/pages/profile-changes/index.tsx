@@ -2,15 +2,13 @@ import { Head, router, setLayoutProps } from '@inertiajs/react';
 import { Check, X } from 'lucide-react';
 import { useState } from 'react';
 import { EmployeeAvatar } from '@/components/employee-avatar';
-import {
-    ProfileChangeDialog,
-    profileChangeBadgeVariant,
-} from '@/components/profile-change-dialog';
-import { Badge } from '@/components/ui/badge';
+import { ProfileChangeDialog } from '@/components/profile-change-dialog';
 import { Button } from '@/components/ui/button';
 import { decide } from '@/routes/profile-changes';
 import type { BreadcrumbItem } from '@/types';
 import type { ProfileChange, ProfileChangeField } from '@/types/profile-change';
+import { StatusPill } from '@/components/status-pill';
+import { decisionTone } from '@/lib/status';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Perubahan data', href: '/profile-changes' },
@@ -147,13 +145,11 @@ export default function ProfileChanges({
                                     </td>
                                     <td className="p-3">{summary(change)}</td>
                                     <td className="p-3">
-                                        <Badge
-                                            variant={profileChangeBadgeVariant(
-                                                change.status,
-                                            )}
+                                        <StatusPill
+                                            tone={decisionTone(change.status)}
                                         >
                                             {change.statusLabel}
-                                        </Badge>
+                                        </StatusPill>
                                     </td>
                                     <td className="p-3 whitespace-nowrap text-muted-foreground">
                                         {change.submittedAt ?? '—'}
@@ -210,13 +206,9 @@ export default function ProfileChanges({
                                         {change.reference}
                                     </span>
                                 </span>
-                                <Badge
-                                    variant={profileChangeBadgeVariant(
-                                        change.status,
-                                    )}
-                                >
+                                <StatusPill tone={decisionTone(change.status)}>
                                     {change.statusLabel}
-                                </Badge>
+                                </StatusPill>
                             </button>
 
                             <dl className="mt-3 grid gap-2 border-t pt-3 text-sm">

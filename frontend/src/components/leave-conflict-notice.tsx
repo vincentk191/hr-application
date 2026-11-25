@@ -141,11 +141,11 @@ export function LeaveConflictNotice({
             )}
             {clashes.length > 0 && (
                 <div
-                    className="flex gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm"
+                    className="flex gap-3 rounded-xl border border-pending/40 bg-pending/10 p-3 text-sm"
                     data-test="leave-conflict"
                 >
                     <TriangleAlert
-                        className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400"
+                        className="mt-0.5 size-4 shrink-0 text-pending-text"
                         aria-hidden
                     />
                     <div className="grid gap-1">

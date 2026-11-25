@@ -11,7 +11,6 @@ import {
     revealTarget,
     type RevealTarget,
 } from '@/components/masked-value';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Sheet,
@@ -33,6 +32,7 @@ import type {
     EmployeeTeam,
     LeaveRow,
 } from '@/types/employee';
+import { StatusPill } from '@/components/status-pill';
 
 type Summary = {
     employee: EmployeeDetail;
@@ -306,11 +306,11 @@ function ProfileTab({ data }: { data: Summary }) {
                 </div>
                 <div className="p-3">
                     <p className="label-mono">Status</p>
-                    <Badge
-                        variant={employee.isActive ? 'default' : 'secondary'}
+                    <StatusPill
+                        tone={employee.isActive ? 'success' : 'neutral'}
                     >
                         {employee.status}
-                    </Badge>
+                    </StatusPill>
                 </div>
             </div>
 
@@ -447,11 +447,17 @@ function DocumentsTab({ data }: { data: Summary }) {
                             </div>
                             <div className="flex items-center gap-2">
                                 {document.expiryStatus && (
-                                    <Badge variant="destructive">
+                                    <StatusPill
+                                        tone={
+                                            document.expiryStatus === 'expired'
+                                                ? 'danger'
+                                                : 'caution'
+                                        }
+                                    >
                                         {document.expiryStatus === 'expired'
                                             ? 'Kedaluwarsa'
                                             : 'Segera berakhir'}
-                                    </Badge>
+                                    </StatusPill>
                                 )}
                                 {latest?.previewUrl && (
                                     <button

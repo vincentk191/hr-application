@@ -49,7 +49,7 @@ export function ProfileChangeDiff({ change }: { change: ProfileChange }) {
                     {change.changes.map((row) => (
                         <tr
                             key={row.field}
-                            className="border-t bg-amber-50 align-top dark:bg-amber-950/30"
+                            className="border-t bg-pending/10 align-top"
                             data-test={`change-${row.field}`}
                         >
                             <td className="p-3 font-medium">

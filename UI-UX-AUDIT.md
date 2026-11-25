@@ -1,7 +1,8 @@
 # UI/UX Audit: Fixes and Optimizations
 
-Audit date: 2026-11-25. Status: **High priority (UX-01 to UX-03) built 2026-11-25, uncommitted; the rest not started.**
-Decisions made the same day: UX-04 approved becomes green; UX-11 stays as is; UX-13 no undo for now.
+Audit date: 2026-11-25. Status: **UX-01 to UX-04 and UX-06 built 2026-11-25; UX-05, UX-07 to UX-10, UX-12 not started.**
+Decisions made the same day: UX-04 approved becomes green; UX-06 all companies share one timezone; UX-11 stays as is;
+UX-13 no undo for now.
 
 **Built, with what was verified:** UX-01 to UX-03 each have Pest tests (new files `EmployeeFieldRevealTest.php` and
 `LeaveQueuePagingTest.php`; three existing assertions updated because the profile now returns masks). Related suites,
@@ -110,7 +111,27 @@ employee directory and attendance recap still load whole lists and page them on 
 
 ## Medium
 
-### UX-04 One status system: tokens + `StatusPill`
+### UX-04 One status system: tokens + `StatusPill` (BUILT)
+
+**As built:** five status tokens in `css/app.css` (success, pending, danger, info, caution), each with a fill and a
+readable `-text` colour for light and dark, used as `bg-success/15 text-success-text`. Light-theme text colours were
+darkened until every pill clears 4.5:1 on its own tint (lowest is 4.7, checked by calculation, not by eye).
+`components/status-pill.tsx` draws icon + text + colour over seven tones (neutral, info, pending, caution, success,
+danger, void); `lib/status.ts` holds the tone for each flow (`decisionTone`, `offboardingStageTone`,
+`checklistGroupTone`, `offerStageTone`, `inviteStateTone`, `rekapStatusTone`, `ageTone`). All 28 status badges moved
+onto it, the 315 raw amber/emerald/red/sky/orange classes became tokens (dark-mode companions removed), approved is
+green everywhere including the approval chain and the leave dialog marker, and the approval chain's open step no
+longer uses the brand red. Leave requests that are waiting show how long (`Atasan langsung · 4 hari`), warming from
+amber to orange at 3 days and red at 7.
+- **Decisions I made that you may want to change:** an active employee is a green "success" pill (it is on every
+  directory row, so that is a lot of green; neutral would be the quiet alternative); recruitment requisitions that
+  are not drafts are "info"; a rekapitulasi draft is "pending" and a replaced one "void"; document "expiring soon" is
+  orange and "expired" red.
+- **Left as they are:** violet, rose and slate, which are categorical colours (calendar event kinds, issue types),
+  not statuses, and neutral greys for chrome. The age counts from the day a request was first filed, so a request sent
+  back and filed again shows its whole age.
+- **Verified:** typecheck, lint, production build and the compiled CSS contains every new utility. **Not verified:** how
+  it looks. Check each pill in light and dark, especially the attendance tiles and calendar legend.
 
 - **Problem:** two unrelated systems.
   - Attendance: green/amber/orange/red/sky tiles (`lib/attendance-status.ts`), with dark variants written per call.
@@ -138,7 +159,21 @@ employee directory and attendance recap still load whole lists and page them on 
 - **Check:** with a filter that matches nothing, each list shows the "nothing matches" variant and the button restores
   the full list.
 
-### UX-06 One `lib/format.ts` with a fixed business timezone
+### UX-06 One `lib/format.ts` with a fixed business timezone (BUILT)
+
+**As built:** `lib/format.ts` has `formatRupiah`, `formatNumber`, `formatDay` ("13 Nov"), `formatDate` ("1 Okt 2026"),
+`formatInstant` (with optional time, in Asia/Jakarta), `businessToday`, `businessNow` and `daysSince`. The eight
+rupiah formatters, two clashing `shortDate` functions (they had different output), two local "28 Okt" helpers and the
+`relativeTime` fallback now use it, and `lib/short-date.ts` is gone. "Today" and "now" (dashboard calendars, the leave
+dialog's year, interview-in-the-future checks, the interview calendar) are read in the business timezone, not the
+browser's. Verified by running the helpers under three process timezones (Jakarta, Makassar, New York): identical
+output.
+- **Correction to this audit's own claim:** it said interview times shifted on phones set to WITA/WIT. They do not: a
+  time from the server is read back as the same wall-clock digits wherever the phone is. The real bug was in the
+  comparisons with "now" (is this interview still ahead, which day is today), which used the phone's clock. Those are
+  fixed. The per-component month and weekday name formatters were left, since they format naive dates and are correct.
+- **Not done:** the interview calendar and similar screens still build naive local `Date`s; that is fine while every
+  company shares one timezone, which is the decision made today.
 
 - **Problem:**
   - The rupiah `Intl.NumberFormat` is re-defined in at least 7 files (`recruitment/show`, `employees/show`,
@@ -172,6 +207,15 @@ employee directory and attendance recap still load whole lists and page them on 
   actionable.
 - **Fix:** remove the subtitle (keep the heading "Masuk"); set the checkbox label in normal case ("Ingat NIK dan ID di
   perangkat ini"). Keep the monospace small-caps for field labels only if contrast stays AA.
+- **Standing rule for this clean-up (owner, 2026-11-25):** when redundant or explainer text is taken off a screen,
+  do not only delete it. For each piece, also suggest where it could live instead: an `InfoHint` tooltip on the
+  nearest label or icon, or a pop-up warning (dialog or inline alert shown only when the condition actually
+  applies, such as a stale-data or limit warning). The owner then picks delete, tooltip or pop-up per item. Applies to
+  the login subtitle here and to any later sweep for redundant text.
+- **Alternatives for the items already removed on 2026-11-25 (not applied, for the owner to pick):**
+  working hours and late threshold on the attendance calendar -> tooltip on the calendar header; the 62-day range
+  limit -> pop-up warning only when a longer range is picked; "3 masalah" count -> nothing needed (the filter sheet
+  button still says it); dashboard date and clock -> nothing needed (device clock).
 
 ---
 

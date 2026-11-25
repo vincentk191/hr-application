@@ -68,7 +68,7 @@ function OwnerSteps({ groups }: { groups: OffboardingChecklistGroup[] }) {
                                 className={cn(
                                     'flex size-7 items-center justify-center rounded-full border text-xs font-semibold',
                                     finished &&
-                                        'border-emerald-500/40 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+                                        'border-success/40 bg-success/15 text-success-text',
                                     active &&
                                         'border-primary bg-primary text-primary-foreground',
                                 )}

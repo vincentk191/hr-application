@@ -82,7 +82,7 @@ export function TopbarNotices() {
             {entrance?.limited && (
                 <div
                     role="status"
-                    className="flex items-center gap-2 border-b bg-amber-500/10 px-3 py-1.5 text-sm text-amber-800 sm:px-6 dark:text-amber-200"
+                    className="flex items-center gap-2 border-b bg-pending/10 px-3 py-1.5 text-sm text-pending-text sm:px-6"
                     data-test="limited-view"
                 >
                     <ShieldAlert className="size-4 shrink-0" aria-hidden />

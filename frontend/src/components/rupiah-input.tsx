@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import type { ComponentProps } from 'react';
 import { Input } from '@/components/ui/input';
-
-const format = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 });
+import { formatNumber } from '@/lib/format';
 
 /** Whole rupiah as typed, with a dot between thousands: "4500000" becomes "4.500.000". */
 function grouped(digits: string): string {
-    return digits === '' ? '' : format.format(Number(digits));
+    return digits === '' ? '' : formatNumber(Number(digits));
 }
 
 type Props = Omit<

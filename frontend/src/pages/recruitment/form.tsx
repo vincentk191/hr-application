@@ -1422,7 +1422,7 @@ export default function RequisitionForm({
 
                                 {!complete && (
                                     <div
-                                        className="rounded-xl border border-amber-500/50 p-3 text-sm text-amber-700 dark:text-amber-300"
+                                        className="rounded-xl border border-pending/50 p-3 text-sm text-pending-text"
                                         data-test="missing-banner"
                                     >
                                         <p className="font-medium">

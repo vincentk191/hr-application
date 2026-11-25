@@ -24,9 +24,8 @@ import {
 import { EmptyNote } from '@/components/empty-note';
 import { LeaveDecisionDialog } from '@/components/leave-decision-dialog';
 import { InterviewPanel } from '@/components/requisition-interview';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { shortDate } from '@/lib/short-date';
+import { formatDay } from '@/lib/format';
 import { dashboard } from '@/routes';
 import { device } from '@/routes/attendance';
 import { show } from '@/routes/employees';
@@ -40,6 +39,7 @@ import type {
     Overview,
     RecruitmentOverview,
 } from '@/types/dashboard';
+import { StatusPill } from '@/components/status-pill';
 
 type ExpiringDocuments = {
     total: number;
@@ -93,16 +93,13 @@ function ExpiringDocumentsCard({ data }: { data: ExpiringDocuments }) {
                                     </span>
                                 </Link>
                                 {item.expiryStatus === 'expired' ? (
-                                    <Badge variant="destructive">
+                                    <StatusPill tone="danger">
                                         Kedaluwarsa {item.expiresOn}
-                                    </Badge>
+                                    </StatusPill>
                                 ) : (
-                                    <Badge
-                                        variant="outline"
-                                        className="border-amber-500 text-amber-700"
-                                    >
+                                    <StatusPill tone="caution">
                                         Berakhir {item.expiresOn}
-                                    </Badge>
+                                    </StatusPill>
                                 )}
                             </li>
                         ))}
@@ -149,7 +146,7 @@ function AttendanceStatusCard({
         issues.push({
             key: 'late',
             icon: CalendarClock,
-            text: `Data sampai ${shortDate(status.lastScanAt)} (seharusnya ${shortDate(status.expectedThrough)})`,
+            text: `Data sampai ${formatDay(status.lastScanAt)} (seharusnya ${formatDay(status.expectedThrough)})`,
         });
     }
 
@@ -180,14 +177,14 @@ function AttendanceStatusCard({
     return (
         <section
             role="status"
-            className="surface border-amber-500/60 bg-amber-50 p-4 dark:bg-amber-950/30"
+            className="surface border-pending/60 bg-pending/10 p-4"
             data-test="attendance-status"
         >
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
                     <span className="relative flex size-2.5" aria-hidden>
-                        <span className="absolute inline-flex size-full rounded-full bg-amber-500 opacity-75 motion-safe:animate-ping" />
-                        <span className="relative inline-flex size-2.5 rounded-full bg-amber-500" />
+                        <span className="absolute inline-flex size-full rounded-full bg-pending opacity-75 motion-safe:animate-ping" />
+                        <span className="relative inline-flex size-2.5 rounded-full bg-pending" />
                     </span>
                     <h2 className="font-medium">
                         Data absensi perlu diperbarui
@@ -204,7 +201,7 @@ function AttendanceStatusCard({
                 {issues.map((issue) => (
                     <li
                         key={issue.key}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-background/60 px-3 py-1 text-xs"
+                        className="inline-flex items-center gap-1.5 rounded-full border border-pending/40 bg-background/60 px-3 py-1 text-xs"
                     >
                         <issue.icon className="size-3.5" aria-hidden />
                         {issue.text}

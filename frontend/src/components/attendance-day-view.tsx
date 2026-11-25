@@ -46,7 +46,7 @@ function RequestDot({ status }: { status: CalendarRequest['status'] }) {
             aria-hidden
             className={cn(
                 'size-2 shrink-0 rounded-full',
-                status === 'approved' ? 'bg-emerald-500' : 'bg-amber-400',
+                status === 'approved' ? 'bg-success' : 'bg-pending',
             )}
         />
     );
@@ -107,7 +107,7 @@ function Time({
         <span
             className={cn(
                 'font-mono font-semibold tabular-nums',
-                warn && 'text-amber-600 dark:text-amber-300',
+                warn && 'text-pending-text',
             )}
         >
             {value}
@@ -132,7 +132,7 @@ function PersonRow({
     const holiday =
         record?.status === 'off' && record.event ? record.event : null;
     const note = !row.hasScannerId && (
-        <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-300">
+        <span className="inline-flex items-center gap-1 text-pending-text">
             <ScanLine className="size-3.5 shrink-0" aria-hidden />
             ID belum dipetakan
         </span>

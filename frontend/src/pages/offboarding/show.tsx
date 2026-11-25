@@ -47,6 +47,8 @@ import { Form } from '@inertiajs/react';
 import type { BreadcrumbItem } from '@/types';
 import type { OffboardingCase } from '@/types/offboarding';
 import type { WorkflowDiscussionData } from '@/types/workflow';
+import { StatusPill } from '@/components/status-pill';
+import { checklistGroupTone } from '@/lib/status';
 
 function size(bytes: number): string {
     return bytes >= 1024 * 1024
@@ -136,16 +138,9 @@ function SignOffs({ item }: { item: OffboardingCase }) {
                                 {group.done}/{group.total} item
                             </p>
                         </div>
-                        <Badge
-                            variant={
-                                group.status === 'done' ||
-                                group.status === 'not_involved'
-                                    ? 'outline'
-                                    : 'secondary'
-                            }
-                        >
+                        <StatusPill tone={checklistGroupTone(group.status)}>
                             {group.statusLabel}
-                        </Badge>
+                        </StatusPill>
                     </li>
                 ))}
             </ul>

@@ -34,7 +34,7 @@ import { Input } from '@/components/ui/input';
 import { formatMinutes } from '@/lib/attendance-status';
 import { printReport } from '@/lib/print';
 import { cn } from '@/lib/utils';
-import { shortDate } from '@/lib/short-date';
+import { formatDay, formatRupiah } from '@/lib/format';
 import { recap as recapRoute } from '@/routes/attendance';
 import { show as employeeShow } from '@/routes/employees';
 import type { BreadcrumbItem } from '@/types';
@@ -140,12 +140,6 @@ const VIEWS: { value: View; label: string; short: string; column: string }[] = [
     },
 ];
 
-const rupiah = new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    maximumFractionDigits: 0,
-});
-
 /**
  * The figures of one line. A person counted from a rekapitulasi has no days, so what only days can
  * say (present, early leave, other leave, no data, hours) is a dash; one whose Cabang has no confirmed
@@ -173,7 +167,7 @@ function FigureCells({
             <td className="p-2 text-right">{missing ? dash : figures.sakit}</td>
             <td className="p-2 text-right">{missing ? dash : figures.telat}</td>
             <td className="p-2 text-right font-medium whitespace-nowrap">
-                {missing ? dash : rupiah.format(figures.potongan)}
+                {missing ? dash : formatRupiah(figures.potongan)}
             </td>
             <td className="p-2 text-right">
                 {fromRekap ? dash : figures.earlyLeave}
@@ -388,7 +382,7 @@ function RecapCard({
             <div className="mt-3 flex items-baseline justify-between border-t pt-3">
                 <span className="label-mono">Potongan</span>
                 <span className="text-lg font-extrabold">
-                    {missing ? dash : rupiah.format(figures.potongan)}
+                    {missing ? dash : formatRupiah(figures.potongan)}
                 </span>
             </div>
 
@@ -582,7 +576,7 @@ export default function AttendanceRecap({
                 <CaptureChip capture={capture} dataThrough={dataThrough} />
 
                 {rekapNotes.length > 0 && (
-                    <p className="surface border-amber-500/60 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+                    <p className="surface border-pending/60 bg-pending/10 p-3 text-sm text-pending-text">
                         Rekapitulasi{' '}
                         {rekapNotes
                             .map(
@@ -797,7 +791,7 @@ export default function AttendanceRecap({
                                             truncated && (
                                                 <Badge
                                                     variant="outline"
-                                                    className="gap-1 border-amber-500/60 bg-amber-50 font-normal text-amber-900 dark:bg-amber-950/30 dark:text-amber-100"
+                                                    className="gap-1 border-pending/60 bg-pending/10 font-normal text-pending-text"
                                                 >
                                                     <TriangleAlert
                                                         aria-hidden
@@ -825,7 +819,7 @@ export default function AttendanceRecap({
                                             className="gap-1 font-normal"
                                         >
                                             <CalendarCheck aria-hidden />
-                                            Data sampai {shortDate(dataThrough)}
+                                            Data sampai {formatDay(dataThrough)}
                                         </Badge>
                                     </span>
                                 </div>

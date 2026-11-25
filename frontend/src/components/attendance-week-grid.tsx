@@ -57,7 +57,7 @@ function WaitingBadge({ count, label }: { count: number; label?: string }) {
         <span
             data-test="week-requests"
             title={label}
-            className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/15 px-1.5 py-0.5 text-[10px] leading-none font-semibold text-amber-700 tabular-nums md:px-2 md:text-xs dark:text-amber-300"
+            className="inline-flex items-center gap-1 rounded-full border border-pending/40 bg-pending/15 px-1.5 py-0.5 text-[10px] leading-none font-semibold text-pending-text tabular-nums md:px-2 md:text-xs"
         >
             <FileText className="hidden size-3 md:block" aria-hidden />
             {count}
@@ -122,7 +122,7 @@ function DayHeader({
                                         'text-[10px] font-semibold tabular-nums md:text-xs',
                                         low
                                             ? 'text-destructive'
-                                            : 'text-emerald-600 dark:text-emerald-400',
+                                            : 'text-success-text',
                                     )}
                                 >
                                     {percent}
@@ -137,7 +137,7 @@ function DayHeader({
                                             'block h-full rounded-full',
                                             low
                                                 ? 'bg-destructive'
-                                                : 'bg-emerald-500',
+                                                : 'bg-success',
                                         )}
                                         style={{ width: `${percent}%` }}
                                     />
@@ -230,7 +230,7 @@ function DayCell({
                     {waiting && (
                         <span
                             aria-hidden
-                            className="absolute -top-1 -right-1 size-2 rounded-full bg-amber-500 ring-2 ring-card"
+                            className="absolute -top-1 -right-1 size-2 rounded-full bg-pending ring-2 ring-card"
                         />
                     )}
                 </span>
@@ -239,7 +239,7 @@ function DayCell({
                         className={cn(
                             'hidden text-xs font-semibold tabular-nums md:inline',
                             status === 'late'
-                                ? 'text-amber-600 dark:text-amber-300'
+                                ? 'text-pending-text'
                                 : 'text-muted-foreground',
                         )}
                     >

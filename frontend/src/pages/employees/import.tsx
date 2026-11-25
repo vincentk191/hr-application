@@ -58,7 +58,7 @@ export default function EmployeesImport({
                     ) : (
                         <Badge
                             variant="outline"
-                            className="gap-1 border-amber-500/60 bg-amber-50 font-normal text-amber-900 dark:bg-amber-950/30 dark:text-amber-100"
+                            className="gap-1 border-pending/60 bg-pending/10 font-normal text-pending-text"
                         >
                             <TriangleAlert aria-hidden />
                             Pilih perusahaan
@@ -152,19 +152,19 @@ function ResultCard({ result }: { result: ImportResult }) {
             key: 'created',
             label: result.dryRun ? 'Akan ditambahkan' : 'Ditambahkan',
             count: result.created,
-            color: 'bg-emerald-500',
+            color: 'bg-success',
         },
         {
             key: 'duplicates',
             label: 'Duplikat dilewati',
             count: result.duplicates,
-            color: 'bg-amber-400',
+            color: 'bg-pending',
         },
         {
             key: 'rejected',
             label: 'Ditolak',
             count: result.rejected,
-            color: 'bg-red-500',
+            color: 'bg-danger',
         },
     ];
 
@@ -232,7 +232,7 @@ function ResultCard({ result }: { result: ImportResult }) {
                 <div className="mt-3">
                     <Badge
                         variant="outline"
-                        className="gap-1 border-amber-500/60 bg-amber-50 font-normal text-amber-900 dark:bg-amber-950/30 dark:text-amber-100"
+                        className="gap-1 border-pending/60 bg-pending/10 font-normal text-pending-text"
                     >
                         <Lock aria-hidden />
                         Kolom sensitif dilewati

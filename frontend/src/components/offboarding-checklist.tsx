@@ -37,17 +37,8 @@ import type {
     OffboardingChecklistGroup,
     OffboardingChecklistItem,
 } from '@/types/offboarding';
-
-const STATUS_VARIANT: Record<
-    OffboardingChecklistGroup['status'],
-    'default' | 'secondary' | 'outline'
-> = {
-    choosing: 'secondary',
-    review: 'outline',
-    running: 'default',
-    done: 'default',
-    not_involved: 'outline',
-};
+import { StatusPill } from '@/components/status-pill';
+import { checklistGroupTone } from '@/lib/status';
 
 const visit = { preserveScroll: true, preserveState: true } as const;
 
@@ -322,19 +313,19 @@ function Group({
                         {group.done}/{group.total} selesai
                     </p>
                     {group.ownerUnavailable && (
-                        <p className="text-xs text-amber-700 dark:text-amber-300">
+                        <p className="text-xs text-pending-text">
                             Pemilik ({group.owner}) tidak aktif; Admin HR
                             menanganinya sampai dialihkan.
                         </p>
                     )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                    <Badge
-                        variant={STATUS_VARIANT[group.status]}
+                    <StatusPill
+                        tone={checklistGroupTone(group.status)}
                         className={cn(dimmed && 'opacity-50 grayscale')}
                     >
                         {group.statusLabel}
-                    </Badge>
+                    </StatusPill>
                     {group.canReassign && (
                         <select
                             aria-label={`Alihkan pemilik ${group.name}`}
@@ -482,7 +473,7 @@ export function OffboardingChecklistPanel({
         <div className="space-y-4">
             <section
                 className={`surface flex flex-wrap items-center justify-between gap-3 p-4 ${
-                    progress.ready ? '' : 'border-amber-500/50'
+                    progress.ready ? '' : 'border-pending/50'
                 }`}
                 data-test="checklist-summary"
             >
@@ -501,7 +492,7 @@ export function OffboardingChecklistPanel({
                     <div className="flex max-w-xl flex-wrap items-center gap-2">
                         <Badge
                             variant="outline"
-                            className="gap-1 border-amber-500/60 bg-amber-50 font-normal text-amber-900 dark:bg-amber-950/30 dark:text-amber-100"
+                            className="gap-1 border-pending/60 bg-pending/10 font-normal text-pending-text"
                         >
                             <Lock aria-hidden />
                             Sign-off terkunci
@@ -513,7 +504,7 @@ export function OffboardingChecklistPanel({
                         {progress.blockers.map((blocker) => (
                             <span
                                 key={blocker}
-                                className="inline-flex items-center rounded-full border border-amber-500/40 bg-background/60 px-3 py-1 text-xs"
+                                className="inline-flex items-center rounded-full border border-pending/40 bg-background/60 px-3 py-1 text-xs"
                             >
                                 {blocker}
                             </span>

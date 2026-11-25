@@ -9,14 +9,12 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { EmployeeAvatar } from '@/components/employee-avatar';
-import { shortDate } from '@/components/requisition-summary';
+import { formatDate, formatRupiah } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { show as employeeShow } from '@/routes/employees';
 import { employee } from '@/routes/recruitment/offers';
 import { takedown } from '@/routes/recruitment/postings';
 import type { Requisition, RequisitionPosting } from '@/types/recruitment';
-
-const rupiah = new Intl.NumberFormat('id-ID');
 
 /** One listing HR still has to take down from its platform, or has: HR ticks it off and can take the tick back. */
 function ListingRow({
@@ -40,8 +38,8 @@ function ListingRow({
                 </span>
                 <span className="block truncate font-mono text-sm text-muted-foreground">
                     {done
-                        ? `diturunkan ${shortDate(posting.takenDownOn ?? '')}`
-                        : `diposting ${shortDate(posting.postedOn)}`}
+                        ? `diturunkan ${formatDate(posting.takenDownOn ?? '')}`
+                        : `diposting ${formatDate(posting.postedOn)}`}
                     {posting.url ? ` · ${posting.url}` : ''}
                 </span>
             </span>
@@ -131,13 +129,13 @@ export function FilledTab({ item }: { item: Requisition }) {
                                     <span className="block truncate font-mono text-sm text-muted-foreground">
                                         {[
                                             offer.startOn
-                                                ? `mulai ${shortDate(offer.startOn)}`
+                                                ? `mulai ${formatDate(offer.startOn)}`
                                                 : null,
                                             offer.salary !== null
-                                                ? `gaji awal Rp ${rupiah.format(offer.salary)}`
+                                                ? `gaji awal ${formatRupiah(offer.salary)}`
                                                 : null,
                                             offer.respondedOn
-                                                ? `diterima ${shortDate(offer.respondedOn)}`
+                                                ? `diterima ${formatDate(offer.respondedOn)}`
                                                 : null,
                                         ]
                                             .filter(Boolean)

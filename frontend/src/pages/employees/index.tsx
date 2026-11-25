@@ -29,6 +29,7 @@ import type {
     EmployeeRow,
     ValueOption,
 } from '@/types/employee';
+import { StatusPill } from '@/components/status-pill';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Karyawan', href: '/employees' },
@@ -466,16 +467,16 @@ export default function EmployeesIndex({
                                                 ? ` · ${employee.department}`
                                                 : ''}
                                         </span>
-                                        <Badge
-                                            variant={
+                                        <StatusPill
+                                            tone={
                                                 employee.isActive
-                                                    ? 'default'
-                                                    : 'secondary'
+                                                    ? 'success'
+                                                    : 'neutral'
                                             }
                                             className="mt-2 w-fit"
                                         >
                                             {employee.status}
-                                        </Badge>
+                                        </StatusPill>
                                     </div>
                                 </Link>
                             ))}
@@ -571,15 +572,15 @@ export default function EmployeesIndex({
                                                 {employee.joinedOn ?? '—'}
                                             </td>
                                             <td className="p-3">
-                                                <Badge
-                                                    variant={
+                                                <StatusPill
+                                                    tone={
                                                         employee.isActive
-                                                            ? 'default'
-                                                            : 'secondary'
+                                                            ? 'success'
+                                                            : 'neutral'
                                                     }
                                                 >
                                                     {employee.status}
-                                                </Badge>
+                                                </StatusPill>
                                             </td>
                                             <td className="hidden p-3 text-muted-foreground md:table-cell">
                                                 {employee.accountLabel}

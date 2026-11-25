@@ -39,7 +39,7 @@ import {
     modeLabel,
 } from '@/components/candidate-invitation';
 import { LinkifiedText } from '@/components/linkified-text';
-import { shortDate } from '@/components/requisition-summary';
+import { businessNow, formatDate, formatDay, formatRupiah } from '@/lib/format';
 import { InfoHint } from '@/components/info-hint';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -62,6 +62,7 @@ import {
 } from '@/routes/recruitment/candidates';
 import { resend as resendRejectionEmail } from '@/routes/recruitment/candidates/rejection-email';
 import type { Candidate, Requisition } from '@/types/recruitment';
+import { StatusPill } from '@/components/status-pill';
 
 export type CandidateTab = 'overview' | 'documents' | 'interview';
 
@@ -70,8 +71,6 @@ const TABS: { key: CandidateTab; label: string }[] = [
     { key: 'documents', label: 'Dokumen' },
     { key: 'interview', label: 'Interview' },
 ];
-
-const rupiah = new Intl.NumberFormat('id-ID');
 
 function size(bytes: number | null): string {
     if (bytes === null) {
@@ -270,7 +269,7 @@ function RejectionEmailStatus({
                 <Mail className="size-4" aria-hidden />
                 Email {email.label.toLowerCase()}
                 {email.at
-                    ? ` Â· ${shortDate(email.at.slice(0, 10))} ${email.at.slice(11).replace(':', '.')}`
+                    ? ` Â· ${formatDate(email.at.slice(0, 10))} ${email.at.slice(11).replace(':', '.')}`
                     : ''}
                 {email.status === 'failed' && email.error
                     ? `: ${email.error}`
@@ -360,7 +359,7 @@ function DrawerBody({
                         <p className="font-semibold">
                             Ditolak
                             {candidate.rejectedOn
-                                ? ` Â· ${shortDate(candidate.rejectedOn)}`
+                                ? ` Â· ${formatDate(candidate.rejectedOn)}`
                                 : ''}
                             {candidate.rejectedBy
                                 ? ` Â· ${candidate.rejectedBy}`
@@ -381,17 +380,17 @@ function DrawerBody({
 
             {candidate.isSelected && (
                 <div
-                    className="flex items-start gap-2 border-b bg-emerald-500/10 px-4 py-3 text-sm"
+                    className="flex items-start gap-2 border-b bg-success/10 px-4 py-3 text-sm"
                     data-test="candidate-selected"
                 >
                     <UserCheck
-                        className="mt-0.5 size-4 shrink-0 text-emerald-600"
+                        className="mt-0.5 size-4 shrink-0 text-success-text"
                         aria-hidden
                     />
                     <p className="font-semibold">
                         Dipilih
                         {candidate.selectedOn
-                            ? ` Â· ${shortDate(candidate.selectedOn)}`
+                            ? ` Â· ${formatDate(candidate.selectedOn)}`
                             : ''}
                         {candidate.selectedBy
                             ? ` Â· ${candidate.selectedBy}`
@@ -629,13 +628,13 @@ function OverviewTab({ candidate }: { candidate: Candidate }) {
                 </div>
                 <div className="min-w-0 p-3">
                     <p className="label-mono">Formulir</p>
-                    <Badge
-                        variant={state.variant}
+                    <StatusPill
+                        tone={state.tone}
                         className="mt-1 h-auto max-w-full text-left whitespace-normal"
                     >
                         <span className="sm:hidden">{state.shortLabel}</span>
                         <span className="hidden sm:inline">{state.label}</span>
-                    </Badge>
+                    </StatusPill>
                 </div>
                 <div className="min-w-0 p-3">
                     <p className="label-mono">Interview</p>
@@ -678,7 +677,7 @@ function OverviewTab({ candidate }: { candidate: Candidate }) {
                     label="Ditambahkan"
                     value={
                         candidate.addedOn
-                            ? `${shortDate(candidate.addedOn)}${candidate.addedBy ? ` Â· ${candidate.addedBy}` : ''}`
+                            ? `${formatDate(candidate.addedOn)}${candidate.addedBy ? ` Â· ${candidate.addedBy}` : ''}`
                             : null
                     }
                 />
@@ -722,7 +721,7 @@ function Questionnaire({ candidate }: { candidate: Candidate }) {
                         <>
                             <Badge
                                 variant="outline"
-                                className="gap-1 border-amber-500/60 bg-amber-50 font-normal text-amber-900 dark:bg-amber-950/30 dark:text-amber-100"
+                                className="gap-1 border-pending/60 bg-pending/10 font-normal text-pending-text"
                             >
                                 <CalendarX2 aria-hidden />
                                 Tautan kedaluwarsa
@@ -748,7 +747,7 @@ function Questionnaire({ candidate }: { candidate: Candidate }) {
                                 <CalendarClock aria-hidden />
                                 Berlaku{' '}
                                 {candidate.inviteExpiresOn
-                                    ? shortDate(candidate.inviteExpiresOn)
+                                    ? formatDate(candidate.inviteExpiresOn)
                                     : 'hari interview'}
                             </Badge>
                         </>
@@ -772,7 +771,7 @@ function Questionnaire({ candidate }: { candidate: Candidate }) {
                 <p className="label-mono">
                     {form.yes} dari {form.answers.length} YA
                     {candidate.formSubmittedOn
-                        ? ` Â· dikirim ${shortDate(candidate.formSubmittedOn)}`
+                        ? ` Â· dikirim ${formatDate(candidate.formSubmittedOn)}`
                         : ''}
                 </p>
             </div>
@@ -789,7 +788,7 @@ function Questionnaire({ candidate }: { candidate: Candidate }) {
                                     className="flex gap-3 py-1.5"
                                 >
                                     <span
-                                        className={`w-12 shrink-0 font-mono text-xs ${answer.answer ? 'text-emerald-600' : 'text-muted-foreground'}`}
+                                        className={`w-12 shrink-0 font-mono text-xs ${answer.answer ? 'text-success-text' : 'text-muted-foreground'}`}
                                     >
                                         {answer.answer ? 'YA' : 'TIDAK'}
                                     </span>
@@ -806,14 +805,14 @@ function Questionnaire({ candidate }: { candidate: Candidate }) {
                     value={
                         form.expectedSalary === null
                             ? null
-                            : `Rp ${rupiah.format(form.expectedSalary)}`
+                            : formatRupiah(form.expectedSalary)
                     }
                 />
                 <Field
                     label="Bisa mulai"
                     value={
                         form.availableFrom
-                            ? shortDate(form.availableFrom)
+                            ? formatDate(form.availableFrom)
                             : null
                     }
                 />
@@ -860,7 +859,7 @@ function DocumentsTab({ candidate }: { candidate: Candidate }) {
                         label="Diunggah"
                         value={
                             candidate.addedOn
-                                ? shortDate(candidate.addedOn)
+                                ? formatDate(candidate.addedOn)
                                 : null
                         }
                     />
@@ -887,14 +886,6 @@ function interviewMoment(value: string | null): Date | null {
         : null;
 }
 
-/** "2026-11-06" as "6 Nov", the year being already on the interview day above. */
-function dayMonth(date: string): string {
-    return new Date(`${date}T00:00:00`).toLocaleDateString('id-ID', {
-        day: 'numeric',
-        month: 'short',
-    });
-}
-
 /** One step of the invitation: a dot that is filled once it has happened, and the day it did. */
 function Milestone({ label, date }: { label: string; date: string | null }) {
     return (
@@ -909,7 +900,7 @@ function Milestone({ label, date }: { label: string; date: string | null }) {
             <p
                 className={`text-base font-bold ${date ? '' : 'text-muted-foreground/70'}`}
             >
-                {date ? dayMonth(date) : 'Belum'}
+                {date ? formatDay(date) : 'Belum'}
             </p>
         </div>
     );
@@ -968,7 +959,7 @@ function InterviewSection({
     const canResend =
         canManage &&
         at !== null &&
-        at > new Date() &&
+        at > businessNow() &&
         (candidate.inviteState === 'invited' ||
             candidate.inviteState === 'expired');
 
@@ -1035,9 +1026,9 @@ function InterviewSection({
                 <div className="space-y-3 p-4">
                     <div className="flex items-center justify-between gap-3">
                         <h3 className="label-mono">Jadwal interview</h3>
-                        <Badge variant={state.variant} className="rounded-full">
+                        <StatusPill tone={state.tone} className="rounded-full">
                             {state.shortLabel}
-                        </Badge>
+                        </StatusPill>
                     </div>
 
                     {at === null ? (
@@ -1096,7 +1087,7 @@ function InterviewSection({
                             )}
                             {candidate.googleMissing && (
                                 <p
-                                    className="mt-2 flex items-start gap-1.5 text-sm text-amber-700 dark:text-amber-300"
+                                    className="mt-2 flex items-start gap-1.5 text-sm text-pending-text"
                                     data-test="google-missing"
                                 >
                                     <CalendarX2

@@ -2,26 +2,22 @@ import type { DayStatus } from '@/types/attendance';
 
 /** One colour per day status, shared by the calendar, the profile tab and the issues screen. */
 export const STATUS_STYLE: Record<DayStatus, string> = {
-    present:
-        'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200',
-    late: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200',
-    early_leave:
-        'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-200',
-    absent: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200',
-    leave: 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200',
+    present: 'bg-success/15 text-success-text',
+    late: 'bg-pending/15 text-pending-text',
+    early_leave: 'bg-caution/15 text-caution-text',
+    absent: 'bg-danger/15 text-danger-text',
+    leave: 'bg-info/15 text-info-text',
     off: 'bg-muted text-muted-foreground',
     no_data: 'hatch border border-dashed text-muted-foreground bg-transparent',
 };
 
 /** The same colours as a bordered tile carrying the status letter, as the week grid and its legend draw it. */
 export const STATUS_TILE: Record<DayStatus, string> = {
-    present:
-        'border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
-    late: 'border-amber-500/40 bg-amber-500/15 text-amber-700 dark:text-amber-300',
-    early_leave:
-        'border-orange-500/40 bg-orange-500/15 text-orange-700 dark:text-orange-300',
-    absent: 'border-red-500/40 bg-red-500/15 text-red-700 dark:text-red-300',
-    leave: 'border-sky-500/40 bg-sky-500/15 text-sky-700 dark:text-sky-300',
+    present: 'border-success/40 bg-success/15 text-success-text',
+    late: 'border-pending/40 bg-pending/15 text-pending-text',
+    early_leave: 'border-caution/40 bg-caution/15 text-caution-text',
+    absent: 'border-danger/40 bg-danger/15 text-danger-text',
+    leave: 'border-info/40 bg-info/15 text-info-text',
     off: 'border-border bg-muted/50 text-muted-foreground',
     no_data:
         'hatch border-dashed border-border bg-transparent text-muted-foreground',

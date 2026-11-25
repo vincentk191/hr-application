@@ -25,8 +25,7 @@ import { DecisionDialog } from '@/components/decision-dialog';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import InputError from '@/components/input-error';
 import { InfoHint } from '@/components/info-hint';
-import { shortDate } from '@/components/requisition-summary';
-import { Badge } from '@/components/ui/badge';
+import { formatDate, formatRupiah } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import {
     accept,
@@ -51,21 +50,8 @@ import type {
     CandidateOffer,
     Requisition,
 } from '@/types/recruitment';
-
-const rupiah = new Intl.NumberFormat('id-ID');
-
-const STAGE_VARIANT: Record<
-    CandidateOffer['stage'],
-    'default' | 'secondary' | 'destructive' | 'outline'
-> = {
-    proposed: 'secondary',
-    approved: 'default',
-    rejected: 'destructive',
-    withdrawn: 'outline',
-    sent: 'default',
-    accepted: 'default',
-    declined: 'destructive',
-};
+import { StatusPill } from '@/components/status-pill';
+import { offerStageTone } from '@/lib/status';
 
 /** "Direkomendasikan oleh 2 dari 3 pewawancara" (REC-OFS-001), or nothing before anyone has evaluated. */
 function recommendedLabel(forward: number, total: number): string | null {
@@ -131,7 +117,7 @@ function ApproveOffer({
 }) {
     const asked = offer.candidate?.form?.expectedSalary ?? null;
     const range = item.salary?.set
-        ? `Rp ${rupiah.format(item.salary.min ?? 0)} – Rp ${rupiah.format(item.salary.max ?? 0)}`
+        ? `${formatRupiah(item.salary.min ?? 0)} – ${formatRupiah(item.salary.max ?? 0)}`
         : null;
 
     return (
@@ -165,7 +151,7 @@ function ApproveOffer({
                         {[
                             range ? `Ekspektasi lowongan ${range}` : null,
                             asked !== null
-                                ? `diminta kandidat Rp ${rupiah.format(asked)}`
+                                ? `diminta kandidat ${formatRupiah(asked)}`
                                 : null,
                         ]
                             .filter(Boolean)
@@ -223,7 +209,7 @@ const PROBATION_OPTIONS = [
 /** "mulai 1 Des 2026 · percobaan 3 bulan": the terms HR set, once there are any. */
 function termsLabel(offer: CandidateOffer): string | null {
     const parts = [
-        offer.startOn ? `mulai ${shortDate(offer.startOn)}` : null,
+        offer.startOn ? `mulai ${formatDate(offer.startOn)}` : null,
         offer.probationMonths !== null
             ? offer.probationMonths === 0
                 ? 'tanpa masa percobaan'
@@ -259,7 +245,7 @@ function OfferTerms({
             extra={(errors) => (
                 <div className="space-y-4">
                     <p className="label-mono">
-                        Gaji awal Rp {rupiah.format(offer.salary ?? 0)} · dari
+                        Gaji awal {formatRupiah(offer.salary ?? 0)} · dari
                         Manajemen
                     </p>
                     <div className="space-y-1">
@@ -598,7 +584,7 @@ function SignedLetter({
                         {signed.size !== null
                             ? ` (${fileSize(signed.size)})`
                             : ''}
-                        {signed.on ? ` · ${shortDate(signed.on)}` : ''}
+                        {signed.on ? ` · ${formatDate(signed.on)}` : ''}
                         {signed.by ? ` oleh ${signed.by}` : ''}
                     </span>
                     <Button
@@ -714,9 +700,9 @@ function AcceptOffer({
                                     key={index}
                                     className={`size-3 rounded-full border ${
                                         index < item.filled
-                                            ? 'border-emerald-500 bg-emerald-500'
+                                            ? 'border-success bg-success'
                                             : index === item.filled
-                                              ? 'border-emerald-500 motion-safe:animate-pulse'
+                                              ? 'border-success motion-safe:animate-pulse'
                                               : 'bg-muted'
                                     }`}
                                 />
@@ -986,7 +972,7 @@ function OfferRow({
     const detail = [
         recommendedLabel(offer.recommendedBy, offer.evaluators),
         offer.salary !== null
-            ? `gaji awal Rp ${rupiah.format(offer.salary)}`
+            ? `gaji awal ${formatRupiah(offer.salary)}`
             : null,
         termsLabel(offer),
     ]
@@ -994,13 +980,13 @@ function OfferRow({
         .join(' · ');
     const decided =
         offer.decidedBy !== null
-            ? `${offer.decidedBy}${offer.decidedOn ? ` · ${shortDate(offer.decidedOn)}` : ''}`
+            ? `${offer.decidedBy}${offer.decidedOn ? ` · ${formatDate(offer.decidedOn)}` : ''}`
             : null;
     const sent = offer.sentOn
-        ? `Terkirim ${shortDate(offer.sentOn)}${offer.sentBy ? ` oleh ${offer.sentBy}` : ''}${offer.emailed ? ' · dikabari lewat email' : ''}`
+        ? `Terkirim ${formatDate(offer.sentOn)}${offer.sentBy ? ` oleh ${offer.sentBy}` : ''}${offer.emailed ? ' · dikabari lewat email' : ''}`
         : null;
     const answered = offer.respondedOn
-        ? `${offer.stage === 'accepted' ? 'Diterima' : 'Menolak'} ${shortDate(offer.respondedOn)}${offer.declineReason ? ` · “${offer.declineReason}”` : ''}`
+        ? `${offer.stage === 'accepted' ? 'Diterima' : 'Menolak'} ${formatDate(offer.respondedOn)}${offer.declineReason ? ` · “${offer.declineReason}”` : ''}`
         : null;
 
     return (
@@ -1014,13 +1000,13 @@ function OfferRow({
                     detail={detail || 'Belum ada penilaian'}
                     onOpen={() => onOpen(offer.candidateId)}
                 />
-                <Badge
-                    variant={STAGE_VARIANT[offer.stage]}
+                <StatusPill
+                    tone={offerStageTone(offer.stage)}
                     className="rounded-full"
                     data-test="offer-stage"
                 >
                     {offer.stageLabel}
-                </Badge>
+                </StatusPill>
             </div>
 
             {(decided || offer.decisionNote) && (
@@ -1267,7 +1253,7 @@ export function OfferTab({ item }: { item: Requisition }) {
                                             [
                                                 recommendation(candidate),
                                                 candidate.selectedOn
-                                                    ? `dipilih ${shortDate(candidate.selectedOn)}`
+                                                    ? `dipilih ${formatDate(candidate.selectedOn)}`
                                                     : null,
                                                 earlierOutcome(
                                                     latestOffer.get(

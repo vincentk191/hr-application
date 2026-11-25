@@ -14,7 +14,7 @@ export function GoogleConnectionBar({ google }: { google: GoogleStatus }) {
                 data-test="google-connection"
             >
                 <CalendarCheck
-                    className="size-4 shrink-0 text-emerald-600"
+                    className="size-4 shrink-0 text-success-text"
                     aria-hidden
                 />
                 <span className="truncate font-mono text-xs">
@@ -30,7 +30,7 @@ export function GoogleConnectionBar({ google }: { google: GoogleStatus }) {
 
     return (
         <section
-            className="surface flex items-start gap-2 p-3 text-sm text-amber-700 dark:text-amber-300"
+            className="surface flex items-start gap-2 p-3 text-sm text-pending-text"
             data-test="google-connection"
         >
             <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />

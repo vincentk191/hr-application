@@ -21,12 +21,13 @@ import type {
     Tone,
     TodayAttendance,
 } from '@/types/dashboard';
+import { businessToday } from '@/lib/format';
 
 const TONES: Record<Tone, string> = {
-    good: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
-    warn: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+    good: 'bg-success/15 text-success-text',
+    warn: 'bg-pending/15 text-pending-text',
     bad: 'bg-destructive/15 text-destructive',
-    info: 'bg-sky-500/15 text-sky-700 dark:text-sky-400',
+    info: 'bg-info/15 text-info-text',
     muted: 'bg-muted text-muted-foreground',
 };
 
@@ -119,9 +120,7 @@ function useOwnProfileLink() {
 }
 
 function thisMonth(): string {
-    const now = new Date();
-
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    return businessToday().slice(0, 7);
 }
 
 /**
@@ -599,13 +598,12 @@ export function daysOfMonth(year: number, month: number) {
  */
 export function SickCalendar({ sick }: { sick: Overview['sickDays'] }) {
     const [shown, setShown] = useState(() => {
-        const now = new Date();
+        const [year, month] = businessToday().split('-').map(Number);
 
-        return { year: now.getFullYear(), month: now.getMonth() };
+        return { year, month: month - 1 };
     });
     const sickDates = useMemo(() => new Set(sick.dates), [sick.dates]);
-    const today = new Date();
-    const todayKey = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+    const todayKey = businessToday();
 
     const position = shown.year * 12 + shown.month;
     const canGoBack = position > (sick.year - 1) * 12;

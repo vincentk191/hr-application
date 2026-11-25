@@ -13,6 +13,7 @@ import type {
     RecruitmentFunnel,
     RequisitionSummary,
 } from '@/types/recruitment';
+import { StatusPill } from '@/components/status-pill';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Rekrutmen', href: '/recruitment' },
@@ -52,9 +53,9 @@ function UrgentTag({ row }: { row: RequisitionRow }) {
 
 function StatusBadge({ row }: { row: RequisitionRow }) {
     return (
-        <Badge variant={row.isDraft ? 'secondary' : 'default'}>
+        <StatusPill tone={row.isDraft ? 'neutral' : 'info'}>
             {row.isDraft ? row.statusLabel : row.stageLabel}
-        </Badge>
+        </StatusPill>
     );
 }
 

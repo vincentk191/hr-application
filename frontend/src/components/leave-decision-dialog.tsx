@@ -38,6 +38,7 @@ import type {
     LeaveRequestRow,
     WorkflowStepSummary,
 } from '@/types/leave';
+import { businessToday } from '@/lib/format';
 
 const weekdayFormat = new Intl.DateTimeFormat('id-ID', { weekday: 'short' });
 const monthFormat = new Intl.DateTimeFormat('id-ID', { month: 'short' });
@@ -58,7 +59,7 @@ function shortDay(value: string | null): string {
     const date = parseDay(value);
     const label = `${String(date.getDate()).padStart(2, '0')} ${monthFormat.format(date)}`;
 
-    return date.getFullYear() === new Date().getFullYear()
+    return date.getFullYear() === Number(businessToday().slice(0, 4))
         ? label
         : `${label} ${date.getFullYear()}`;
 }
@@ -212,9 +213,9 @@ function DateTile({ value }: { value: string }) {
 type Standing = 'approved' | 'rejected' | 'pending' | 'locked' | 'submitted';
 
 const STANDING_COLOUR: Record<Standing, string> = {
-    approved: 'bg-foreground text-background',
-    rejected: 'border border-red-500/60 bg-red-500/10 text-red-400',
-    pending: 'bg-amber-500 text-background',
+    approved: 'border border-success/60 bg-success/10 text-success-text',
+    rejected: 'border border-danger/60 bg-danger/10 text-danger-text',
+    pending: 'bg-pending text-background',
     locked: 'border border-dashed text-muted-foreground',
     submitted: 'border bg-muted text-foreground',
 };
@@ -342,7 +343,7 @@ type Moment = {
 
 const MOMENT_NAME: Record<Moment['standing'], string> = {
     approved: 'text-foreground',
-    rejected: 'text-red-400',
+    rejected: 'text-danger-text',
     submitted: 'text-foreground',
 };
 
@@ -426,7 +427,7 @@ function Timeline({ request }: { request: LeaveRequestRow }) {
                 <li className="flex items-center gap-3">
                     <Mark standing={closing.standing} className="size-11" />
                     <p
-                        className={`font-bold ${closing.standing === 'pending' ? 'text-amber-400' : ''}`}
+                        className={`font-bold ${closing.standing === 'pending' ? 'text-pending-text' : ''}`}
                     >
                         {closing.label}
                     </p>
@@ -596,7 +597,7 @@ export function LeaveDecisionDialog({
                                             <Button
                                                 type="button"
                                                 variant="outline"
-                                                className="h-12 flex-1 rounded-full border-red-500/40 text-red-400 hover:text-red-400"
+                                                className="h-12 flex-1 rounded-full border-danger/40 text-danger-text hover:text-danger-text"
                                                 data-test="leave-reject"
                                             >
                                                 <X

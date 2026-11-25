@@ -14,6 +14,8 @@ import { store } from '@/routes/employees/changes';
 import { show } from '@/routes/employees';
 import type { BreadcrumbItem } from '@/types';
 import type { ProfileChange, ProfileFormField } from '@/types/profile-change';
+import { StatusPill } from '@/components/status-pill';
+import { decisionTone } from '@/lib/status';
 
 type Props = {
     employee: { id: number; name: string };
@@ -66,15 +68,9 @@ export default function ProfileChangeRequestPage({
                     <div className="surface space-y-2 p-4">
                         <p className="text-sm">
                             Permintaan terakhir ({latest.reference}):{' '}
-                            <Badge
-                                variant={
-                                    latest.status === 'approved'
-                                        ? 'default'
-                                        : 'destructive'
-                                }
-                            >
+                            <StatusPill tone={decisionTone(latest.status)}>
                                 {latest.statusLabel}
-                            </Badge>
+                            </StatusPill>
                         </p>
                         {latest.decisionNote && (
                             <p className="text-sm text-muted-foreground">
