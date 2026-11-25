@@ -309,7 +309,6 @@ export default function Dashboard({
             <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 md:gap-6 md:p-6">
                 <OverviewHeader
                     intro={intro}
-                    now={now}
                     canCreateRequest={canCreateRequest && overview !== null}
                 />
                 {/* The cards for this person's duties; each is null unless their role calls for it. */}

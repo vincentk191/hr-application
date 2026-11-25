@@ -37,13 +37,6 @@ function toMinutes(time: string): number {
     return hours * 60 + minutes;
 }
 
-/** Minutes after midnight as "09:41". */
-function clock(total: number): string {
-    const safe = Math.max(0, Math.min(total, 24 * 60 - 1));
-
-    return `${String(Math.floor(safe / 60)).padStart(2, '0')}:${String(safe % 60).padStart(2, '0')}`;
-}
-
 /** A length of time as "1j 39m", or "39m" under the hour. */
 function span(total: number): string {
     const hours = Math.floor(total / 60);
@@ -83,30 +76,20 @@ function Badge({ tone, children }: { tone: Tone; children: string }) {
 }
 
 /**
- * The greeting, for everyone who signs in, and on a wide screen the clock and the shortcut to a new request. On a
- * phone the date sits above the greeting and the shortcuts below do the asking.
+ * The greeting, for everyone who signs in, and on a wide screen the shortcut to a new request. On a phone the shortcuts
+ * below do the asking.
  */
 export function OverviewHeader({
     intro,
-    now,
     canCreateRequest,
 }: {
     intro: Intro;
-    /** Scanner time in minutes after midnight, counted on from when the page was built. */
-    now: number;
     canCreateRequest: boolean;
 }) {
     return (
         <header className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-                <p className="text-sm text-muted-foreground md:hidden">
-                    {intro.dateLabel}
-                </p>
-                <p className="label-mono hidden md:block">
-                    {intro.dateLabel.replace(',', '').toUpperCase()}{' '}
-                    {intro.year} · {clock(now)}
-                </p>
-                <h1 className="text-3xl font-extrabold tracking-tight md:mt-3 md:text-4xl">
+                <h1 className="text-3xl font-extrabold tracking-tight md:text-4xl">
                     {intro.greeting}, {intro.name}
                 </h1>
             </div>

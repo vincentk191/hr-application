@@ -1,12 +1,5 @@
 import { Head, Link, router, setLayoutProps, usePage } from '@inertiajs/react';
-import {
-    ChevronLeft,
-    ChevronRight,
-    Clock,
-    MoreVertical,
-    Printer,
-    Timer,
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight, MoreVertical, Printer } from 'lucide-react';
 import { useState } from 'react';
 import {
     MonthSummary,
@@ -47,7 +40,6 @@ import {
 } from '@/components/ui/select';
 import { STATUS_STYLE } from '@/lib/attendance-status';
 import { printReport } from '@/lib/print';
-import { cn } from '@/lib/utils';
 import { calendar } from '@/routes/attendance';
 import { recap } from '@/routes/attendance';
 import { exportMethod as exportRoute } from '@/routes/attendance/calendar';
@@ -103,13 +95,6 @@ type Props = {
     };
     dataThrough: string | null;
     capture: CaptureStatus;
-    schedule: {
-        start: string;
-        end: string;
-        /** When Friday ends, if it differs from the other weekdays. */
-        fridayEnd: string | null;
-        lateAfter: string;
-    };
     canManageAttendance: boolean;
 };
 
@@ -139,39 +124,6 @@ function currentLabel(view: CalendarView): string {
 /** "Selasa, 10 Nov 2026" as "Sel, 10 Nov 2026", for a phone. */
 function shortDay(label: string): string {
     return label.replace(/^(\p{L}{3})\p{L}*,/u, '$1,');
-}
-
-/** The working hours and when someone counts as late, under the date: "08:00–17:00 · Jum 17:30", "T > 08:10". */
-function ScheduleMeta({
-    schedule,
-    dataThrough,
-    className,
-}: {
-    schedule: Props['schedule'];
-    dataThrough?: string | null;
-    className?: string;
-}) {
-    return (
-        <p
-            className={cn(
-                'flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-xs text-muted-foreground',
-                className,
-            )}
-        >
-            <span className="inline-flex items-center gap-1.5">
-                <Clock className="size-3.5" aria-hidden />
-                {schedule.start}–{schedule.end}
-                {schedule.fridayEnd && ` · Jum ${schedule.fridayEnd}`}
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-                <Timer className="size-3.5" aria-hidden />T &gt;{' '}
-                {schedule.lateAfter}
-            </span>
-            {dataThrough !== undefined && (
-                <span>Data sampai {dataThrough ?? '—'}</span>
-            )}
-        </p>
-    );
 }
 
 type OnLeaveEntry = Props['onLeave']['entries'][number];
@@ -352,7 +304,6 @@ export default function AttendanceCalendar(props: Props) {
         options,
         dataThrough,
         capture,
-        schedule,
         canManageAttendance,
         events,
         eventForm,
@@ -527,10 +478,6 @@ export default function AttendanceCalendar(props: Props) {
                                     nav.label
                                 )}
                             </h2>
-                            <ScheduleMeta
-                                schedule={schedule}
-                                className="justify-center md:hidden"
-                            />
                         </div>
                         <Button
                             variant="outline"
@@ -603,12 +550,6 @@ export default function AttendanceCalendar(props: Props) {
                         )}
                     </div>
                 </div>
-
-                <ScheduleMeta
-                    schedule={schedule}
-                    dataThrough={dataThrough}
-                    className="hidden md:flex"
-                />
 
                 <FilterBar
                     search={search}

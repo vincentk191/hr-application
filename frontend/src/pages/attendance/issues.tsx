@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { ChipMultiSelect } from '@/components/chip-multi-select';
 import { useConfirm } from '@/components/confirm-dialog';
 import { EmptyNote } from '@/components/empty-note';
-import { InfoHint } from '@/components/info-hint';
 import {
     FilterButton,
     FilterSection,
@@ -12,7 +11,6 @@ import {
 } from '@/components/filter-sheet';
 import InputError from '@/components/input-error';
 import { MultiSelectFilter } from '@/components/multi-select-filter';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { issues as issuesRoute } from '@/routes/attendance';
@@ -103,20 +101,6 @@ function shiftDay(iso: string, days: number): string {
     date.setUTCDate(date.getUTCDate() + days);
 
     return date.toISOString().slice(0, 10);
-}
-
-/** The limit, said once as a chip; the date pickers already refuse a longer range. */
-function RangeLimit() {
-    return (
-        <span className="inline-flex items-center gap-1.5">
-            <Badge variant="outline" className="font-normal">
-                maks. {MAX_DAYS} hari
-            </Badge>
-            <InfoHint label="Batas rentang">
-                Satu tampilan memuat paling banyak {MAX_DAYS} hari.
-            </InfoHint>
-        </span>
-    );
 }
 
 export default function AttendanceIssues({
@@ -359,8 +343,6 @@ export default function AttendanceIssues({
                             </button>
                         ))}
                     </div>
-
-                    <RangeLimit />
                 </div>
 
                 <div className="hidden flex-wrap items-center gap-2 md:flex">
@@ -616,10 +598,11 @@ export default function AttendanceIssues({
                     </>
                 )}
 
-                <p className="text-xs text-muted-foreground">
-                    {total} masalah
-                    {truncated ? ' (hanya 500 pertama yang ditampilkan)' : ''}
-                </p>
+                {truncated && (
+                    <p className="text-xs text-muted-foreground">
+                        Hanya 500 masalah pertama yang ditampilkan
+                    </p>
+                )}
             </div>
 
             <FilterSheet
@@ -667,7 +650,6 @@ export default function AttendanceIssues({
                             />
                         </div>
                     </div>
-                    <RangeLimit />
                 </FilterSection>
 
                 <FilterSection title="Jenis masalah">
