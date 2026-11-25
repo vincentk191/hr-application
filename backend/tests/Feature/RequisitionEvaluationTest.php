@@ -18,7 +18,7 @@ use Inertia\Testing\AssertableInertia as Assert;
 
 /**
  * Interview feedback (REC-INT): HR and the new hire's direct superior each give a candidate one evaluation after the
- * interview: a 1 to 5 rating, a recommendation and a note. The superior sees only the candidates invited to interview, and
+ * interview: three 1 to 5 grades with their average, a recommendation and a note. The superior sees only the candidates invited to interview, and
  * without their contact details.
  *
  * "Now" is 2026-11-10 12:00 in Jakarta. Budi's interview was at 10:00 today, Ani's is tomorrow, Citra was not invited.
@@ -69,7 +69,7 @@ function evaluationUser(Role $role, Company $company): User
 function evaluate(Candidate $candidate, User $as, array $fields = [])
 {
     return test()->actingAs($as)->put(route('recruitment.candidates.evaluation', [test()->requisition, $candidate]), [
-        'rating' => 4, 'recommendation' => 'continue', 'note' => 'Komunikasi baik.', ...$fields,
+        'knowledge_rating' => 4, 'appearance_rating' => 4, 'experience_rating' => 4, 'recommendation' => 'continue', 'note' => 'Komunikasi baik.', ...$fields,
     ]);
 }
 
@@ -77,24 +77,50 @@ function evaluate(Candidate $candidate, User $as, array $fields = [])
 
 it('lets HR and the direct superior each evaluate a candidate after the interview, once each', function () {
     evaluate($this->budi, $this->hr)->assertRedirect()->assertSessionDoesntHaveErrors();
-    evaluate($this->budi, $this->boss, ['rating' => 2, 'recommendation' => 'reject', 'note' => 'Kurang cocok.'])->assertSessionDoesntHaveErrors();
+    evaluate($this->budi, $this->boss, ['knowledge_rating' => 2, 'appearance_rating' => 2, 'experience_rating' => 2, 'recommendation' => 'reject', 'note' => 'Kurang cocok.'])->assertSessionDoesntHaveErrors();
 
     expect($this->budi->evaluations()->count())->toBe(2);
 
     // Saving again replaces one's own, and adds nothing.
-    evaluate($this->budi, $this->hr, ['rating' => 5, 'recommendation' => 'consider', 'note' => null])->assertSessionDoesntHaveErrors();
+    evaluate($this->budi, $this->hr, ['knowledge_rating' => 5, 'appearance_rating' => 3, 'experience_rating' => 4, 'recommendation' => 'consider', 'note' => null])->assertSessionDoesntHaveErrors();
 
     $mine = CandidateEvaluation::query()->where('user_id', $this->hr->id)->sole();
     expect($this->budi->evaluations()->count())->toBe(2)
-        ->and($mine->rating)->toBe(5)
+        ->and([$mine->knowledge_rating, $mine->appearance_rating, $mine->experience_rating])->toBe([5, 3, 4])
+        ->and($mine->rating)->toBe(4.0)
         ->and($mine->recommendation->value)->toBe('consider')
         ->and($mine->note)->toBeNull();
 });
 
-it('checks the rating and the recommendation', function () {
-    evaluate($this->budi, $this->hr, ['rating' => 0])->assertSessionHasErrors('rating');
-    evaluate($this->budi, $this->hr, ['rating' => 6])->assertSessionHasErrors('rating');
-    evaluate($this->budi, $this->hr, ['rating' => ''])->assertSessionHasErrors('rating');
+it('averages the three grades into the overall rating, to two decimals', function () {
+    evaluate($this->budi, $this->hr, ['knowledge_rating' => 5, 'appearance_rating' => 4, 'experience_rating' => 4])->assertSessionDoesntHaveErrors();
+
+    expect(CandidateEvaluation::query()->sole()->rating)->toBe(4.33);
+
+    $this->actingAs($this->hr)->get(route('recruitment.show', $this->requisition))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('requisition.shortlist.0.evaluations.0.rating', 4.33)
+            ->where('requisition.shortlist.0.evaluations.0.scores', ['knowledge' => 5, 'appearance' => 4, 'experience' => 4]));
+});
+
+it('keeps an evaluation given before the three grades as its single rating, with no grades to show', function () {
+    CandidateEvaluation::factory()->for($this->budi, 'candidate')->create([
+        'user_id' => $this->boss->id, 'knowledge_rating' => null, 'appearance_rating' => null, 'experience_rating' => null, 'rating' => 3,
+    ]);
+
+    $this->actingAs($this->hr)->get(route('recruitment.show', $this->requisition))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('requisition.shortlist.0.evaluations.0.rating', 3)
+            ->where('requisition.shortlist.0.evaluations.0.scores', null));
+});
+
+it('checks each grade and the recommendation', function () {
+    foreach (['knowledge_rating', 'appearance_rating', 'experience_rating'] as $field) {
+        evaluate($this->budi, $this->hr, [$field => 0])->assertSessionHasErrors($field);
+        evaluate($this->budi, $this->hr, [$field => 6])->assertSessionHasErrors($field);
+        evaluate($this->budi, $this->hr, [$field => ''])->assertSessionHasErrors($field);
+    }
+
     evaluate($this->budi, $this->hr, ['recommendation' => 'mungkin'])->assertSessionHasErrors('recommendation');
     evaluate($this->budi, $this->hr, ['note' => str_repeat('a', 1001)])->assertSessionHasErrors('note');
 
@@ -134,7 +160,7 @@ it('refuses a candidate of another requisition', function () {
 // --- What each person sees ---
 
 it('shows HR every candidate with the evaluations, and what they may add', function () {
-    evaluate($this->budi, $this->boss, ['rating' => 3, 'recommendation' => 'consider']);
+    evaluate($this->budi, $this->boss, ['knowledge_rating' => 3, 'appearance_rating' => 3, 'experience_rating' => 3, 'recommendation' => 'consider']);
 
     $this->actingAs($this->hr)->get(route('recruitment.show', $this->requisition))
         ->assertInertia(fn (Assert $page) => $page

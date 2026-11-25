@@ -410,11 +410,24 @@ export type OfferLetter = {
     sent: boolean;
 };
 
-/** One interviewer's evaluation of a candidate: a 1 to 5 rating, a recommendation and a note. */
+/** The three categories an interviewer grades, each 1 to 5. */
+export type EvaluationScores = {
+    knowledge: number;
+    appearance: number;
+    experience: number;
+};
+
+/**
+ * One interviewer's evaluation of a candidate: a grade for each of three categories, their average as the overall
+ * rating, a recommendation and a note.
+ */
 export type CandidateEvaluation = {
     id: number;
     author: string | null;
+    /** The average of the three grades; the single grade itself for an evaluation given before there were three. */
     rating: number;
+    /** The grade of each category; null for an evaluation given before there were three. */
+    scores: EvaluationScores | null;
     recommendation: 'continue' | 'consider' | 'reject';
     recommendationLabel: string;
     note: string | null;

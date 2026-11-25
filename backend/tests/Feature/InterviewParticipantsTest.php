@@ -199,7 +199,7 @@ it('shows a chosen Manajemen user only the candidates they sit in on, without co
 it('lets a chosen Manajemen user download the event, open the CV and evaluate once the interview has passed, and no one else of Manajemen', function () {
     Storage::disk('local')->put('candidate-cvs/x.pdf', 'pdf');
     $budi = participantCandidate('Budi', [$this->mira], ['cv_path' => 'candidate-cvs/x.pdf', 'cv_name' => 'cv-budi.pdf']);
-    $evaluation = ['rating' => 4, 'recommendation' => 'continue', 'note' => 'Komunikasi baik.'];
+    $evaluation = ['knowledge_rating' => 4, 'appearance_rating' => 4, 'experience_rating' => 4, 'recommendation' => 'continue', 'note' => 'Komunikasi baik.'];
     $route = fn (string $name): string => route($name, [$this->requisition, $budi]);
 
     $this->actingAs($this->mira)->get($route('recruitment.candidates.calendar'))->assertOk();
@@ -219,7 +219,7 @@ it('lets a chosen Manajemen user download the event, open the CV and evaluate on
 it('keeps a chosen Manajemen user from evaluating before the interview, or once the candidate is out', function () {
     $ahead = participantCandidate('Ani', [$this->mira], ['interview_at' => '2026-11-11 03:00:00']);
     $out = participantCandidate('Citra', [$this->mira], ['rejected_at' => now()]);
-    $evaluation = ['rating' => 4, 'recommendation' => 'continue', 'note' => 'Komunikasi baik.'];
+    $evaluation = ['knowledge_rating' => 4, 'appearance_rating' => 4, 'experience_rating' => 4, 'recommendation' => 'continue', 'note' => 'Komunikasi baik.'];
 
     $this->actingAs($this->mira)->put(route('recruitment.candidates.evaluation', [$this->requisition, $ahead]), $evaluation)->assertForbidden();
     $this->actingAs($this->mira)->get(route('recruitment.candidates.calendar', [$this->requisition, $out]))->assertForbidden();

@@ -23,6 +23,9 @@ class CandidateEvaluationFactory extends Factory
         return [
             'candidate_id' => Candidate::factory(),
             'user_id' => User::factory(),
+            'knowledge_rating' => 4,
+            'appearance_rating' => 4,
+            'experience_rating' => 4,
             'rating' => 4,
             'recommendation' => EvaluationRecommendation::Continue,
             'note' => 'Komunikasi baik.',

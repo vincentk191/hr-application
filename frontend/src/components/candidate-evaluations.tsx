@@ -18,6 +18,7 @@ import { evaluation } from '@/routes/recruitment/candidates';
 import type {
     Candidate,
     CandidateEvaluation,
+    EvaluationScores,
     Requisition,
 } from '@/types/recruitment';
 
@@ -70,7 +71,37 @@ const STYLE: Record<
 
 const ORDER: Recommendation[] = ['continue', 'consider', 'reject'];
 
-/** The average of the ratings given so far, or null while there are none. */
+/**
+ * The three categories an interviewer grades from 1 to 5: the key in the evaluation's `scores`, the field the form sends,
+ * the question as the form asks it and the short name the cards use.
+ */
+const CATEGORIES: {
+    key: keyof EvaluationScores;
+    field: 'knowledge_rating' | 'appearance_rating' | 'experience_rating';
+    label: string;
+    short: string;
+}[] = [
+    {
+        key: 'knowledge',
+        field: 'knowledge_rating',
+        label: 'Pengetahuan terhadap posisi yang dilamar',
+        short: 'Pengetahuan',
+    },
+    {
+        key: 'appearance',
+        field: 'appearance_rating',
+        label: 'Penampilan (gaya bicara dan penampilan fisik)',
+        short: 'Penampilan',
+    },
+    {
+        key: 'experience',
+        field: 'experience_rating',
+        label: 'Pengalaman pada posisi yang dilamar',
+        short: 'Pengalaman',
+    },
+];
+
+/** The average of the overall ratings given so far, or null while there are none. */
 export function averageValue(
     evaluations: CandidateEvaluation[],
 ): number | null {
@@ -113,13 +144,43 @@ export function myEvaluation(
     return candidate.evaluations.find((entry) => entry.isMine);
 }
 
-/** "4 /5": the rating as the cards show it. */
+/** "4" for a whole grade, "4,3" for an average. */
+function formatScore(rating: number): string {
+    return Number.isInteger(rating)
+        ? String(rating)
+        : rating.toFixed(1).replace('.', ',');
+}
+
+/** "4,3 /5": the overall rating as the cards show it. */
 function Score({ rating }: { rating: number }) {
     return (
         <span className="shrink-0 font-mono tabular-nums">
-            <span className="text-2xl font-bold">{rating}</span>
+            <span className="text-2xl font-bold">{formatScore(rating)}</span>
             <span className="text-sm text-muted-foreground"> /5</span>
         </span>
+    );
+}
+
+/** The grade of each category as one line under the overall rating; nothing for an evaluation from before the split. */
+function Breakdown({ scores }: { scores: EvaluationScores | null }) {
+    if (scores === null) {
+        return null;
+    }
+
+    return (
+        <dl
+            className="flex flex-wrap gap-x-4 gap-y-1 text-sm"
+            data-test="evaluation-scores"
+        >
+            {CATEGORIES.map((category) => (
+                <div key={category.key} className="flex items-baseline gap-1.5">
+                    <dt className="text-muted-foreground">{category.short}</dt>
+                    <dd className="font-mono font-bold tabular-nums">
+                        {scores[category.key]}
+                    </dd>
+                </div>
+            ))}
+        </dl>
     );
 }
 
@@ -267,6 +328,7 @@ function MyCard({ entry }: { entry: CandidateEvaluation }) {
                 />
                 {entry.recommendationLabel}
             </span>
+            <Breakdown scores={entry.scores} />
             <Note text={entry.note} />
         </div>
     );
@@ -332,6 +394,7 @@ function OtherCard({ entry }: { entry: CandidateEvaluation }) {
                     </div>
                     <Score rating={entry.rating} />
                 </div>
+                <Breakdown scores={entry.scores} />
                 <Note text={entry.note} />
             </div>
         </li>
@@ -339,8 +402,8 @@ function OtherCard({ entry }: { entry: CandidateEvaluation }) {
 }
 
 /**
- * The form to give or change one's evaluation: the rating as five large buttons, the recommendation as three choices, and
- * an optional note. The choices are radio buttons underneath, so the browser still asks for both before it sends, and the
+ * The form to give or change one's evaluation: a grade for each of three categories as five buttons (the overall rating is
+ * their average, worked out when it is saved), the recommendation as three choices, and an optional note. The choices are radio buttons underneath, so the browser still asks for both before it sends, and the
  * keyboard works.
  *
  * On a phone it is a sheet from the bottom of the screen, the recommendations side by side as cards. From tablet width up
@@ -422,51 +485,67 @@ export function EvaluationSheet({
                                 </div>
                             )}
                             <SheetDescription className="sr-only">
-                                Nilai 1 sampai 5, pilih rekomendasi, dan tulis
-                                catatan bila perlu.
+                                Beri nilai 1 sampai 5 untuk tiga hal, pilih
+                                rekomendasi, dan tulis catatan bila perlu.
                             </SheetDescription>
 
                             <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-5">
-                                <fieldset className="space-y-3">
-                                    <legend
-                                        className={cn(
-                                            'font-bold',
-                                            phone ? 'text-lg' : 'text-base',
-                                        )}
-                                    >
-                                        Nilai
-                                    </legend>
-                                    <div className="grid grid-cols-5 gap-2">
-                                        {[1, 2, 3, 4, 5].map((value) => (
-                                            <label
-                                                key={value}
-                                                className={cn(
-                                                    'flex cursor-pointer items-center justify-center rounded-2xl border bg-muted/30 font-bold transition-colors has-[:checked]:border-foreground has-[:checked]:bg-foreground has-[:checked]:text-background has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring',
-                                                    phone
-                                                        ? 'h-16 text-2xl'
-                                                        : 'h-14 text-xl',
+                                <div className="space-y-4">
+                                    <div className="flex items-baseline justify-between gap-3">
+                                        <h3
+                                            className={cn(
+                                                'font-bold',
+                                                phone ? 'text-lg' : 'text-base',
+                                            )}
+                                        >
+                                            Nilai
+                                        </h3>
+                                        <span className="text-sm text-muted-foreground">
+                                            1 kurang, 5 sangat baik
+                                        </span>
+                                    </div>
+                                    {CATEGORIES.map((category) => (
+                                        <fieldset
+                                            key={category.key}
+                                            className="space-y-2"
+                                        >
+                                            <legend className="text-base font-semibold">
+                                                {category.label}
+                                            </legend>
+                                            <div className="grid grid-cols-5 gap-2">
+                                                {[1, 2, 3, 4, 5].map(
+                                                    (value) => (
+                                                        <label
+                                                            key={value}
+                                                            className="flex h-12 cursor-pointer items-center justify-center rounded-2xl border bg-muted/30 text-xl font-bold transition-colors has-[:checked]:border-foreground has-[:checked]:bg-foreground has-[:checked]:text-background has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
+                                                        >
+                                                            <input
+                                                                type="radio"
+                                                                name={
+                                                                    category.field
+                                                                }
+                                                                value={value}
+                                                                defaultChecked={
+                                                                    mine
+                                                                        ?.scores?.[
+                                                                        category
+                                                                            .key
+                                                                    ] === value
+                                                                }
+                                                                required
+                                                                className="sr-only"
+                                                            />
+                                                            {value}
+                                                        </label>
+                                                    ),
                                                 )}
-                                            >
-                                                <input
-                                                    type="radio"
-                                                    name="rating"
-                                                    value={value}
-                                                    defaultChecked={
-                                                        mine?.rating === value
-                                                    }
-                                                    required
-                                                    className="sr-only"
-                                                />
-                                                {value}
-                                            </label>
-                                        ))}
-                                    </div>
-                                    <div className="flex justify-between text-sm text-muted-foreground">
-                                        <span>Kurang</span>
-                                        <span>Sangat baik</span>
-                                    </div>
-                                    <InputError message={errors.rating} />
-                                </fieldset>
+                                            </div>
+                                            <InputError
+                                                message={errors[category.field]}
+                                            />
+                                        </fieldset>
+                                    ))}
+                                </div>
 
                                 <fieldset className="space-y-3">
                                     <legend

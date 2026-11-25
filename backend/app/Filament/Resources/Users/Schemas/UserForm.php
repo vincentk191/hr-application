@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Users\Schemas;
 
 use App\Enums\Role as RoleEnum;
 use App\Models\User;
+use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -67,33 +68,62 @@ class UserForm
                     ->disabled(fn (?User $record): bool => $record !== null
                         && auth()->user()?->can('assignRoles', $record) !== true)
                     ->helperText('Anda tidak dapat mengubah peran akun Anda sendiri.'),
+                // Deliberately not a relationship field either: see SyncsAssignedRoles.
+                CheckboxList::make('extra_roles')
+                    ->label('Akses tambahan')
+                    ->options(fn (): array => self::addOnOptions())
+                    ->descriptions([
+                        RoleEnum::RecruitmentRequester->value => 'Boleh membuat permintaan rekrutmen untuk timnya sendiri. Persetujuannya tetap oleh Manajemen lalu HR.',
+                    ])
+                    ->afterStateHydrated(fn (CheckboxList $component, ?User $record) => $component->state(
+                        $record === null ? [] : self::addOnNames($record),
+                    ))
+                    ->visible(fn (Get $get): bool => $get('role_name') === RoleEnum::Supervisor->value)
+                    ->disabled(fn (?User $record): bool => $record !== null
+                        && auth()->user()?->can('assignRoles', $record) !== true),
             ]);
     }
 
     /**
-     * The one role an account is shown with: the highest in the Role enum's order. An account that
-     * already holds several (from when roles were a multi-select) shows its most privileged one and
+     * The one role an account is shown with: the highest in the Role enum's order, leaving out the add-on accesses. An
+     * account that already holds several (from when roles were a multi-select) shows its most privileged one and
      * is brought down to it the next time roles are saved.
      */
     public static function primaryRoleName(User $user): ?string
     {
-        $held = $user->getRoleNames();
-
-        foreach (RoleEnum::cases() as $role) {
-            if ($held->contains($role->value)) {
-                return $role->value;
-            }
-        }
-
-        return $held->first();
+        return $user->primaryRoleName();
     }
 
     /**
+     * The add-on accesses the account holds, as shown in "Akses tambahan".
+     *
+     * @return list<string>
+     */
+    public static function addOnNames(User $user): array
+    {
+        return $user->getRoleNames()->filter(fn (string $name): bool => in_array($name, RoleEnum::addOnNames(), true))->values()->all();
+    }
+
+    /**
+     * The main roles, to choose one from.
+     *
      * @return array<string, string>
      */
     public static function roleOptions(): array
     {
-        return Role::query()->orderBy('name')->pluck('name', 'name')
+        return Role::query()->whereNotIn('name', RoleEnum::addOnNames())->orderBy('name')->pluck('name', 'name')
+            ->map(fn (string $name): string => RoleEnum::tryFrom($name)?->label() ?? $name)
+            ->all();
+    }
+
+    /**
+     * The add-on accesses, to tick any number of.
+     *
+     * @return array<string, string>
+     */
+    public static function addOnOptions(): array
+    {
+        return Role::query()->whereIn('name', RoleEnum::addOnNames())->orderBy('name')->pluck('name', 'name')
             ->map(fn (string $name): string => RoleEnum::tryFrom($name)?->label() ?? $name)
             ->all();
     }

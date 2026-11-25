@@ -35,6 +35,7 @@ beforeEach(function () {
     $this->sinta = tplMember('Sinta', $this->rudi, Role::Employee, $this->company, $this->gudang);
 
     $this->gudang->update(['supervisor_employee_id' => $this->rudi->id]);
+    $this->rudi->user->assignRole(Role::RecruitmentRequester->value);
 });
 
 function tplMember(string $name, ?Employee $manager, Role $role, Company $company, Department $department): Employee

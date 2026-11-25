@@ -11,18 +11,23 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
 /**
- * One person's evaluation of a candidate after the interview (REC-INT): a 1 to 5 rating, a recommendation and a note.
+ * One person's evaluation of a candidate after the interview (REC-INT): three 1 to 5 grades (knowledge of the position,
+ * appearance, experience in the position), their average as the overall rating, a recommendation and a note. An evaluation
+ * given before the grades were split has only the overall rating, and no grade per category.
  *
  * @property int $id
  * @property int $candidate_id
  * @property int|null $user_id
- * @property int $rating
+ * @property int|null $knowledge_rating
+ * @property int|null $appearance_rating
+ * @property int|null $experience_rating
+ * @property float $rating The average of the three grades, to two decimals
  * @property EvaluationRecommendation $recommendation
  * @property string|null $note
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['candidate_id', 'user_id', 'rating', 'recommendation', 'note'])]
+#[Fillable(['candidate_id', 'user_id', 'knowledge_rating', 'appearance_rating', 'experience_rating', 'rating', 'recommendation', 'note'])]
 class CandidateEvaluation extends Model
 {
     /** @use HasFactory<CandidateEvaluationFactory> */
@@ -34,7 +39,10 @@ class CandidateEvaluation extends Model
     protected function casts(): array
     {
         return [
-            'rating' => 'integer',
+            'knowledge_rating' => 'integer',
+            'appearance_rating' => 'integer',
+            'experience_rating' => 'integer',
+            'rating' => 'float',
             'recommendation' => EvaluationRecommendation::class,
         ];
     }

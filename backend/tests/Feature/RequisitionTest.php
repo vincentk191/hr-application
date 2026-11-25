@@ -42,6 +42,7 @@ beforeEach(function () {
     $this->lukas = reqMember('Lukas', null, Role::Employee, $this->company, $this->finance);
 
     $this->gudang->update(['supervisor_employee_id' => $this->rudi->id]);
+    $this->rudi->user->assignRole(Role::RecruitmentRequester->value);
 });
 
 function reqUser(Role $role, Company $company): User
@@ -207,6 +208,29 @@ it('lets a supervisor ask only for their own departments, HR for any, and nobody
     draftRequisition($this->hr, $elsewhere)->assertSessionHasErrors('department_id');
 
     expect(Requisition::count())->toBe(1);
+});
+
+it('lets a supervisor raise requests only with the Pemohon Rekrutmen access, and that access adds nothing else', function () {
+    $this->rudi->user->removeRole(Role::RecruitmentRequester->value);
+
+    $this->actingAs($this->rudi->user)->get(route('recruitment.create'))->assertForbidden();
+    draftRequisition($this->rudi->user, $this->gudang)->assertForbidden();
+
+    $this->rudi->user->assignRole(Role::RecruitmentRequester->value);
+
+    draftRequisition($this->rudi->user, $this->gudang, ['send' => 1])->assertRedirect();
+    $requisition = latestRequisition();
+
+    // It goes to Management and then HR, and the access gives no say in either, nor HR's work on the pipeline.
+    expect($requisition->workflow->steps()->orderBy('position')->pluck('label')->all())->toBe(['Manajemen', 'HR'])
+        ->and($this->rudi->user->can('manage-recruitment'))->toBeFalse()
+        ->and($this->rudi->user->can('viewCandidates', $requisition))->toBeFalse()
+        ->and($this->rudi->user->can('decide', $requisition))->toBeFalse()
+        ->and($this->rudi->user->can('advance', $requisition))->toBeFalse();
+
+    // The access is a supervisor's: on a plain employee it still asks for no department.
+    $this->sinta->user->assignRole(Role::RecruitmentRequester->value);
+    draftRequisition($this->sinta->user, $this->gudang)->assertForbidden();
 });
 
 it('keeps a draft to its requester until it is sent', function () {

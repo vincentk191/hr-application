@@ -9,7 +9,8 @@ use App\Models\User;
  * Carries the role selection from the form to the model.
  *
  * The role field is a single choice and not bound to a relationship, so the selection is lifted out
- * of the form data before it reaches the model and applied with syncRoles() afterwards. That route fires
+ * of the form data before it reaches the model and applied with syncRoles() afterwards. A Supervisor may also be given
+ * add-on accesses (Pemohon Rekrutmen), chosen in "Akses tambahan" and synced with the role; for any other role they are dropped. That route fires
  * the events LogRoleChange listens to; a relationship save would change roles silently. The
  * UserPolicy::assignRoles check is repeated here because a disabled field is a UI courtesy,
  * not a guarantee.
@@ -31,7 +32,13 @@ trait SyncsAssignedRoles
             ? [(string) $data['role_name']]
             : null;
 
-        unset($data['role_name']);
+        // Only a Supervisor holds add-ons, and only ones that exist.
+        if ($this->selectedRoles !== null && $this->selectedRoles[0] === Role::Supervisor->value) {
+            $extras = array_values(array_intersect((array) ($data['extra_roles'] ?? []), Role::addOnNames()));
+            $this->selectedRoles = [...$this->selectedRoles, ...$extras];
+        }
+
+        unset($data['role_name'], $data['extra_roles']);
 
         // A disabled company field is not sent, and the form is only a courtesy: the rule is applied here.
         if ($this->selectedRoles !== null && Role::tryFrom($this->selectedRoles[0])?->isGroupWide() === true) {

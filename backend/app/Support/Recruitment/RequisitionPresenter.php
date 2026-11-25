@@ -390,6 +390,12 @@ class RequisitionPresenter
                 'id' => $evaluation->id,
                 'author' => $evaluation->author?->name,
                 'rating' => $evaluation->rating,
+                // The grade of each category; null for an evaluation given before there were three.
+                'scores' => $evaluation->knowledge_rating === null ? null : [
+                    'knowledge' => $evaluation->knowledge_rating,
+                    'appearance' => $evaluation->appearance_rating,
+                    'experience' => $evaluation->experience_rating,
+                ],
                 'recommendation' => $evaluation->recommendation->value,
                 'recommendationLabel' => $evaluation->recommendation->label(),
                 'note' => $evaluation->note,

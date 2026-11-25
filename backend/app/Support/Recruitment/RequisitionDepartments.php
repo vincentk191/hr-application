@@ -12,9 +12,10 @@ use Illuminate\Database\Eloquent\Collection;
 /**
  * Which departments someone may raise a requisition for (REC-DSH-006, context.md §9.3 step 1).
  *
- * HR, holding `manage-recruitment`, may ask for any department of the company in view. A supervisor asks for a
- * role on their own team: the departments they head, and their own department when people report to them.
- * Anyone else asks for none, and so cannot start one.
+ * HR, holding `manage-recruitment`, may ask for any department of the company in view. A supervisor holding
+ * `request-recruitment` (the Pemohon Rekrutmen access, given from the admin panel) asks for a role on their own team: the
+ * departments they head, and their own department when people report to them. Anyone else asks for none, and so cannot
+ * start one.
  */
 class RequisitionDepartments
 {
@@ -25,6 +26,10 @@ class RequisitionDepartments
     {
         if ($user->can(Permission::ManageRecruitment->value)) {
             return Department::query()->orderBy('name')->get(['id', 'name', 'company_id']);
+        }
+
+        if (! $user->can(Permission::RequestRecruitment->value)) {
+            return new Collection;
         }
 
         $own = Employee::acrossCompanies()->where('user_id', $user->id)->first();

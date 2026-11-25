@@ -7,6 +7,7 @@ use App\Filament\Resources\Companies\Pages\EditCompany;
 use App\Filament\Resources\Roles\Pages\EditRole;
 use App\Filament\Resources\Users\Pages\CreateUser;
 use App\Filament\Resources\Users\Pages\EditUser;
+use App\Filament\Resources\Users\Schemas\UserForm;
 use App\Models\Company;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
@@ -116,6 +117,45 @@ it('shows an account that holds several roles with its highest one and keeps a s
         ->assertHasNoFormErrors();
 
     expect($target->fresh()->getRoleNames()->all())->toBe([Role::Supervisor->value]);
+});
+
+it('gives a Supervisor the Pemohon Rekrutmen access on top of the role, shows the account as a Supervisor, and takes it back', function () {
+    $this->actingAs(adminFor(Role::SystemAdmin));
+    $target = User::factory()->create();
+    $target->assignRole(Role::Supervisor->value);
+
+    Livewire::test(EditUser::class, ['record' => $target->getKey()])
+        ->assertFormSet(['role_name' => Role::Supervisor->value, 'extra_roles' => []])
+        ->fillForm(['extra_roles' => [Role::RecruitmentRequester->value]])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($target->fresh()->getRoleNames()->sort()->values()->all())->toBe([Role::RecruitmentRequester->value, Role::Supervisor->value])
+        ->and($target->fresh()->primaryRoleName())->toBe(Role::Supervisor->value)
+        ->and($target->fresh()->can('request-recruitment'))->toBeTrue();
+
+    Livewire::test(EditUser::class, ['record' => $target->getKey()])
+        ->assertFormSet(['role_name' => Role::Supervisor->value, 'extra_roles' => [Role::RecruitmentRequester->value]])
+        ->fillForm(['extra_roles' => []])
+        ->call('save');
+
+    expect($target->fresh()->getRoleNames()->all())->toBe([Role::Supervisor->value]);
+});
+
+it('offers Pemohon Rekrutmen as an access, not as a role, and drops it from an account that is not a Supervisor', function () {
+    $this->actingAs(adminFor(Role::SystemAdmin));
+
+    expect(UserForm::roleOptions())->not->toHaveKey(Role::RecruitmentRequester->value)->toHaveKey(Role::Supervisor->value)
+        ->and(UserForm::addOnOptions())->toBe([Role::RecruitmentRequester->value => 'Pemohon Rekrutmen']);
+
+    $target = User::factory()->create();
+    $target->assignRole(Role::Supervisor->value, Role::RecruitmentRequester->value);
+
+    Livewire::test(EditUser::class, ['record' => $target->getKey()])
+        ->fillForm(['role_name' => Role::Employee->value, 'extra_roles' => [Role::RecruitmentRequester->value]])
+        ->call('save');
+
+    expect($target->fresh()->getRoleNames()->all())->toBe([Role::Employee->value]);
 });
 
 it('makes an account group-wide when it is given the Admin HR or Admin Sistem role', function (Role $role) {
