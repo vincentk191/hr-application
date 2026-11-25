@@ -238,7 +238,7 @@ function Summary({ evaluations }: { evaluations: CandidateEvaluation[] }) {
                             key={value}
                             className={cn(
                                 'flex items-center justify-end gap-2 text-sm',
-                                count === 0 && 'text-muted-foreground/60',
+                                count === 0 && 'text-muted-foreground',
                             )}
                         >
                             <span

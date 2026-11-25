@@ -312,7 +312,7 @@ export function AdminCalendarCard({
                         >
                             <span className="font-medium">{day.day}</span>
                             {holiday && (
-                                <span className="hidden w-full truncate text-[10px] font-medium sm:block">
+                                <span className="hidden w-full truncate text-xs font-medium sm:block">
                                     {holiday.title}
                                 </span>
                             )}
@@ -339,28 +339,28 @@ export function AdminCalendarCard({
                             </span>
                             {leave > 0 && (
                                 <span
-                                    className={`hidden rounded px-1 text-[10px] sm:inline ${KIND_STYLE.leave}`}
+                                    className={`hidden rounded px-1 text-xs sm:inline ${KIND_STYLE.leave}`}
                                 >
                                     {leave} cuti
                                 </span>
                             )}
                             {interviews > 0 && (
                                 <span
-                                    className={`hidden rounded px-1 text-[10px] sm:inline ${KIND_STYLE.interview}`}
+                                    className={`hidden rounded px-1 text-xs sm:inline ${KIND_STYLE.interview}`}
                                 >
                                     {interviews} interview
                                 </span>
                             )}
                             {starts > 0 && (
                                 <span
-                                    className={`hidden rounded px-1 text-[10px] sm:inline ${KIND_STYLE.start}`}
+                                    className={`hidden rounded px-1 text-xs sm:inline ${KIND_STYLE.start}`}
                                 >
                                     {starts} mulai
                                 </span>
                             )}
                             {lastDays > 0 && (
                                 <span
-                                    className={`hidden rounded px-1 text-[10px] sm:inline ${KIND_STYLE.lastday}`}
+                                    className={`hidden rounded px-1 text-xs sm:inline ${KIND_STYLE.lastday}`}
                                 >
                                     {lastDays} terakhir
                                 </span>
@@ -407,7 +407,7 @@ export function AdminCalendarCard({
                             const body = (
                                 <>
                                     <span
-                                        className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium ${KIND_STYLE[entry.kind]} ${
+                                        className={`shrink-0 rounded px-1.5 py-0.5 text-xs font-medium ${KIND_STYLE[entry.kind]} ${
                                             entry.status === 'submitted'
                                                 ? 'border border-dashed border-info bg-transparent'
                                                 : ''
@@ -521,9 +521,7 @@ export function RecruitmentCard({
                             <p className="text-lg font-extrabold tabular-nums">
                                 {stage.count}
                             </p>
-                            <p className="truncate text-[10px]">
-                                {stage.label}
-                            </p>
+                            <p className="truncate text-xs">{stage.label}</p>
                         </Link>
                     </li>
                 ))}

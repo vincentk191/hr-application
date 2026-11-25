@@ -328,7 +328,7 @@ function DrawerBody({
                     className="size-16"
                 />
                 <div className="min-w-0">
-                    <p className="font-mono text-[11px] font-medium tracking-wider text-primary uppercase">
+                    <p className="font-mono text-xs font-medium tracking-wider text-primary uppercase">
                         {item.reference}
                     </p>
                     <h2 className="text-2xl font-extrabold tracking-tight">
@@ -851,7 +851,7 @@ function Milestone({ label, date }: { label: string; date: string | null }) {
                 {label}
             </p>
             <p
-                className={`text-base font-bold ${date ? '' : 'text-muted-foreground/70'}`}
+                className={`text-base font-bold ${date ? '' : 'text-muted-foreground'}`}
             >
                 {date ? formatDay(date) : 'Belum'}
             </p>

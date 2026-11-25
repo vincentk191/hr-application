@@ -392,7 +392,7 @@ function RecapCard({
                         <dd className="text-base font-bold">
                             {missing ? dash : value}
                         </dd>
-                        <dt className="text-[11px] text-muted-foreground">
+                        <dt className="text-xs text-muted-foreground">
                             {label}
                         </dt>
                     </div>

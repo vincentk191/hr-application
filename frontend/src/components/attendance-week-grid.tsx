@@ -57,7 +57,7 @@ function WaitingBadge({ count, label }: { count: number; label?: string }) {
         <span
             data-test="week-requests"
             title={label}
-            className="inline-flex items-center gap-1 rounded-full border border-pending/40 bg-pending/15 px-1.5 py-0.5 text-[10px] leading-none font-semibold text-pending-text tabular-nums md:px-2 md:text-xs"
+            className="inline-flex items-center gap-1 rounded-full border border-pending/40 bg-pending/15 px-1.5 py-0.5 text-xs leading-none font-semibold text-pending-text tabular-nums md:px-2 md:text-xs"
         >
             <FileText className="hidden size-3 md:block" aria-hidden />
             {count}
@@ -95,7 +95,7 @@ function DayHeader({
                 title={summary?.holiday ?? undefined}
                 className="flex w-full flex-col items-center gap-1 px-1 pt-3 pb-2 transition-colors hover:bg-muted/40 md:pt-4 md:pb-3"
             >
-                <span className={cn('label-mono', weekend && 'opacity-50')}>
+                <span className={cn('label-mono', weekend && 'font-normal')}>
                     {day.weekday}
                 </span>
                 <span
@@ -103,7 +103,7 @@ function DayHeader({
                         'flex size-7 items-center justify-center rounded-full text-sm font-bold tabular-nums md:size-9 md:text-lg',
                         isToday
                             ? 'bg-primary text-primary-foreground'
-                            : weekend && 'text-muted-foreground/50',
+                            : weekend && 'text-muted-foreground',
                     )}
                 >
                     {day.day}
@@ -111,7 +111,7 @@ function DayHeader({
 
                 <span className="flex min-h-4 w-full flex-col items-center gap-1">
                     {summary?.holiday ? (
-                        <span className="hidden max-w-full truncate px-1 text-[10px] font-medium text-destructive md:block">
+                        <span className="hidden max-w-full truncate px-1 text-xs font-medium text-destructive md:block">
                             {summary.holiday}
                         </span>
                     ) : (
@@ -119,7 +119,7 @@ function DayHeader({
                             <>
                                 <span
                                     className={cn(
-                                        'text-[10px] font-semibold tabular-nums md:text-xs',
+                                        'text-xs font-semibold tabular-nums md:text-xs',
                                         low
                                             ? 'text-destructive'
                                             : 'text-success-text',
@@ -184,7 +184,7 @@ function DayCell({
             <div
                 role="cell"
                 className={cn(
-                    'flex items-center justify-center border-l p-1 text-muted-foreground/60 md:p-2',
+                    'flex items-center justify-center border-l p-1 text-muted-foreground md:p-2',
                     weekend && HATCH,
                 )}
             >

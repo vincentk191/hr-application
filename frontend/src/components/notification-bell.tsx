@@ -9,7 +9,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { relativeTime } from '@/lib/relative-time';
+import { RelativeTime } from '@/components/relative-time';
 import { index, readAll } from '@/routes/notifications';
 
 /**
@@ -40,7 +40,7 @@ export function NotificationBell() {
                 >
                     <Bell className="size-5" />
                     {unread > 0 && (
-                        <span className="absolute -top-0.5 -right-0.5 flex min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] leading-4 font-medium text-white">
+                        <span className="absolute -top-0.5 -right-0.5 flex min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-xs leading-5 font-medium text-white">
                             {unread > 99 ? '99+' : unread}
                         </span>
                     )}
@@ -93,8 +93,8 @@ export function NotificationBell() {
                         <span className="line-clamp-2 text-xs text-muted-foreground">
                             {notice.body}
                         </span>
-                        <span className="text-[11px] text-muted-foreground">
-                            {relativeTime(notice.at)}
+                        <span className="text-xs text-muted-foreground">
+                            <RelativeTime iso={notice.at} />
                         </span>
                     </DropdownMenuItem>
                 ))}

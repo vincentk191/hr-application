@@ -23,7 +23,7 @@ export default function AuthSimpleLayout({
                 <h2 className="max-w-lg text-6xl leading-[1.02] font-extrabold tracking-tight xl:text-7xl">
                     Absensi, cuti, dan data karyawan di satu tempat.
                 </h2>
-                <p className="font-mono text-[11px] tracking-[0.14em] text-white/60 uppercase">
+                <p className="font-mono text-xs tracking-[0.14em] text-white/60 uppercase">
                     V1 · Internal
                 </p>
             </aside>

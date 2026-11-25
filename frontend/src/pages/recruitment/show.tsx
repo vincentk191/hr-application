@@ -111,7 +111,7 @@ function Tracker({
                                 (tab.state === 'locked' ? 'Terkunci' : '—')}
                         </span>
                         {(unread[tab.stage] ?? 0) > 0 && (
-                            <span className="ml-1 rounded bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground">
+                            <span className="ml-1 rounded bg-primary px-1.5 py-0.5 text-xs font-bold text-primary-foreground">
                                 +{unread[tab.stage]}
                             </span>
                         )}

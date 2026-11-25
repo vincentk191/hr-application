@@ -99,7 +99,7 @@ function AttachmentButton({ files }: { files: LeaveAttachmentRow[] }) {
         <>
             <Paperclip className="size-5" aria-hidden />
             {files.length > 1 && (
-                <span className="absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full border-2 border-background bg-primary text-[10px] font-semibold text-primary-foreground">
+                <span className="absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full border-2 border-background bg-primary text-xs font-semibold text-primary-foreground">
                     {files.length}
                 </span>
             )}
@@ -199,11 +199,11 @@ function DateTile({ value }: { value: string }) {
             className="w-20 overflow-hidden rounded-xl border text-center"
             data-test="leave-date"
         >
-            <p className="label-mono bg-muted/60 py-1 text-[10px]">
+            <p className="label-mono bg-muted/60 py-1 text-xs">
                 {weekdayFormat.format(date)}
             </p>
             <p className="font-mono text-2xl font-bold">{date.getDate()}</p>
-            <p className="label-mono pb-1.5 text-[10px]">
+            <p className="label-mono pb-1.5 text-xs">
                 {monthFormat.format(date)}
             </p>
         </div>
@@ -506,7 +506,7 @@ export function LeaveDecisionDialog({
                                     <EmployeeAvatar
                                         name={request.employee ?? '?'}
                                         photoUrl={null}
-                                        className="size-6 text-[10px]"
+                                        className="size-6 text-xs"
                                     />
                                     <span className="truncate">
                                         {[request.employee, request.department]
@@ -564,7 +564,7 @@ export function LeaveDecisionDialog({
                                     <EmployeeAvatar
                                         name={request.employee ?? '?'}
                                         photoUrl={null}
-                                        className="size-9 text-[11px]"
+                                        className="size-9 text-xs"
                                     />
                                     <p
                                         className="min-w-0 flex-1 rounded-2xl bg-muted px-4 py-3 break-words whitespace-pre-line"

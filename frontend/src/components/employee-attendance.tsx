@@ -537,7 +537,7 @@ function YearView({
                                 }
                             />
                         </div>
-                        <span className="text-[11px] text-muted-foreground">
+                        <span className="text-xs text-muted-foreground">
                             {month.label.slice(0, 3)}
                         </span>
                     </button>
@@ -780,7 +780,7 @@ export function EmployeeAttendance({
                             >
                                 {totals[status]}
                             </span>
-                            <span className="text-[11px] text-muted-foreground">
+                            <span className="text-xs text-muted-foreground">
                                 {label}
                             </span>
                         </div>

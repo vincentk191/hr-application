@@ -12,7 +12,7 @@ import { toUrl } from '@/lib/utils';
 
 function Badge({ count }: { count?: number }) {
     return count ? (
-        <span className="ml-auto rounded-full bg-foreground px-2 py-0.5 text-[11px] leading-none font-semibold text-background">
+        <span className="ml-auto rounded-full bg-foreground px-2 py-0.5 text-xs leading-none font-semibold text-background">
             {count}
         </span>
     ) : null;

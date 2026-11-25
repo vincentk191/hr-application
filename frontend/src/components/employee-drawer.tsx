@@ -214,7 +214,7 @@ function DrawerBody({
                     className="size-16"
                 />
                 <div className="min-w-0">
-                    <p className="font-mono text-[11px] font-medium tracking-wider text-primary uppercase">
+                    <p className="font-mono text-xs font-medium tracking-wider text-primary uppercase">
                         {employee.number}
                         {employee.companyCode
                             ? ` · ${employee.companyCode}`

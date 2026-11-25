@@ -40,7 +40,7 @@ export function AppSidebar() {
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
-                <p className="label-mono px-3 pt-2 text-muted-foreground/70">
+                <p className="label-mono px-3 pt-2 text-muted-foreground">
                     v{version}
                 </p>
             </SidebarFooter>

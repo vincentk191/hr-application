@@ -1,7 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { CheckCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { relativeTime } from '@/lib/relative-time';
+import { RelativeTime } from '@/components/relative-time';
 import { index, readAll } from '@/routes/notifications';
 import type { BreadcrumbItem, NotificationRow } from '@/types';
 
@@ -102,7 +102,7 @@ export default function NotificationsIndex({ list, filter }: Props) {
                                     <span className="shrink-0 text-right text-xs text-muted-foreground">
                                         {KIND_LABEL[notice.kind] ?? ''}
                                         <span className="block">
-                                            {relativeTime(notice.at)}
+                                            <RelativeTime iso={notice.at} />
                                         </span>
                                     </span>
                                 </Link>

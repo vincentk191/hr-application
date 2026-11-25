@@ -1,6 +1,4 @@
-import { SearchX } from 'lucide-react';
 import { Head, Link, router, setLayoutProps } from '@inertiajs/react';
-import { EmptyNote } from '@/components/empty-note';
 import { Button } from '@/components/ui/button';
 import { UnreadComments } from '@/components/unread-comments';
 import { create, index, show } from '@/routes/offboarding';
@@ -12,6 +10,7 @@ import type {
 } from '@/types/offboarding';
 import { StatusPill } from '@/components/status-pill';
 import { offboardingStageTone } from '@/lib/status';
+import { EmptyList } from '@/components/empty-list';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Offboarding', href: '/offboarding' },
@@ -183,9 +182,24 @@ export default function OffboardingIndex({
 
                 {cases.length === 0 ? (
                     <div className="surface flex justify-center p-6">
-                        <EmptyNote icon={SearchX}>
-                            Tidak ada kasus yang cocok
-                        </EmptyNote>
+                        <EmptyList
+                            filtered={
+                                filters.status !== 'all' ||
+                                filters.branch !== null ||
+                                filters.department !== null ||
+                                filters.lastDay !== null
+                            }
+                            onClear={() =>
+                                go({
+                                    status: 'all',
+                                    branch: null,
+                                    department: null,
+                                    last_day: null,
+                                })
+                            }
+                        >
+                            Belum ada kasus
+                        </EmptyList>
                     </div>
                 ) : (
                     <div className="surface overflow-x-auto">

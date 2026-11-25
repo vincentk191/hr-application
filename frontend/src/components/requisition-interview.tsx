@@ -542,7 +542,7 @@ function DayNotes({
 
     return (
         <ul
-            className="mt-1 space-y-0.5 text-[11px] leading-tight"
+            className="mt-1 space-y-0.5 text-xs leading-tight"
             data-test="day-notes"
         >
             {holidays.map((entry) => (
@@ -1062,7 +1062,7 @@ function WeekCalendar({
                                           : ''
                                 }`}
                             >
-                                <span className="label-mono text-[10px] text-inherit">
+                                <span className="label-mono text-xs text-inherit">
                                     {weekdayFormat.format(day)}
                                 </span>
                                 <span className="text-base font-extrabold">

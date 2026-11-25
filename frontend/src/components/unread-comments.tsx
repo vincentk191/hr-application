@@ -15,7 +15,7 @@ export function UnreadComments({ count }: { count: number }) {
             role="img"
             aria-label={`${count} komentar baru`}
             title={`${count} komentar baru`}
-            className="inline-flex items-center gap-1 rounded-full bg-destructive px-2 py-0.5 align-middle text-[11px] leading-4 font-semibold text-destructive-foreground"
+            className="inline-flex items-center gap-1 rounded-full bg-destructive px-2 py-0.5 align-middle text-xs leading-5 font-semibold text-destructive-foreground"
             data-test="unread-comments"
         >
             <MessageSquare className="size-3" aria-hidden />

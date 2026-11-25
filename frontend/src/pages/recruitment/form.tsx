@@ -705,7 +705,7 @@ export default function RequisitionForm({
                                         {tab.title}
                                     </span>
                                     <span
-                                        className={`block font-mono text-[10px] font-medium tracking-[0.12em] uppercase ${
+                                        className={`block font-mono text-xs font-medium tracking-[0.12em] uppercase ${
                                             step === tab.step
                                                 ? 'text-background/80'
                                                 : 'text-muted-foreground'

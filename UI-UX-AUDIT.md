@@ -1,6 +1,6 @@
 # UI/UX Audit: Fixes and Optimizations
 
-Audit date: 2026-11-25. Status: **UX-01 to UX-04 and UX-06 built 2026-11-25; UX-05, UX-07 to UX-10, UX-12 not started.**
+Audit date: 2026-11-25. Status: **UX-01 to UX-07, UX-09 and UX-10 built 2026-11-25; UX-08 half done (waiting on the owner's choice for the subtitle); UX-12 waiting on approval to delete files.**
 Decisions made the same day: UX-04 approved becomes green; UX-06 all companies share one timezone; UX-11 stays as is;
 UX-13 no undo for now.
 
@@ -150,7 +150,15 @@ amber to orange at 3 days and red at 7.
 - **Check:** `grep -rE "(bg|text|border)-(emerald|amber|red|sky|orange|green|rose|violet)-[0-9]" frontend/src`
   returns only the token definitions.
 
-### UX-05 Separate "nothing yet" from "nothing matches"
+### UX-05 Separate "nothing yet" from "nothing matches" (BUILT for four lists)
+
+**As built:** `components/empty-list.tsx` shows "Belum ada …" when there is nothing at all, and "Tidak ada yang cocok" with a
+"Hapus filter" button when filters are on. Applied to the leave queue (table and phone), the employee directory (phone,
+grid, table), recruitment and offboarding. Recruitment and offboarding default to "open only", so for them any status
+but "Semua" counts as a filter and the button sets it to "Semua". **Not done:** the three attendance calendar views and
+the recap's pickers still say "cocok" without a button; the attendance issues list keeps its positive "Tidak ada masalah
+pada rentang ini", which is good news rather than an empty list. There is no "no access" variant yet, because none of
+these lists can be reached without access.
 
 - **Problem:** `leave-requests/index.tsx:260` and `:355` say "Belum ada pengajuan." even when filters are on.
   Only the employee directory offers chip removal; most lists have no "clear filters".
@@ -188,7 +196,15 @@ output.
 - **Check:** change the OS timezone to `Asia/Makassar`; interview and scan times do not move. `grep -rn
   "new Intl.NumberFormat" frontend/src` returns only `format.ts`.
 
-### UX-07 Raise faint and tiny text to AA
+### UX-07 Raise faint and tiny text to AA (BUILT)
+
+**As built:** every `text-[9px]`, `[10px]` and `[11px]` became 12px, and the shared `.label-mono` captions and table
+headings went from 10px to 12px (this is most of what people read at that size: "NIK", "ADMINISTRASI", column
+headings). The fade on muted text (`text-muted-foreground/50` to `/70`) is gone. Count badges (notifications, tab bar,
+filters, unread comments) grew from 16px to 20px so the larger digits still fit. **Check by eye:** the compact month
+grid cells on a 360px phone (their labels went from 9px to 12px and rely on truncation), and any caption that now wraps.
+Left alone on purpose: the 40-70% opacity on disabled or dimmed states (offboarding "not involved", unselected filter
+chips), which are not meant to be read at full contrast.
 
 - **Problem:** 52 uses of `text-[9px]`/`[10px]`/`[11px]`; `text-muted-foreground/50` to `/70` in nine places
   (`mobile-tab-bar.tsx`, `dashboard-overview.tsx`, `candidate-evaluations.tsx`, `candidate-drawer.tsx`,
@@ -199,7 +215,14 @@ output.
   contrast tool.
 - **Check:** contrast pass on the tab bar, dashboard and week grid in light and dark.
 
-### UX-08 Login page
+### UX-08 Login page (HALF DONE: the owner chooses for the subtitle)
+
+**Done:** the "remember NIK" checkbox label is now written as a sentence (normal case, sans, foreground colour, 14px)
+and the uppercase field labels are 12px.
+**Waiting on the owner:** the subtitle "Masuk dengan NIK dan ID karyawan Anda." Per the standing rule below, options are:
+(a) delete it, since the field labels already say it; (b) an ⓘ tooltip beside the "Masuk" heading holding it; (c) no
+pop-up warning fits, as nothing here is a condition that needs warning. Recommendation: (a) or (b). The "Lupa kata sandi?
+Hubungi HR" line stays, because it tells people what to do.
 
 - **Problem:** the subtitle "Masuk dengan NIK dan ID karyawan Anda." (`pages/auth/login.tsx:250`) restates the field
   labels, against the no-explainer rule. The checkbox label "INGAT NIK DAN ID KARYAWAN DI PERANGKAT INI" is
@@ -221,14 +244,18 @@ output.
 
 ## Low
 
-### UX-09 Respect `prefers-reduced-motion`
+### UX-09 Respect `prefers-reduced-motion` (BUILT)
+
+**As built:** one global rule at the end of `app.css`: with reduced motion requested, animations and transitions finish at once and loops run once. Needs a browser with "reduce motion" switched on to see.
 
 - **Problem:** zero `motion-reduce` / `prefers-reduced-motion` rules; `tw-animate-css` animations run on drawers,
   dialogs, sheets and dropdowns regardless.
 - **Fix:** one global rule in `css/app.css` that shortens animations/transitions to near zero under
   `@media (prefers-reduced-motion: reduce)`.
 
-### UX-10 Exact time on hover for relative times
+### UX-10 Exact time on hover for relative times (BUILT for notifications)
+
+**As built:** `components/relative-time.tsx` renders a `<time>` with the exact moment ("25 Nov 2026, 14:05", business timezone) as its tooltip. Used for the notification bell and the notifications page, the only two places that show "5 menit lalu". Other "oleh Rina · 2 jam lalu" audit lines on records do not exist in the app yet.
 
 - **Problem:** `relativeTime()` outputs "5 menit lalu" with no absolute time (`notification-bell.tsx:97`, workflow
   discussions).

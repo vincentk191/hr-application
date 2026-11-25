@@ -19,6 +19,7 @@ import type { LeaveRequestFilters, LeaveRequestRow } from '@/types/leave';
 import { StatusPill } from '@/components/status-pill';
 import { daysSince, formatDate } from '@/lib/format';
 import { ageTone, decisionTone } from '@/lib/status';
+import { EmptyList } from '@/components/empty-list';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Pengajuan', href: '/leave-requests' },
@@ -291,11 +292,23 @@ export default function LeaveRequestsIndex({
                         <tbody>
                             {requests.length === 0 && (
                                 <tr>
-                                    <td
-                                        colSpan={8}
-                                        className="p-6 text-center text-muted-foreground"
-                                    >
-                                        Belum ada pengajuan.
+                                    <td colSpan={8} className="p-6">
+                                        <div className="flex justify-center">
+                                            <EmptyList
+                                                filtered={activeFilters > 0}
+                                                onClear={() =>
+                                                    go({
+                                                        status: 'all',
+                                                        type: null,
+                                                        branch: null,
+                                                        department: null,
+                                                        month: null,
+                                                    })
+                                                }
+                                            >
+                                                Belum ada pengajuan
+                                            </EmptyList>
+                                        </div>
                                     </td>
                                 </tr>
                             )}
@@ -375,9 +388,22 @@ export default function LeaveRequestsIndex({
                     </div>
 
                     {requests.length === 0 && (
-                        <p className="surface p-6 text-center text-sm text-muted-foreground">
-                            Belum ada pengajuan.
-                        </p>
+                        <div className="surface flex justify-center p-6">
+                            <EmptyList
+                                filtered={activeFilters > 0}
+                                onClear={() =>
+                                    go({
+                                        status: 'all',
+                                        type: null,
+                                        branch: null,
+                                        department: null,
+                                        month: null,
+                                    })
+                                }
+                            >
+                                Belum ada pengajuan
+                            </EmptyList>
+                        </div>
                     )}
 
                     {mine.length > 0 && (

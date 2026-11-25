@@ -136,7 +136,7 @@ export function GlobalSearch() {
             >
                 <Search className="size-4" />
                 <span className="flex-1 text-left font-normal">Cari…</span>
-                <kbd className="rounded border px-1.5 text-[10px]">Ctrl K</kbd>
+                <kbd className="rounded border px-1.5 text-xs">Ctrl K</kbd>
             </Button>
             <Button
                 variant="ghost"

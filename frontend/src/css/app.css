@@ -241,7 +241,7 @@
 
     /* Small mono caps used for labels, captions and table headings. */
     .label-mono {
-        @apply font-mono text-[10px] font-medium tracking-[0.12em] text-muted-foreground uppercase;
+        @apply font-mono text-xs font-medium tracking-[0.1em] text-muted-foreground uppercase;
     }
 
     /* A pill group (view switchers, period toggles); the chosen one is black. */
@@ -283,7 +283,7 @@
 /* Table headings read as captions: mono, small, capitals. */
 [data-slot='sidebar-inset'] table thead th {
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 500;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -530,11 +530,20 @@ html[data-keyboard='open'] [data-hide-on-keyboard] {
    layers on purpose, so it beats the utility classes the shared Input and Button carry. */
 .auth-form label {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 500;
     letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--muted-foreground);
+}
+
+/* The remember-me line is a sentence, not a field name: written the way a sentence is, so it can be read at a glance. */
+.auth-form label[for='remember-identity'] {
+    font-family: inherit;
+    font-size: 0.875rem;
+    letter-spacing: normal;
+    text-transform: none;
+    color: var(--foreground);
 }
 
 .auth-form input:not([type='checkbox']) {
@@ -551,4 +560,17 @@ html[data-keyboard='open'] [data-hide-on-keyboard] {
     background: var(--foreground);
     color: var(--background);
     box-shadow: none;
+}
+
+/* Someone who asks their device for less motion gets none: animations and transitions finish at once. Looping
+   animations (pings, spinners) are cut to a single frame; the state they signal is also shown without them. */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
 }

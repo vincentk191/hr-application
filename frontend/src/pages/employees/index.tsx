@@ -30,6 +30,7 @@ import type {
     ValueOption,
 } from '@/types/employee';
 import { StatusPill } from '@/components/status-pill';
+import { EmptyList } from '@/components/empty-list';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Karyawan', href: '/employees' },
@@ -351,9 +352,14 @@ export default function EmployeesIndex({
                     <>
                         <div className="flex flex-col gap-3 md:hidden">
                             {employees.length === 0 && (
-                                <p className="surface p-6 text-center text-sm text-muted-foreground">
-                                    Tidak ada karyawan.
-                                </p>
+                                <div className="surface flex justify-center p-6">
+                                    <EmptyList
+                                        filtered={activeFilters > 0}
+                                        onClear={clearFilters}
+                                    >
+                                        Belum ada karyawan
+                                    </EmptyList>
+                                </div>
                             )}
                             {pageOfEmployees.map((employee) => (
                                 <Link
@@ -481,9 +487,14 @@ export default function EmployeesIndex({
                                 </Link>
                             ))}
                             {employees.length === 0 && (
-                                <p className="surface col-span-full p-6 text-center text-sm text-muted-foreground">
-                                    Tidak ada karyawan.
-                                </p>
+                                <div className="surface col-span-full flex justify-center p-6">
+                                    <EmptyList
+                                        filtered={activeFilters > 0}
+                                        onClear={clearFilters}
+                                    >
+                                        Belum ada karyawan
+                                    </EmptyList>
+                                </div>
                             )}
                         </div>
                         <div className="surface hidden empty:hidden md:block">
@@ -531,11 +542,17 @@ export default function EmployeesIndex({
                                 <tbody>
                                     {employees.length === 0 && (
                                         <tr>
-                                            <td
-                                                colSpan={10}
-                                                className="p-6 text-center text-muted-foreground"
-                                            >
-                                                Tidak ada karyawan.
+                                            <td colSpan={10} className="p-6">
+                                                <div className="flex justify-center">
+                                                    <EmptyList
+                                                        filtered={
+                                                            activeFilters > 0
+                                                        }
+                                                        onClear={clearFilters}
+                                                    >
+                                                        Belum ada karyawan
+                                                    </EmptyList>
+                                                </div>
                                             </td>
                                         </tr>
                                     )}

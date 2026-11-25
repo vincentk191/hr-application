@@ -762,7 +762,7 @@ export default function AttendanceDevice({
                         type="button"
                         onClick={() => setTab('scanner')}
                         data-on={tab === 'scanner'}
-                        className="min-w-0 flex-1 truncate px-1 text-[11px] tracking-normal md:flex-none md:px-4 md:text-xs md:tracking-wide"
+                        className="min-w-0 flex-1 truncate px-1 text-xs tracking-normal md:flex-none md:px-4 md:text-xs md:tracking-wide"
                     >
                         Laporan Absensi (pemindai)
                     </button>
@@ -770,7 +770,7 @@ export default function AttendanceDevice({
                         type="button"
                         onClick={() => setTab('rekap')}
                         data-on={tab === 'rekap'}
-                        className="min-w-0 flex-1 truncate px-1 text-[11px] tracking-normal md:flex-none md:px-4 md:text-xs md:tracking-wide"
+                        className="min-w-0 flex-1 truncate px-1 text-xs tracking-normal md:flex-none md:px-4 md:text-xs md:tracking-wide"
                     >
                         Rekapitulasi cabang
                         {drafts > 0 ? ` (${drafts} draf)` : ''}
@@ -1044,7 +1044,7 @@ export default function AttendanceDevice({
                                                             <dd className="text-base font-bold">
                                                                 {value}
                                                             </dd>
-                                                            <dt className="text-[11px] text-muted-foreground">
+                                                            <dt className="text-xs text-muted-foreground">
                                                                 {label}
                                                             </dt>
                                                         </div>

@@ -1,6 +1,5 @@
 import { Head, Link, router, setLayoutProps } from '@inertiajs/react';
-import { Download, Plus, SearchX } from 'lucide-react';
-import { EmptyNote } from '@/components/empty-note';
+import { Download, Plus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { statusDetail } from '@/components/requisition-summary';
 import { Button } from '@/components/ui/button';
@@ -14,6 +13,7 @@ import type {
     RequisitionSummary,
 } from '@/types/recruitment';
 import { StatusPill } from '@/components/status-pill';
+import { EmptyList } from '@/components/empty-list';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Rekrutmen', href: '/recruitment' },
@@ -243,9 +243,17 @@ export default function RecruitmentIndex({
 
                 {requisitions.length === 0 ? (
                     <div className="surface flex justify-center p-6">
-                        <EmptyNote icon={SearchX}>
-                            Tidak ada lowongan yang cocok
-                        </EmptyNote>
+                        <EmptyList
+                            filtered={
+                                filters.status !== 'all' ||
+                                filters.department !== null
+                            }
+                            onClear={() =>
+                                go({ status: 'all', department: null })
+                            }
+                        >
+                            Belum ada lowongan
+                        </EmptyList>
                     </div>
                 ) : (
                     <>

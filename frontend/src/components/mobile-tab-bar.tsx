@@ -41,7 +41,7 @@ const HOME_LABEL = 'Beranda';
 
 function Count({ count }: { count?: number }) {
     return count ? (
-        <span className="absolute -top-1 -right-2 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] leading-4 font-semibold text-primary-foreground">
+        <span className="absolute -top-1 -right-2 min-w-5 rounded-full bg-primary px-1 text-center text-xs leading-5 font-semibold text-primary-foreground">
             {count}
         </span>
     ) : null;
@@ -156,7 +156,7 @@ export function MobileTabBar() {
 
     // A fixed height (h-16 on the list below), so a page's own action bar can sit exactly on top of it.
     const tabClass = (active: boolean) =>
-        `flex h-full flex-col items-center justify-center gap-0.5 text-[11px] font-medium ${active ? 'text-primary' : 'text-muted-foreground'}`;
+        `flex h-full flex-col items-center justify-center gap-0.5 text-xs font-medium ${active ? 'text-primary' : 'text-muted-foreground'}`;
     const pillClass = (active: boolean) =>
         `relative rounded-full px-4 py-1 ${active ? 'bg-primary/15' : ''}`;
 
@@ -264,7 +264,7 @@ export function MobileTabBar() {
                                 key={section.title}
                                 data-test="more-section"
                             >
-                                <h3 className="label-mono px-3 pt-2 pb-1 text-muted-foreground/70">
+                                <h3 className="label-mono px-3 pt-2 pb-1 text-muted-foreground">
                                     {section.title}
                                 </h3>
                                 <ul className="flex flex-col">
@@ -295,7 +295,7 @@ export function MobileTabBar() {
                                                         {item.title}
                                                     </span>
                                                     {item.badge ? (
-                                                        <span className="rounded-full bg-foreground px-2 py-0.5 text-[11px] leading-none font-semibold text-background">
+                                                        <span className="rounded-full bg-foreground px-2 py-0.5 text-xs leading-none font-semibold text-background">
                                                             {item.badge}
                                                         </span>
                                                     ) : null}
@@ -307,7 +307,7 @@ export function MobileTabBar() {
                             </section>
                         ))}
                     </div>
-                    <p className="label-mono px-5 pb-4 text-muted-foreground/70">
+                    <p className="label-mono px-5 pb-4 text-muted-foreground">
                         v{version}
                     </p>
                 </SheetContent>

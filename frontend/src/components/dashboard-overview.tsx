@@ -69,7 +69,7 @@ export function useScannerMinutes(initial: number): number {
 function Badge({ tone, children }: { tone: Tone; children: string }) {
     return (
         <span
-            className={`rounded-full px-3 py-1 text-xs font-semibold whitespace-nowrap md:font-mono md:text-[10px] md:tracking-[0.1em] md:uppercase ${TONES[tone]}`}
+            className={`rounded-full px-3 py-1 text-xs font-semibold whitespace-nowrap md:font-mono md:tracking-[0.1em] md:uppercase ${TONES[tone]}`}
         >
             {children}
         </span>
@@ -202,7 +202,7 @@ export function AttendanceToday({
                         Pulang
                     </dt>
                     <dd
-                        className={`mt-1 text-3xl font-extrabold tabular-nums md:mt-2 md:text-5xl ${data.out === null ? 'text-muted-foreground/50' : ''}`}
+                        className={`mt-1 text-3xl font-extrabold tabular-nums md:mt-2 md:text-5xl ${data.out === null ? 'text-muted-foreground' : ''}`}
                     >
                         {data.out ?? '--:--'}
                     </dd>
@@ -215,7 +215,7 @@ export function AttendanceToday({
                         Durasi
                     </dt>
                     <dd
-                        className={`mt-1 text-3xl font-extrabold tabular-nums md:mt-2 md:text-5xl ${worked === null ? 'text-muted-foreground/50' : ''}`}
+                        className={`mt-1 text-3xl font-extrabold tabular-nums md:mt-2 md:text-5xl ${worked === null ? 'text-muted-foreground' : ''}`}
                     >
                         {worked === null ? '—' : span(worked)}
                     </dd>
@@ -318,7 +318,7 @@ function StepBars({ steps }: { steps: OpenRequest['steps'] }) {
                         className={`block h-1 rounded-full ${bar[step.state]}`}
                     />
                     <span
-                        className={`mt-2 block text-sm font-bold ${step.state === 'todo' ? 'text-muted-foreground/60' : ''}`}
+                        className={`mt-2 block text-sm font-bold ${step.state === 'todo' ? 'text-muted-foreground' : ''}`}
                     >
                         {step.label}
                     </span>
@@ -456,7 +456,7 @@ export function OpenRequests({
                                     <td className="py-4">
                                         {request.waitingOn && (
                                             <span
-                                                className={`rounded-full px-2.5 py-1 font-mono text-[10px] tracking-[0.08em] uppercase ${TONES[request.waitingOn === 'HR' ? 'muted' : 'warn']}`}
+                                                className={`rounded-full px-2.5 py-1 font-mono text-xs tracking-[0.08em] uppercase ${TONES[request.waitingOn === 'HR' ? 'muted' : 'warn']}`}
                                             >
                                                 Menunggu {request.waitingOn}
                                             </span>

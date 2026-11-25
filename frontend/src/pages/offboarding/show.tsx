@@ -98,7 +98,7 @@ function Tracker({
                     {tab.state === 'done' ? ' ✓' : ''}
                     {(unread[tab.stage] ?? 0) > 0 && (
                         <span
-                            className="ml-2 rounded bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground"
+                            className="ml-2 rounded bg-primary px-1.5 py-0.5 text-xs font-bold text-primary-foreground"
                             data-test={`unread-${tab.stage}`}
                         >
                             +{unread[tab.stage]}

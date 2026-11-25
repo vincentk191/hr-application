@@ -498,7 +498,7 @@ export default function EmployeeShow({
                             type="button"
                             onClick={() => setTab(item.key)}
                             data-on={tab === item.key}
-                            className="min-w-0 flex-1 truncate px-1 text-[11px] tracking-normal md:flex-none md:px-4 md:text-xs md:tracking-wide"
+                            className="min-w-0 flex-1 truncate px-1 text-xs tracking-normal md:flex-none md:px-4 md:text-xs md:tracking-wide"
                         >
                             {item.label}
                         </button>

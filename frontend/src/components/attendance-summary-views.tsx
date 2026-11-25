@@ -184,7 +184,7 @@ export function MonthSummary({
                                     )}
                                     <span className="text-xs">{day.day}</span>
                                     {day.holiday !== null ? (
-                                        <span className="truncate text-[9px] leading-tight font-medium sm:text-[11px]">
+                                        <span className="truncate text-xs leading-tight font-medium sm:text-xs">
                                             {day.holiday}
                                         </span>
                                     ) : (
@@ -200,7 +200,7 @@ export function MonthSummary({
                                             {(day.leave > 0 ||
                                                 day.late > 0 ||
                                                 requestsLine(day) !== '') && (
-                                                <span className="hidden text-[10px] leading-tight text-muted-foreground sm:block">
+                                                <span className="hidden text-xs leading-tight text-muted-foreground sm:block">
                                                     {[
                                                         day.leave > 0
                                                             ? `${day.leave} cuti`
@@ -282,7 +282,7 @@ function RekapMark({ period }: { period: string | null }) {
                     ? 'Rekapitulasi, belum ada untuk bulan ini'
                     : `Rekapitulasi ${period}`
             }
-            className={`inline-flex size-5 shrink-0 items-center justify-center rounded border text-[10px] font-bold ${STATUS_TILE.off}`}
+            className={`inline-flex size-5 shrink-0 items-center justify-center rounded border text-xs font-bold ${STATUS_TILE.off}`}
         >
             R
         </span>
@@ -474,7 +474,7 @@ export function YearSummary({
                                 ? '—'
                                 : `${Math.round(month.rate)}%`}
                         </span>
-                        <span className="text-[11px] text-muted-foreground group-hover:text-foreground">
+                        <span className="text-xs text-muted-foreground group-hover:text-foreground">
                             {month.label.slice(0, 3)}
                         </span>
                     </button>

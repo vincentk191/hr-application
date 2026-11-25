@@ -113,7 +113,7 @@ function Time({
             {value}
         </span>
     ) : (
-        <span className="font-mono text-muted-foreground/60">—</span>
+        <span className="font-mono text-muted-foreground">—</span>
     );
 }
 

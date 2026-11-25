@@ -32,7 +32,7 @@ export function FilterButton({
             <SlidersHorizontal className="size-4" aria-hidden />
             Cari &amp; filter
             {count > 0 && (
-                <span className="inline-flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground">
+                <span className="inline-flex size-5 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
                     {count}
                 </span>
             )}
@@ -63,7 +63,7 @@ export function FilterPill({
             <SlidersHorizontal className="size-4" aria-hidden />
             <span className="hidden md:inline">Filter</span>
             {count > 0 && (
-                <span className="absolute -top-1 -right-1 inline-flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground md:static md:size-5 md:text-[11px]">
+                <span className="absolute -top-1 -right-1 inline-flex size-5 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground md:static md:size-5 md:text-xs">
                     {count}
                 </span>
             )}

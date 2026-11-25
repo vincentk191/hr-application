@@ -317,7 +317,7 @@ export default function AttendanceRekapShow({
                                             <dd className="text-base font-bold">
                                                 {value}
                                             </dd>
-                                            <dt className="text-[11px] text-muted-foreground">
+                                            <dt className="text-xs text-muted-foreground">
                                                 {label}
                                             </dt>
                                         </div>

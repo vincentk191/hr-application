@@ -110,7 +110,7 @@ export function WorkflowDiscussion({
                     <MessageSquare />
                     {discussion.unread > 0 && (
                         <span
-                            className={`absolute -top-2 -right-2 flex min-w-5 items-center justify-center rounded-full px-1 text-[11px] leading-5 font-semibold ${
+                            className={`absolute -top-2 -right-2 flex min-w-5 items-center justify-center rounded-full px-1 text-xs leading-5 font-semibold ${
                                 isMobile
                                     ? 'bg-background text-primary ring-2 ring-primary'
                                     : 'bg-primary text-primary-foreground'
@@ -179,11 +179,11 @@ export function WorkflowDiscussion({
                                         <p className="flex flex-wrap items-center gap-2 font-semibold">
                                             {item.author}
                                             {item.badge && (
-                                                <span className="bg-foreground px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-background">
+                                                <span className="bg-foreground px-1.5 py-0.5 text-xs font-bold tracking-wider text-background">
                                                     {item.badge}
                                                 </span>
                                             )}
-                                            <span className="rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+                                            <span className="rounded-full border px-2 py-0.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                                                 {item.stageLabel}
                                             </span>
                                         </p>
