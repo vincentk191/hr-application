@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Fragment, useState } from 'react';
 import type { ReactNode } from 'react';
+import { useConfirm } from '@/components/confirm-dialog';
 import { InfoHint } from '@/components/info-hint';
 import InputError from '@/components/input-error';
 import LimitedFileInput from '@/components/limited-file-input';
@@ -94,6 +95,7 @@ export default function OffboardingForm({
 
     setLayoutProps({ breadcrumbs });
 
+    const { confirm, dialog } = useConfirm();
     const [step, setStep] = useState<1 | 2>(1);
     const [employeeId, setEmployeeId] = useState(
         existing ? String(existing.employee.id) : '',
@@ -123,6 +125,7 @@ export default function OffboardingForm({
             <Head
                 title={existing ? existing.reference : 'Kasus offboarding baru'}
             />
+            {dialog}
 
             <div className="w-full max-w-5xl space-y-5 p-4 max-md:pb-32">
                 <header>
@@ -188,12 +191,16 @@ export default function OffboardingForm({
                                                       variant="ghost"
                                                       className={className}
                                                       data-test="delete-case"
-                                                      onClick={() => {
-                                                          if (
-                                                              window.confirm(
-                                                                  'Hapus draft ini?',
-                                                              )
-                                                          ) {
+                                                      onClick={async () => {
+                                                          const confirmed =
+                                                              await confirm({
+                                                                  title: `Hapus draft ${existing.reference} · ${existing.employee.name}?`,
+                                                                  confirmLabel:
+                                                                      'Hapus',
+                                                                  destructive: true,
+                                                              });
+
+                                                          if (confirmed) {
                                                               router.delete(
                                                                   destroy(
                                                                       existing.id,

@@ -92,3 +92,59 @@ export function Pagination({
         </div>
     );
 }
+
+/** Where the server's page sits in a list it holds in full: the figures Laravel's paginator reports. */
+export type ServerPage = {
+    total: number;
+    from: number | null;
+    to: number | null;
+    currentPage: number;
+    lastPage: number;
+};
+
+/**
+ * The footer for a list the server pages: the range shown and previous/next, each a request for that page. Unlike
+ * {@link Pagination} the rest of the list is never sent to the browser.
+ */
+export function ServerPagination({
+    page,
+    onPage,
+}: {
+    page: ServerPage;
+    onPage: (page: number) => void;
+}) {
+    if (page.lastPage <= 1) {
+        return null;
+    }
+
+    return (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t p-3 text-sm print:hidden">
+            <span className="text-muted-foreground">
+                {page.from}–{page.to} dari {page.total}
+            </span>
+            <div className="flex items-center gap-2">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    type="button"
+                    disabled={page.currentPage <= 1}
+                    onClick={() => onPage(page.currentPage - 1)}
+                >
+                    ‹ Sebelumnya
+                </Button>
+                <span>
+                    {page.currentPage} / {page.lastPage}
+                </span>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    type="button"
+                    disabled={page.currentPage >= page.lastPage}
+                    onClick={() => onPage(page.currentPage + 1)}
+                >
+                    Berikutnya ›
+                </Button>
+            </div>
+        </div>
+    );
+}

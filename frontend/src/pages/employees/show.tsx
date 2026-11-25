@@ -10,12 +10,14 @@ import {
     X,
 } from 'lucide-react';
 import { useState } from 'react';
+import { useConfirm } from '@/components/confirm-dialog';
 import { EmployeeAttendance } from '@/components/employee-attendance';
 import { InfoHint } from '@/components/info-hint';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import { EmployeeDocuments } from '@/components/employee-documents';
 import { EmployeeTeamTab } from '@/components/employee-team';
 import { LeaveRequestDetail } from '@/components/leave-request-detail';
+import { revealTarget } from '@/components/masked-value';
 import { Card, Field } from '@/components/profile-parts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -73,7 +75,11 @@ const TABS = [
 type TabKey = (typeof TABS)[number]['key'];
 
 /** Rupiah, formatted from an integer — the only representation money has here. */
-function rupiah(value: number | null): string {
+function rupiah(value: number | string | null): string {
+    if (typeof value === 'string') {
+        return value;
+    }
+
     return value === null
         ? '—'
         : new Intl.NumberFormat('id-ID', {
@@ -256,12 +262,19 @@ export default function EmployeeShow({
 
     setLayoutProps({ breadcrumbs, compactTitleOnMobile: true });
 
-    const confirmReactivate = () => {
-        if (
-            window.confirm(
-                `Aktifkan kembali ${employee.name}? Profil bisa diubah lagi dan akun masuknya diaktifkan kembali. Riwayat offboarding tetap tersimpan.`,
-            )
-        ) {
+    const { confirm, dialog } = useConfirm();
+
+    const confirmReactivate = async () => {
+        const confirmed = await confirm({
+            title: `Aktifkan kembali ${employee.name}?`,
+            description:
+                'Profil bisa diubah lagi dan akun masuknya diaktifkan kembali. Riwayat offboarding tetap tersimpan.',
+            context: employee.company ?? undefined,
+            confirmLabel: 'Aktifkan kembali',
+            icon: RotateCcw,
+        });
+
+        if (confirmed) {
             router.post(
                 reactivate(employee.id).url,
                 {},
@@ -275,6 +288,7 @@ export default function EmployeeShow({
     return (
         <>
             <Head title={employee.name} />
+            {dialog}
 
             <div className="flex flex-col gap-4 p-4">
                 {/* Phone: a compact back + avatar + name header, in place of the page's usual title bar
@@ -558,10 +572,20 @@ export default function EmployeeShow({
                             <Field
                                 label="Telepon"
                                 value={employee.contact.phone}
+                                reveal={revealTarget(
+                                    employee,
+                                    'phone',
+                                    'telepon',
+                                )}
                             />
                             <Field
                                 label="NIK"
                                 value={employee.contact.national_id}
+                                reveal={revealTarget(
+                                    employee,
+                                    'national_id',
+                                    'NIK',
+                                )}
                             />
                             <Field
                                 label="Kontak darurat"
@@ -570,6 +594,11 @@ export default function EmployeeShow({
                             <Field
                                 label="Telepon darurat"
                                 value={employee.contact.emergency_contact_phone}
+                                reveal={revealTarget(
+                                    employee,
+                                    'emergency_contact_phone',
+                                    'telepon kontak darurat',
+                                )}
                             />
                             <Field
                                 label="Hubungan"
@@ -655,6 +684,11 @@ export default function EmployeeShow({
                                 <Field
                                     label="No. KK"
                                     value={employee.identity.family_card_number}
+                                    reveal={revealTarget(
+                                        employee,
+                                        'family_card_number',
+                                        'No. KK',
+                                    )}
                                 />
                                 <Field
                                     label="Nama ibu kandung"
@@ -674,6 +708,11 @@ export default function EmployeeShow({
                                 <Field
                                     label="No. rekening"
                                     value={employee.bank.bank_account_number}
+                                    reveal={revealTarget(
+                                        employee,
+                                        'bank_account_number',
+                                        'nomor rekening',
+                                    )}
                                 />
                                 <Field
                                     label="Atas nama"
@@ -686,6 +725,11 @@ export default function EmployeeShow({
                                 <Field
                                     label="NPWP"
                                     value={employee.bank.tax_number}
+                                    reveal={revealTarget(
+                                        employee,
+                                        'tax_number',
+                                        'NPWP',
+                                    )}
                                 />
                                 <Field
                                     label="Status PTKP"
@@ -707,10 +751,20 @@ export default function EmployeeShow({
                                     value={
                                         employee.coverage.bpjs_employment_number
                                     }
+                                    reveal={revealTarget(
+                                        employee,
+                                        'bpjs_employment_number',
+                                        'BPJS Ketenagakerjaan',
+                                    )}
                                 />
                                 <Field
                                     label="BPJS Kesehatan"
                                     value={employee.coverage.bpjs_health_number}
+                                    reveal={revealTarget(
+                                        employee,
+                                        'bpjs_health_number',
+                                        'BPJS Kesehatan',
+                                    )}
                                 />
                             </Card>
                         ) : (
@@ -728,18 +782,36 @@ export default function EmployeeShow({
                                     value={rupiah(
                                         employee.payroll.base_salary_idr,
                                     )}
+                                    reveal={revealTarget(
+                                        employee,
+                                        'base_salary_idr',
+                                        'gaji pokok',
+                                    )}
+                                    format={(raw) => rupiah(Number(raw))}
                                 />
                                 <Field
                                     label="Tunjangan"
                                     value={rupiah(
                                         employee.payroll.allowances_idr,
                                     )}
+                                    reveal={revealTarget(
+                                        employee,
+                                        'allowances_idr',
+                                        'tunjangan',
+                                    )}
+                                    format={(raw) => rupiah(Number(raw))}
                                 />
                                 <Field
                                     label="Tarif lembur"
                                     value={rupiah(
                                         employee.payroll.overtime_rate_idr,
                                     )}
+                                    reveal={revealTarget(
+                                        employee,
+                                        'overtime_rate_idr',
+                                        'tarif lembur',
+                                    )}
+                                    format={(raw) => rupiah(Number(raw))}
                                 />
                             </Card>
                         ) : (

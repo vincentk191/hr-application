@@ -1,14 +1,38 @@
 import type { ReactNode } from 'react';
+import { MaskedValue, type RevealTarget } from '@/components/masked-value';
 
-/** One labelled value on a profile card; an empty value reads "—". */
-export function Field({ label, value }: { label: string; value: unknown }) {
+/**
+ * One labelled value on a profile card; an empty value reads "—". With `reveal`, the value is a mask the server sent and
+ * the person can ask to see the real one.
+ */
+export function Field({
+    label,
+    value,
+    reveal,
+    format,
+}: {
+    label: string;
+    value: unknown;
+    reveal?: RevealTarget;
+    format?: (raw: string | number) => string;
+}) {
     const display =
         value === null || value === undefined || value === '' ? '—' : value;
 
     return (
         <div className="grid grid-cols-2 gap-2 py-1.5 text-sm">
             <dt className="label-mono pt-0.5">{label}</dt>
-            <dd className="font-medium">{display as string}</dd>
+            <dd className="font-medium">
+                {reveal && typeof value === 'string' ? (
+                    <MaskedValue
+                        masked={value}
+                        target={reveal}
+                        format={format}
+                    />
+                ) : (
+                    (display as string)
+                )}
+            </dd>
         </div>
     );
 }

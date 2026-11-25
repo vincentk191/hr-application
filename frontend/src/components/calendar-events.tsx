@@ -1,6 +1,7 @@
 import { Form, router } from '@inertiajs/react';
 import { Flag, Plus, Save, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
+import { useConfirm } from '@/components/confirm-dialog';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -233,9 +234,11 @@ export function CalendarEvents({
     defaultDate: string;
 }) {
     const [adding, setAdding] = useState(false);
+    const { confirm, dialog } = useConfirm();
 
     return (
         <section className="surface p-4">
+            {dialog}
             <div className="flex items-center justify-between gap-2">
                 <h3
                     className={
@@ -300,14 +303,17 @@ export function CalendarEvents({
                                         variant="ghost"
                                         type="button"
                                         className="text-destructive"
-                                        onClick={() => {
-                                            if (
-                                                window.confirm(
+                                        onClick={async () => {
+                                            const confirmed = await confirm({
+                                                title:
                                                     event.seriesSize > 1
                                                         ? `Hapus hanya yang ini dari "${event.title}"?`
                                                         : `Hapus "${event.title}"?`,
-                                                )
-                                            ) {
+                                                confirmLabel: 'Hapus',
+                                                destructive: true,
+                                            });
+
+                                            if (confirmed) {
                                                 router.delete(
                                                     destroy(event.id).url,
                                                     { preserveScroll: true },
@@ -327,12 +333,18 @@ export function CalendarEvents({
                                             variant="ghost"
                                             type="button"
                                             className="text-destructive"
-                                            onClick={() => {
-                                                if (
-                                                    window.confirm(
-                                                        `Hapus seluruh seri "${event.title}" (${event.seriesSize} kali)?`,
-                                                    )
-                                                ) {
+                                            onClick={async () => {
+                                                const confirmed = await confirm(
+                                                    {
+                                                        title: `Hapus seluruh seri "${event.title}"?`,
+                                                        description: `${event.seriesSize} kali dihapus sekaligus.`,
+                                                        confirmLabel:
+                                                            'Hapus seri',
+                                                        destructive: true,
+                                                    },
+                                                );
+
+                                                if (confirmed) {
                                                     router.delete(
                                                         destroy(event.id).url,
                                                         {

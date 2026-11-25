@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { CandidateDrawer } from '@/components/candidate-drawer';
 import type { CandidateTab } from '@/components/candidate-drawer';
+import { useConfirm } from '@/components/confirm-dialog';
 import { EmptyNote } from '@/components/empty-note';
 import InputError from '@/components/input-error';
 import LimitedFileInput from '@/components/limited-file-input';
@@ -120,11 +121,14 @@ function ShortlistRow({
     candidate: Candidate;
     onOpen: (candidate: Candidate) => void;
 }) {
+    const { confirm, dialog } = useConfirm();
+
     return (
         <li
             className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted/40"
             data-test="candidate-row"
         >
+            {dialog}
             <button
                 type="button"
                 onClick={() => onOpen(candidate)}
@@ -150,12 +154,15 @@ function ShortlistRow({
                     type="button"
                     size="sm"
                     variant="outline"
-                    onClick={() => {
-                        if (
-                            window.confirm(
-                                `Hapus ${candidate.name} dari shortlist? CV-nya ikut dihapus.`,
-                            )
-                        ) {
+                    onClick={async () => {
+                        const confirmed = await confirm({
+                            title: `Hapus ${candidate.name} dari shortlist?`,
+                            description: 'CV-nya ikut dihapus.',
+                            confirmLabel: 'Hapus',
+                            destructive: true,
+                        });
+
+                        if (confirmed) {
                             router.delete(
                                 destroy.url({
                                     requisition: item.id,

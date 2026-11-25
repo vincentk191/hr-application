@@ -20,6 +20,7 @@ import {
 import { useState } from 'react';
 import { CandidateDrawer } from '@/components/candidate-drawer';
 import type { CandidateTab } from '@/components/candidate-drawer';
+import { useConfirm } from '@/components/confirm-dialog';
 import { DecisionDialog } from '@/components/decision-dialog';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import InputError from '@/components/input-error';
@@ -580,6 +581,7 @@ function SignedLetter({
 }) {
     const signed = offer.signedLetter ?? null;
     const route = { requisition: item.id, offer: offer.id };
+    const { confirm, dialog } = useConfirm();
 
     if (signed === null && !offer.canFileSignedLetter) {
         return null;
@@ -587,6 +589,7 @@ function SignedLetter({
 
     return (
         <div className="space-y-2 text-sm" data-test="signed-letter">
+            {dialog}
             {signed !== null && (
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                     <span className="inline-flex items-center gap-1.5">
@@ -617,14 +620,21 @@ function SignedLetter({
                         <Button
                             size="sm"
                             variant="outline"
-                            onClick={() =>
-                                window.confirm(
-                                    'Hapus surat bertanda tangan ini?',
-                                ) &&
-                                router.delete(removeSignedLetter.url(route), {
-                                    preserveScroll: true,
-                                })
-                            }
+                            onClick={async () => {
+                                const confirmed = await confirm({
+                                    title: 'Hapus surat bertanda tangan?',
+                                    description: signed?.name,
+                                    confirmLabel: 'Hapus',
+                                    destructive: true,
+                                });
+
+                                if (confirmed) {
+                                    router.delete(
+                                        removeSignedLetter.url(route),
+                                        { preserveScroll: true },
+                                    );
+                                }
+                            }}
                             data-test="remove-signed-letter"
                         >
                             <Trash2 className="size-4" aria-hidden />

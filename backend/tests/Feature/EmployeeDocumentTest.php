@@ -292,7 +292,7 @@ it('withholds bank, payroll and BPJS numbers from roles without the sensitive-da
     $this->actingAs($this->hr)
         ->get(route('employees.show', $this->employee))
         ->assertInertia(fn (Assert $page) => $page
-            ->where('employee.payroll.base_salary_idr', 9000000)
+            ->where('employee.payroll.base_salary_idr', '••••')
             ->where('employee.bank.bank_name', 'BCA'));
 });
 
@@ -301,7 +301,7 @@ it('lets an employee see their own bank and payroll', function () {
     $mine = Employee::factory()->forCompany($this->company)->create(['user_id' => $owner->id, 'base_salary_idr' => 5000000]);
 
     $this->actingAs($owner)->get(route('employees.show', $mine))
-        ->assertInertia(fn (Assert $page) => $page->where('employee.payroll.base_salary_idr', 5000000));
+        ->assertInertia(fn (Assert $page) => $page->where('employee.payroll.base_salary_idr', '••••'));
 });
 
 it('does not let an editor without the permission blank the sensitive fields', function () {

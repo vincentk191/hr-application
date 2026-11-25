@@ -1,5 +1,6 @@
 import { Form, Head, router } from '@inertiajs/react';
 import { CalendarRange, Check, FileSpreadsheet, User } from 'lucide-react';
+import { useConfirm } from '@/components/confirm-dialog';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -162,10 +163,13 @@ export default function AttendanceRekapShow({
     errors,
 }: Props) {
     const draft = rekap.status === 'draft';
+    // Not `confirm`: that name is the confirm-this-rekap route imported above.
+    const { confirm: ask, dialog } = useConfirm();
 
     return (
         <>
             <Head title="Periksa rekapitulasi" />
+            {dialog}
 
             <div className="flex flex-col gap-4 p-4">
                 <section className="surface p-4">
@@ -510,12 +514,15 @@ export default function AttendanceRekapShow({
                             type="button"
                             variant="ghost"
                             className="text-destructive"
-                            onClick={() => {
-                                if (
-                                    window.confirm(
-                                        'Buang draf ini? Berkas harus diunggah ulang.',
-                                    )
-                                ) {
+                            onClick={async () => {
+                                const confirmed = await ask({
+                                    title: `Buang draf rekapitulasi ${rekap.branch}?`,
+                                    description: `${rekap.periodLabel ?? 'Draf ini'} dibuang dan berkasnya harus diunggah ulang.`,
+                                    confirmLabel: 'Buang',
+                                    destructive: true,
+                                });
+
+                                if (confirmed) {
                                     router.delete(destroy(rekap.id).url);
                                 }
                             }}

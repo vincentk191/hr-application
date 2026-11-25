@@ -10,6 +10,7 @@ import {
     X,
 } from 'lucide-react';
 import { useState } from 'react';
+import { useConfirm } from '@/components/confirm-dialog';
 import InputError from '@/components/input-error';
 import { shortDate } from '@/components/requisition-summary';
 import { Button } from '@/components/ui/button';
@@ -259,6 +260,7 @@ function PostingRow({
     posting: RequisitionPosting;
 }) {
     const [editing, setEditing] = useState(false);
+    const { confirm, dialog } = useConfirm();
 
     if (editing) {
         return (
@@ -312,6 +314,7 @@ function PostingRow({
             className="flex flex-wrap items-center justify-between gap-3 p-4"
             data-test="posting-row"
         >
+            {dialog}
             <div>
                 <p className="font-semibold">{posting.label}</p>
                 <p className="label-mono">
@@ -347,12 +350,14 @@ function PostingRow({
                         type="button"
                         size="sm"
                         variant="outline"
-                        onClick={() => {
-                            if (
-                                window.confirm(
-                                    `Hapus catatan posting di ${posting.label}?`,
-                                )
-                            ) {
+                        onClick={async () => {
+                            const confirmed = await confirm({
+                                title: `Hapus catatan posting di ${posting.label}?`,
+                                confirmLabel: 'Hapus',
+                                destructive: true,
+                            });
+
+                            if (confirmed) {
                                 router.delete(
                                     destroy.url({
                                         requisition: item.id,

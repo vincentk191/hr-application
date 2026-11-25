@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
+import { useConfirm } from '@/components/confirm-dialog';
 import { InfoHint } from '@/components/info-hint';
 import InputError from '@/components/input-error';
 import { LineListEditor } from '@/components/line-list-editor';
@@ -543,8 +544,14 @@ export default function RequisitionForm({
                               variant="ghost"
                               className={className}
                               data-test="delete-requisition"
-                              onClick={() => {
-                                  if (window.confirm('Hapus draft ini?')) {
+                              onClick={async () => {
+                                  const confirmed = await confirm({
+                                      title: `Hapus draft ${existing.reference} · ${existing.positionName}?`,
+                                      confirmLabel: 'Hapus',
+                                      destructive: true,
+                                  });
+
+                                  if (confirmed) {
                                       router.delete(destroy(existing.id).url);
                                   }
                               }}
@@ -581,6 +588,7 @@ export default function RequisitionForm({
     ];
 
     const author = existing?.createdBy ?? auth.user?.name ?? '';
+    const { confirm, dialog } = useConfirm();
 
     return (
         <>
@@ -591,6 +599,7 @@ export default function RequisitionForm({
                         : 'Ajukan lowongan baru'
                 }
             />
+            {dialog}
 
             <div className="w-full max-w-5xl space-y-5 p-4 max-md:pb-32">
                 <header>

@@ -49,6 +49,7 @@ class ActivityLabels
         'Issue excused' => 'Masalah absensi dimaklumi',
         'Issue reopened' => 'Masalah absensi dibuka kembali',
         'Restricted document downloaded' => 'Dokumen terbatas diunduh',
+        'Sensitive field revealed' => 'Data rahasia ditampilkan',
         'Backup settings changed' => 'Pengaturan cadangan diubah',
         'Backup download started' => 'Cadangan diunduh',
         'Invitation template changed' => 'Template undangan diubah',

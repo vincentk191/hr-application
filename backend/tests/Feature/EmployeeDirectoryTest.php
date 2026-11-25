@@ -283,8 +283,9 @@ it('shows the dossier groups on the profile', function () {
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('employee.bank.bank_name', 'BCA')
-            ->where('employee.payroll.base_salary_idr', 9000000)
-            ->where('employee.coverage', ['bpjs_employment_number' => null, 'bpjs_health_number' => '0001234567890'])
+            // The amounts and numbers are masked on read; EmployeeFieldRevealTest covers seeing them in full.
+            ->where('employee.payroll.base_salary_idr', '••••')
+            ->where('employee.coverage', ['bpjs_employment_number' => null, 'bpjs_health_number' => '••••7890'])
             ->missing('employee.health')
             ->where('canUpdate', true)
             ->has('requests')
@@ -467,7 +468,7 @@ it('saves the data sheet fields from the form and shows them on the profile', fu
         ->where('employee.identity.mother_name', 'Siti Aminah')
         ->where('employee.bank.ptkp_status', 'K/1')
         ->where('employee.bank.bank_branch', 'KCP Menteng')
-        ->where('employee.coverage.bpjs_health_number', '0001234567890'));
+        ->where('employee.coverage.bpjs_health_number', '••••7890'));
 });
 
 it('refuses a bad KK, future birth date and unknown religion, gender, marital status or PTKP', function () {

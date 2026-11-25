@@ -11,6 +11,7 @@ import {
     Upload,
 } from 'lucide-react';
 import { useState } from 'react';
+import { useConfirm } from '@/components/confirm-dialog';
 import { useFilePreview } from '@/components/file-preview';
 import type { PreviewableFile } from '@/components/file-preview';
 import InputError from '@/components/input-error';
@@ -151,9 +152,11 @@ function DocumentCard({
         setPanel((current) => (current === next ? null : next));
 
     const current = document.versions[0];
+    const { confirm, dialog } = useConfirm();
 
     return (
         <li className="surface p-4">
+            {dialog}
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex flex-col gap-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -255,12 +258,14 @@ function DocumentCard({
                                 variant="ghost"
                                 type="button"
                                 className="text-destructive"
-                                onClick={() => {
-                                    if (
-                                        window.confirm(
-                                            `Hapus dokumen "${document.title}"?`,
-                                        )
-                                    ) {
+                                onClick={async () => {
+                                    const confirmed = await confirm({
+                                        title: `Hapus dokumen "${document.title}"?`,
+                                        confirmLabel: 'Hapus',
+                                        destructive: true,
+                                    });
+
+                                    if (confirmed) {
                                         router.delete(
                                             destroy(document.id).url,
                                             { preserveScroll: true },

@@ -10,6 +10,7 @@ import {
     Unplug,
     Upload,
 } from 'lucide-react';
+import { useConfirm } from '@/components/confirm-dialog';
 import { useState } from 'react';
 import { EmptyNote } from '@/components/empty-note';
 import { InfoHint } from '@/components/info-hint';
@@ -74,17 +75,6 @@ function SampleLink({ href }: { href: string }) {
             </a>
         </Button>
     );
-}
-
-/** Delete a scanner-ID mapping after asking; the scans already recorded stay. */
-function confirmDeleteMap(map: EnrolMapRow) {
-    if (
-        window.confirm(
-            `Hapus pemetaan PIN ${map.pin}? Scan yang sudah tercatat tetap ada.`,
-        )
-    ) {
-        router.delete(destroy(map.id).url, { preserveScroll: true });
-    }
 }
 
 /** The two things HR uploads: a scanner's Laporan Absensi, or a Cabang's rekapitulasi. */
@@ -757,10 +747,27 @@ export default function AttendanceDevice({
             : 'scanner',
     );
     const drafts = rekaps.filter((rekap) => rekap.status === 'draft').length;
+    const { confirm, dialog } = useConfirm();
+
+    /** Delete a scanner-ID mapping after asking; the scans already recorded stay. */
+    const deleteMap = async (map: EnrolMapRow) => {
+        const confirmed = await confirm({
+            title: `Hapus pemetaan PIN ${map.pin}?`,
+            description: 'Scan yang sudah tercatat tetap ada.',
+            context: map.companyCode ?? undefined,
+            confirmLabel: 'Hapus',
+            destructive: true,
+        });
+
+        if (confirmed) {
+            router.delete(destroy(map.id).url, { preserveScroll: true });
+        }
+    };
 
     return (
         <>
             <Head title="Data absensi" />
+            {dialog}
 
             <div className="flex flex-col gap-4 p-4">
                 <nav className="pill-tabs flex-nowrap gap-0.5 md:flex-wrap md:gap-1">
@@ -899,7 +906,7 @@ export default function AttendanceDevice({
                                                     variant="ghost"
                                                     className="text-destructive"
                                                     onClick={() =>
-                                                        confirmDeleteMap(map)
+                                                        deleteMap(map)
                                                     }
                                                 >
                                                     <Trash2
@@ -962,7 +969,7 @@ export default function AttendanceDevice({
                                                                 variant="ghost"
                                                                 className="text-destructive"
                                                                 onClick={() =>
-                                                                    confirmDeleteMap(
+                                                                    deleteMap(
                                                                         map,
                                                                     )
                                                                 }

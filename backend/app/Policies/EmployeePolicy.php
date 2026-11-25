@@ -143,6 +143,15 @@ class EmployeePolicy
         return false;
     }
 
+    /**
+     * The bank, payroll, family-identity and BPJS groups of a record: anyone with the sensitive-data permission, and
+     * an employee looking at their own record (EMP-DET-006). Seeing the record itself is checked separately.
+     */
+    public function viewSensitive(User $user, Employee $employee): bool
+    {
+        return $user->can(Permission::ViewSensitiveData->value) || $this->isSelf($user, $employee);
+    }
+
     private function isSelf(User $user, Employee $employee): bool
     {
         return $employee->user_id !== null && $employee->user_id === $user->id;

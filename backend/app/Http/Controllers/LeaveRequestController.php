@@ -34,6 +34,9 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class LeaveRequestController extends Controller
 {
+    /** How many requests the queue shows at a time; the CSV export is not paged. */
+    private const PER_PAGE = 25;
+
     /**
      * The requests queue (REQ-DSH).
      *
@@ -48,10 +51,28 @@ class LeaveRequestController extends Controller
         $user = $request->user();
         $filters = $this->filters($request);
 
-        $requests = $this->filtered($user, $filters);
+        $page = $this->query($user, $filters)->latest('id')->paginate(self::PER_PAGE)->withQueryString();
 
         return Inertia::render('leave-requests/index', [
-            'requests' => $requests,
+            'requests' => $page->getCollection()
+                ->map(fn (LeaveRequest $leave): array => LeaveRequestPresenter::row($leave, $user))
+                ->values()
+                ->all(),
+            'pagination' => [
+                'total' => $page->total(),
+                'from' => $page->firstItem(),
+                'to' => $page->lastItem(),
+                'currentPage' => $page->currentPage(),
+                'lastPage' => $page->lastPage(),
+            ],
+            // What waits on this person, whole: a phone pins it above the list whichever page is showing. A status that
+            // can never hold something waiting (approved, rejected) has nothing to pin.
+            'mine' => in_array($filters['status'], ['all', 'mine', 'waiting'], true)
+                ? $this->rows($this->query($user, [...$filters, 'status' => 'mine'])->latest('id')->get(), $user)
+                : [],
+            // The request a link points at (?open=ID, from a notification, a search result or the dashboard), which may not
+            // be on this page.
+            'opened' => $this->opened($request, $user),
             'filters' => $filters,
             'options' => [
                 'types' => RequestType::query()->ordered()->get(['code', 'label'])
@@ -75,7 +96,8 @@ class LeaveRequestController extends Controller
     {
         $this->authorize('viewAny', LeaveRequest::class);
 
-        $rows = collect($this->filtered($request->user(), $this->filters($request)))->map(fn (array $row): array => [
+        $user = $request->user();
+        $rows = collect($this->rows($this->query($user, $this->filters($request))->latest('id')->get(), $user))->map(fn (array $row): array => [
             $row['reference'], $row['employee'], $row['branch'], $row['department'], $row['type'], $row['startOn'], $row['endOn'],
             $row['timeframe'], $row['days'], $row['stageLabel'], $row['waitingOn'], $row['submittedAt'],
         ]);
@@ -111,10 +133,12 @@ class LeaveRequestController extends Controller
     }
 
     /**
+     * The requests the queue lists for these filters, as a query so the screen can page it and the export can read it whole.
+     *
      * @param  array{status: string, type: string|null, branch: string|null, department: string|null, month: string|null}  $filters
-     * @return array<int, array<string, mixed>>
+     * @return Builder<LeaveRequest>
      */
-    private function filtered(User $user, array $filters): array
+    private function query(User $user, array $filters): Builder
     {
         $monthStart = $filters['month'] === null ? null : CarbonImmutable::createFromFormat('Y-m-d', $filters['month'].'-01');
 
@@ -132,12 +156,38 @@ class LeaveRequestController extends Controller
                 'workflow',
                 fn (Builder $workflow) => $workflow->where('current_stage', $filters['status'] === 'waiting' ? 'submitted' : $filters['status']),
             ))
-            ->latest('id')
-            ->get()
-            ->map(fn (LeaveRequest $leave): array => LeaveRequestPresenter::row($leave, $user))
-            ->when($filters['status'] === 'mine', fn (Collection $rows) => $rows->filter(fn (array $row): bool => $row['canDecide'])->values())
-            ->values()
-            ->all();
+            // "Menunggu Anda": a step of the request's workflow is waiting on this person, the rule the nav badge counts by.
+            ->when($filters['status'] === 'mine', fn (Builder $query) => $query->whereHas(
+                'workflow',
+                fn (Builder $workflow) => $workflow->whereHas('steps', fn (Builder $steps) => $steps->waitingOn($user)),
+            ));
+    }
+
+    /**
+     * @param  Collection<int, LeaveRequest>  $requests
+     * @return array<int, array<string, mixed>>
+     */
+    private function rows(Collection $requests, User $user): array
+    {
+        return $requests->map(fn (LeaveRequest $leave): array => LeaveRequestPresenter::row($leave, $user))->values()->all();
+    }
+
+    /**
+     * The request named by ?open=, when this person may see it.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function opened(Request $request, User $user): ?array
+    {
+        $id = $request->integer('open');
+
+        if ($id <= 0) {
+            return null;
+        }
+
+        $leave = LeaveRequest::query()->visibleTo($user)->with(LeaveRequestPresenter::RELATIONS)->find($id);
+
+        return $leave === null ? null : LeaveRequestPresenter::row($leave, $user);
     }
 
     /**

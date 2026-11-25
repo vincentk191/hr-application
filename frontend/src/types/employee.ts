@@ -23,12 +23,15 @@ export type EmployeeRow = {
     joinedOn: string | null;
 };
 
-/** Money is integer rupiah throughout — never a float. */
+/**
+ * Money is integer rupiah throughout — never a float. On a profile the amounts arrive masked (a string such as `••••`)
+ * until revealed; the edit form gets the integers.
+ */
 export type EmployeePayroll = {
     pay_group: string | null;
-    base_salary_idr: number | null;
-    allowances_idr: number | null;
-    overtime_rate_idr: number | null;
+    base_salary_idr: number | string | null;
+    allowances_idr: number | string | null;
+    overtime_rate_idr: number | string | null;
 };
 
 export type EmployeeDetail = EmployeeRow & {
@@ -109,6 +112,11 @@ export type EmployeeDetail = EmployeeRow & {
         bpjs_health_number: string | null;
     } | null;
     payroll: EmployeePayroll | null;
+    /**
+     * The fields the server sent masked, which can be revealed one by one. Empty on the edit form, which gets the real
+     * values.
+     */
+    masked: string[];
 };
 
 export type EmployeeFilters = {

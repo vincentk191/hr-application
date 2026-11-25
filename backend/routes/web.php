@@ -19,6 +19,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeeAccountController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeDocumentController;
+use App\Http\Controllers\EmployeeFieldRevealController;
 use App\Http\Controllers\EmployeeImportController;
 use App\Http\Controllers\EmployeePhotoController;
 use App\Http\Controllers\GoogleConnectionController;
@@ -190,6 +191,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('employees/{employee}/photo', [EmployeePhotoController::class, 'show'])->name('employees.photo');
     Route::get('profile-changes/{profileChange}/photo/{side}', [EmployeePhotoController::class, 'change'])->name('profile-changes.photo');
     Route::get('employees/{employee}/summary', [EmployeeController::class, 'summary'])->name('employees.summary');
+    Route::post('employees/{employee}/reveal', [EmployeeFieldRevealController::class, 'store'])->name('employees.reveal');
     Route::get('employees/{employee}/edit', [EmployeeController::class, 'edit'])->name('employees.edit');
     Route::put('employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update');
 

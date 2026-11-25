@@ -8,6 +8,8 @@ import {
     FilterSheet,
 } from '@/components/filter-sheet';
 import { LeaveDecisionDialog } from '@/components/leave-decision-dialog';
+import { ServerPagination } from '@/components/pagination';
+import type { ServerPage } from '@/components/pagination';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,12 +36,21 @@ const STATUSES: { value: LeaveRequestFilters['status']; label: string }[] = [
  */
 export default function LeaveRequestsIndex({
     requests,
+    pagination,
+    mine,
+    opened,
     filters,
     options,
     waitingOnMe,
     approvedThisMonth,
 }: {
+    /** This page of the queue. */
     requests: LeaveRequestRow[];
+    pagination: ServerPage;
+    /** Everything waiting on this person, whichever page is showing: a phone pins it above the list. */
+    mine: LeaveRequestRow[];
+    /** The request a link points at (?open=ID), which may not be on this page. */
+    opened: LeaveRequestRow | null;
     filters: LeaveRequestFilters;
     options: {
         types: ValueOption[];
@@ -57,19 +68,28 @@ export default function LeaveRequestsIndex({
         (filters.department ? 1 : 0) +
         (filters.month ? 1 : 0);
 
-    const go = (changes: Partial<LeaveRequestFilters>) => {
-        const next = { ...filters, ...changes };
+    const queryFor = (next: LeaveRequestFilters) => ({
+        status: next.status === 'all' ? undefined : next.status,
+        type: next.type ?? undefined,
+        branch: next.branch ?? undefined,
+        department: next.department ?? undefined,
+        month: next.month ?? undefined,
+    });
 
+    // A change of filter starts again from the first page.
+    const go = (changes: Partial<LeaveRequestFilters>) => {
+        router.get(index().url, queryFor({ ...filters, ...changes }), {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
+    };
+
+    const goPage = (page: number) => {
         router.get(
             index().url,
-            {
-                status: next.status === 'all' ? undefined : next.status,
-                type: next.type ?? undefined,
-                branch: next.branch ?? undefined,
-                department: next.department ?? undefined,
-                month: next.month ?? undefined,
-            },
-            { preserveState: true, preserveScroll: true, replace: true },
+            { ...queryFor(filters), page },
+            { preserveState: true },
         );
     };
 
@@ -95,27 +115,19 @@ export default function LeaveRequestsIndex({
         exportQuery.set('month', filters.month);
     }
 
-    // ?open=ID opens that request's dialog straight away, which is where a search result lands.
-    const [selected, setSelected] = useState<LeaveRequestRow | null>(() => {
-        const asked =
-            typeof window === 'undefined'
-                ? null
-                : Number(
-                      new URLSearchParams(window.location.search).get('open'),
-                  );
-
-        return requests.find((row) => row.id === asked) ?? null;
-    });
+    // ?open=ID opens that request's dialog straight away, which is where a search result or a notification lands.
+    const [selected, setSelected] = useState<LeaveRequestRow | null>(opened);
 
     // Re-read the selected row from props so the dialog reflects the latest state after a
     // decision, rather than the snapshot taken when it was opened.
     const current = selected
-        ? (requests.find((row) => row.id === selected.id) ?? null)
+        ? ([...requests, ...mine, ...(opened ? [opened] : [])].find(
+              (row) => row.id === selected.id,
+          ) ?? null)
         : null;
 
     // On a phone what waits on this person is pinned on top. Setujui is one tap; Tolak opens the request,
     // because a rejection needs a reason.
-    const mine = requests.filter((row) => row.canDecide);
     const others = requests.filter((row) => !row.canDecide);
 
     const approve = (row: LeaveRequestRow) =>
@@ -139,7 +151,7 @@ export default function LeaveRequestsIndex({
                         <span className="font-medium text-foreground">
                             {approvedThisMonth}
                         </span>{' '}
-                        disetujui bulan ini · {requests.length} pengajuan
+                        disetujui bulan ini · {pagination.total} pengajuan
                     </p>
                     <div className="flex gap-2">
                         <FilterButton
@@ -315,6 +327,7 @@ export default function LeaveRequestsIndex({
                             ))}
                         </tbody>
                     </table>
+                    <ServerPagination page={pagination} onPage={goPage} />
                 </div>
 
                 {/* Phone: what needs this person is pinned on top as full cards, everything else is compact. */}
@@ -342,7 +355,7 @@ export default function LeaveRequestsIndex({
                         </div>
                         <div className="rounded-2xl border bg-card p-3">
                             <span className="block text-2xl font-extrabold">
-                                {requests.length}
+                                {pagination.total}
                             </span>
                             <span className="block text-xs text-muted-foreground">
                                 Total
@@ -464,6 +477,15 @@ export default function LeaveRequestsIndex({
                             ))}
                         </section>
                     )}
+
+                    {pagination.lastPage > 1 && (
+                        <div className="surface">
+                            <ServerPagination
+                                page={pagination}
+                                onPage={goPage}
+                            />
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -479,7 +501,7 @@ export default function LeaveRequestsIndex({
                         month: null,
                     })
                 }
-                showLabel={`Tampilkan ${requests.length} pengajuan`}
+                showLabel={`Tampilkan ${pagination.total} pengajuan`}
             >
                 <FilterSection title="Status">
                     <div className="flex flex-wrap gap-2">

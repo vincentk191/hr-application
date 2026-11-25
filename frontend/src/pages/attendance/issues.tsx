@@ -2,6 +2,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import { Check, CircleCheck, Plus, RotateCcw, X } from 'lucide-react';
 import { useState } from 'react';
 import { ChipMultiSelect } from '@/components/chip-multi-select';
+import { useConfirm } from '@/components/confirm-dialog';
 import { EmptyNote } from '@/components/empty-note';
 import { InfoHint } from '@/components/info-hint';
 import {
@@ -133,6 +134,7 @@ export default function AttendanceIssues({
     const [reason, setReason] = useState('');
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [filtersOpen, setFiltersOpen] = useState(false);
+    const { askReason, dialog } = useConfirm();
 
     const go = (changes: Partial<Props['filters']>) => {
         const next = { ...filters, ...changes };
@@ -190,12 +192,17 @@ export default function AttendanceIssues({
         );
     };
 
-    const reopenIssue = (issue: Issue) => {
-        const why = window.prompt(
-            `Alasan membuka kembali "${issue.typeLabel}" ${issue.name} (${issue.date})?`,
-        );
+    const reopenIssue = async (issue: Issue) => {
+        const why = await askReason({
+            title: `Buka kembali "${issue.typeLabel}"?`,
+            description: `${issue.name} · ${issue.date}`,
+            reasonLabel: 'Alasan',
+            minReasonLength: 5,
+            confirmLabel: 'Buka kembali',
+            icon: RotateCcw,
+        });
 
-        if (why === null || why.trim().length < 5) {
+        if (why === null) {
             return;
         }
 
@@ -260,6 +267,7 @@ export default function AttendanceIssues({
     return (
         <>
             <Head title="Masalah absensi" />
+            {dialog}
 
             <div className="flex flex-col gap-4 p-4">
                 {capture.state !== 'current' && (

@@ -22,6 +22,7 @@ use App\Support\Attendance\EmployeeTimesheet;
 use App\Support\CsvDownload;
 use App\Support\Employees\EmployeeFormOptions;
 use App\Support\Employees\EmployeeSheet;
+use App\Support\Employees\SensitiveFields;
 use App\Support\Employees\TeamSlice;
 use App\Support\Features;
 use App\Support\Files\InlineImage;
@@ -228,7 +229,7 @@ class EmployeeController extends Controller
         $user = $request->user();
 
         return [
-            'employee' => $this->detail($employee, $this->maySeeSensitive($user, $employee)),
+            'employee' => $this->detail($employee, $this->maySeeSensitive($user, $employee), mask: true),
             'documents' => $this->documentsFor($user, $employee),
             'requests' => LeaveRequest::query()
                 ->where('employee_id', $employee->id)
@@ -398,9 +399,9 @@ class EmployeeController extends Controller
      *
      * @return array<string, mixed>
      */
-    private function detail(Employee $employee, bool $includeSensitive = true): array
+    private function detail(Employee $employee, bool $includeSensitive = true, bool $mask = false): array
     {
-        return [
+        $detail = [
             ...$this->summarise($employee),
             'companyCode' => $employee->company?->code,
             'branchId' => $employee->branch_id,
@@ -442,6 +443,9 @@ class EmployeeController extends Controller
                 'pay_group', 'base_salary_idr', 'allowances_idr', 'overtime_rate_idr',
             ]) : null,
         ];
+
+        // Reading the profile carries masks, and the edit form the real values it has to change (see SensitiveFields).
+        return $mask ? SensitiveFields::maskDetail($detail) : [...$detail, 'masked' => []];
     }
 
     /**
@@ -479,8 +483,7 @@ class EmployeeController extends Controller
      */
     private function maySeeSensitive(User $user, Employee $employee): bool
     {
-        return $user->can(Permission::ViewSensitiveData->value)
-            || ($employee->user_id !== null && $employee->user_id === $user->id);
+        return $user->can('viewSensitive', $employee);
     }
 
     /**

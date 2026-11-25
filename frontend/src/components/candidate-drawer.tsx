@@ -27,6 +27,7 @@ import {
     Evaluations,
     myEvaluation,
 } from '@/components/candidate-evaluations';
+import { useConfirm } from '@/components/confirm-dialog';
 import { DecisionDialog } from '@/components/decision-dialog';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import { FileLink, useFilePreview } from '@/components/file-preview';
@@ -312,6 +313,7 @@ function DrawerBody({
     onTab: (tab: CandidateTab) => void;
     onInvite?: (candidate: Candidate) => void;
 }) {
+    const { confirm, dialog } = useConfirm();
     const [removing, setRemoving] = useState(false);
     const [restoring, setRestoring] = useState(false);
     const [choosing, setChoosing] = useState(false);
@@ -323,6 +325,7 @@ function DrawerBody({
 
     return (
         <>
+            {dialog}
             <div className="flex items-start gap-4 border-b p-4 pr-12">
                 <EmployeeAvatar
                     name={candidate.name}
@@ -518,12 +521,17 @@ function DrawerBody({
                             variant="outline"
                             className="text-destructive"
                             disabled={removing}
-                            onClick={() => {
-                                if (
-                                    window.confirm(
-                                        `Hapus ${candidate.name} dari proses rekrutmen ini? Datanya dan CV-nya dihapus, dan tautan formulir yang sudah dikirim tidak bisa dibuka lagi. Ini tidak bisa diurungkan.`,
-                                    )
-                                ) {
+                            onClick={async () => {
+                                const confirmed = await confirm({
+                                    title: `Hapus ${candidate.name} dari ${item.reference}?`,
+                                    description:
+                                        'Datanya dan CV-nya dihapus, dan tautan formulir yang sudah dikirim tidak bisa dibuka lagi. Ini tidak bisa diurungkan.',
+                                    confirmLabel: 'Hapus kandidat',
+                                    destructive: true,
+                                    requireText: candidate.name,
+                                });
+
+                                if (confirmed) {
                                     router.delete(
                                         destroy.url({
                                             requisition: item.id,
@@ -927,16 +935,22 @@ function InterviewSection({
     const [resending, setResending] = useState(false);
     const [renewing, setRenewing] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const { confirm, dialog } = useConfirm();
     const canManage =
         onInvite !== undefined &&
         item.canManageInterview &&
         !candidate.isRejected;
 
     // The old link stops working, and the candidate may be holding it: ask first.
-    const renewLink = () => {
-        if (
-            !window.confirm('Buat tautan baru? Tautan lama tidak berlaku lagi.')
-        ) {
+    const renewLink = async () => {
+        const confirmed = await confirm({
+            title: `Buat tautan formulir baru untuk ${candidate.name}?`,
+            description: 'Tautan lama tidak berlaku lagi.',
+            confirmLabel: 'Buat tautan baru',
+            icon: RefreshCw,
+        });
+
+        if (!confirmed) {
             return;
         }
 
@@ -959,14 +973,18 @@ function InterviewSection({
             candidate.inviteState === 'expired');
 
     // Clears the schedule (and, on Google Calendar, deletes the event and lets Google tell the candidate).
-    const deleteSchedule = () => {
-        if (
-            !window.confirm(
+    const deleteSchedule = async () => {
+        const confirmed = await confirm({
+            title: `Hapus jadwal ${candidate.name}?`,
+            description:
                 candidate.googleEvent && !candidate.googleMissing
-                    ? `Hapus jadwal ${candidate.name}? Acaranya dihapus di Google Calendar dan Google memberi tahu kandidat.`
-                    : `Hapus jadwal ${candidate.name}? Kandidat tetap di daftar, tetapi tanpa jadwal. Kabari kandidat sendiri.`,
-            )
-        ) {
+                    ? 'Acaranya dihapus di Google Calendar dan Google memberi tahu kandidat.'
+                    : 'Kandidat tetap di daftar, tetapi tanpa jadwal. Kabari kandidat sendiri.',
+            confirmLabel: 'Hapus jadwal',
+            destructive: true,
+        });
+
+        if (!confirmed) {
             return;
         }
 
@@ -1012,6 +1030,7 @@ function InterviewSection({
 
     return (
         <div className="flex flex-col gap-5" data-test="candidate-interview">
+            {dialog}
             <section className="overflow-hidden rounded-2xl border">
                 <div className="space-y-3 p-4">
                     <div className="flex items-center justify-between gap-3">

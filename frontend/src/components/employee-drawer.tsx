@@ -1,10 +1,16 @@
 import { Link } from '@inertiajs/react';
 import { Plus } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import { EmployeeTeamTab } from '@/components/employee-team';
 import { useFilePreview } from '@/components/file-preview';
 import { LeaveRequestDetail } from '@/components/leave-request-detail';
+import {
+    MaskedValue,
+    revealTarget,
+    type RevealTarget,
+} from '@/components/masked-value';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -49,16 +55,36 @@ const TABS = [
 
 type TabKey = (typeof TABS)[number]['key'];
 
-function Field({ label, value }: { label: string; value: unknown }) {
+/** One labelled value. With `reveal`, `value` is a mask the server sent and the person can ask to see the real one. */
+function Field({
+    label,
+    value,
+    reveal,
+}: {
+    label: string;
+    value: ReactNode;
+    reveal?: RevealTarget;
+}) {
     const display =
         value === null || value === undefined || value === '' ? '—' : value;
 
     return (
         <div className="grid grid-cols-[9rem_1fr] gap-2 border-t py-2 text-sm">
             <dt className="label-mono pt-0.5">{label}</dt>
-            <dd className="font-medium break-words">{display as string}</dd>
+            <dd className="font-medium break-words">
+                {reveal && typeof value === 'string' ? (
+                    <MaskedValue masked={value} target={reveal} />
+                ) : (
+                    display
+                )}
+            </dd>
         </div>
     );
+}
+
+/** A value that may be masked, as a piece of a longer line (the bank and its account number). */
+function Piece({ value, reveal }: { value: string; reveal?: RevealTarget }) {
+    return reveal ? <MaskedValue masked={value} target={reveal} /> : value;
 }
 
 /**
@@ -291,27 +317,71 @@ function ProfileTab({ data }: { data: Summary }) {
             <dl>
                 <Field label="Atasan" value={employee.manager} />
                 <Field label="Email" value={employee.contact.email} />
-                <Field label="Telepon" value={employee.contact.phone} />
+                <Field
+                    label="Telepon"
+                    value={employee.contact.phone}
+                    reveal={revealTarget(employee, 'phone', 'telepon')}
+                />
                 <Field label="Alamat" value={employee.contact.address} />
-                <Field label="NIK" value={employee.contact.national_id} />
+                <Field
+                    label="NIK"
+                    value={employee.contact.national_id}
+                    reveal={revealTarget(employee, 'national_id', 'NIK')}
+                />
                 <Field
                     label="Kontak darurat"
-                    value={[
-                        employee.contact.emergency_contact_name,
-                        employee.contact.emergency_contact_phone,
-                    ]
-                        .filter(Boolean)
-                        .join(' · ')}
+                    value={
+                        employee.contact.emergency_contact_name ||
+                        employee.contact.emergency_contact_phone ? (
+                            <>
+                                {employee.contact.emergency_contact_name}
+                                {employee.contact.emergency_contact_name &&
+                                    employee.contact.emergency_contact_phone &&
+                                    ' · '}
+                                {employee.contact.emergency_contact_phone && (
+                                    <Piece
+                                        value={
+                                            employee.contact
+                                                .emergency_contact_phone
+                                        }
+                                        reveal={revealTarget(
+                                            employee,
+                                            'emergency_contact_phone',
+                                            'telepon kontak darurat',
+                                        )}
+                                    />
+                                )}
+                            </>
+                        ) : null
+                    }
                 />
                 {employee.bank && (
                     <Field
                         label="Bank"
-                        value={[
-                            employee.bank.bank_name,
-                            employee.bank.bank_account_number,
-                        ]
-                            .filter(Boolean)
-                            .join(' · ')}
+                        value={
+                            employee.bank.bank_name ||
+                            employee.bank.bank_account_number ? (
+                                <>
+                                    {employee.bank.bank_name}
+                                    {employee.bank.bank_name &&
+                                        employee.bank.bank_account_number &&
+                                        ' · '}
+                                    {employee.bank.bank_account_number && (
+                                        <Piece
+                                            value={
+                                                employee.bank
+                                                    .bank_account_number
+                                            }
+                                            reveal={revealTarget(
+                                                employee,
+                                                'bank_account_number',
+                                                'nomor rekening',
+                                            )}
+                                        />
+                                    )}
+                                </>
+                            ) : null
+                        }
                     />
                 )}
                 {employee.coverage && (
@@ -319,10 +389,20 @@ function ProfileTab({ data }: { data: Summary }) {
                         <Field
                             label="BPJS Ketenagakerjaan"
                             value={employee.coverage.bpjs_employment_number}
+                            reveal={revealTarget(
+                                employee,
+                                'bpjs_employment_number',
+                                'BPJS Ketenagakerjaan',
+                            )}
                         />
                         <Field
                             label="BPJS Kesehatan"
                             value={employee.coverage.bpjs_health_number}
+                            reveal={revealTarget(
+                                employee,
+                                'bpjs_health_number',
+                                'BPJS Kesehatan',
+                            )}
                         />
                     </>
                 )}
