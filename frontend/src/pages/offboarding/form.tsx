@@ -691,7 +691,7 @@ export default function OffboardingForm({
                                         className="size-4"
                                         aria-hidden
                                     />
-                                    Lanjut ke review
+                                    Review
                                 </Button>
                             </div>
 

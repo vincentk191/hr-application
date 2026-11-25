@@ -142,14 +142,14 @@ export default function RecruitmentIndex({
                                     className="size-4 shrink-0"
                                     aria-hidden
                                 />
-                                Ekspor CSV
+                                CSV
                             </a>
                         </Button>
                         {canCreate && (
                             <Button asChild data-test="new-requisition">
                                 <Link href={create().url}>
                                     <Plus className="size-4" aria-hidden />
-                                    Ajukan Lowongan
+                                    Lowongan
                                 </Link>
                             </Button>
                         )}

@@ -413,7 +413,7 @@ export default function EmployeeShow({
                         <Button asChild variant="outline">
                             <Link href={requestChange(employee.id).url}>
                                 <Send className="size-4 shrink-0" aria-hidden />
-                                Ajukan perubahan data
+                                Perubahan data
                             </Link>
                         </Button>
                     )}

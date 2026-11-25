@@ -144,7 +144,7 @@ function ScanRow({
                                 disabled={processing}
                             >
                                 <Ban className="size-4" aria-hidden />
-                                Batalkan scan
+                                Scan
                             </Button>
                         </>
                     )}

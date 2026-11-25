@@ -188,7 +188,7 @@ function Shortlist({ item, list }: { item: Requisition; list: Candidate[] }) {
                             trigger={
                                 <Button size="sm">
                                     <Plus className="size-4" aria-hidden />
-                                    Tambah kandidat
+                                    Kandidat
                                 </Button>
                             }
                         />
@@ -534,7 +534,7 @@ export function ScreeningTab({ item }: { item: Requisition }) {
 }
 
 /**
- * “Tambah kandidat”: the quick-add form in a pop-up opened from the button at the top of the requisition page, so it is
+ * “Kandidat”: the quick-add form in a pop-up opened from the button at the top of the requisition page, so it is
  * in reach from every tab and every stage that keeps screening open. It stays open after each save, ready for the next
  * candidate; the cross closes it.
  */

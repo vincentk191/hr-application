@@ -381,8 +381,7 @@ export default function OffboardingShow({
                   {
                       key: 'last-day',
                       icon: RefreshCw,
-                      label: 'Ubah hari terakhir',
-                      short: 'Hari terakhir',
+                      label: 'Hari terakhir',
                       rank: 5,
                       render: (label: ReactNode, className?: string) => (
                           <LastDayDialog
@@ -399,8 +398,7 @@ export default function OffboardingShow({
                   {
                       key: 'cancel',
                       icon: Ban,
-                      label: 'Batalkan kasus',
-                      short: 'Batalkan',
+                      label: 'Kasus',
                       rank: 6,
                       render: (label: ReactNode, className?: string) => (
                           <DecisionDialog
@@ -500,8 +498,7 @@ export default function OffboardingShow({
                   {
                       key: 'approve-checklist',
                       icon: Check,
-                      label: 'Setujui checklist',
-                      short: 'Setujui',
+                      label: 'Checklist',
                       rank: 1,
                       render: (label: ReactNode, className?: string) => (
                           <Button
@@ -526,8 +523,7 @@ export default function OffboardingShow({
                   {
                       key: 'proceed',
                       icon: ArrowRight,
-                      label: 'Lanjut ke sign-off',
-                      short: 'Lanjut',
+                      label: 'Sign-off',
                       rank: 1,
                       render: (label: ReactNode, className?: string) => (
                           <Button

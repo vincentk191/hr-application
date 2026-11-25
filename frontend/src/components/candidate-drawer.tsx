@@ -440,10 +440,7 @@ function DrawerBody({
                             data-test="edit-evaluation"
                         >
                             <Pencil className="size-4" aria-hidden />
-                            <span className="sm:hidden">Ubah</span>
-                            <span className="hidden sm:inline">
-                                Ubah penilaian
-                            </span>
+                            Penilaian
                         </Button>
                     )}
                     {candidate.canReject && (
@@ -1143,7 +1140,7 @@ function InterviewSection({
                                 data-test="delete-schedule"
                             >
                                 <Trash2 className="size-4" aria-hidden />
-                                Hapus jadwal
+                                Jadwal
                             </Button>
                         )}
                         {candidate.canRenewFormLink && (

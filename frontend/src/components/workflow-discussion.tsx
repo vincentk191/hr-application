@@ -231,7 +231,7 @@ export function WorkflowDiscussion({
                                         data-test="discussion-send"
                                     >
                                         <Send className="size-4" aria-hidden />
-                                        Kirim komentar
+                                        Komentar
                                     </Button>
                                 </div>
                             </>

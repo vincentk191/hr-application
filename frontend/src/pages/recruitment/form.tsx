@@ -1115,7 +1115,11 @@ export default function RequisitionForm({
                                         onClick={() => goTo(2)}
                                         data-test="next-step"
                                     >
-                                        Lanjut ke detail →
+                                        <ArrowRight
+                                            className="size-4"
+                                            aria-hidden
+                                        />
+                                        Detail
                                     </Button>
                                 </div>
                             </div>
@@ -1242,7 +1246,7 @@ export default function RequisitionForm({
                                                     className="size-4"
                                                     aria-hidden
                                                 />
-                                                Tambah subjudul
+                                                Subjudul
                                             </Button>
                                         </div>
                                         <InputError

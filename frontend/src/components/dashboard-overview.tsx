@@ -98,7 +98,7 @@ export function OverviewHeader({
                 <Button asChild className="hidden md:inline-flex" size="lg">
                     <Link href={create()}>
                         <Plus className="size-4" />
-                        Ajukan pengajuan
+                        Pengajuan
                     </Link>
                 </Button>
             )}

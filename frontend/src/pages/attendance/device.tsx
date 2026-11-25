@@ -269,7 +269,7 @@ function UploadCard({
                     <div className="sm:col-span-2">
                         <Button type="submit" disabled={processing}>
                             <Upload className="size-4" aria-hidden />
-                            Impor laporan
+                            Laporan
                         </Button>
                     </div>
                 </>
@@ -698,7 +698,7 @@ function AddMapCard({
                     <div>
                         <Button type="submit" disabled={processing}>
                             <Save className="size-4" aria-hidden />
-                            Simpan pemetaan
+                            Pemetaan
                         </Button>
                     </div>
                 </>

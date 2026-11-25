@@ -393,7 +393,7 @@ function DocumentCard({
                             <div className="sm:col-span-2">
                                 <Button type="submit" disabled={processing}>
                                     <Upload className="size-4" aria-hidden />
-                                    Unggah versi baru
+                                    Versi baru
                                 </Button>
                             </div>
                         </>
@@ -490,7 +490,7 @@ export function EmployeeDocuments({
                             <div className="sm:col-span-2">
                                 <Button type="submit" disabled={processing}>
                                     <Upload className="size-4" aria-hidden />
-                                    Unggah dokumen
+                                    Dokumen
                                 </Button>
                             </div>
                         </>

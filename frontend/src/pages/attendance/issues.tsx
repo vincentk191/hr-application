@@ -212,7 +212,7 @@ export default function AttendanceIssues({
                             })}
                         >
                             <Plus className="size-4" aria-hidden />
-                            Buat pengajuan
+                            Pengajuan
                         </Link>
                     </Button>
                 )}

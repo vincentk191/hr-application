@@ -389,8 +389,7 @@ export default function RequisitionShow({
                   {
                       key: 'advance',
                       icon: ArrowRight,
-                      label: 'Lanjut ke Posting',
-                      short: 'Lanjut',
+                      label: 'Posting',
                       rank: item.advanceBlockers.length === 0 ? 1 : 3,
                       render: (label: ReactNode, className?: string) => (
                           <Button
@@ -419,8 +418,7 @@ export default function RequisitionShow({
                   {
                       key: 'screening',
                       icon: ArrowRight,
-                      label: 'Lanjut ke Screening',
-                      short: 'Lanjut',
+                      label: 'Screening',
                       rank: item.screeningBlockers.length === 0 ? 1 : 3,
                       render: (label: ReactNode, className?: string) => (
                           <Button
@@ -449,8 +447,7 @@ export default function RequisitionShow({
                   {
                       key: 'interview',
                       icon: ArrowRight,
-                      label: 'Lanjut ke Interview',
-                      short: 'Lanjut',
+                      label: 'Interview',
                       rank: item.interviewBlockers.length === 0 ? 1 : 3,
                       render: (label: ReactNode, className?: string) => (
                           <Button
@@ -479,8 +476,7 @@ export default function RequisitionShow({
                   {
                       key: 'offer',
                       icon: ArrowRight,
-                      label: 'Lanjut ke Penawaran',
-                      short: 'Lanjut',
+                      label: 'Penawaran',
                       rank: item.offerBlockers.length === 0 ? 1 : 3,
                       render: (label: ReactNode, className?: string) => (
                           <Button
@@ -603,8 +599,7 @@ export default function RequisitionShow({
                   {
                       key: 'add-candidate',
                       icon: Plus,
-                      label: 'Tambah kandidat',
-                      short: 'Tambah',
+                      label: 'Kandidat',
                       rank: 2,
                       render: (label: ReactNode, className?: string) => (
                           <AddCandidateDialog
@@ -628,8 +623,7 @@ export default function RequisitionShow({
                   {
                       key: 'superior',
                       icon: Replace,
-                      label: 'Ganti atasan',
-                      short: 'Atasan',
+                      label: 'Atasan',
                       rank: 4,
                       render: (label: ReactNode, className?: string) => (
                           <DecisionDialog
@@ -697,8 +691,7 @@ export default function RequisitionShow({
                   {
                       key: 'cancel',
                       icon: Ban,
-                      label: 'Batalkan lowongan',
-                      short: 'Batalkan',
+                      label: 'Lowongan',
                       rank: 5,
                       render: (label: ReactNode, className?: string) => (
                           <DecisionDialog

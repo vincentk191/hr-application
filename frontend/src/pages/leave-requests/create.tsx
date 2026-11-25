@@ -244,7 +244,7 @@ export default function LeaveRequestCreate({
                             <div className="flex gap-2">
                                 <Button type="submit" disabled={processing}>
                                     <Send className="size-4" aria-hidden />
-                                    Kirim pengajuan
+                                    Pengajuan
                                 </Button>
                             </div>
                         </>
