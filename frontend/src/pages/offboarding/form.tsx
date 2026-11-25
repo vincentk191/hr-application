@@ -90,7 +90,12 @@ export default function OffboardingForm({
 }) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Offboarding', href: index().url },
-        { title: existing ? existing.reference : 'Kasus baru', href: '#' },
+        {
+            title: existing
+                ? `${existing.reference} ${existing.employee.name}`
+                : 'Kasus baru',
+            href: '#',
+        },
     ];
 
     setLayoutProps({ breadcrumbs });
@@ -129,12 +134,7 @@ export default function OffboardingForm({
 
             <div className="w-full max-w-5xl space-y-5 p-4 max-md:pb-32">
                 <header>
-                    <div className="flex items-start justify-between gap-3">
-                        <h1 className="text-2xl font-extrabold tracking-tight">
-                            {existing
-                                ? `Draft ${existing.reference} · ${existing.employee.name}`
-                                : 'Kasus offboarding baru'}
-                        </h1>
+                    <div className="flex items-start justify-end gap-3">
                         <PhaseActions
                             actions={[
                                 {

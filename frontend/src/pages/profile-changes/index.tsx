@@ -80,9 +80,6 @@ export default function ProfileChanges({
 
             <div className="flex flex-col gap-4 p-4">
                 <header>
-                    <h1 className="text-2xl font-extrabold tracking-tight">
-                        Perubahan data
-                    </h1>
                     <p className="text-sm text-muted-foreground">
                         {waiting.length === 0
                             ? 'Tidak ada permintaan yang menunggu.'

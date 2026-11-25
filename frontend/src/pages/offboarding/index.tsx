@@ -93,9 +93,6 @@ export default function OffboardingIndex({
             <div className="space-y-5 p-4">
                 <header className="flex flex-wrap items-end justify-between gap-3">
                     <div>
-                        <h1 className="text-2xl font-extrabold tracking-tight">
-                            Offboarding
-                        </h1>
                         <p className="text-sm text-muted-foreground">
                             {summary.open} kasus terbuka
                             {summary.oldestDays !== null

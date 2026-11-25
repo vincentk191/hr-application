@@ -1,5 +1,4 @@
 import { Head } from '@inertiajs/react';
-import Heading from '@/components/heading';
 import { PushNotificationsCard } from '@/components/push-notifications-card';
 import { edit as editNotifications } from '@/routes/notification-settings';
 
@@ -19,10 +18,7 @@ export default function NotificationSettings({
 
             <h1 className="sr-only">Pengaturan notifikasi</h1>
 
-            <div className="space-y-6">
-                <Heading variant="small" title="Notifikasi" />
-                <PushNotificationsCard endpoints={pushEndpoints} />
-            </div>
+            <PushNotificationsCard endpoints={pushEndpoints} />
         </>
     );
 }

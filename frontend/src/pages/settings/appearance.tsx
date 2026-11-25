@@ -1,6 +1,5 @@
 import { Head } from '@inertiajs/react';
 import AppearanceTabs from '@/components/appearance-tabs';
-import Heading from '@/components/heading';
 import { edit as editAppearance } from '@/routes/appearance';
 
 export default function Appearance() {
@@ -10,10 +9,7 @@ export default function Appearance() {
 
             <h1 className="sr-only">Pengaturan tampilan</h1>
 
-            <div className="space-y-6">
-                <Heading variant="small" title="Tampilan" />
-                <AppearanceTabs />
-            </div>
+            <AppearanceTabs />
         </>
     );
 }

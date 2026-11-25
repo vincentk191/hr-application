@@ -605,30 +605,18 @@ export default function RequisitionForm({
                 <header>
                     <div className="flex items-start justify-between gap-3">
                         <div>
-                            <p className="label-mono">
-                                REKRUTMEN ›{' '}
-                                {existing
-                                    ? existing.reference
-                                    : 'PERMINTAAN BARU'}
-                            </p>
-                            <h1 className="text-2xl font-extrabold tracking-tight">
-                                {sent
-                                    ? `Ubah ${existing?.reference} · ${existing?.positionName}`
-                                    : 'Pengajuan Lowongan'}
-                            </h1>
                             <p className="label-mono max-md:hidden">
-                                {existing
-                                    ? `${existing.isDraft ? 'DRAFT ' : ''}${existing.reference}`
-                                    : 'DRAFT'}
-                                {positionName.trim() !== ''
-                                    ? ` · ${positionName.toUpperCase()}`
-                                    : ''}
-                                {author
-                                    ? ` · DIBUAT OLEH ${author.toUpperCase()}`
-                                    : ''}
-                                {sent
-                                    ? ' · SUDAH DIAJUKAN'
-                                    : ' · BELUM DIAJUKAN'}
+                                {[
+                                    !existing || existing.isDraft
+                                        ? 'DRAFT'
+                                        : null,
+                                    author
+                                        ? `DIBUAT OLEH ${author.toUpperCase()}`
+                                        : null,
+                                    sent ? 'SUDAH DIAJUKAN' : 'BELUM DIAJUKAN',
+                                ]
+                                    .filter(Boolean)
+                                    .join(' · ')}
                             </p>
                         </div>
                         <PhaseActions

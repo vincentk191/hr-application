@@ -54,9 +54,6 @@ export default function ProfileChangeRequestPage({
 
             <div className="max-w-2xl space-y-6 p-4">
                 <header>
-                    <h1 className="text-2xl font-extrabold tracking-tight">
-                        Ajukan perubahan data
-                    </h1>
                     <p className="text-sm text-muted-foreground">
                         Ubah data Anda di bawah ini. Data baru berlaku setelah
                         HR menyetujuinya. Jabatan, atasan, gaji, dan data

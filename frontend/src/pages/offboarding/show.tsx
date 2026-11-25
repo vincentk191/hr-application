@@ -566,12 +566,9 @@ export default function OffboardingShow({
             <div className="w-full space-y-5 p-4 max-md:pb-32">
                 <header className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                        <h1 className="text-2xl font-extrabold tracking-tight">
-                            {item.employee.name}
-                        </h1>
                         <p className="label-mono">
-                            {item.reference} · {item.exitType ?? '—'} · hari
-                            terakhir {item.lastWorkingOn ?? '—'}
+                            {item.exitType ?? '—'} · hari terakhir{' '}
+                            {item.lastWorkingOn ?? '—'}
                         </p>
                         <Badge className="mt-2">{item.statusLabel}</Badge>
                     </div>
