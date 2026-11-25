@@ -119,7 +119,7 @@ class HandleInertiaRequests extends Middleware
 
     private function roleLabel(Request $request): ?string
     {
-        $name = $request->user()?->primaryRoleName();
+        $name = $request->user()?->getRoleNames()->first();
 
         return $name === null ? null : (Role::tryFrom($name)?->label() ?? $name);
     }

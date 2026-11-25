@@ -113,7 +113,7 @@ class WorkflowDiscussion
 
     private function roleLabel(User $user): ?string
     {
-        $name = $user->primaryRoleName();
+        $name = $user->getRoleNames()->first();
 
         return $name === null ? null : (Role::tryFrom($name)?->label() ?? $name);
     }

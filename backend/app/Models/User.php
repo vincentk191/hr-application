@@ -223,23 +223,6 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     }
 
     /**
-     * The main role the account is known by: the highest it holds in the Role enum's order, leaving out the add-on accesses
-     * (a Supervisor with Pemohon Rekrutmen is still a Supervisor). An unknown role name is only used when nothing else is held.
-     */
-    public function primaryRoleName(): ?string
-    {
-        $held = $this->getRoleNames();
-
-        foreach (Role::cases() as $role) {
-            if (! $role->isAddOn() && $held->contains($role->value)) {
-                return $role->value;
-            }
-        }
-
-        return $held->first();
-    }
-
-    /**
      * Whether this account holds the given role.
      *
      * Wraps spatie's string-based check so callers pass the Role enum: a typo then becomes a

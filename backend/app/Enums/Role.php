@@ -20,8 +20,6 @@ enum Role: string
     case Management = 'management';
     case Supervisor = 'supervisor';
     case Employee = 'employee';
-    /** An access added to a Supervisor account, not a role of its own (see isAddOn). Keep it after the main roles. */
-    case RecruitmentRequester = 'recruitment-requester';
 
     /**
      * The Indonesian label shown in the dashboard.
@@ -34,34 +32,7 @@ enum Role: string
             self::Management => 'Manajemen',
             self::Supervisor => 'Supervisor',
             self::Employee => 'Karyawan',
-            self::RecruitmentRequester => 'Pemohon Rekrutmen',
         };
-    }
-
-    /**
-     * Whether this is an access given on top of an account's one main role rather than a main role: the account keeps being
-     * a Supervisor and gains the right to raise recruitment requests. The admin panel picks the main role from one list
-     * and these from another.
-     */
-    public function isAddOn(): bool
-    {
-        return match ($this) {
-            self::RecruitmentRequester => true,
-            default => false,
-        };
-    }
-
-    /**
-     * The add-on accesses, by role name.
-     *
-     * @return list<string>
-     */
-    public static function addOnNames(): array
-    {
-        return array_values(array_map(
-            fn (self $role): string => $role->value,
-            array_filter(self::cases(), fn (self $role): bool => $role->isAddOn()),
-        ));
     }
 
     /**
@@ -124,10 +95,6 @@ enum Role: string
             // An employee sees their own record, which policies handle rather than a
             // blanket view permission.
             self::Employee => [],
-            // Only the first step of recruitment: raising a request, which Management and then HR approve.
-            self::RecruitmentRequester => [
-                Permission::RequestRecruitment,
-            ],
         };
     }
 }

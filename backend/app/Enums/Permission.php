@@ -29,7 +29,6 @@ enum Permission: string
     case ManageOffboarding = 'manage-offboarding';
     case ManageRecruitment = 'manage-recruitment';
     case ManageBackups = 'manage-backups';
-    case RequestRecruitment = 'request-recruitment';
 
     /**
      * The Indonesian label shown in the dashboard.
@@ -56,7 +55,6 @@ enum Permission: string
             self::ManageOffboarding => 'Kelola offboarding (membuat dan mengajukan kasus)',
             self::ManageRecruitment => 'Kelola rekrutmen (mengajukan lowongan untuk departemen mana pun, menyetujui sebagai HR)',
             self::ManageBackups => 'Atur pencadangan data (kunci enkripsi, tujuan salinan, masa simpan)',
-            self::RequestRecruitment => 'Ajukan permintaan rekrutmen untuk timnya sendiri (membuat, mengubah, dan mengirimnya untuk disetujui)',
         };
     }
 }
