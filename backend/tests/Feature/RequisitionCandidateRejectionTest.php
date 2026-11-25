@@ -140,7 +140,7 @@ it('schedules the reviewed email for the next morning only for an invited candid
     $quiet = Candidate::factory()->for($requisition)->create(['email' => 'diam@example.com']);
     rejectionInvite($requisition, $invited);
     rejectionInvite($requisition, $quiet);
-    $draft = ['email_subject' => 'Status lamaran â€” Staf Gudang', 'email_body' => "Halo Budi,\n\nTerima kasih."];
+    $draft = ['email_subject' => 'Status lamaran — Staf Gudang', 'email_body' => "Halo Budi,\n\nTerima kasih."];
 
     rejectCandidate($requisition, $quiet)->assertRedirect();
     rejectCandidate($requisition, $never, ['note' => 'Rahasia', 'notify_candidate' => '1', ...$draft])->assertRedirect();
@@ -156,7 +156,7 @@ it('schedules the reviewed email for the next morning only for an invited candid
 
     expect($message->to_email)->toBe('budi@example.com')
         ->and($message->status)->toBe(EmailStatus::Pending)
-        ->and($message->subject)->toBe('Status lamaran â€” Staf Gudang')
+        ->and($message->subject)->toBe('Status lamaran — Staf Gudang')
         ->and($message->body)->not->toContain('Rahasia internal')
         ->and($message->send_at->setTimezone('Asia/Jakarta')->format('Y-m-d H:i'))->toBe('2026-11-05 08:00');
     Queue::assertNotPushed(DeliverEmail::class);

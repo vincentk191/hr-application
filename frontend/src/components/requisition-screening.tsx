@@ -149,35 +149,37 @@ function ShortlistRow({
                     </Badge>
                 )}
             </button>
-            {item.canManageScreening && candidate.canRemove && (
-                <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={async () => {
-                        const confirmed = await confirm({
-                            title: `Hapus ${candidate.name} dari shortlist?`,
-                            description: 'CV-nya ikut dihapus.',
-                            confirmLabel: 'Hapus',
-                            destructive: true,
-                        });
+            {item.stage === 'screening' &&
+                item.canManageScreening &&
+                candidate.canRemove && (
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={async () => {
+                            const confirmed = await confirm({
+                                title: `Hapus ${candidate.name} dari shortlist?`,
+                                description: 'CV-nya ikut dihapus.',
+                                confirmLabel: 'Hapus',
+                                destructive: true,
+                            });
 
-                        if (confirmed) {
-                            router.delete(
-                                destroy.url({
-                                    requisition: item.id,
-                                    candidate: candidate.id,
-                                }),
-                                { preserveScroll: true },
-                            );
-                        }
-                    }}
-                    data-test="candidate-remove"
-                >
-                    <Trash2 className="size-4" aria-hidden />
-                    Hapus
-                </Button>
-            )}
+                            if (confirmed) {
+                                router.delete(
+                                    destroy.url({
+                                        requisition: item.id,
+                                        candidate: candidate.id,
+                                    }),
+                                    { preserveScroll: true },
+                                );
+                            }
+                        }}
+                        data-test="candidate-remove"
+                    >
+                        <Trash2 className="size-4" aria-hidden />
+                        Hapus
+                    </Button>
+                )}
         </li>
     );
 }

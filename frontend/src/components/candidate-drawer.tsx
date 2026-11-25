@@ -51,7 +51,6 @@ import {
 } from '@/components/ui/sheet';
 import {
     calendar as eventFile,
-    destroy,
     formLink,
     invite,
     reject,
@@ -84,7 +83,7 @@ function size(bytes: number | null): string {
 
 function Field({ label, value }: { label: string; value: unknown }) {
     const display =
-        value === null || value === undefined || value === '' ? 'â€”' : value;
+        value === null || value === undefined || value === '' ? '—' : value;
 
     return (
         <div className="grid grid-cols-[9rem_1fr] gap-2 border-t py-2 text-sm">
@@ -199,7 +198,7 @@ function RejectionEmailFields({
                         <span className="font-medium">{draft.to}</span>
                         <span className="text-muted-foreground">
                             {' '}
-                            Â· dikirim {draft.sendAt}
+                            · dikirim {draft.sendAt}
                         </span>
                     </p>
                     <div className="grid gap-1">
@@ -269,7 +268,7 @@ function RejectionEmailStatus({
                 <Mail className="size-4" aria-hidden />
                 Email {email.label.toLowerCase()}
                 {email.at
-                    ? ` Â· ${formatDate(email.at.slice(0, 10))} ${email.at.slice(11).replace(':', '.')}`
+                    ? ` · ${formatDate(email.at.slice(0, 10))} ${email.at.slice(11).replace(':', '.')}`
                     : ''}
                 {email.status === 'failed' && email.error
                     ? `: ${email.error}`
@@ -312,8 +311,6 @@ function DrawerBody({
     onTab: (tab: CandidateTab) => void;
     onInvite?: (candidate: Candidate) => void;
 }) {
-    const { confirm, dialog } = useConfirm();
-    const [removing, setRemoving] = useState(false);
     const [restoring, setRestoring] = useState(false);
     const [choosing, setChoosing] = useState(false);
     // The evaluation form is a panel of its own over this one, opened from the prompt in the Interview tab or from the
@@ -324,7 +321,6 @@ function DrawerBody({
 
     return (
         <>
-            {dialog}
             <div className="flex items-start gap-4 border-b p-4 pr-12">
                 <EmployeeAvatar
                     name={candidate.name}
@@ -341,7 +337,7 @@ function DrawerBody({
                     <p className="text-sm text-muted-foreground">
                         {[item.positionName, item.department]
                             .filter(Boolean)
-                            .join(' Â· ')}
+                            .join(' · ')}
                     </p>
                 </div>
             </div>
@@ -359,10 +355,10 @@ function DrawerBody({
                         <p className="font-semibold">
                             Ditolak
                             {candidate.rejectedOn
-                                ? ` Â· ${formatDate(candidate.rejectedOn)}`
+                                ? ` · ${formatDate(candidate.rejectedOn)}`
                                 : ''}
                             {candidate.rejectedBy
-                                ? ` Â· ${candidate.rejectedBy}`
+                                ? ` · ${candidate.rejectedBy}`
                                 : ''}
                         </p>
                         {candidate.rejectedReason && (
@@ -390,10 +386,10 @@ function DrawerBody({
                     <p className="font-semibold">
                         Dipilih
                         {candidate.selectedOn
-                            ? ` Â· ${formatDate(candidate.selectedOn)}`
+                            ? ` · ${formatDate(candidate.selectedOn)}`
                             : ''}
                         {candidate.selectedBy
-                            ? ` Â· ${candidate.selectedBy}`
+                            ? ` · ${candidate.selectedBy}`
                             : ''}
                     </p>
                 </div>
@@ -457,10 +453,10 @@ function DrawerBody({
                                 candidate: candidate.id,
                             })}
                             decision="reject"
-                            title={`Tolak kandidat â€” ${candidate.name}`}
-                            subtitle={`${item.reference} Â· ${item.positionName}`}
+                            title={`Tolak kandidat — ${candidate.name}`}
+                            subtitle={`${item.reference} · ${item.positionName}`}
                             fieldLabel="Alasan penolakan"
-                            hint="Wajib diisi Â· tidak dikirim ke kandidat"
+                            hint="Wajib diisi · tidak dikirim ke kandidat"
                             required
                             confirmLabel="Tolak"
                             destructive
@@ -512,47 +508,6 @@ function DrawerBody({
                             <RotateCcw className="size-4" aria-hidden />
                             <span className="hidden sm:inline">Pulihkan</span>
                             <span className="sr-only sm:hidden">Pulihkan</span>
-                        </Button>
-                    )}
-                    {candidate.canRemove && (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            className="text-destructive"
-                            disabled={removing}
-                            onClick={async () => {
-                                const confirmed = await confirm({
-                                    title: `Hapus ${candidate.name} dari ${item.reference}?`,
-                                    description:
-                                        'Datanya dan CV-nya dihapus, dan tautan formulir yang sudah dikirim tidak bisa dibuka lagi. Ini tidak bisa diurungkan.',
-                                    confirmLabel: 'Hapus kandidat',
-                                    destructive: true,
-                                    requireText: candidate.name,
-                                });
-
-                                if (confirmed) {
-                                    router.delete(
-                                        destroy.url({
-                                            requisition: item.id,
-                                            candidate: candidate.id,
-                                        }),
-                                        {
-                                            preserveScroll: true,
-                                            onStart: () => setRemoving(true),
-                                            onFinish: () => setRemoving(false),
-                                        },
-                                    );
-                                }
-                            }}
-                            data-test="cancel-candidate"
-                        >
-                            <Trash2 className="size-4" aria-hidden />
-                            <span className="hidden sm:inline">
-                                Hapus kandidat
-                            </span>
-                            <span className="sr-only sm:hidden">
-                                Hapus kandidat
-                            </span>
                         </Button>
                     )}
                 </div>
@@ -677,7 +632,7 @@ function OverviewTab({ candidate }: { candidate: Candidate }) {
                     label="Ditambahkan"
                     value={
                         candidate.addedOn
-                            ? `${formatDate(candidate.addedOn)}${candidate.addedBy ? ` Â· ${candidate.addedBy}` : ''}`
+                            ? `${formatDate(candidate.addedOn)}${candidate.addedBy ? ` · ${candidate.addedBy}` : ''}`
                             : null
                     }
                 />
@@ -771,7 +726,7 @@ function Questionnaire({ candidate }: { candidate: Candidate }) {
                 <p className="label-mono">
                     {form.yes} dari {form.answers.length} YA
                     {candidate.formSubmittedOn
-                        ? ` Â· dikirim ${formatDate(candidate.formSubmittedOn)}`
+                        ? ` · dikirim ${formatDate(candidate.formSubmittedOn)}`
                         : ''}
                 </p>
             </div>
@@ -818,9 +773,7 @@ function Questionnaire({ candidate }: { candidate: Candidate }) {
                 />
             </dl>
             {form.message && (
-                <p className="text-sm whitespace-pre-line">
-                    â€œ{form.message}â€
-                </p>
+                <p className="text-sm whitespace-pre-line">“{form.message}”</p>
             )}
         </section>
     );
@@ -1045,7 +998,7 @@ function InterviewSection({
                                     <Clock className="size-4 text-muted-foreground" />
                                     {String(at.getHours()).padStart(2, '0')}:
                                     {String(at.getMinutes()).padStart(2, '0')}{' '}
-                                    WIB Â· {candidate.interviewMinutes} menit
+                                    WIB · {candidate.interviewMinutes} menit
                                 </span>
                                 <span className="inline-flex min-w-0 items-center gap-1.5">
                                     <MapPin className="size-4 shrink-0 text-muted-foreground" />
@@ -1053,7 +1006,7 @@ function InterviewSection({
                                         {modeLabel(candidate.interviewMode)}
                                         {candidate.interviewPlace && (
                                             <>
-                                                {' Â· '}
+                                                {' · '}
                                                 <LinkifiedText
                                                     text={
                                                         candidate.interviewPlace

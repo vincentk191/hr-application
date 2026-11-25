@@ -230,7 +230,7 @@ function Note({ text }: { text: string | null }) {
 
 /**
  * The signed-in person's own evaluation. Changing it is the "Ubah penilaian" button in the bar at the foot of the
- * candidate's panel, beside Tolak and Hapus kandidat, so it is not repeated here.
+ * candidate's panel, beside Tolak, so it is not repeated here.
  */
 function MyCard({ entry }: { entry: CandidateEvaluation }) {
     return (
