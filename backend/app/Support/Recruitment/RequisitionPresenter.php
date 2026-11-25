@@ -146,6 +146,8 @@ class RequisitionPresenter
             'shortlistedCount' => $requisition->candidates->count(),
             // Personal data: only HR sees who was shortlisted; everyone else sees the counts.
             'shortlist' => $this->shortlist($requisition, $viewer),
+            // What the screening page lists for those who may look but not manage; null for HR, whose `shortlist` is the whole list.
+            'screeningList' => $this->screeningList($requisition, $viewer),
             'sourceOptions' => array_map(fn (CandidateSource $source): array => ['value' => $source->value, 'label' => $source->label()], CandidateSource::cases()),
             'interviewBlockers' => $stage === RequisitionStage::Screening
                 ? $this->engine->blockingReasons($requisition->workflow, RequisitionStage::Interview)
@@ -298,6 +300,40 @@ class RequisitionPresenter
             $viewer->can('sitsInOnAny', $requisition) => $this->candidates($requisition, $viewer, fn (Candidate $candidate): bool => $viewer->can('sitsIn', [$requisition, $candidate])),
             default => null,
         };
+    }
+
+    /**
+     * The whole shortlist for someone who may only look at it: the name, where they came from and when the interview is, and
+     * nothing HR keeps to itself (phone, email, note, the CV, the form answers, the invitation and its link, the evaluations).
+     *
+     * @return list<array<string, mixed>>|null
+     */
+    private function screeningList(Requisition $requisition, User $viewer): ?array
+    {
+        if ($viewer->can('viewCandidates', $requisition) || ! $viewer->can('viewShortlist', $requisition)) {
+            return null;
+        }
+
+        return array_map(
+            fn (array $candidate): array => [
+                ...$candidate,
+                'phone' => null,
+                'email' => null,
+                'note' => null,
+                'cvName' => null,
+                'cvSize' => null,
+                'cvUrl' => null,
+                'cvPreviewUrl' => null,
+                'form' => null,
+                'formSubmittedOn' => null,
+                'invitation' => null,
+                'interviewPlace' => null,
+                'googleResponse' => null,
+                'evaluations' => [],
+                'interviewers' => [],
+            ],
+            $this->candidates($requisition, $viewer, fn (): bool => true),
+        );
     }
 
     /**

@@ -247,7 +247,7 @@ it('keeps screening open once interviews have started, so more candidates can be
     expect($offer->candidates()->count())->toBe(1);
 });
 
-it('keeps the names to HR and gives everyone else the counts', function () {
+it('gives HR the whole shortlist and everyone else the counts', function () {
     $requisition = screeningRequisition();
     $requisition->update(['applicants_count' => 40]);
     shortlist($requisition);
@@ -320,12 +320,40 @@ it('carries on the shortlist everything the candidate drawer shows: contact, CV,
             ->where('requisition.shortlist.0.form.expectedSalary', 4500000));
 });
 
-it('sends the candidate details to HR only, never to the requester or Management', function () {
-    $requisition = screeningRequisition();
-    shortlist($requisition);
+it('lets the requester and Management look at the shortlist, without contact details, CV, forms or evaluations', function () {
+    $requisition = screeningRequisition(RequisitionStage::Interview);
+    shortlist($requisition, ['note' => 'Pernah di gudang']);
+    Candidate::query()->firstOrFail()->forceFill([
+        'cv_path' => 'candidate-cvs/budi.pdf', 'cv_name' => 'budi.pdf', 'cv_size' => 2048,
+        'invited_at' => now(), 'invite_expires_at' => now()->addDay(),
+        'interview_at' => now()->addDay(), 'interview_mode' => 'online', 'interview_place' => 'https://meet.google.com/abc',
+        'form_submitted_at' => now(),
+        'form_data' => ['answers' => [], 'expected_salary' => 4500000, 'available_from' => null, 'message' => null],
+    ])->save();
 
     foreach ([$this->requester, $this->management] as $user) {
         $this->actingAs($user)->get(route('recruitment.show', $requisition))
-            ->assertInertia(fn (Assert $page) => $page->where('requisition.shortlist', null));
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('requisition.shortlist', null)
+                ->where('requisition.screeningList.0.name', 'Budi Santoso')
+                ->where('requisition.screeningList.0.cvName', null)
+                ->where('requisition.screeningList.0.cvUrl', null)
+                ->where('requisition.screeningList.0.phone', null)
+                ->where('requisition.screeningList.0.email', null)
+                ->where('requisition.screeningList.0.note', null)
+                ->where('requisition.screeningList.0.form', null)
+                ->where('requisition.screeningList.0.invitation', null)
+                ->where('requisition.screeningList.0.interviewPlace', null)
+                ->where('requisition.screeningList.0.canRemove', false)
+                ->where('requisition.canManageInterview', false));
     }
+
+    // HR reads its own full list, and has no second one.
+    $this->actingAs($this->hr)->get(route('recruitment.show', $requisition))
+        ->assertInertia(fn (Assert $page) => $page->where('requisition.screeningList', null)->whereNot('requisition.shortlist.0.phone', null));
+
+    // Before Screening there is no shortlist to look at.
+    $posting = screeningRequisition(RequisitionStage::Posting);
+    $this->actingAs($this->requester)->get(route('recruitment.show', $posting))
+        ->assertInertia(fn (Assert $page) => $page->where('requisition.screeningList', null));
 });

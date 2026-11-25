@@ -134,6 +134,17 @@ class RequisitionPolicy
     }
 
     /**
+     * Everyone who may open the requisition (its requester, the department's head, the direct superior, Management) may look
+     * at who was shortlisted, from Screening on: the names and where they came from, without phone, email, note or CV.
+     * HR sees and manages all of it through `viewCandidates`.
+     */
+    public function viewShortlist(User $user, Requisition $requisition): bool
+    {
+        return in_array($requisition->stage(), [RequisitionStage::Screening, RequisitionStage::Interview, RequisitionStage::Offer, RequisitionStage::Filled], true)
+            && $this->view($user, $requisition);
+    }
+
+    /**
      * Entering the applicant total and shortlisting are HR's at 03 Screening, and stay open at 04 Interview and 05 Offer: screening
      * goes on while people are interviewed, and more candidates are needed if everyone interviewed so far falls through
      * (REC-SCR).
@@ -145,12 +156,12 @@ class RequisitionPolicy
     }
 
     /**
-     * Inviting shortlisted candidates to interview is HR's at 04 Interview, and while an offer is open, where
-     * candidates shortlisted late still need inviting (REC-INT).
+     * Inviting shortlisted candidates to interview is HR's from the shortlist at 03 Screening, and at 04 Interview, and while
+     * an offer is open, where candidates shortlisted late still need inviting (REC-INT).
      */
     public function manageInterview(User $user, Requisition $requisition): bool
     {
-        return in_array($requisition->stage(), [RequisitionStage::Interview, RequisitionStage::Offer], true)
+        return in_array($requisition->stage(), [RequisitionStage::Screening, RequisitionStage::Interview, RequisitionStage::Offer], true)
             && $this->viewCandidates($user, $requisition);
     }
 

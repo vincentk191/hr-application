@@ -1,5 +1,5 @@
 import { Form, router } from '@inertiajs/react';
-import { Plus, Save, Trash2, Users, Wand2 } from 'lucide-react';
+import { CalendarDays, Plus, Trash2, Users, Wand2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { CandidateDrawer } from '@/components/candidate-drawer';
@@ -21,105 +21,36 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { parseApplicantText } from '@/lib/applicant-paste';
-import { update as updateApplicants } from '@/routes/recruitment/applicants';
 import { destroy, store } from '@/routes/recruitment/candidates';
-import type { Candidate, Requisition } from '@/types/recruitment';
+import {
+    FormLinkResult,
+    InvitationResult,
+    InviteDialog,
+} from '@/components/requisition-interview';
+import type {
+    Candidate,
+    FormLink,
+    Invitation,
+    Requisition,
+} from '@/types/recruitment';
 
 const selectClasses =
     'border-input bg-card h-10 rounded-xl border px-3 text-sm';
 
-/** The applicant total and how many were shortlisted: the only numbers kept about people who were not. */
-function Counts({ item }: { item: Requisition }) {
-    const { applicantsCount, shortlistedCount } = item;
-    const share =
-        applicantsCount !== null && applicantsCount > 0
-            ? Math.round((shortlistedCount / applicantsCount) * 100)
-            : null;
-
-    return (
-        <section className="surface space-y-4 p-4" data-test="applicant-counts">
-            <div className="grid gap-4 sm:grid-cols-3">
-                <div>
-                    <p className="label-mono">Total pelamar</p>
-                    <p
-                        className="text-3xl font-extrabold"
-                        data-test="applicants-total"
-                    >
-                        {applicantsCount ?? '—'}
-                    </p>
-                </div>
-                <div>
-                    <p className="label-mono">Masuk shortlist</p>
-                    <p
-                        className="text-3xl font-extrabold"
-                        data-test="shortlisted-total"
-                    >
-                        {shortlistedCount}
-                    </p>
-                </div>
-                <div>
-                    <p className="label-mono">Lolos screening</p>
-                    <p className="text-3xl font-extrabold">
-                        {share === null ? '—' : `${share}%`}
-                    </p>
-                </div>
-            </div>
-
-            {item.canManageScreening ? (
-                <Form
-                    {...updateApplicants.form(item.id)}
-                    options={{ preserveScroll: true }}
-                    className="flex flex-wrap items-end gap-2"
-                >
-                    {({ processing, errors }) => (
-                        <>
-                            <div className="grid gap-1">
-                                <Label htmlFor="applicants-count">
-                                    Jumlah pelamar (semua platform)
-                                </Label>
-                                <Input
-                                    id="applicants-count"
-                                    name="applicants_count"
-                                    type="number"
-                                    min={shortlistedCount}
-                                    inputMode="numeric"
-                                    defaultValue={applicantsCount ?? ''}
-                                    className="w-44"
-                                    required
-                                />
-                            </div>
-                            <Button
-                                type="submit"
-                                variant="outline"
-                                disabled={processing}
-                                data-test="save-applicants"
-                            >
-                                <Save className="size-4" aria-hidden />
-                                Simpan
-                            </Button>
-                            <div className="basis-full">
-                                <InputError message={errors.applicants_count} />
-                            </div>
-                        </>
-                    )}
-                </Form>
-            ) : null}
-        </section>
-    );
-}
-
 /**
- * One shortlisted candidate: the name, the platform they came from and, for HR, "Hapus". Clicking the row opens the
- * candidate's drawer, which holds everything else about them.
+ * One shortlisted candidate: the name, the platform they came from and, for HR, "Jadwalkan" and "Hapus". Clicking the
+ * row opens the candidate's drawer, which holds everything else about them.
  */
 function ShortlistRow({
     item,
     candidate,
     onOpen,
+    onSchedule,
 }: {
     item: Requisition;
     candidate: Candidate;
     onOpen: (candidate: Candidate) => void;
+    onSchedule: (candidate: Candidate) => void;
 }) {
     const { confirm, dialog } = useConfirm();
 
@@ -149,37 +80,53 @@ function ShortlistRow({
                     </Badge>
                 )}
             </button>
-            {item.stage === 'screening' &&
-                item.canManageScreening &&
-                candidate.canRemove && (
+            <div className="flex shrink-0 items-center gap-2">
+                {item.canManageInterview && !candidate.isRejected && (
                     <Button
                         type="button"
                         size="sm"
                         variant="outline"
-                        onClick={async () => {
-                            const confirmed = await confirm({
-                                title: `Hapus ${candidate.name} dari shortlist?`,
-                                description: 'CV-nya ikut dihapus.',
-                                confirmLabel: 'Hapus',
-                                destructive: true,
-                            });
-
-                            if (confirmed) {
-                                router.delete(
-                                    destroy.url({
-                                        requisition: item.id,
-                                        candidate: candidate.id,
-                                    }),
-                                    { preserveScroll: true },
-                                );
-                            }
-                        }}
-                        data-test="candidate-remove"
+                        onClick={() => onSchedule(candidate)}
+                        data-test="schedule-candidate"
                     >
-                        <Trash2 className="size-4" aria-hidden />
-                        Hapus
+                        <CalendarDays className="size-4" aria-hidden />
+                        {candidate.interviewAtInput === null
+                            ? 'Jadwalkan'
+                            : 'Jadwalkan ulang'}
                     </Button>
                 )}
+                {item.stage === 'screening' &&
+                    item.canManageScreening &&
+                    candidate.canRemove && (
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={async () => {
+                                const confirmed = await confirm({
+                                    title: `Hapus ${candidate.name} dari shortlist?`,
+                                    description: 'CV-nya ikut dihapus.',
+                                    confirmLabel: 'Hapus',
+                                    destructive: true,
+                                });
+
+                                if (confirmed) {
+                                    router.delete(
+                                        destroy.url({
+                                            requisition: item.id,
+                                            candidate: candidate.id,
+                                        }),
+                                        { preserveScroll: true },
+                                    );
+                                }
+                            }}
+                            data-test="candidate-remove"
+                        >
+                            <Trash2 className="size-4" aria-hidden />
+                            Hapus
+                        </Button>
+                    )}
+            </div>
         </li>
     );
 }
@@ -190,6 +137,26 @@ function Shortlist({ item, list }: { item: Requisition; list: Candidate[] }) {
     const [tab, setTab] = useState<CandidateTab>('overview');
     const viewing =
         list.find((candidate) => candidate.id === viewingId) ?? null;
+    const [inviting, setInviting] = useState<Candidate | null>(null);
+    const [invitation, setInvitation] = useState<Invitation | null>(null);
+    const [formLink, setFormLink] = useState<FormLink | null>(null);
+
+    // The invitation (with its link) comes back once, as flash data on the redirect after sending it.
+    useEffect(() => {
+        return router.on('flash', (event) => {
+            const flash = (event as CustomEvent).detail?.flash as
+                | { invitation?: Invitation; formLink?: FormLink }
+                | undefined;
+
+            if (flash?.invitation) {
+                setInvitation(flash.invitation);
+            }
+
+            if (flash?.formLink) {
+                setFormLink(flash.formLink);
+            }
+        });
+    }, []);
 
     return (
         <section className="surface overflow-hidden" data-test="shortlist">
@@ -207,7 +174,11 @@ function Shortlist({ item, list }: { item: Requisition; list: Candidate[] }) {
                 >
                     <EmptyNote
                         icon={Users}
-                        hint="Saring pelamar di platform, lalu tambahkan yang layak lanjut."
+                        hint={
+                            item.canManageScreening
+                                ? 'Saring pelamar di platform, lalu tambahkan yang layak lanjut.'
+                                : undefined
+                        }
                     >
                         Belum ada kandidat
                     </EmptyNote>
@@ -234,6 +205,7 @@ function Shortlist({ item, list }: { item: Requisition; list: Candidate[] }) {
                                 setTab('overview');
                                 setViewingId(chosen.id);
                             }}
+                            onSchedule={setInviting}
                         />
                     ))}
                 </ul>
@@ -245,7 +217,31 @@ function Shortlist({ item, list }: { item: Requisition; list: Candidate[] }) {
                 tab={tab}
                 onTab={setTab}
                 onClose={() => setViewingId(null)}
+                onInvite={(chosen) => {
+                    setViewingId(null);
+                    setInviting(chosen);
+                }}
             />
+            {inviting && (
+                <InviteDialog
+                    item={item}
+                    candidate={inviting}
+                    availability={item.availability}
+                    onClose={() => setInviting(null)}
+                />
+            )}
+            {invitation && (
+                <InvitationResult
+                    invitation={invitation}
+                    onClose={() => setInvitation(null)}
+                />
+            )}
+            {formLink && (
+                <FormLinkResult
+                    formLink={formLink}
+                    onClose={() => setFormLink(null)}
+                />
+            )}
         </section>
     );
 }
@@ -516,34 +512,22 @@ function QuickAdd({ item }: { item: Requisition }) {
 }
 
 /**
- * Stage 03 · Screening (REC-SCR). Applicants are screened inside the platforms, so HR enters how many applied in total
- * and shortlists the ones worth taking further; applicants who are not shortlisted are never stored.
+ * Stage 03 · Screening (REC-SCR). Applicants are screened inside the platforms, so this is only the shortlist of the ones
+ * worth taking further, each with "Jadwalkan" to invite them to interview; applicants who are not shortlisted are never
+ * stored.
  */
 export function ScreeningTab({ item }: { item: Requisition }) {
+    // HR's list carries everything; for those who may only look, the server sends the same people without contact details.
+    const list = item.screeningList ?? item.shortlist;
+
     return (
         <div className="space-y-5" data-test="screening-tab">
-            {(item.stage === 'interview' || item.stage === 'offer') &&
-                item.canManageScreening && (
-                    <p
-                        className="surface p-4 text-sm text-muted-foreground"
-                        data-test="screening-continues"
-                    >
-                        Lowongan sudah di tahap berikutnya, tetapi screening
-                        tetap terbuka: tambahkan kandidat baru lewat tombol
-                        “Tambah kandidat” di atas kapan saja, misalnya bila
-                        semua yang sudah diinterview tidak lolos atau penawaran
-                        ditolak.
-                    </p>
-                )}
-
-            <Counts item={item} />
-
-            {item.shortlist === null ? (
+            {list === null ? (
                 <p className="surface p-4 text-sm text-muted-foreground">
-                    Daftar kandidat hanya terlihat oleh HR.
+                    Daftar kandidat belum bisa dilihat.
                 </p>
             ) : (
-                <Shortlist item={item} list={item.shortlist} />
+                <Shortlist item={item} list={list} />
             )}
         </div>
     );

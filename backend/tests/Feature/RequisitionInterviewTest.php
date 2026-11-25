@@ -160,20 +160,22 @@ it('checks the time, the format and the place', function () {
     expect($candidate->refresh()->inviteState())->toBe('none');
 });
 
-it('lets only HR invite, and only at Interview or Offer', function () {
+it('lets only HR invite, and only from Screening to Offer', function () {
     $requisition = interviewRequisition();
     $candidate = Candidate::factory()->for($requisition)->create();
 
     invite($requisition, $candidate, as: $this->requester)->assertForbidden();
     invite($requisition, $candidate, as: $this->management)->assertForbidden();
 
-    foreach ([RequisitionStage::Screening, RequisitionStage::Posting, RequisitionStage::Filled] as $stage) {
+    foreach ([RequisitionStage::Posting, RequisitionStage::Filled] as $stage) {
         $other = interviewRequisition($stage);
         invite($other, Candidate::factory()->for($other)->create())->assertForbidden();
     }
 
-    $offer = interviewRequisition(RequisitionStage::Offer);
-    invite($offer, Candidate::factory()->for($offer)->create())->assertSessionDoesntHaveErrors();
+    foreach ([RequisitionStage::Screening, RequisitionStage::Offer] as $stage) {
+        $open = interviewRequisition($stage);
+        invite($open, Candidate::factory()->for($open)->create())->assertSessionDoesntHaveErrors();
+    }
 });
 
 it('refuses a candidate that belongs to another requisition', function () {

@@ -507,6 +507,8 @@ export type Requisition = RequisitionRow & {
     shortlistedCount: number;
     /** The shortlist; null for anyone but HR, who see the counts only. */
     shortlist: Candidate[] | null;
+    /** The whole shortlist without contact details, forms or evaluations, for those who may look but not manage; null for HR. */
+    screeningList: Candidate[] | null;
     sourceOptions: PlatformOption[];
     /** Why "Lanjut ke Interview" is not open yet. */
     interviewBlockers: string[];
