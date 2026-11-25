@@ -51,6 +51,9 @@ return [
     | Attendance deductions (potongan)
     |--------------------------------------------------------------------------
     |
+    | The defaults, used until an administrator saves their own under Potongan absensi in the admin panel (which then
+    | take precedence).
+    |
     | The rate is per day, by the employee's Zona, in rupiah. A day of Alpa or Izin costs the whole
     | rate and a Telat half of it; Sakit costs nothing. A Supervisor, and any rekapitulasi whose
     | Periode is "SETAHUN" (a yearly summary), carry no deduction.

@@ -14,13 +14,12 @@ use Illuminate\Database\Eloquent\Builder;
  * Drafts and cancelled requisitions are left out. Each figure counts people who got that far, whatever happened to them
  * later, so a candidate turned down after the interview is still in Interview.
  *
- * Pelamar is the count HR enters on a requisition (applicants_count); Shortlist is the candidates on its shortlist;
- * Interview those given an interview; Ditawari those whose offer was sent; Terisi those who accepted.
+ * Shortlist is the candidates on a requisition's shortlist; Interview those given an interview; Ditawari those whose offer was sent; Terisi those who accepted.
  */
 class RecruitmentFunnel
 {
     /**
-     * @return array{applicants: int, shortlisted: int, interviewed: int, offered: int, filled: int}
+     * @return array{shortlisted: int, interviewed: int, offered: int, filled: int}
      */
     public function for(User $user): array
     {
@@ -32,7 +31,6 @@ class RecruitmentFunnel
         $ids = (clone $requisitions)->pluck('id');
 
         return [
-            'applicants' => (int) (clone $requisitions)->sum('applicants_count'),
             'shortlisted' => Candidate::query()->whereIn('requisition_id', $ids)->count(),
             'interviewed' => Candidate::query()->whereIn('requisition_id', $ids)->whereNotNull('interview_at')->count(),
             'offered' => $this->offers($ids)->whereNotNull('sent_at')->distinct('candidate_id')->count('candidate_id'),

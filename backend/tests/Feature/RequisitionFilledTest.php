@@ -389,9 +389,8 @@ it('lets HR send a failed welcome email again, and only then', function () {
     expect(welcomeEmails($offer)->sole()->status)->toBe(EmailStatus::Pending);
 });
 
-it('shows the recruitment funnel: applicants, shortlist, interview, offered and filled, counting how far people got', function () {
+it('shows the recruitment funnel: shortlist, interview, offered and filled, counting how far people got', function () {
     $requisition = fillRequisition(quota: 3);
-    $requisition->update(['applicants_count' => 40]);
 
     $hired = fillOffer($requisition, 'Budi');
     fillAccept($requisition, $hired);
@@ -401,11 +400,11 @@ it('shows the recruitment funnel: applicants, shortlist, interview, offered and 
     Candidate::factory()->for($requisition)->create(['name' => 'Dedi']);
 
     // A draft and a cancelled requisition are not in the figures.
-    $draft = Requisition::factory()->create(['company_id' => $this->company->id, 'department_id' => $this->department->id, 'created_by_user_id' => $this->hr->id, 'applicants_count' => 99]);
+    $draft = Requisition::factory()->create(['company_id' => $this->company->id, 'department_id' => $this->department->id, 'created_by_user_id' => $this->hr->id]);
     app(WorkflowEngine::class)->start($draft, new RequisitionWorkflow, [], $this->hr)->update(['current_stage' => RequisitionStage::Draft->value]);
     Candidate::factory()->for($draft)->create();
 
     $funnel = $this->actingAs($this->hr)->get(route('recruitment.index'))->assertOk()->viewData('page')['props']['funnel'];
 
-    expect($funnel)->toBe(['applicants' => 40, 'shortlisted' => 4, 'interviewed' => 3, 'offered' => 2, 'filled' => 1]);
+    expect($funnel)->toBe(['shortlisted' => 4, 'interviewed' => 3, 'offered' => 2, 'filled' => 1]);
 });

@@ -53,7 +53,6 @@ export type RequisitionSummary = {
 
 /** How far the people of the visible requisitions have got: each figure counts everyone who reached that stage. */
 export type RecruitmentFunnel = {
-    applicants: number;
     shortlisted: number;
     interviewed: number;
     offered: number;
@@ -515,8 +514,6 @@ export type Requisition = RequisitionRow & {
     cancelledReason: string | null;
     cancelledAt: string | null;
     cancelledBy: string | null;
-    /** The total number of applicants HR entered; null until then. */
-    applicantsCount: number | null;
     shortlistedCount: number;
     /** The shortlist; null for anyone but HR, who see the counts only. */
     shortlist: Candidate[] | null;

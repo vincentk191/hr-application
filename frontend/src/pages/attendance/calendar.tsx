@@ -245,10 +245,6 @@ function OnLeavePanel({
                     ? `Sedang cuti ${PERIOD[view]} ini`
                     : `Cuti · ${label}`}
             </h3>
-            <p className="text-xs text-muted-foreground">
-                {onLeave.people} orang
-                {isCurrent ? ` · ${label}` : ''}
-            </p>
             {onLeave.entries.length === 0 ? (
                 <p className="mt-2 text-sm text-muted-foreground">
                     Tidak ada yang cuti.
@@ -632,16 +628,6 @@ export default function AttendanceCalendar(props: Props) {
                             entries={entries}
                             onPick={pickStatus}
                             showRequestKey={view === 'day' || view === 'week'}
-                            note={[
-                                summary.expected > 0
-                                    ? `Kehadiran ${Math.round((summary.attended / summary.expected) * 100)}% dari ${summary.expected} hari-orang yang dinilai.`
-                                    : 'Belum ada hari yang dapat dinilai pada rentang ini.',
-                                summary.counts.no_data > 0
-                                    ? `${summary.counts.no_data} hari-orang belum ada datanya.`
-                                    : null,
-                            ]
-                                .filter(Boolean)
-                                .join(' ')}
                         />
 
                         <CalendarEvents

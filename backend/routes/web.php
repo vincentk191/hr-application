@@ -125,7 +125,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('recruitment/{requisition}/postings/{posting}', [RequisitionController::class, 'updatePosting'])->scopeBindings()->name('recruitment.postings.update');
     Route::delete('recruitment/{requisition}/postings/{posting}', [RequisitionController::class, 'destroyPosting'])->scopeBindings()->name('recruitment.postings.destroy');
     Route::post('recruitment/{requisition}/screening', [RequisitionController::class, 'advanceToScreening'])->name('recruitment.screening');
-    Route::put('recruitment/{requisition}/applicants', [RequisitionController::class, 'updateApplicants'])->name('recruitment.applicants.update');
     Route::post('recruitment/{requisition}/candidates', [RequisitionController::class, 'storeCandidate'])->name('recruitment.candidates.store');
     Route::get('recruitment/{requisition}/candidates/export', [RequisitionController::class, 'exportInterviewees'])->name('recruitment.candidates.export');
     Route::delete('recruitment/{requisition}/candidates/{candidate}', [RequisitionController::class, 'destroyCandidate'])->scopeBindings()->name('recruitment.candidates.destroy');

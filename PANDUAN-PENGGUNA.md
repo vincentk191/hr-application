@@ -562,8 +562,7 @@ Semua dilakukan lewat VPN di menu **Rekrutmen**. Urutannya:
    Persetujuan: **Manajemen dulu**, baru **HR**. Pengaju tidak memutuskan lowongannya sendiri (HR lain yang menyetujui bila
    HR yang mengajukan).
 2. **Diposting:** HR memasang lowongan **secara manual** di platform (Glints, JobStreet, dan sebagainya). Aplikasi menyediakan
-   tombol salin judul, deskripsi, dan checklist. Catat "diposting di <platform>" dengan tautan dan tanggalnya, lalu isi
-   **jumlah total pelamar** (satu angka, tanpa data pribadi).
+   tombol salin judul, deskripsi, dan checklist. Catat "diposting di <platform>" dengan tautan dan tanggalnya.
 3. **Screening:** masukkan hanya kandidat yang **di-shortlist**. Isian singkat: nama, telepon, email, sumber (platform,
    Walk-in, atau Referral), CV (opsional), catatan. Aplikasi memperingatkan duplikat telepon atau email. Gunakan **simpan dan
    tambah berikutnya** untuk memasukkan banyak orang.

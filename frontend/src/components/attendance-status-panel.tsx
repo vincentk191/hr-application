@@ -10,13 +10,11 @@ export function StatusPanel({
     heading,
     entries,
     onPick,
-    note,
     showRequestKey,
 }: {
     heading: string;
     entries: StatusEntry[];
     onPick: (key: StatusFilterKey) => void;
-    note: string;
     /** The week and the day draw a dot or pill for a Pengajuan that needs saying what its colour means. */
     showRequestKey: boolean;
 }) {
@@ -66,8 +64,6 @@ export function StatusPanel({
                     </span>
                 </p>
             )}
-
-            <p className="mt-3 text-xs text-muted-foreground">{note}</p>
         </section>
     );
 }

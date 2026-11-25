@@ -15,9 +15,8 @@ use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
 /**
- * Recruitment stage 03, Screening (REC-SCR): screening happens inside the job platforms, so HR enters the total
- * number of applicants and shortlists the candidates worth taking further. Applicants who are not shortlisted are
- * never stored.
+ * Recruitment stage 03, Screening (REC-SCR): screening happens inside the job platforms, so HR only shortlists the
+ * candidates worth taking further. Applicants who are not shortlisted are never stored.
  */
 beforeEach(function () {
     Storage::fake('local');
@@ -68,45 +67,17 @@ function shortlist(Requisition $requisition, array $fields = [], ?User $as = nul
     return test()->actingAs($as ?? test()->hr)->post(route('recruitment.candidates.store', $requisition), candidateFields($fields));
 }
 
-// --- The applicant total ---
+// --- The status line ---
 
-it('lets HR enter the total number of applicants, and shows it with the shortlist', function () {
+it('shows the shortlist size in the status line', function () {
     $requisition = screeningRequisition();
-
-    $this->actingAs($this->hr)->put(route('recruitment.applicants.update', $requisition), ['applicants_count' => 87])->assertRedirect();
     shortlist($requisition)->assertRedirect();
 
     $this->actingAs($this->hr)->get(route('recruitment.show', $requisition))
         ->assertInertia(fn (Assert $page) => $page
-            ->where('requisition.applicantsCount', 87)
             ->where('requisition.shortlistedCount', 1)
-            ->where('requisition.statusLabel', '87 pelamar · 1 shortlist')
+            ->where('requisition.statusLabel', '1 shortlist')
             ->where('requisition.canManageScreening', true));
-});
-
-it('checks the total: a whole number, and never below the shortlist', function () {
-    $requisition = screeningRequisition();
-    shortlist($requisition, ['phone' => '081200000001', 'email' => null]);
-    shortlist($requisition, ['phone' => '081200000002', 'email' => null, 'name' => 'Ani']);
-    $put = fn (mixed $count) => $this->actingAs($this->hr)->put(route('recruitment.applicants.update', $requisition), ['applicants_count' => $count]);
-
-    $put('')->assertSessionHasErrors('applicants_count');
-    $put('abc')->assertSessionHasErrors('applicants_count');
-    $put(-1)->assertSessionHasErrors('applicants_count');
-    $put(1)->assertSessionHasErrors('applicants_count');
-    $put(2)->assertSessionDoesntHaveErrors();
-
-    expect($requisition->refresh()->applicants_count)->toBe(2);
-});
-
-it('raises a total that falls below the shortlist when someone is added', function () {
-    $requisition = screeningRequisition();
-    $requisition->update(['applicants_count' => 1]);
-
-    shortlist($requisition, ['phone' => '081200000001', 'email' => null]);
-    shortlist($requisition, ['phone' => '081200000002', 'email' => null, 'name' => 'Ani']);
-
-    expect($requisition->refresh()->applicants_count)->toBe(2);
 });
 
 // --- Shortlisting ---
@@ -213,7 +184,6 @@ it('lets only HR shortlist, and only from Screening to Offer', function () {
 
     shortlist($requisition, as: $this->requester)->assertForbidden();
     shortlist($requisition, as: $this->management)->assertForbidden();
-    $this->actingAs($this->requester)->put(route('recruitment.applicants.update', $requisition), ['applicants_count' => 5])->assertForbidden();
 
     foreach ([RequisitionStage::Submitted, RequisitionStage::Posting, RequisitionStage::Filled, RequisitionStage::Cancelled] as $stage) {
         shortlist(screeningRequisition($stage))->assertForbidden();
@@ -225,12 +195,10 @@ it('lets only HR shortlist, and only from Screening to Offer', function () {
 it('keeps screening open once interviews have started, so more candidates can be added', function () {
     $requisition = screeningRequisition(RequisitionStage::Interview);
 
-    $this->actingAs($this->hr)->put(route('recruitment.applicants.update', $requisition), ['applicants_count' => 120])->assertRedirect();
     shortlist($requisition)->assertSessionDoesntHaveErrors();
     shortlist($requisition, ['name' => 'Ani', 'phone' => '081200000009', 'email' => null])->assertSessionDoesntHaveErrors();
 
-    expect($requisition->refresh()->applicants_count)->toBe(120)
-        ->and($requisition->candidates()->count())->toBe(2);
+    expect($requisition->candidates()->count())->toBe(2);
 
     $this->actingAs($this->hr)->get(route('recruitment.show', $requisition))
         ->assertInertia(fn (Assert $page) => $page
@@ -249,7 +217,6 @@ it('keeps screening open once interviews have started, so more candidates can be
 
 it('gives HR the whole shortlist and everyone else the counts', function () {
     $requisition = screeningRequisition();
-    $requisition->update(['applicants_count' => 40]);
     shortlist($requisition);
 
     $this->actingAs($this->hr)->get(route('recruitment.show', $requisition))
@@ -259,7 +226,6 @@ it('gives HR the whole shortlist and everyone else the counts', function () {
         $this->actingAs($user)->get(route('recruitment.show', $requisition))
             ->assertInertia(fn (Assert $page) => $page
                 ->where('requisition.shortlist', null)
-                ->where('requisition.applicantsCount', 40)
                 ->where('requisition.shortlistedCount', 1)
                 ->where('requisition.canManageScreening', false));
     }

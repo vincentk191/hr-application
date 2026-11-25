@@ -48,7 +48,6 @@ use Illuminate\Support\Carbon;
  * @property int|null $salary_set_by_user_id
  * @property Carbon|null $submitted_at
  * @property string|null $cancel_reason
- * @property int|null $applicants_count
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -76,7 +75,6 @@ use Illuminate\Support\Carbon;
     'salary_set_by_user_id',
     'submitted_at',
     'cancel_reason',
-    'applicants_count',
 ])]
 class Requisition extends Model
 {
@@ -98,7 +96,6 @@ class Requisition extends Model
             'checklist' => 'array',
             'draft_step' => 'integer',
             'is_urgent' => 'boolean',
-            'applicants_count' => 'integer',
             'salary_min' => 'integer',
             'salary_max' => 'integer',
             'submitted_at' => 'datetime',

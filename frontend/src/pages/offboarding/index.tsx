@@ -90,21 +90,13 @@ export default function OffboardingIndex({
             <Head title="Offboarding" />
 
             <div className="space-y-5 p-4">
-                <header className="flex flex-wrap items-end justify-between gap-3">
-                    <div>
-                        <p className="text-sm text-muted-foreground">
-                            {summary.open} kasus terbuka
-                            {summary.oldestDays !== null
-                                ? ` · terlama ${summary.oldestDays} hari`
-                                : ''}
-                        </p>
-                    </div>
-                    {canCreate && (
+                {canCreate && (
+                    <div className="flex justify-end">
                         <Button asChild data-test="start-case">
                             <Link href={create().url}>Mulai kasus</Link>
                         </Button>
-                    )}
-                </header>
+                    </div>
+                )}
 
                 <section className="grid gap-3 sm:grid-cols-3">
                     {(

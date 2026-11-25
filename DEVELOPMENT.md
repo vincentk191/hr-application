@@ -71,6 +71,16 @@ security pass (Phase 7). What remains is listed in the checklist below. Recruitm
 
 ## Change log (latest first)
 
+- **2026-11-25 (UI trims; Potongan absensi page; no applicant total).** The Absensi calendar's status panel no longer ends
+  with the attendance-percentage note. The total number of applicants (`requisitions.applicants_count`) is gone: the **Pelamar**
+  step of the Rekrutmen funnel, the "N pelamar" part of the Screening status line (now "M shortlist"), the `applicantsCount`
+  prop, the action `SaveApplicantCount`, the route `recruitment.applicants.update`, the sync in `AddCandidate`, and the column
+  (migration `drop_applicants_count_from_requisitions`, which deletes the numbers already entered). The funnel starts at
+  Shortlist. The earlier entries below describe the count as it was. **Potongan absensi** (`ManagePotongan`, Absensi group, gate
+  `manage-attendance-device`): the daily rate per Zona and the exempt jabatan and periods are saved in `app_settings`, with
+  `config/attendance.php` as the default until saved; `PotonganCalculator::settings()` reads them once per instance. Rekap
+  rows already imported keep the amount computed at import.
+
 - **2026-11-17 (scope trimmed; security re-evaluated; documentation only, no code changed).** Dropped after checking each
   use case: the employee app's Sanctum API (approvals already work in the installed app over the VPN), saved drafts, the
   offboarding CSV export (`OFF-DSH-009`) and closing timeline (`OFF-PIP-007`); frontend text stays in the components

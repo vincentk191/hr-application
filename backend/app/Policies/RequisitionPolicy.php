@@ -145,7 +145,7 @@ class RequisitionPolicy
     }
 
     /**
-     * Entering the applicant total and shortlisting are HR's at 03 Screening, and stay open at 04 Interview and 05 Offer: screening
+     * Shortlisting is HR's at 03 Screening, and stay open at 04 Interview and 05 Offer: screening
      * goes on while people are interviewed, and more candidates are needed if everyone interviewed so far falls through
      * (REC-SCR).
      */

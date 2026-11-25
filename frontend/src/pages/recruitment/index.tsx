@@ -106,7 +106,6 @@ export default function RecruitmentIndex({
     ];
 
     const funnelSteps: [string, number][] = [
-        ['Pelamar', funnel.applicants],
         ['Shortlist', funnel.shortlisted],
         ['Interview', funnel.interviewed],
         ['Ditawari', funnel.offered],
@@ -173,7 +172,7 @@ export default function RecruitmentIndex({
                     data-test="recruitment-funnel"
                 >
                     <h2 className="label-mono">Corong rekrutmen</h2>
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                         {funnelSteps.map(([label, value], position) => {
                             const before =
                                 position > 0 ? funnelSteps[position - 1][1] : 0;

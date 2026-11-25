@@ -142,7 +142,6 @@ class RequisitionPresenter
                 'postedBy' => $posting->postedBy?->name,
                 'takenDownOn' => $posting->taken_down_at?->copy()->setTimezone((string) config('attendance.device_timezone'))->toDateString(),
             ])->values()->all(),
-            'applicantsCount' => $requisition->applicants_count,
             'shortlistedCount' => $requisition->candidates->count(),
             // Personal data: only HR sees who was shortlisted; everyone else sees the counts.
             'shortlist' => $this->shortlist($requisition, $viewer),
@@ -679,7 +678,7 @@ class RequisitionPresenter
             return match ($stage) {
                 RequisitionStage::Draft => $requisition->submitted_at === null ? 'Draft' : 'Dikembalikan ke pemohon',
                 RequisitionStage::Posting => $this->postingStatus($requisition),
-                RequisitionStage::Screening => ($requisition->applicants_count === null ? '—' : $requisition->applicants_count).' pelamar · '.$requisition->candidates->count().' shortlist',
+                RequisitionStage::Screening => $requisition->candidates->count().' shortlist',
                 RequisitionStage::Offer => $this->filledOf($requisition).' dari '.($requisition->quota ?? '—').' diterima',
                 default => $stage->label(),
             };

@@ -18,7 +18,6 @@ use App\Actions\Recruitment\RemoveCandidate;
 use App\Actions\Recruitment\RemovePosting;
 use App\Actions\Recruitment\RenewFormLink;
 use App\Actions\Recruitment\RestoreCandidate;
-use App\Actions\Recruitment\SaveApplicantCount;
 use App\Actions\Recruitment\SaveEvaluation;
 use App\Actions\Recruitment\SavePosting;
 use App\Actions\Recruitment\SaveRequisitionDraft;
@@ -470,25 +469,6 @@ class RequisitionController extends Controller
         }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => "{$requisition->reference()} lanjut ke tahap Screening."]);
-
-        return back();
-    }
-
-    /**
-     * HR enters the total number of applicants, across every platform (REC-SCR). Only the number is kept.
-     */
-    public function updateApplicants(Request $request, Requisition $requisition, SaveApplicantCount $save): RedirectResponse
-    {
-        $this->authorize('manageScreening', $requisition);
-
-        $validated = $request->validate(
-            ['applicants_count' => ['required', 'integer', 'min:0', 'max:100000']],
-            ['applicants_count.required' => 'Isi jumlah pelamar.', 'applicants_count.integer' => 'Jumlah pelamar harus angka bulat.', 'applicants_count.min' => 'Jumlah pelamar tidak boleh negatif.', 'applicants_count.max' => 'Jumlah pelamar terlalu besar.'],
-        );
-
-        $save->handle($requisition, (int) $validated['applicants_count']);
-
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Jumlah pelamar disimpan.']);
 
         return back();
     }

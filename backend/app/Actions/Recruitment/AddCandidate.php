@@ -52,13 +52,6 @@ class AddCandidate
             'added_by_user_id' => $by->id,
         ]);
 
-        // Everyone shortlisted applied, so a total entered earlier cannot stay below the shortlist.
-        $shortlisted = $requisition->candidates()->count();
-
-        if ($requisition->applicants_count !== null && $requisition->applicants_count < $shortlisted) {
-            $requisition->update(['applicants_count' => $shortlisted]);
-        }
-
         return $candidate;
     }
 
