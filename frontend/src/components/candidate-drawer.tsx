@@ -22,7 +22,11 @@ import {
     X,
 } from 'lucide-react';
 import { useState } from 'react';
-import { candidateOutcome } from '@/components/candidate-outcome';
+import {
+    candidateOutcome,
+    canForward,
+    forwardToManagement,
+} from '@/components/candidate-outcome';
 import { CollapsibleSection } from '@/components/collapsible-section';
 import {
     EvaluationSheet,
@@ -61,11 +65,7 @@ import {
     uninvite,
 } from '@/routes/recruitment/candidates';
 import { show as showEmployee } from '@/routes/employees';
-import {
-    employee as employeeOfOffer,
-    store as proposeOffers,
-} from '@/routes/recruitment/offers';
-import { toast } from 'sonner';
+import { employee as employeeOfOffer } from '@/routes/recruitment/offers';
 import type { Candidate, Requisition } from '@/types/recruitment';
 import { StatusPill } from '@/components/status-pill';
 
@@ -311,11 +311,6 @@ function DrawerBody({
     const declined = ruledOut
         ? offers.filter((offer) => offer.candidateId === candidate.id).at(-1)
         : undefined;
-    const withManagement = offers.some(
-        (offer) =>
-            offer.candidateId === candidate.id &&
-            (offer.isLive || offer.stage === 'accepted'),
-    );
     const interviewActions =
         open &&
         ((onInvite !== undefined && item.canManageInterview) ||
@@ -325,11 +320,7 @@ function DrawerBody({
     const canSelect = open && candidate.canSelect;
     const canUnselect = open && candidate.canUnselect;
     // The Atasan has chosen them: HR puts them to Management from here.
-    const canPropose =
-        open &&
-        candidate.isSelected &&
-        item.canProposeOffers &&
-        !withManagement;
+    const canPropose = open && canForward(candidate, item);
     const hireAction =
         hire !== undefined && (hire.canConvert || hire.employeeId !== null);
     const hasActions =
@@ -513,19 +504,10 @@ function DrawerBody({
                             type="button"
                             disabled={proposing}
                             onClick={() =>
-                                router.post(
-                                    proposeOffers.url(item.id),
-                                    { candidate_ids: [candidate.id] },
-                                    {
-                                        preserveScroll: true,
-                                        onStart: () => setProposing(true),
-                                        onFinish: () => setProposing(false),
-                                        onError: (errors) =>
-                                            toast.error(
-                                                errors.candidate_ids ??
-                                                    'Belum bisa diajukan.',
-                                            ),
-                                    },
+                                forwardToManagement(
+                                    item.id,
+                                    candidate.id,
+                                    setProposing,
                                 )
                             }
                             data-test="propose-offers"

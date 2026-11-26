@@ -1,5 +1,12 @@
+import { router } from '@inertiajs/react';
 import { CircleCheck, CircleX, Hourglass } from 'lucide-react';
-import type { CandidateOffer, Candidate } from '@/types/recruitment';
+import { toast } from 'sonner';
+import { store as storeOffers } from '@/routes/recruitment/offers';
+import type {
+    Candidate,
+    CandidateOffer,
+    Requisition,
+} from '@/types/recruitment';
 
 /** Where someone stands in the process: chosen, still waiting for a decision, or ruled out. */
 export type CandidateOutcome = 'approved' | 'pending' | 'rejected';
@@ -23,6 +30,44 @@ export function candidateOutcome(
     }
 
     return candidate.isSelected ? 'approved' : 'pending';
+}
+
+/**
+ * HR can put the candidate to Management: the Atasan chose them, and no offer holds them yet (live, or accepted). The
+ * server decides again (stage and who may), this only decides whether to offer the button.
+ */
+export function canForward(
+    candidate: Candidate,
+    item: Pick<Requisition, 'canProposeOffers' | 'offers'>,
+): boolean {
+    return (
+        item.canProposeOffers &&
+        candidateOutcome(candidate, item.offers) === 'approved' &&
+        !(item.offers ?? []).some(
+            (offer) =>
+                offer.candidateId === candidate.id &&
+                (offer.isLive || offer.stage === 'accepted'),
+        )
+    );
+}
+
+/** "Ajukan ke Manajemen" for one candidate: the offer is made from the Atasan's choice. */
+export function forwardToManagement(
+    requisitionId: number,
+    candidateId: number,
+    busy?: (value: boolean) => void,
+): void {
+    router.post(
+        storeOffers.url(requisitionId),
+        { candidate_ids: [candidateId] },
+        {
+            preserveScroll: true,
+            onStart: () => busy?.(true),
+            onFinish: () => busy?.(false),
+            onError: (errors) =>
+                toast.error(errors.candidate_ids ?? 'Belum bisa diajukan.'),
+        },
+    );
 }
 
 const OUTCOME = {

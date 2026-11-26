@@ -11,6 +11,7 @@ import {
     MessageSquare,
     Minus,
     Plus,
+    Send,
     User,
     Video,
     X,
@@ -24,8 +25,11 @@ import {
     leadingRecommendations,
 } from '@/components/candidate-evaluations';
 import { CandidateDrawer } from '@/components/candidate-drawer';
+import { IconButton } from '@/components/icon-button';
 import {
     candidateOutcome,
+    canForward,
+    forwardToManagement,
     OutcomeIcon,
     type CandidateOutcome,
 } from '@/components/candidate-outcome';
@@ -837,19 +841,22 @@ function CandidateSummaryRow({
     at,
     now,
     onOpen,
+    onForward,
 }: {
     candidate: Candidate;
     outcome: CandidateOutcome;
     at: Date | null;
     now: Date;
     onOpen: (candidate: Candidate) => void;
+    /** Set for HR when the candidate can be put to Management. */
+    onForward?: () => void;
 }) {
     const evaluators = candidate.evaluations.length;
     const hasComment = candidate.evaluations.some((entry) => entry.note);
 
     return (
         <li
-            className={`relative flex items-center gap-3 rounded-2xl border p-3 transition-[opacity,background-color,border-color] duration-200 ${
+            className={`group relative flex items-center gap-3 rounded-2xl border p-3 transition-[opacity,background-color,border-color] duration-200 ${
                 outcome === 'rejected'
                     ? // Ruled out: greyed and faded; on hover it comes forward but stays a shade darker than the others.
                       'bg-muted/60 opacity-50 grayscale focus-within:bg-muted focus-within:opacity-90 hover:bg-muted hover:opacity-90'
@@ -862,16 +869,31 @@ function CandidateSummaryRow({
         >
             <ScoreRing evaluations={candidate.evaluations} />
             {/* The button's overlay makes the whole card open the drawer; the place button sits above it. */}
-            <button
-                type="button"
-                onClick={() => onOpen(candidate)}
-                className="min-w-0 flex-1 space-y-1 text-left after:absolute after:inset-0 after:rounded-2xl focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring"
-            >
-                <span className="block truncate font-bold">
+            <div className="min-w-0 flex-1 space-y-1">
+                <button
+                    type="button"
+                    onClick={() => onOpen(candidate)}
+                    className="block w-full truncate text-left font-bold after:absolute after:inset-0 after:rounded-2xl focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring"
+                >
                     {candidate.name}
-                </span>
-                <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 font-mono text-sm text-muted-foreground">
-                    {outcome === 'rejected' || (at !== null && at < now) ? (
+                </button>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 font-mono text-sm text-muted-foreground">
+                    {onForward ? (
+                        // HR does not choose, only forwards: the check the Atasan earned gives way to a send icon on hover
+                        // (always the send icon on a touch screen).
+                        <span className="relative inline-flex size-5 items-center justify-center">
+                            <span className="transition-opacity group-focus-within:opacity-0 group-hover:opacity-0 [@media(hover:none)]:opacity-0">
+                                <OutcomeIcon outcome={outcome} />
+                            </span>
+                            <IconButton
+                                icon={Send}
+                                label="Ajukan ke Manajemen"
+                                onClick={onForward}
+                                className="absolute inset-0 z-10 size-full rounded-full opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
+                                data-test="forward-candidate"
+                            />
+                        </span>
+                    ) : outcome === 'rejected' || (at !== null && at < now) ? (
                         <OutcomeIcon outcome={outcome} />
                     ) : at ? (
                         <>
@@ -910,8 +932,8 @@ function CandidateSummaryRow({
                             aria-label="Acara dihapus di Google"
                         />
                     )}
-                </span>
-            </button>
+                </div>
+            </div>
             <div className="relative z-10">
                 <PlaceButton candidate={candidate} />
             </div>
@@ -1504,6 +1526,11 @@ export function InterviewTab({
             at={at}
             now={now}
             onOpen={(chosen) => openDrawer(chosen.id)}
+            onForward={
+                canForward(candidate, item)
+                    ? () => forwardToManagement(item.id, candidate.id)
+                    : undefined
+            }
         />
     );
 

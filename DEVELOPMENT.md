@@ -77,7 +77,9 @@ security pass (Phase 7). What remains is listed in the checklist below. Recruitm
   (disetujui), amber hourglass (menunggu keputusan), red cross (ditolak). A candidate counts as ditolak when HR turned them down
   **or** said no to an offer later (`candidateOutcome` in `components/candidate-outcome.tsx`): the card is greyed, moves to the
   "Ditolak" group and leaves the calendar. A ditolak candidate's panel has no action buttons (so no Pulihkan or Kirim ulang email
-  either); one who declined an offer shows "Menolak penawaran" with the reason at the top.
+  either); one who declined an offer shows "Menolak penawaran" with the reason at the top. HR does not choose, only forwards:
+  on the interview card of a candidate the Atasan chose, HR gets a send icon on hover ("Ajukan ke Manajemen"), the same action
+  as in the panel (`forwardToManagement`).
 
 - **2026-11-26 (candidate panel and signed letter).** The candidate's form ("Formulir Kandidat") moved from Ringkasan to the
   Dokumen tab of the candidate panel. The offer letter the candidate signed and sent back is now also filed on the employee's
