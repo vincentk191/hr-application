@@ -339,7 +339,7 @@ it('shows the interviews a person sits in on in their own view, and no one else\
 });
 
 it('shows HR and Management the day each newcomer starts and the last day of each person leaving', function (Role $role) {
-    $requisition = adminRequisition(RequisitionStage::Offer);
+    $requisition = adminRequisition(RequisitionStage::Filled);
     $offerFor = function (string $name, string $stage, string $startOn) use ($requisition): void {
         $candidate = Candidate::factory()->create(['requisition_id' => $requisition->id, 'name' => $name]);
         $offer = CandidateOffer::factory()->create(['candidate_id' => $candidate->id, 'start_on' => $startOn]);
@@ -480,4 +480,101 @@ it('gives an interview on the calendar the candidate to open over the dashboard'
     $entry = collect(dashboardProps($this->hr, '?calendar=2026-11&scope=me')['adminCalendar']['entries'])->firstWhere('kind', 'interview');
 
     expect($entry['interviewId'])->toBe($sari->id);
+});
+
+// --- Recruitment dates: the day a role is needed, and when each newcomer starts ---
+
+function neededRequisition(string $targetStart, RequisitionStage $stage = RequisitionStage::Posting, ?int $managerId = null, string $position = 'Staf Gudang', ?User $by = null): Requisition
+{
+    $requisition = adminRequisition($stage);
+    $requisition->update(['target_start_on' => $targetStart, 'position_name' => $position, 'manager_employee_id' => $managerId, 'created_by_user_id' => ($by ?? test()->hr)->id]);
+
+    return $requisition->refresh();
+}
+
+function acceptedNewcomer(Requisition $requisition, string $name, string $startOn): void
+{
+    $candidate = Candidate::factory()->create(['requisition_id' => $requisition->id, 'name' => $name]);
+    $offer = CandidateOffer::factory()->create(['candidate_id' => $candidate->id, 'start_on' => $startOn]);
+    app(WorkflowEngine::class)->start($offer, new OfferWorkflow, [], test()->hr)->update(['current_stage' => 'accepted']);
+}
+
+/**
+ * @return list<array<string, mixed>>
+ */
+function calendarKind(User $user, string $kind, string $query = ''): array
+{
+    return collect(dashboardProps($user, '?calendar=2026-11'.$query)['adminCalendar']['entries'])->where('kind', $kind)->values()->all();
+}
+
+it('puts the target start date of each open role on the calendar, with the stage the table shows, for HR and Management', function (Role $role) {
+    $open = neededRequisition('2026-11-16');
+    neededRequisition('2026-11-17', RequisitionStage::Filled, position: 'Terisi');
+    neededRequisition('2026-11-18', RequisitionStage::Draft, position: 'Draft');
+    neededRequisition('2026-11-19', RequisitionStage::Cancelled, position: 'Batal');
+    neededRequisition('2026-12-02', position: 'Bulan depan');
+
+    $viewer = $role === Role::HrAdmin ? $this->hr : adminUser($role, $this->company);
+    $targets = calendarKind($viewer, 'target');
+
+    expect($targets)->toHaveCount(1)
+        ->and($targets[0]['date'])->toBe('2026-11-16')
+        ->and($targets[0]['title'])->toBe('Staf Gudang')
+        ->and($targets[0]['detail'])->toBe($open->reference().' · Diposting')
+        ->and($targets[0]['href'])->toBe(route('recruitment.show', $open, absolute: false));
+})->with([Role::HrAdmin, Role::Management]);
+
+it('shows a filled role as each newcomer with their own start date, and not as a target', function () {
+    $requisition = neededRequisition('2026-11-16', RequisitionStage::Filled);
+    acceptedNewcomer($requisition, 'Dewi', '2026-11-17');
+    acceptedNewcomer($requisition, 'Eko', '2026-11-19');
+
+    $entries = collect(dashboardProps($this->hr, '?calendar=2026-11')['adminCalendar']['entries']);
+
+    expect($entries->where('kind', 'target'))->toBeEmpty()
+        ->and($entries->where('kind', 'start')->map(fn (array $entry): array => [$entry['date'], $entry['title']])->values()->all())->toBe([['2026-11-17', 'Dewi'], ['2026-11-19', 'Eko']]);
+});
+
+it('does not show newcomers while the role is still at Penawaran, only its target date', function () {
+    $requisition = neededRequisition('2026-11-16', RequisitionStage::Offer);
+    acceptedNewcomer($requisition, 'Dewi', '2026-11-17');
+
+    $entries = collect(dashboardProps($this->hr, '?calendar=2026-11')['adminCalendar']['entries']);
+
+    expect($entries->where('kind', 'start'))->toBeEmpty()
+        ->and($entries->where('kind', 'target')->pluck('date')->all())->toBe(['2026-11-16']);
+
+    // Marked Terisi, the same role swaps its target for the newcomer.
+    $requisition->workflow->update(['current_stage' => RequisitionStage::Filled->value]);
+
+    $entries = collect(dashboardProps($this->hr, '?calendar=2026-11')['adminCalendar']['entries']);
+
+    expect($entries->where('kind', 'target'))->toBeEmpty()
+        ->and($entries->where('kind', 'start')->pluck('title')->all())->toBe(['Dewi']);
+});
+
+it('shows them to whoever can see the request in the table, on their own view, and to nobody else', function () {
+    $member = function (string $name): array {
+        $user = adminUser(Role::Supervisor, test()->company);
+
+        return [$user, Employee::factory()->forCompany(test()->company)->create(['user_id' => $user->id, 'full_name' => $name, 'joined_on' => '2020-01-01'])];
+    };
+    [$bossUser, $boss] = $member('Bos');
+    [$requesterUser] = $member('Pemohon');
+    [$strangerUser] = $member('Orang lain');
+
+    neededRequisition('2026-11-16', managerId: $boss->id, by: $requesterUser);
+    $filled = neededRequisition('2026-11-18', RequisitionStage::Filled, managerId: $boss->id, by: $requesterUser, position: 'Sudah terisi');
+    acceptedNewcomer($filled, 'Dewi', '2026-11-19');
+
+    foreach ([$bossUser, $requesterUser] as $person) {
+        expect(calendarKind($person, 'target'))->toHaveCount(1)->and(calendarKind($person, 'start'))->toHaveCount(1);
+    }
+
+    expect(calendarKind($strangerUser, 'target'))->toBe([])->and(calendarKind($strangerUser, 'start'))->toBe([])
+        // HR's own view is about the person, not the plan.
+        ->and(calendarKind($this->hr, 'target', '&scope=me'))->toBe([]);
+
+    $public = $this->withHeaders(['X-Entrance' => 'public'])->actingAs($bossUser)->get('/dashboard?calendar=2026-11')->assertOk()->viewData('page')['props'];
+    expect(collect($public['adminCalendar']['entries'])->whereIn('kind', ['target', 'start']))->toBeEmpty();
 });

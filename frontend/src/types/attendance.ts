@@ -236,14 +236,6 @@ export type LeaveEntry = {
     timeframe: string | null;
 };
 
-/** A role still open whose target start date falls in the range (shown to HR and the direct superior). */
-export type StartDateRow = {
-    id: number;
-    title: string;
-    reference: string;
-    date: string;
-};
-
 export type CalendarEventRow = {
     id: number;
     title: string;

@@ -7,17 +7,14 @@ use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Requisition;
 use App\Models\User;
-use App\Support\Access\Entrance;
-use App\Support\Recruitment\StartDatesOnCalendar;
 use App\Workflows\Definitions\RequisitionWorkflow;
 use App\Workflows\WorkflowEngine;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RoleSeeder;
-use Inertia\Testing\AssertableInertia as Assert;
 
 /**
  * The target start date of a role that is still open: HR and the new hire's direct superior are reminded each morning
- * from a week before it through the day itself, and HR sees it on the calendar. "Now" is 2026-11-09 08:00 in Jakarta.
+ * from a week before it through the day itself. "Now" is 2026-11-09 08:00 in Jakarta.
  */
 beforeEach(function () {
     $this->seed(RoleSeeder::class);
@@ -113,38 +110,4 @@ it('leaves out roles that are filled, cancelled or not yet sent', function () {
     $this->artisan('recruitment:start-reminders')->assertSuccessful();
 
     expect($this->hr->notifications()->count())->toBe(0)->and($this->boss->notifications()->count())->toBe(0);
-});
-
-it('shows the open roles that start in the range to HR on the calendar, and not the rest', function () {
-    $open = startRequisition('2026-11-12');
-    startRequisition('2026-11-12', RequisitionStage::Filled);
-    startRequisition('2026-12-30');
-
-    $this->actingAs($this->hr)->get('/attendance/calendar?view=week&date=2026-11-09')
-        ->assertInertia(fn (Assert $page) => $page
-            ->has('startDates', 1)
-            ->where('startDates.0.id', $open->id)
-            ->where('startDates.0.title', 'Staf Gudang')
-            ->where('startDates.0.date', '2026-11-12')
-            ->where('startDates.0.reference', $open->reference()));
-});
-
-it('shows a start date to the direct superior it names and to nobody else, and never on the public entrance', function () {
-    startRequisition('2026-11-12');
-    $this->boss->givePermissionTo('view-attendance');
-    $this->other->givePermissionTo('view-attendance');
-
-    $this->actingAs($this->boss)->get('/attendance/calendar?view=week&date=2026-11-09')
-        ->assertInertia(fn (Assert $page) => $page->has('startDates', 1));
-
-    $this->actingAs($this->other)->get('/attendance/calendar?view=week&date=2026-11-09')
-        ->assertInertia(fn (Assert $page) => $page->has('startDates', 0));
-
-    $range = [CarbonImmutable::parse('2026-11-09'), CarbonImmutable::parse('2026-11-15')];
-
-    expect(app(StartDatesOnCalendar::class)->for($this->hr, ...$range))->toHaveCount(1);
-
-    app(Entrance::class)->markPublic(true);
-
-    expect(app(StartDatesOnCalendar::class)->for($this->hr, ...$range))->toBe([]);
 });

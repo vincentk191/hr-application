@@ -77,10 +77,15 @@ security pass (Phase 7). What remains is listed in the checklist below. Recruitm
   (`requisitions.target_start_on`) drives reminders: `recruitment:start-reminders` (08:00 company time, `SendRequisitionStartReminders`)
   tells HR (`manage-recruitment`) and the direct superior once a day from 7 days before through the day itself ("Mulai kerja 3
   hari lagi: Posisi", "REQ-0001 · belum terisi"), while the requisition is open (`Requisition::open()`: sent, not filled, not
-  cancelled). `Notifier::requisitionStartNear`, dedupe key `requisition-start:{id}:{day}`. The Kalender page has a "Mulai kerja"
-  panel (`StartDatesOnCalendar`, prop `startDates`) read from the requisitions, **not** a `CalendarEvent`: any calendar event makes
-  its day a non-working day for everyone it covers and is visible company-wide. Only holders of `view-attendance` (HR Admin) can
-  open the page, so a Supervisor does not see it; nothing is shown on the public entrance.
+  cancelled). `Notifier::requisitionStartNear`, dedupe key `requisition-start:{id}:{day}`. On the **dashboard calendar**
+  (`AdminOverview::recruitmentEntries`) each open role is an entry of kind `target` ("Target mulai", amber) on its target start
+  date, titled with the position, with "REQ-0001 · {stage}" (the stage the Rekrutmen table shows) and a link to the request.
+  It is read from the requisitions, **not** a `CalendarEvent`: any calendar event makes its day a non-working day for everyone it
+  covers and is visible company-wide. The audience is everyone who sees the request in the table (`Requisition::visibleTo`): HR
+  and Management on "Lainnya", anyone else (direct superior, department head, requester) on their own "Saya"; nothing on the
+  public entrance. A role in Terisi has no target entry: its accepted candidates are listed by name with their own start dates
+  (kind `start`, one each), now for the same audience instead of HR and Management only. Newcomers appear **only once the
+  request is Terisi**: before that an accepted offer can still fall through, so a role at Penawaran keeps its target entry alone.
 
 - **2026-11-25 (UI trims; Potongan absensi page; no applicant total).** The Absensi calendar's status panel no longer ends
   with the attendance-percentage note. The total number of applicants (`requisitions.applicants_count`) is gone: the **Pelamar**

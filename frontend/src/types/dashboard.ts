@@ -106,7 +106,14 @@ export type AdminWaiting = {
 /** One person, or one event, on one date of the admin calendar. */
 export type AdminCalendarEntry = {
     date: string;
-    kind: 'leave' | 'interview' | 'holiday' | 'event' | 'start' | 'lastday';
+    kind:
+        | 'leave'
+        | 'interview'
+        | 'holiday'
+        | 'event'
+        | 'target'
+        | 'start'
+        | 'lastday';
     title: string;
     detail: string;
     /** "10:00" for an interview. */

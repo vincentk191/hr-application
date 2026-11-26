@@ -151,6 +151,7 @@ const KIND_STYLE: Record<AdminCalendarEntry['kind'], string> = {
         'bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-200',
     holiday: 'bg-muted text-muted-foreground',
     event: 'bg-pending/15 text-pending-text',
+    target: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200',
     start: 'bg-success/15 text-success-text',
     lastday: 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200',
 };
@@ -160,6 +161,7 @@ const KIND_LABEL: Record<AdminCalendarEntry['kind'], string> = {
     interview: 'Interview',
     holiday: 'Libur',
     event: 'Acara',
+    target: 'Target mulai',
     start: 'Mulai kerja',
     lastday: 'Hari terakhir',
 };
@@ -169,8 +171,16 @@ const KINDS_OF_SCOPE: Record<
     AdminCalendar['scope'],
     AdminCalendarEntry['kind'][]
 > = {
-    me: ['leave', 'interview', 'lastday', 'event', 'holiday'],
-    others: ['leave', 'start', 'lastday', 'event', 'holiday'],
+    me: [
+        'leave',
+        'interview',
+        'target',
+        'start',
+        'lastday',
+        'event',
+        'holiday',
+    ],
+    others: ['leave', 'target', 'start', 'lastday', 'event', 'holiday'],
 };
 
 const longDay = new Intl.DateTimeFormat('id-ID', {
@@ -290,6 +300,9 @@ export function AdminCalendarCard({
                     const events = entries.filter(
                         (entry) => entry.kind === 'event',
                     ).length;
+                    const targets = entries.filter(
+                        (entry) => entry.kind === 'target',
+                    ).length;
                     const starts = entries.filter(
                         (entry) => entry.kind === 'start',
                     ).length;
@@ -330,6 +343,9 @@ export function AdminCalendarCard({
                                 {events > 0 && (
                                     <span className="size-1.5 rounded-full bg-pending" />
                                 )}
+                                {targets > 0 && (
+                                    <span className="size-1.5 rounded-full bg-amber-500" />
+                                )}
                                 {starts > 0 && (
                                     <span className="size-1.5 rounded-full bg-success" />
                                 )}
@@ -349,6 +365,13 @@ export function AdminCalendarCard({
                                     className={`hidden rounded px-1 text-xs sm:inline ${KIND_STYLE.interview}`}
                                 >
                                     {interviews} interview
+                                </span>
+                            )}
+                            {targets > 0 && (
+                                <span
+                                    className={`hidden rounded px-1 text-xs sm:inline ${KIND_STYLE.target}`}
+                                >
+                                    {targets} target
                                 </span>
                             )}
                             {starts > 0 && (
@@ -372,10 +395,10 @@ export function AdminCalendarCard({
 
             <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                 {KINDS_OF_SCOPE[data.scope]
-                    // A last day on one's own view is rare: it is listed only when there is one.
+                    // On one's own view a last day, a target date or a newcomer is rare: listed only when there is one.
                     .filter(
                         (kind) =>
-                            kind !== 'lastday' ||
+                            !['lastday', 'target', 'start'].includes(kind) ||
                             !personal ||
                             data.entries.some((entry) => entry.kind === kind),
                     )

@@ -217,8 +217,9 @@ class AdminOverview
      * switch.
      *
      * "Lainnya" is what HR and Management plan around: the leave of everyone else (waiting and approved, on working days),
-     * the day each newcomer from recruitment starts, the last working day of each person leaving, and the holidays and company
-     * events they may see.
+     * the recruitment dates of the requisitions they can see in the Rekrutmen table, the last working day of each person
+     * leaving, and the holidays and company events they may see. Anyone else with such a requisition (its direct superior, a
+     * department head, whoever raised it) has the same recruitment dates on their own view.
      *
      * @param  Employee|null  $own  the person's own employee record, when they have one
      * @param  string|null  $scope  "me" for their own view, anything else for the others'
@@ -242,12 +243,13 @@ class AdminOverview
                 ...$this->events($user, $from, $to, $own),
                 ...($own !== null ? $this->leaveEntries($user, $from, $to, $own->id) : []),
                 ...($public ? [] : $this->interviewEntries($user, $from, $to, $timezone)),
+                ...($public || $runsHr ? [] : $this->recruitmentEntries($user, $from, $to)),
                 ...($own !== null ? $this->lastDayEntries($user, $from, $to, $own->id, null, ! $public) : []),
             ]
             : [
                 ...$this->events($user, $from, $to),
                 ...$this->leaveEntries($user, $from, $to, null, $own?->id),
-                ...$this->startEntries($from, $to),
+                ...($public ? [] : $this->recruitmentEntries($user, $from, $to)),
                 ...$this->lastDayEntries($user, $from, $to, null, $own?->id, true),
             ];
 
@@ -460,14 +462,56 @@ class AdminOverview
     }
 
     /**
-     * The day each newcomer from recruitment starts: candidates who accepted an offer, on the start date HR set in its terms.
+     * Recruitment's dates for the requisitions this person can see in the Rekrutmen table (the same `visibleTo` scope):
+     * the date a role is needed while it is open, and, once it is filled (Terisi), each newcomer's own start date.
      *
      * @return list<array<string, mixed>>
      */
-    private function startEntries(CarbonImmutable $from, CarbonImmutable $to): array
+    private function recruitmentEntries(User $user, CarbonImmutable $from, CarbonImmutable $to): array
+    {
+        return [...$this->targetEntries($user, $from, $to), ...$this->startEntries($user, $from, $to)];
+    }
+
+    /**
+     * The target start date of each role still open (sent, not filled, not cancelled), with the stage the table shows for
+     * it, until the role is Terisi: an accepted offer can still fall through before then, so the role is not assumed filled
+     * and its newcomers are not shown. A role in Terisi has no target entry; it has its newcomers' start dates (startEntries).
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function targetEntries(User $user, CarbonImmutable $from, CarbonImmutable $to): array
+    {
+        return array_values(Requisition::query()->visibleTo($user)->open()
+            ->whereDate('target_start_on', '>=', $from->toDateString())
+            ->whereDate('target_start_on', '<=', $to->toDateString())
+            ->with('workflow')
+            ->get()
+            ->map(fn (Requisition $requisition): array => [
+                'date' => $requisition->target_start_on->toDateString(),
+                'kind' => 'target',
+                'title' => $requisition->position_name,
+                'detail' => $requisition->reference().' · '.$requisition->stage()->label(),
+                'time' => null,
+                'status' => null,
+                'href' => route('recruitment.show', $requisition, absolute: false),
+                'order' => 1,
+            ])
+            ->all());
+    }
+
+    /**
+     * The day each newcomer from recruitment starts: candidates who accepted an offer, on the start date HR set in its
+     * terms, one entry for each when a role has several. Only for requisitions in Terisi that this person can see in the
+     * table; before that the role is still open and shows its target date.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function startEntries(User $user, CarbonImmutable $from, CarbonImmutable $to): array
     {
         return array_values(CandidateOffer::query()
             ->accepted()
+            ->whereHas('requisition', fn (Builder $requisition) => $requisition->visibleTo($user)
+                ->whereHas('workflow', fn (Builder $workflow) => $workflow->where('current_stage', RequisitionStage::Filled->value)))
             ->whereNotNull('start_on')
             ->whereDate('start_on', '>=', $from->toDateString())
             ->whereDate('start_on', '<=', $to->toDateString())

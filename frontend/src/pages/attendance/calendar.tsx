@@ -14,7 +14,6 @@ import {
     statusEntries,
 } from '@/components/attendance-filter-bar';
 import { StatusPanel } from '@/components/attendance-status-panel';
-import { StartDates } from '@/components/start-dates';
 import { WeekGrid } from '@/components/attendance-week-grid';
 import { CalendarEvents } from '@/components/calendar-events';
 import { FilterSection, FilterSheet } from '@/components/filter-sheet';
@@ -52,7 +51,6 @@ import type {
     CalendarEmployeeFigures,
     CalendarEventRow,
     EventFormOptions,
-    StartDateRow,
     CalendarFilters,
     CalendarMonth,
     CalendarRow,
@@ -86,7 +84,6 @@ type Props = {
     };
     events: CalendarEventRow[];
     eventForm: EventFormOptions | null;
-    startDates: StartDateRow[];
     onLeave: { people: number; entries: LeaveEntry[]; more: number };
     filters: CalendarFilters;
     options: {
@@ -306,7 +303,6 @@ export default function AttendanceCalendar(props: Props) {
         canManageAttendance,
         events,
         eventForm,
-        startDates,
     } = props;
 
     const { features } = usePage().props;
@@ -639,8 +635,6 @@ export default function AttendanceCalendar(props: Props) {
                             options={eventForm}
                             defaultDate={anchor}
                         />
-
-                        <StartDates items={startDates} />
 
                         <OnLeavePanel
                             view={view}
