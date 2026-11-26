@@ -997,14 +997,14 @@ function WeekCalendar({
         <section className="surface overflow-hidden" data-test="week-calendar">
             <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
                 <div>
-                    <h2 className="text-lg font-extrabold tracking-tight">
+                    <h2 className="flex items-center gap-2 text-lg font-extrabold tracking-tight">
                         Minggu {weekTitle(weekStart)}
+                        <InfoHint label="Keterangan jadwal">
+                            {canSchedule
+                                ? 'Pilih slot kosong untuk menjadwalkan kandidat yang belum punya jadwal.'
+                                : 'Jadwal interview kandidat minggu ini.'}
+                        </InfoHint>
                     </h2>
-                    <p className="text-sm text-muted-foreground">
-                        {canSchedule
-                            ? 'Pilih slot kosong untuk menjadwalkan kandidat yang belum punya jadwal.'
-                            : 'Jadwal interview kandidat minggu ini.'}
-                    </p>
                 </div>
                 <div className="flex gap-2">
                     <Button

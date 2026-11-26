@@ -1,10 +1,11 @@
 import { Plus, X } from 'lucide-react';
+import { IconButton } from '@/components/icon-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 /**
  * A list of single lines the requester adds to and removes from: each row is one input with a remove button, and a
- * dashed "+ Baris" below adds a blank one. Blank rows are dropped by the server, so an unused row costs
+ * dashed "+" below adds a blank one. Blank rows are dropped by the server, so an unused row costs
  * nothing. Used for every list of the requisition's posting and checklist (REC-WZ2).
  */
 export function LineListEditor({
@@ -57,18 +58,16 @@ export function LineListEditor({
                     </Button>
                 </div>
             ))}
-            <Button
+            <IconButton
                 type="button"
                 variant="outline"
-                size="sm"
-                className="border-dashed border-primary/60 text-primary"
+                icon={Plus}
+                label="Tambah baris"
+                className="size-8 border-dashed border-primary/60 text-primary"
                 disabled={lines.length >= maxLines}
                 data-test={`add-line-${label}`}
                 onClick={() => onChange([...lines, ''])}
-            >
-                <Plus className="size-4" aria-hidden />
-                Baris
-            </Button>
+            />
         </div>
     );
 }

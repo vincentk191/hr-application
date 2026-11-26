@@ -77,7 +77,7 @@ function earlierOutcome(offer: CandidateOffer | undefined): string | null {
 }
 
 /** The name and the line under it, which opens the candidate's card. */
-function Person({
+export function Person({
     name,
     detail,
     onOpen,

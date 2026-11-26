@@ -10,6 +10,7 @@ import {
     X,
 } from 'lucide-react';
 import { useState } from 'react';
+import { IconButton } from '@/components/icon-button';
 import { InfoHint } from '@/components/info-hint';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -83,15 +84,14 @@ function AdhocForm({ caseId, groupId }: { caseId: number; groupId: number }) {
                 <option value="digital">Akun digital</option>
                 <option value="physical">Fisik</option>
             </select>
-            <Button
+            <IconButton
                 type="submit"
-                size="sm"
                 variant="outline"
+                icon={Plus}
+                label="Tambah item"
+                className="size-9"
                 disabled={name.trim() === ''}
-            >
-                <Plus className="size-4" aria-hidden />
-                Tambah
-            </Button>
+            />
         </form>
     );
 }

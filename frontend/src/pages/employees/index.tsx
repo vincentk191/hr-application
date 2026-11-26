@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ChevronRight, FilterX, X } from 'lucide-react';
+import { ChevronRight, FilterX, Plus, X } from 'lucide-react';
 import { useState } from 'react';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import { EmployeeDrawer } from '@/components/employee-drawer';
@@ -13,6 +13,7 @@ import {
 import { MultiSelectFilter } from '@/components/multi-select-filter';
 import { Pagination, usePagination } from '@/components/pagination';
 import { Badge } from '@/components/ui/badge';
+import { IconButton } from '@/components/icon-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { openInDrawer } from '@/lib/open-in-drawer';
@@ -268,9 +269,12 @@ export default function EmployeesIndex({
                             <Button asChild variant="outline">
                                 <Link href={importMethod().url}>Impor</Link>
                             </Button>
-                            <Button asChild>
-                                <Link href={create().url}>Tambah karyawan</Link>
-                            </Button>
+                            <IconButton
+                                icon={Plus}
+                                variant="default"
+                                label="Tambah karyawan"
+                                href={create().url}
+                            />
                         </>
                     )}
                 </div>

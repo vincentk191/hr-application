@@ -3,6 +3,7 @@ import { CalendarDays, Plus, Trash2, Users, Wand2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { CandidateDrawer } from '@/components/candidate-drawer';
+import { IconButton } from '@/components/icon-button';
 import type { CandidateTab } from '@/components/candidate-drawer';
 import { useConfirm } from '@/components/confirm-dialog';
 import { EmptyNote } from '@/components/empty-note';
@@ -186,10 +187,12 @@ function Shortlist({ item, list }: { item: Requisition; list: Candidate[] }) {
                         <AddCandidateDialog
                             item={item}
                             trigger={
-                                <Button size="sm">
-                                    <Plus className="size-4" aria-hidden />
-                                    Kandidat
-                                </Button>
+                                <IconButton
+                                    variant="default"
+                                    icon={Plus}
+                                    label="Tambah kandidat"
+                                    className="size-8"
+                                />
                             }
                         />
                     )}
@@ -502,7 +505,7 @@ function QuickAdd({ item }: { item: Requisition }) {
                             data-test="add-candidate"
                         >
                             <Plus className="size-4" aria-hidden />
-                            Tambah ke shortlist
+                            Shortlist
                         </Button>
                     </>
                 )}

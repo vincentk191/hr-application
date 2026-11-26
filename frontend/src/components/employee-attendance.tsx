@@ -1,6 +1,7 @@
 import { Form, router } from '@inertiajs/react';
-import { Ban, Plus, RefreshCw, Save } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Ban, Eye, Pencil, Plus, RefreshCw, Save, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { IconButton } from '@/components/icon-button';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +18,10 @@ import type {
     TimesheetScan,
     YearTimesheet,
 } from '@/types/attendance';
+
+/** An icon button that shows only while its row is hovered or focused; where there is no hover (touch) it stays shown. */
+const SHOW_ON_ROW_HOVER =
+    '[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100 focus-visible:opacity-100';
 
 /**
  * One person's scan on a given day, with the corrections a permitted user can make: change its
@@ -158,18 +163,34 @@ function DayRow({
     employeeId,
     day,
     canCorrect,
+    focused,
+    onFocused,
 }: {
     employeeId: number;
     day: TimesheetDay;
     canCorrect: boolean;
+    /** The day a link asked for (`?date=`): it starts expanded and scrolls into view. */
+    focused: boolean;
+    onFocused: () => void;
 }) {
-    const [open, setOpen] = useState(false);
+    const [open, setOpen] = useState(focused);
+    const rowRef = useRef<HTMLTableRowElement>(null);
     const hasScans = day.scans.length > 0;
     const expandable = hasScans || canCorrect;
 
+    useEffect(() => {
+        if (focused) {
+            rowRef.current?.scrollIntoView({
+                block: 'center',
+                behavior: 'smooth',
+            });
+            onFocused();
+        }
+    }, [focused, onFocused]);
+
     return (
         <>
-            <tr className="border-t">
+            <tr ref={rowRef} className="group border-t">
                 <td className="p-2 whitespace-nowrap">
                     <span className="font-medium">{day.date.slice(8)}</span>{' '}
                     <span className="text-muted-foreground">{day.weekday}</span>
@@ -190,20 +211,29 @@ function DayRow({
                 </td>
                 <td className="p-2 text-right">
                     {expandable && (
-                        <Button
-                            size="sm"
-                            variant="ghost"
+                        <IconButton
                             type="button"
+                            icon={
+                                open
+                                    ? X
+                                    : !hasScans
+                                      ? Plus
+                                      : canCorrect
+                                        ? Pencil
+                                        : Eye
+                            }
+                            label={
+                                open
+                                    ? 'Tutup'
+                                    : !hasScans
+                                      ? 'Tambah scan'
+                                      : canCorrect
+                                        ? `Scan & koreksi (${day.scans.length})`
+                                        : `Scan (${day.scans.length})`
+                            }
                             onClick={() => setOpen((value) => !value)}
-                        >
-                            {open
-                                ? 'Tutup'
-                                : !hasScans
-                                  ? 'Tambah scan'
-                                  : canCorrect
-                                    ? `Scan & koreksi (${day.scans.length})`
-                                    : `Scan (${day.scans.length})`}
-                        </Button>
+                            className={`size-8 ${open ? '' : SHOW_ON_ROW_HOVER}`}
+                        />
                     )}
                 </td>
             </tr>
@@ -273,18 +303,14 @@ function DayRow({
                                                 message={errors.reason}
                                             />
                                         </div>
-                                        <Button
+                                        <IconButton
                                             type="submit"
-                                            size="sm"
-                                            className="self-end"
+                                            variant="default"
+                                            icon={Plus}
+                                            label="Tambah scan"
+                                            className="size-8 self-end"
                                             disabled={processing}
-                                        >
-                                            <Plus
-                                                className="size-4"
-                                                aria-hidden
-                                            />
-                                            Tambah
-                                        </Button>
+                                        />
                                     </>
                                 )}
                             </Form>
@@ -305,17 +331,32 @@ function DayCard({
     employeeId,
     day,
     canCorrect,
+    focused,
+    onFocused,
 }: {
     employeeId: number;
     day: TimesheetDay;
     canCorrect: boolean;
+    focused: boolean;
+    onFocused: () => void;
 }) {
-    const [open, setOpen] = useState(false);
+    const [open, setOpen] = useState(focused);
+    const cardRef = useRef<HTMLLIElement>(null);
     const hasScans = day.scans.length > 0;
     const expandable = hasScans || canCorrect;
 
+    useEffect(() => {
+        if (focused) {
+            cardRef.current?.scrollIntoView({
+                block: 'center',
+                behavior: 'smooth',
+            });
+            onFocused();
+        }
+    }, [focused, onFocused]);
+
     return (
-        <li className="surface p-3">
+        <li ref={cardRef} className="surface p-3">
             <button
                 type="button"
                 onClick={() => expandable && setOpen((value) => !value)}
@@ -412,14 +453,14 @@ function DayCard({
                                         />
                                         <InputError message={errors.reason} />
                                     </div>
-                                    <Button
+                                    <IconButton
                                         type="submit"
-                                        size="sm"
+                                        variant="default"
+                                        icon={Plus}
+                                        label="Tambah scan"
+                                        className="size-8"
                                         disabled={processing}
-                                    >
-                                        <Plus className="size-4" aria-hidden />
-                                        Tambah
-                                    </Button>
+                                    />
                                 </>
                             )}
                         </Form>
@@ -649,6 +690,13 @@ export function EmployeeAttendance({
     attendance: Timesheet | YearTimesheet | null | undefined;
     canCorrect: boolean;
 }) {
+    // `?date=` (from Masalah absensi) names a day to open as soon as its month is shown.
+    const [focusDate, setFocusDate] = useState<string | null>(() =>
+        typeof window === 'undefined'
+            ? null
+            : new URLSearchParams(window.location.search).get('date'),
+    );
+
     useEffect(() => {
         if (attendance === undefined) {
             router.reload({ only: ['attendance'] });
@@ -839,6 +887,8 @@ export function EmployeeAttendance({
                                 employeeId={employeeId}
                                 day={day}
                                 canCorrect={canCorrect}
+                                focused={day.date === focusDate}
+                                onFocused={() => setFocusDate(null)}
                             />
                         ))}
                     </tbody>
@@ -852,6 +902,8 @@ export function EmployeeAttendance({
                         employeeId={employeeId}
                         day={day}
                         canCorrect={canCorrect}
+                        focused={day.date === focusDate}
+                        onFocused={() => setFocusDate(null)}
                     />
                 ))}
             </ul>

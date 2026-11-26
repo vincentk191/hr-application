@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Check, CircleCheck, Plus, RotateCcw, X } from 'lucide-react';
+import { Check, CircleCheck, Pencil, Plus, RotateCcw, X } from 'lucide-react';
 import { useState } from 'react';
 import { ChipMultiSelect } from '@/components/chip-multi-select';
 import { useConfirm } from '@/components/confirm-dialog';
@@ -9,6 +9,7 @@ import {
     FilterSection,
     FilterSheet,
 } from '@/components/filter-sheet';
+import { IconButton } from '@/components/icon-button';
 import InputError from '@/components/input-error';
 import { MultiSelectFilter } from '@/components/multi-select-filter';
 import { Button } from '@/components/ui/button';
@@ -76,9 +77,9 @@ const TYPE_STYLE: Record<string, string> = {
     scan_on_leave: 'bg-info/15 text-info-text',
 };
 
-/** The profile's attendance tab, opened on the month the issue is in. */
+/** The profile's attendance tab, opened on the month the issue is in, with that day's row already expanded. */
 function correctionUrl(issue: Issue): string {
-    return `${employeeShow(issue.employeeId).url}?tab=attendance&month=${issue.date.slice(0, 7)}`;
+    return `${employeeShow(issue.employeeId).url}?tab=attendance&month=${issue.date.slice(0, 7)}&date=${issue.date}`;
 }
 
 /**
@@ -198,9 +199,12 @@ export default function AttendanceIssues({
     const actions = (issue: Issue) =>
         issue.resolution === null ? (
             <>
-                <Button asChild size="sm" variant="ghost">
-                    <Link href={correctionUrl(issue)}>Koreksi</Link>
-                </Button>
+                <IconButton
+                    icon={Pencil}
+                    label="Koreksi"
+                    href={correctionUrl(issue)}
+                    className="size-8"
+                />
                 {issue.type === 'unapproved_absence' && (
                     <Button asChild size="sm" variant="ghost">
                         <Link
