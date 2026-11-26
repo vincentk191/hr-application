@@ -10,13 +10,15 @@ import {
 
 /**
  * A button that is only an icon, with what it does as its tooltip and its accessible name. Pass `href` for one that goes
- * to another page. Use it where the row, table or section the button sits in already says what it is for ("+" in a list
+ * to another page (`external` for a file). Use it where the row, table or section the button sits in already says what it is for ("+" in a list
  * of lines, a pencil on a row): the words go in `label` and are shown on hover and read by a screen reader.
  */
 export function IconButton({
     icon: Icon,
     label,
     href,
+    external = false,
+    newTab = false,
     size = 'icon',
     variant = 'ghost',
     ...props
@@ -24,6 +26,9 @@ export function IconButton({
     icon: LucideIcon;
     label: string;
     href?: string;
+    /** The link leaves the app's pages (a file to download): a plain link, not an Inertia visit. */
+    external?: boolean;
+    newTab?: boolean;
 }) {
     const icon = <Icon className="size-4" aria-hidden />;
 
@@ -38,7 +43,21 @@ export function IconButton({
                         aria-label={label}
                         {...props}
                     >
-                        <Link href={href}>{icon}</Link>
+                        {external ? (
+                            <a
+                                href={href}
+                                {...(newTab
+                                    ? {
+                                          target: '_blank',
+                                          rel: 'noopener noreferrer',
+                                      }
+                                    : {})}
+                            >
+                                {icon}
+                            </a>
+                        ) : (
+                            <Link href={href}>{icon}</Link>
+                        )}
                     </Button>
                 ) : (
                     <Button

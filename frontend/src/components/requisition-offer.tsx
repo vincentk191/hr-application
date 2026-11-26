@@ -24,6 +24,7 @@ import { useConfirm } from '@/components/confirm-dialog';
 import { DecisionDialog } from '@/components/decision-dialog';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import InputError from '@/components/input-error';
+import { IconButton } from '@/components/icon-button';
 import { InfoHint } from '@/components/info-hint';
 import { formatDate, formatRupiah } from '@/lib/format';
 import { Button } from '@/components/ui/button';
@@ -587,21 +588,16 @@ function SignedLetter({
                         {signed.on ? ` · ${formatDate(signed.on)}` : ''}
                         {signed.by ? ` oleh ${signed.by}` : ''}
                     </span>
-                    <Button
-                        asChild
-                        size="sm"
+                    <IconButton
+                        icon={Download}
                         variant="outline"
+                        label="Unduh"
+                        href={signedLetter.url(route)}
+                        external
+                        newTab
+                        className="size-8"
                         data-test="open-signed-letter"
-                    >
-                        <a
-                            href={signedLetter.url(route)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                        >
-                            <Download className="size-4" aria-hidden />
-                            Unduh
-                        </a>
-                    </Button>
+                    />
                     {offer.canFileSignedLetter && (
                         <Button
                             size="sm"

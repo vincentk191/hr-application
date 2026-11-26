@@ -41,16 +41,41 @@ export function Field({
 export function Card({
     title,
     children,
+    className = '',
+    grouped = false,
 }: {
     title: string;
     children: ReactNode;
+    className?: string;
+    /** The card holds CardGroups (each with its own list) rather than fields. */
+    grouped?: boolean;
 }) {
     return (
-        <section className="surface p-4">
+        <section className={`surface p-4 ${className}`}>
             <h3 className="mb-2 text-base font-extrabold tracking-tight">
                 {title}
             </h3>
-            <dl className="divide-y">{children}</dl>
+            {grouped ? (
+                <div className="space-y-4">{children}</div>
+            ) : (
+                <dl className="divide-y">{children}</dl>
+            )}
         </section>
+    );
+}
+
+/** A titled run of fields inside a grouped Card ("Kontak", "Alamat KTP"). */
+export function CardGroup({
+    title,
+    children,
+}: {
+    title?: string;
+    children: ReactNode;
+}) {
+    return (
+        <div>
+            {title && <h4 className="label-mono mb-1">{title}</h4>}
+            <dl className="divide-y">{children}</dl>
+        </div>
     );
 }

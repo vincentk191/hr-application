@@ -977,9 +977,8 @@ export default function RequisitionForm({
                                         </div>
                                     </FieldRow>
                                     <FieldRow
-                                        label="Atasan langsung"
+                                        label="Atasan"
                                         htmlFor="manager_employee_id"
-                                        hint="Yang akan membawahi karyawan baru"
                                         error={errors.manager_employee_id}
                                     >
                                         <select

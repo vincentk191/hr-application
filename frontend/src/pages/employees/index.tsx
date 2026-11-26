@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ChevronRight, FilterX, Plus, X } from 'lucide-react';
+import { ChevronRight, Download, FilterX, Plus, X } from 'lucide-react';
 import { useState } from 'react';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import { EmployeeDrawer } from '@/components/employee-drawer';
@@ -261,7 +261,10 @@ export default function EmployeesIndex({
                     </div>
 
                     <Button asChild variant="outline">
-                        <a href={exportUrl}>Unduh CSV</a>
+                        <a href={exportUrl}>
+                            <Download className="size-4" aria-hidden />
+                            CSV
+                        </a>
                     </Button>
 
                     {canCreate && (

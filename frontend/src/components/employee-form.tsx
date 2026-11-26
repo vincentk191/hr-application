@@ -662,9 +662,9 @@ export function EmployeeForm({
                             defaultValue={employee?.personal.education_level}
                             error={errors.education_level}
                         />
-                    </Section>
-
-                    <Section title="Kontak & Kontak Darurat">
+                        <h3 className="label-mono pt-2 sm:col-span-2">
+                            Kontak
+                        </h3>
                         <TextField
                             name="email"
                             label="Email"
@@ -688,34 +688,9 @@ export function EmployeeForm({
                             defaultValue={employee?.contact.national_id}
                             error={errors.national_id}
                         />
-                        <TextField
-                            name="emergency_contact_name"
-                            label="Nama kontak darurat"
-                            defaultValue={
-                                employee?.contact.emergency_contact_name
-                            }
-                            error={errors.emergency_contact_name}
-                        />
-                        <TextField
-                            name="emergency_contact_phone"
-                            label="Telepon darurat"
-                            defaultValue={
-                                employee?.contact.emergency_contact_phone
-                            }
-                            error={errors.emergency_contact_phone}
-                        />
-                        <SelectField
-                            name="emergency_contact_relation"
-                            label="Hubungan"
-                            options={options.emergencyRelations}
-                            defaultValue={
-                                employee?.contact.emergency_contact_relation
-                            }
-                            error={errors.emergency_contact_relation}
-                        />
-                    </Section>
-
-                    <Section title="Alamat Tinggal">
+                        <h3 className="label-mono pt-2 sm:col-span-2">
+                            Alamat Tinggal
+                        </h3>
                         <div className="sm:col-span-2">
                             <TextField
                                 name="address"
@@ -760,12 +735,12 @@ export function EmployeeForm({
                             }
                             error={errors.residence_postal_code}
                         />
-                    </Section>
-
-                    <Section
-                        title="Alamat KTP"
-                        description="Sesuai yang tertulis di KTP."
-                    >
+                        <h3 className="label-mono pt-2 sm:col-span-2">
+                            Alamat KTP
+                        </h3>
+                        <p className="-mt-2 text-sm text-muted-foreground sm:col-span-2">
+                            Sesuai yang tertulis di KTP.
+                        </p>
                         <div className="sm:col-span-2">
                             <TextField
                                 name="id_address"
@@ -829,11 +804,11 @@ export function EmployeeForm({
                             defaultValue={employee?.idAddress.id_postal_code}
                             error={errors.id_postal_code}
                         />
-                    </Section>
-
-                    {canEditSensitive && (
-                        <>
-                            <Section title="Identitas Keluarga">
+                        {canEditSensitive && (
+                            <>
+                                <h3 className="label-mono pt-2 sm:col-span-2">
+                                    Identitas Keluarga
+                                </h3>
                                 <TextField
                                     name="family_card_number"
                                     label="No. KK (16 digit)"
@@ -850,8 +825,12 @@ export function EmployeeForm({
                                     }
                                     error={errors.mother_name}
                                 />
-                            </Section>
+                            </>
+                        )}
+                    </Section>
 
+                    {canEditSensitive && (
+                        <>
                             <Section title="Bank & Pajak">
                                 <SelectField
                                     name="bank_name"
@@ -967,6 +946,34 @@ export function EmployeeForm({
                             </Section>
                         </>
                     )}
+
+                    <Section title="Darurat">
+                        <TextField
+                            name="emergency_contact_name"
+                            label="Nama kontak darurat"
+                            defaultValue={
+                                employee?.contact.emergency_contact_name
+                            }
+                            error={errors.emergency_contact_name}
+                        />
+                        <TextField
+                            name="emergency_contact_phone"
+                            label="Telepon darurat"
+                            defaultValue={
+                                employee?.contact.emergency_contact_phone
+                            }
+                            error={errors.emergency_contact_phone}
+                        />
+                        <SelectField
+                            name="emergency_contact_relation"
+                            label="Hubungan"
+                            options={options.emergencyRelations}
+                            defaultValue={
+                                employee?.contact.emergency_contact_relation
+                            }
+                            error={errors.emergency_contact_relation}
+                        />
+                    </Section>
 
                     <div>
                         <Button type="submit" disabled={processing}>

@@ -3,12 +3,14 @@ import {
     ArrowLeft,
     Lock,
     MoreVertical,
+    Pencil,
     Power,
     RefreshCw,
     RotateCcw,
     Send,
     X,
 } from 'lucide-react';
+import { IconButton } from '@/components/icon-button';
 import { useState } from 'react';
 import { useConfirm } from '@/components/confirm-dialog';
 import { EmployeeAttendance } from '@/components/employee-attendance';
@@ -18,7 +20,7 @@ import { EmployeeDocuments } from '@/components/employee-documents';
 import { EmployeeTeamTab } from '@/components/employee-team';
 import { LeaveRequestDetail } from '@/components/leave-request-detail';
 import { revealTarget } from '@/components/masked-value';
-import { Card, Field } from '@/components/profile-parts';
+import { Card, Field, CardGroup } from '@/components/profile-parts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -395,9 +397,12 @@ export default function EmployeeShow({
                         </div>
                     </div>
                     {canUpdate && (
-                        <Button asChild variant="outline">
-                            <Link href={edit(employee.id).url}>Ubah data</Link>
-                        </Button>
+                        <IconButton
+                            icon={Pencil}
+                            variant="outline"
+                            label="Ubah data"
+                            href={edit(employee.id).url}
+                        />
                     )}
                     {canReactivate && (
                         <Button
@@ -527,167 +532,187 @@ export default function EmployeeShow({
                             <Field label="Akun" value={employee.accountLabel} />
                         </Card>
 
-                        <Card title="Data Pribadi">
-                            <Field
-                                label="Jenis kelamin"
-                                value={employee.personal.genderLabel}
-                            />
-                            <Field
-                                label="Tempat lahir"
-                                value={employee.personal.birth_place}
-                            />
-                            <Field
-                                label="Tanggal lahir"
-                                value={employee.personal.birth_date}
-                            />
-                            <Field
-                                label="Agama"
-                                value={employee.personal.religionLabel}
-                            />
-                            <Field
-                                label="Status perkawinan"
-                                value={employee.personal.maritalStatusLabel}
-                            />
-                            <Field
-                                label="Pendidikan terakhir"
-                                value={employee.personal.education_level}
-                            />
-                        </Card>
-
-                        <Card title="Kontak & Darurat">
-                            <Field
-                                label="Email"
-                                value={employee.contact.email}
-                            />
-                            <Field
-                                label="Telepon"
-                                value={employee.contact.phone}
-                                reveal={revealTarget(
-                                    employee,
-                                    'phone',
-                                    'telepon',
+                        <Card
+                            title="Data Pribadi"
+                            grouped
+                            className="lg:col-span-2"
+                        >
+                            <div className="grid gap-x-8 gap-y-4 lg:grid-cols-2">
+                                <CardGroup>
+                                    <Field
+                                        label="Jenis kelamin"
+                                        value={employee.personal.genderLabel}
+                                    />
+                                    <Field
+                                        label="Tempat lahir"
+                                        value={employee.personal.birth_place}
+                                    />
+                                    <Field
+                                        label="Tanggal lahir"
+                                        value={employee.personal.birth_date}
+                                    />
+                                    <Field
+                                        label="Agama"
+                                        value={employee.personal.religionLabel}
+                                    />
+                                    <Field
+                                        label="Status perkawinan"
+                                        value={
+                                            employee.personal.maritalStatusLabel
+                                        }
+                                    />
+                                    <Field
+                                        label="Pendidikan terakhir"
+                                        value={
+                                            employee.personal.education_level
+                                        }
+                                    />
+                                </CardGroup>
+                                <CardGroup title="Kontak">
+                                    <Field
+                                        label="Email"
+                                        value={employee.contact.email}
+                                    />
+                                    <Field
+                                        label="Telepon"
+                                        value={employee.contact.phone}
+                                        reveal={revealTarget(
+                                            employee,
+                                            'phone',
+                                            'telepon',
+                                        )}
+                                    />
+                                    <Field
+                                        label="NIK"
+                                        value={employee.contact.national_id}
+                                        reveal={revealTarget(
+                                            employee,
+                                            'national_id',
+                                            'NIK',
+                                        )}
+                                    />
+                                </CardGroup>
+                                <CardGroup title="Alamat Tinggal">
+                                    <Field
+                                        label="Alamat"
+                                        value={employee.contact.address}
+                                    />
+                                    <Field
+                                        label="Kelurahan"
+                                        value={
+                                            employee.residence.residence_village
+                                        }
+                                    />
+                                    <Field
+                                        label="Kecamatan"
+                                        value={
+                                            employee.residence
+                                                .residence_district
+                                        }
+                                    />
+                                    <Field
+                                        label="Kabupaten / kota"
+                                        value={
+                                            employee.residence.residence_city
+                                        }
+                                    />
+                                    <Field
+                                        label="Provinsi"
+                                        value={
+                                            employee.residence
+                                                .residence_province
+                                        }
+                                    />
+                                    <Field
+                                        label="Kode pos"
+                                        value={
+                                            employee.residence
+                                                .residence_postal_code
+                                        }
+                                    />
+                                </CardGroup>
+                                <CardGroup title="Alamat KTP">
+                                    <Field
+                                        label="Alamat"
+                                        value={employee.idAddress.id_address}
+                                    />
+                                    <Field
+                                        label="Blok"
+                                        value={employee.idAddress.id_block}
+                                    />
+                                    <Field
+                                        label="No."
+                                        value={
+                                            employee.idAddress.id_house_number
+                                        }
+                                    />
+                                    <Field
+                                        label="RT / RW"
+                                        value={
+                                            employee.idAddress.id_rt ||
+                                            employee.idAddress.id_rw
+                                                ? `${employee.idAddress.id_rt ?? '—'} / ${employee.idAddress.id_rw ?? '—'}`
+                                                : null
+                                        }
+                                    />
+                                    <Field
+                                        label="Kelurahan"
+                                        value={employee.idAddress.id_village}
+                                    />
+                                    <Field
+                                        label="Kecamatan"
+                                        value={employee.idAddress.id_district}
+                                    />
+                                    <Field
+                                        label="Kabupaten / kota"
+                                        value={employee.idAddress.id_city}
+                                    />
+                                    <Field
+                                        label="Provinsi"
+                                        value={employee.idAddress.id_province}
+                                    />
+                                    <Field
+                                        label="Kode pos"
+                                        value={
+                                            employee.idAddress.id_postal_code
+                                        }
+                                    />
+                                </CardGroup>
+                                {employee.identity ? (
+                                    <CardGroup title="Identitas Keluarga">
+                                        <Field
+                                            label="No. KK"
+                                            value={
+                                                employee.identity
+                                                    .family_card_number
+                                            }
+                                            reveal={revealTarget(
+                                                employee,
+                                                'family_card_number',
+                                                'No. KK',
+                                            )}
+                                        />
+                                        <Field
+                                            label="Nama ibu kandung"
+                                            value={
+                                                employee.identity.mother_name
+                                            }
+                                        />
+                                    </CardGroup>
+                                ) : (
+                                    <CardGroup title="Identitas Keluarga">
+                                        <div className="flex items-center gap-2 py-1.5 text-sm text-muted-foreground">
+                                            <Lock
+                                                className="size-4"
+                                                aria-hidden
+                                            />
+                                            Data ini dibatasi dan tidak dapat
+                                            Anda lihat.
+                                        </div>
+                                    </CardGroup>
                                 )}
-                            />
-                            <Field
-                                label="NIK"
-                                value={employee.contact.national_id}
-                                reveal={revealTarget(
-                                    employee,
-                                    'national_id',
-                                    'NIK',
-                                )}
-                            />
-                            <Field
-                                label="Kontak darurat"
-                                value={employee.contact.emergency_contact_name}
-                            />
-                            <Field
-                                label="Telepon darurat"
-                                value={employee.contact.emergency_contact_phone}
-                                reveal={revealTarget(
-                                    employee,
-                                    'emergency_contact_phone',
-                                    'telepon kontak darurat',
-                                )}
-                            />
-                            <Field
-                                label="Hubungan"
-                                value={
-                                    employee.contact.emergency_contact_relation
-                                }
-                            />
+                            </div>
                         </Card>
-
-                        <Card title="Alamat Tinggal">
-                            <Field
-                                label="Alamat"
-                                value={employee.contact.address}
-                            />
-                            <Field
-                                label="Kelurahan"
-                                value={employee.residence.residence_village}
-                            />
-                            <Field
-                                label="Kecamatan"
-                                value={employee.residence.residence_district}
-                            />
-                            <Field
-                                label="Kabupaten / kota"
-                                value={employee.residence.residence_city}
-                            />
-                            <Field
-                                label="Provinsi"
-                                value={employee.residence.residence_province}
-                            />
-                            <Field
-                                label="Kode pos"
-                                value={employee.residence.residence_postal_code}
-                            />
-                        </Card>
-
-                        <Card title="Alamat KTP">
-                            <Field
-                                label="Alamat"
-                                value={employee.idAddress.id_address}
-                            />
-                            <Field
-                                label="Blok"
-                                value={employee.idAddress.id_block}
-                            />
-                            <Field
-                                label="No."
-                                value={employee.idAddress.id_house_number}
-                            />
-                            <Field
-                                label="RT / RW"
-                                value={
-                                    employee.idAddress.id_rt ||
-                                    employee.idAddress.id_rw
-                                        ? `${employee.idAddress.id_rt ?? '—'} / ${employee.idAddress.id_rw ?? '—'}`
-                                        : null
-                                }
-                            />
-                            <Field
-                                label="Kelurahan"
-                                value={employee.idAddress.id_village}
-                            />
-                            <Field
-                                label="Kecamatan"
-                                value={employee.idAddress.id_district}
-                            />
-                            <Field
-                                label="Kabupaten / kota"
-                                value={employee.idAddress.id_city}
-                            />
-                            <Field
-                                label="Provinsi"
-                                value={employee.idAddress.id_province}
-                            />
-                            <Field
-                                label="Kode pos"
-                                value={employee.idAddress.id_postal_code}
-                            />
-                        </Card>
-
-                        {employee.identity ? (
-                            <Card title="Identitas Keluarga">
-                                <Field
-                                    label="No. KK"
-                                    value={employee.identity.family_card_number}
-                                    reveal={revealTarget(
-                                        employee,
-                                        'family_card_number',
-                                        'No. KK',
-                                    )}
-                                />
-                                <Field
-                                    label="Nama ibu kandung"
-                                    value={employee.identity.mother_name}
-                                />
-                            </Card>
-                        ) : (
-                            <RestrictedCard title="Identitas Keluarga" />
-                        )}
 
                         {employee.bank ? (
                             <Card title="Bank & Pajak">
@@ -807,6 +832,28 @@ export default function EmployeeShow({
                         ) : (
                             <RestrictedCard title="Penggajian" />
                         )}
+
+                        <Card title="Darurat">
+                            <Field
+                                label="Kontak darurat"
+                                value={employee.contact.emergency_contact_name}
+                            />
+                            <Field
+                                label="Telepon darurat"
+                                value={employee.contact.emergency_contact_phone}
+                                reveal={revealTarget(
+                                    employee,
+                                    'emergency_contact_phone',
+                                    'telepon kontak darurat',
+                                )}
+                            />
+                            <Field
+                                label="Hubungan"
+                                value={
+                                    employee.contact.emergency_contact_relation
+                                }
+                            />
+                        </Card>
                     </div>
                 )}
 

@@ -29,7 +29,7 @@ export const STATUS_LABEL: Record<DayStatus, string> = {
     early_leave: 'Pulang cepat',
     absent: 'Tidak hadir',
     leave: 'Cuti',
-    off: 'Libur / tidak ada scan',
+    off: 'Libur',
     no_data: 'Belum ada data',
 };
 

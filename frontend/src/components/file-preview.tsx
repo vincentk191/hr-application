@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight, Download, Eye } from 'lucide-react';
 import { useState } from 'react';
+import { IconButton } from '@/components/icon-button';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -203,12 +204,13 @@ export function FileLink({
                 <Eye className="size-3.5 shrink-0" />
                 {file.name}
             </button>
-            <a
+            <IconButton
+                icon={Download}
+                label="Unduh"
                 href={file.downloadUrl}
-                className="text-xs text-muted-foreground underline-offset-4 hover:underline"
-            >
-                Unduh
-            </a>
+                external
+                className="size-7"
+            />
         </span>
     );
 }

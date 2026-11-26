@@ -1,7 +1,8 @@
 import { Link } from '@inertiajs/react';
-import { Plus } from 'lucide-react';
+import { Download, Pencil, Plus } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
+import { IconButton } from '@/components/icon-button';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import { EmployeeTeamTab } from '@/components/employee-team';
 import { useFilePreview } from '@/components/file-preview';
@@ -262,9 +263,12 @@ function DrawerBody({
 
             <div className="flex flex-wrap gap-2 border-t bg-card p-4">
                 {data.canUpdate && (
-                    <Button asChild variant="outline">
-                        <Link href={edit(employee.id).url}>Ubah data</Link>
-                    </Button>
+                    <IconButton
+                        icon={Pencil}
+                        variant="outline"
+                        label="Ubah data"
+                        href={edit(employee.id).url}
+                    />
                 )}
                 {data.canCreateLeave && employee.isActive && (
                     <Button asChild variant="outline">
@@ -470,12 +474,13 @@ function DocumentsTab({ data }: { data: Summary }) {
                                     </button>
                                 )}
                                 {latest && (
-                                    <a
+                                    <IconButton
+                                        icon={Download}
+                                        label="Unduh"
                                         href={latest.downloadUrl}
-                                        className="underline"
-                                    >
-                                        Unduh
-                                    </a>
+                                        external
+                                        className="size-7"
+                                    />
                                 )}
                             </div>
                         </li>

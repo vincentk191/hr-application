@@ -1,5 +1,5 @@
 import { Form, Head } from '@inertiajs/react';
-import { Building2, Lock, TriangleAlert, Upload } from 'lucide-react';
+import { Building2, Download, Lock, TriangleAlert, Upload } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { InfoHint } from '@/components/info-hint';
 import InputError from '@/components/input-error';
@@ -123,7 +123,13 @@ export default function EmployeesImport({
                                     </Button>
                                 </span>
                                 <Button asChild variant="outline">
-                                    <a href={template().url}>Unduh templat</a>
+                                    <a href={template().url}>
+                                        <Download
+                                            className="size-4"
+                                            aria-hidden
+                                        />
+                                        Templat
+                                    </a>
                                 </Button>
                             </div>
                         </>

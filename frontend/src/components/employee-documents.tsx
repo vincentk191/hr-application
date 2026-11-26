@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { useConfirm } from '@/components/confirm-dialog';
+import { IconButton } from '@/components/icon-button';
+import { InfoHint } from '@/components/info-hint';
 import { useFilePreview } from '@/components/file-preview';
 import type { PreviewableFile } from '@/components/file-preview';
 import InputError from '@/components/input-error';
@@ -106,7 +108,7 @@ function DocumentFields({
             </div>
             <div className="grid gap-2">
                 <Label htmlFor={`expires-${document?.id ?? 'new'}`}>
-                    Berlaku sampai
+                    Berlaku sampai (opsional)
                 </Label>
                 <Input
                     id={`expires-${document?.id ?? 'new'}`}
@@ -303,12 +305,13 @@ function DocumentCard({
                                         Lihat
                                     </button>
                                 )}
-                                <a
+                                <IconButton
+                                    icon={Download}
+                                    label="Unduh"
                                     href={version.downloadUrl}
-                                    className="text-primary underline-offset-4 hover:underline"
-                                >
-                                    Unduh
-                                </a>
+                                    external
+                                    className="size-7"
+                                />
                             </span>
                         </li>
                     ))}
@@ -473,7 +476,16 @@ export function EmployeeDocuments({
                                 errors={errors}
                             />
                             <div className="grid gap-2 sm:col-span-2">
-                                <Label htmlFor="document-file">Berkas</Label>
+                                <Label
+                                    htmlFor="document-file"
+                                    className="flex items-center gap-1.5"
+                                >
+                                    Berkas
+                                    <InfoHint label="Jenis berkas">
+                                        PDF, gambar, Word atau Excel, maksimal
+                                        10 MB.
+                                    </InfoHint>
+                                </Label>
                                 <LimitedFileInput
                                     id="document-file"
                                     name="file"
@@ -481,10 +493,6 @@ export function EmployeeDocuments({
                                     maxSizeMb={10}
                                     required
                                 />
-                                <p className="text-xs text-muted-foreground">
-                                    PDF, gambar, Word atau Excel, maksimal 10
-                                    MB.
-                                </p>
                                 <InputError message={errors.file} />
                             </div>
                             <div className="sm:col-span-2">
