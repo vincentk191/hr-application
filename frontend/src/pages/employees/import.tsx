@@ -291,6 +291,19 @@ function RulesCard({
                     />
                 </Rule>
 
+                <Rule label="Format">
+                    <p>
+                        No KTP dan No KK 16 digit, NPWP 15 atau 16 digit, BPJS
+                        Kesehatan 13 digit, BPJS Ketenagakerjaan 11 digit, RT
+                        dan RW 3 digit, kode pos 5 digit. Titik, strip, dan
+                        spasi diabaikan.
+                    </p>
+                    <p>
+                        No Handphone diawali 08. Bank dan pendidikan terakhir
+                        dari daftar di sheet Petunjuk.
+                    </p>
+                </Rule>
+
                 <Rule label="Perusahaan">
                     <p>
                         Nama Perusahaan di berkas harus{' '}

@@ -117,6 +117,7 @@ function hireOffer(Requisition $requisition, string $name, string $email, string
 function hireFields(array $overrides = []): array
 {
     return [
+        ...fullEmployeeForm(),
         'employee_number' => 'EMP-0100',
         'full_name' => 'Budi Santoso',
         'national_id' => '3201010101010001',

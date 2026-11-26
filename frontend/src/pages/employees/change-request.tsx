@@ -159,11 +159,70 @@ export default function ProfileChangeRequestPage({
                                                             }
                                                             className="rounded-xl border border-input bg-card px-3 py-2 text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
                                                         />
+                                                    ) : field.options ? (
+                                                        <select
+                                                            id={field.name}
+                                                            name={field.name}
+                                                            defaultValue={
+                                                                values[
+                                                                    field.name
+                                                                ] ?? ''
+                                                            }
+                                                            required={Boolean(
+                                                                values[
+                                                                    field.name
+                                                                ],
+                                                            )}
+                                                            className="h-10 rounded-xl border border-input bg-card px-3 text-sm"
+                                                        >
+                                                            <option value="">
+                                                                —
+                                                            </option>
+                                                            {[
+                                                                ...(values[
+                                                                    field.name
+                                                                ] &&
+                                                                !field.options.includes(
+                                                                    values[
+                                                                        field
+                                                                            .name
+                                                                    ] ?? '',
+                                                                )
+                                                                    ? [
+                                                                          values[
+                                                                              field
+                                                                                  .name
+                                                                          ] as string,
+                                                                      ]
+                                                                    : []),
+                                                                ...field.options,
+                                                            ].map((option) => (
+                                                                <option
+                                                                    key={option}
+                                                                    value={
+                                                                        option
+                                                                    }
+                                                                >
+                                                                    {option}
+                                                                </option>
+                                                            ))}
+                                                        </select>
                                                     ) : (
                                                         <Input
                                                             id={field.name}
                                                             name={field.name}
                                                             type={field.type}
+                                                            inputMode={
+                                                                field.inputMode
+                                                            }
+                                                            maxLength={
+                                                                field.maxLength
+                                                            }
+                                                            required={Boolean(
+                                                                values[
+                                                                    field.name
+                                                                ],
+                                                            )}
                                                             defaultValue={
                                                                 values[
                                                                     field.name

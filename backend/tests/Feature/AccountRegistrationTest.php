@@ -234,6 +234,7 @@ it('requires a 16-digit NIK that no one else has when HR saves a profile', funct
     $branch = Branch::factory()->forCompany($this->company)->create();
 
     $payload = fn (array $o = []): array => [
+        ...fullEmployeeForm(),
         'employee_number' => 'K-900', 'full_name' => 'Baru', 'employment_status' => 'active', 'national_id' => '3174000000000900', 'branch_id' => $branch->id, ...$o,
     ];
 

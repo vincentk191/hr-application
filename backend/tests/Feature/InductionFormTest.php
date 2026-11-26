@@ -63,6 +63,7 @@ function inductionScan(string $name = 'formulir-ttd.pdf'): UploadedFile
 
 it('files the form as a PDF that expires a week after the employee is added', function () {
     $this->actingAs($this->hr)->post(route('employees.store'), [
+        ...fullEmployeeForm(),
         'employee_number' => 'EMP-9001',
         'national_id' => '3174000000009001',
         'full_name' => 'Dewi Lestari',

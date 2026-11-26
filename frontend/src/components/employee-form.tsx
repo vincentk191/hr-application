@@ -29,6 +29,10 @@ export type EmployeeFormOptions = {
     religions: ValueOption[];
     maritalStatuses: ValueOption[];
     ptkpStatuses: ValueOption[];
+    educationLevels: ValueOption[];
+    banks: ValueOption[];
+    emergencyRelations: ValueOption[];
+    paymentMethods: ValueOption[];
 };
 
 const selectClasses =
@@ -56,6 +60,81 @@ function Section({
     );
 }
 
+/** The mark after the label of a field that must be filled in. */
+function RequiredMark() {
+    return (
+        <span aria-hidden className="ml-0.5 text-destructive">
+            *
+        </span>
+    );
+}
+
+/**
+ * How a field is typed, by its name: the keyboard on a phone, the longest length, and the shape of a number of fixed
+ * size. The server accepts a number typed with dots or spaces and stores its digits, so only numbers that are always
+ * the same length are held to a pattern here (the NPWP and the account number may be typed with dots, so they are not).
+ */
+const FORMAT: Record<string, React.InputHTMLAttributes<HTMLInputElement>> = {
+    phone: { type: 'tel', inputMode: 'tel', placeholder: '08…' },
+    emergency_contact_phone: {
+        type: 'tel',
+        inputMode: 'tel',
+        placeholder: '08…',
+    },
+    national_id: {
+        inputMode: 'numeric',
+        maxLength: 16,
+        pattern: '\\d{16}',
+        title: '16 digit angka',
+    },
+    family_card_number: {
+        inputMode: 'numeric',
+        maxLength: 16,
+        pattern: '\\d{16}',
+        title: '16 digit angka',
+    },
+    tax_number: { inputMode: 'numeric', maxLength: 20 },
+    bank_account_number: { inputMode: 'numeric', maxLength: 24 },
+    bpjs_employment_number: {
+        inputMode: 'numeric',
+        maxLength: 11,
+        pattern: '\\d{11}',
+        title: '11 digit angka',
+    },
+    bpjs_health_number: {
+        inputMode: 'numeric',
+        maxLength: 13,
+        pattern: '\\d{13}',
+        title: '13 digit angka',
+    },
+    residence_postal_code: {
+        inputMode: 'numeric',
+        maxLength: 5,
+        pattern: '\\d{5}',
+        title: '5 digit angka',
+    },
+    id_postal_code: {
+        inputMode: 'numeric',
+        maxLength: 5,
+        pattern: '\\d{5}',
+        title: '5 digit angka',
+    },
+    id_rt: {
+        inputMode: 'numeric',
+        maxLength: 3,
+        pattern: '\\d{1,3}',
+        title: '3 digit angka, mis. 001',
+        placeholder: '001',
+    },
+    id_rw: {
+        inputMode: 'numeric',
+        maxLength: 3,
+        pattern: '\\d{1,3}',
+        title: '3 digit angka, mis. 001',
+        placeholder: '001',
+    },
+};
+
 /** An amount in rupiah, written with dots between thousands as it is typed. */
 function RupiahField({
     name,
@@ -70,19 +149,29 @@ function RupiahField({
 }) {
     return (
         <div className="grid gap-2">
-            <Label htmlFor={name}>{label}</Label>
-            <RupiahInput id={name} name={name} defaultValue={defaultValue} />
+            <Label htmlFor={name}>
+                {label}
+                <RequiredMark />
+            </Label>
+            <RupiahInput
+                id={name}
+                name={name}
+                defaultValue={defaultValue}
+                required
+            />
             <InputError message={error} />
         </div>
     );
 }
 
+/** A text, number or date field. Every field must be filled in unless it is marked `optional`. */
 function TextField({
     name,
     label,
     defaultValue,
     error,
     type = 'text',
+    optional = false,
     ...rest
 }: {
     name: string;
@@ -90,6 +179,7 @@ function TextField({
     defaultValue?: string | number | null;
     error?: string;
     type?: string;
+    optional?: boolean;
     // The native defaultValue cannot be null, but a dossier field very often is, so it is
     // taken over and normalised to '' below.
 } & Omit<
@@ -98,12 +188,17 @@ function TextField({
 >) {
     return (
         <div className="grid gap-2">
-            <Label htmlFor={name}>{label}</Label>
+            <Label htmlFor={name}>
+                {label}
+                {!optional && <RequiredMark />}
+            </Label>
             <Input
                 id={name}
                 name={name}
                 type={type}
                 defaultValue={defaultValue ?? ''}
+                required={!optional}
+                {...FORMAT[name]}
                 {...rest}
             />
             <InputError message={error} />
@@ -117,21 +212,27 @@ function SelectField({
     options,
     defaultValue,
     error,
+    optional = false,
 }: {
     name: string;
     label: string;
     options: ValueOption[];
     defaultValue?: string | null;
     error?: string;
+    optional?: boolean;
 }) {
     return (
         <div className="grid gap-2">
-            <Label htmlFor={name}>{label}</Label>
+            <Label htmlFor={name}>
+                {label}
+                {!optional && <RequiredMark />}
+            </Label>
             <select
                 id={name}
                 name={name}
                 defaultValue={defaultValue ?? ''}
                 className={selectClasses}
+                required={!optional}
             >
                 <option value="">—</option>
                 {options.map((option) => (
@@ -149,8 +250,9 @@ function SelectField({
  * The create and edit form for a dossier record (EMP-ADD).
  *
  * One component for both, because the fields are identical — only the action and method
- * differ. Everything past the employment section is optional: the initial import brings names
- * and numbers only, and a record must be creatable before anyone has chased the rest.
+ * differ. Every field is required except the KTP block and the exit date (a * marks them), and
+ * the server checks the same formats (see EmployeeFormat). The bank, tax, BPJS, family card and
+ * payroll fields are only shown, and so only required, to someone who may handle them.
  */
 export function EmployeeForm({
     action,
@@ -172,6 +274,10 @@ export function EmployeeForm({
     submitLabel: string;
 }) {
     const [companyId, setCompanyId] = useState('');
+    // The top of the reporting line has no manager; for an existing profile that is how it stands now.
+    const [noManager, setNoManager] = useState(
+        employee !== undefined && employee.managerId === null,
+    );
     // Viewing every company at once, a new employee has no company yet: it is chosen first, and the
     // Cabang, departments, positions and managers on offer are that company's. A hire's company is its requisition's.
     const choosesCompany =
@@ -203,8 +309,15 @@ export function EmployeeForm({
                                 className="size-16"
                             />
                             <div className="grid flex-1 gap-2">
-                                <Label htmlFor="photo">Unggah foto</Label>
-                                <PhotoInput id="photo" name="photo" />
+                                <Label htmlFor="photo">
+                                    Unggah foto
+                                    {employee === undefined && <RequiredMark />}
+                                </Label>
+                                <PhotoInput
+                                    id="photo"
+                                    name="photo"
+                                    required={employee === undefined}
+                                />
                                 <InputError message={errors.photo} />
                                 {employee?.photoUrl && (
                                     <label className="flex items-center gap-2 text-sm">
@@ -223,7 +336,10 @@ export function EmployeeForm({
                     <Section title="Kepegawaian">
                         {choosesCompany && (
                             <div className="grid gap-2 sm:col-span-2">
-                                <Label htmlFor="company_id">Perusahaan</Label>
+                                <Label htmlFor="company_id">
+                                    Perusahaan
+                                    <RequiredMark />
+                                </Label>
                                 <select
                                     id="company_id"
                                     name="company_id"
@@ -252,18 +368,19 @@ export function EmployeeForm({
                             label="ID karyawan"
                             defaultValue={employee?.number}
                             error={errors.employee_number}
-                            required
                         />
                         <TextField
                             name="full_name"
                             label="Nama lengkap"
                             defaultValue={employee?.name ?? hire?.name}
                             error={errors.full_name}
-                            required
                         />
 
                         <div className="grid gap-2">
-                            <Label htmlFor="branch_id">Cabang</Label>
+                            <Label htmlFor="branch_id">
+                                Cabang
+                                <RequiredMark />
+                            </Label>
                             <select
                                 id="branch_id"
                                 name="branch_id"
@@ -289,7 +406,10 @@ export function EmployeeForm({
                         </div>
 
                         <div className="grid gap-2">
-                            <Label htmlFor="department_id">Departemen</Label>
+                            <Label htmlFor="department_id">
+                                Departemen
+                                <RequiredMark />
+                            </Label>
                             <select
                                 id="department_id"
                                 name="department_id"
@@ -299,6 +419,7 @@ export function EmployeeForm({
                                     ''
                                 }
                                 className={selectClasses}
+                                required
                             >
                                 <option value="">—</option>
                                 {inChosenCompany(options.departments).map(
@@ -316,7 +437,10 @@ export function EmployeeForm({
                         </div>
 
                         <div className="grid gap-2">
-                            <Label htmlFor="position_id">Posisi</Label>
+                            <Label htmlFor="position_id">
+                                Posisi
+                                <RequiredMark />
+                            </Label>
                             <select
                                 id="position_id"
                                 name="position_id"
@@ -326,6 +450,7 @@ export function EmployeeForm({
                                     ''
                                 }
                                 className={selectClasses}
+                                required
                             >
                                 <option value="">—</option>
                                 {inChosenCompany(options.positions).map(
@@ -353,7 +478,10 @@ export function EmployeeForm({
                         />
 
                         <div className="grid gap-2">
-                            <Label htmlFor="manager_id">Atasan langsung</Label>
+                            <Label htmlFor="manager_id">
+                                Atasan langsung
+                                {!noManager && <RequiredMark />}
+                            </Label>
                             <select
                                 id="manager_id"
                                 name="manager_id"
@@ -361,6 +489,8 @@ export function EmployeeForm({
                                     employee?.managerId ?? hire?.managerId ?? ''
                                 }
                                 className={selectClasses}
+                                disabled={noManager}
+                                required={!noManager}
                             >
                                 <option value="">—</option>
                                 {inChosenCompany(options.managers)
@@ -377,6 +507,20 @@ export function EmployeeForm({
                                         </option>
                                     ))}
                             </select>
+                            <label className="flex items-center gap-2 text-sm">
+                                <input
+                                    type="checkbox"
+                                    name="no_manager"
+                                    value="1"
+                                    checked={noManager}
+                                    onChange={(event) =>
+                                        setNoManager(event.target.checked)
+                                    }
+                                    data-test="no-manager"
+                                />
+                                Tanpa atasan (puncak organisasi, hanya satu per
+                                perusahaan)
+                            </label>
                             <InputError message={errors.manager_id} />
                         </div>
 
@@ -405,6 +549,7 @@ export function EmployeeForm({
                         <div className="grid gap-2">
                             <Label htmlFor="employment_type">
                                 Jenis kepegawaian
+                                <RequiredMark />
                             </Label>
                             <select
                                 id="employment_type"
@@ -415,6 +560,7 @@ export function EmployeeForm({
                                     ''
                                 }
                                 className={selectClasses}
+                                required
                             >
                                 <option value="">—</option>
                                 {options.employmentTypes.map((type) => (
@@ -466,6 +612,7 @@ export function EmployeeForm({
                         />
                         <TextField
                             name="exited_on"
+                            optional
                             label="Tanggal keluar"
                             type="date"
                             defaultValue={employee?.exitedOn}
@@ -508,12 +655,12 @@ export function EmployeeForm({
                             defaultValue={employee?.personal.marital_status}
                             error={errors.marital_status}
                         />
-                        <TextField
+                        <SelectField
                             name="education_level"
                             label="Pendidikan terakhir"
+                            options={options.educationLevels}
                             defaultValue={employee?.personal.education_level}
                             error={errors.education_level}
-                            placeholder="Mis. SMA, D3, S1"
                         />
                     </Section>
 
@@ -540,9 +687,6 @@ export function EmployeeForm({
                             label="NIK (16 digit, dipakai karyawan untuk mendaftar)"
                             defaultValue={employee?.contact.national_id}
                             error={errors.national_id}
-                            inputMode="numeric"
-                            maxLength={16}
-                            required
                         />
                         <TextField
                             name="emergency_contact_name"
@@ -560,9 +704,10 @@ export function EmployeeForm({
                             }
                             error={errors.emergency_contact_phone}
                         />
-                        <TextField
+                        <SelectField
                             name="emergency_contact_relation"
                             label="Hubungan"
+                            options={options.emergencyRelations}
                             defaultValue={
                                 employee?.contact.emergency_contact_relation
                             }
@@ -614,8 +759,6 @@ export function EmployeeForm({
                                 employee?.residence.residence_postal_code
                             }
                             error={errors.residence_postal_code}
-                            inputMode="numeric"
-                            maxLength={10}
                         />
                     </Section>
 
@@ -633,6 +776,7 @@ export function EmployeeForm({
                         </div>
                         <TextField
                             name="id_block"
+                            optional
                             label="Blok"
                             defaultValue={employee?.idAddress.id_block}
                             error={errors.id_block}
@@ -648,14 +792,12 @@ export function EmployeeForm({
                             label="RT"
                             defaultValue={employee?.idAddress.id_rt}
                             error={errors.id_rt}
-                            maxLength={10}
                         />
                         <TextField
                             name="id_rw"
                             label="RW"
                             defaultValue={employee?.idAddress.id_rw}
                             error={errors.id_rw}
-                            maxLength={10}
                         />
                         <TextField
                             name="id_village"
@@ -686,8 +828,6 @@ export function EmployeeForm({
                             label="Kode pos"
                             defaultValue={employee?.idAddress.id_postal_code}
                             error={errors.id_postal_code}
-                            inputMode="numeric"
-                            maxLength={10}
                         />
                     </Section>
 
@@ -701,8 +841,6 @@ export function EmployeeForm({
                                         employee?.identity?.family_card_number
                                     }
                                     error={errors.family_card_number}
-                                    inputMode="numeric"
-                                    maxLength={16}
                                 />
                                 <TextField
                                     name="mother_name"
@@ -715,9 +853,10 @@ export function EmployeeForm({
                             </Section>
 
                             <Section title="Bank & Pajak">
-                                <TextField
+                                <SelectField
                                     name="bank_name"
                                     label="Bank"
+                                    options={options.banks}
                                     defaultValue={employee?.bank?.bank_name}
                                     error={errors.bank_name}
                                 />
@@ -756,9 +895,10 @@ export function EmployeeForm({
                                     defaultValue={employee?.bank?.ptkp_status}
                                     error={errors.ptkp_status}
                                 />
-                                <TextField
+                                <SelectField
                                     name="payment_method"
                                     label="Metode pembayaran"
+                                    options={options.paymentMethods}
                                     defaultValue={
                                         employee?.bank?.payment_method
                                     }

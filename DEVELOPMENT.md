@@ -71,6 +71,22 @@ security pass (Phase 7). What remains is listed in the checklist below. Recruitm
 
 ## Change log (latest first)
 
+- **2026-11-26 (employee profile: required fields and formats).** A new profile needs every field; only **Blok KTP**, **Tanggal
+  keluar** and Zona (Hijau when left out) are optional. An edit keeps what it leaves out but refuses a submitted field that is
+  blank or malformed (the form submits every field, so in the UI everything is required). The sensitive fields (bank, NPWP, KK,
+  BPJS, PTKP, payroll) are required only of someone who may write them (`ViewSensitiveData`). Formats, in one place
+  (`Support/Employees/EmployeeFormat`, shared by the form, the change request and the import): NIK and KK 16 digits, NPWP 15 or 16,
+  BPJS Kesehatan 13, **BPJS Ketenagakerjaan 11**, RT/RW 3 digits (1 becomes 001), kode pos 5, rekening 6-20, phone `08...` 10-13
+  digits (`+62`/`62` read as 0, stored as typed without punctuation), names letters only, ID karyawan letters/digits/hyphen. Dots,
+  dashes and spaces in a number are stripped before checking. Fixed lists (`EmployeeChoices`): pendidikan, bank, hubungan kontak
+  darurat, metode pembayaran (a sheet's "Bank BCA" or "SMA" is matched to the listed spelling). Also: photo required for a new
+  profile; birth date gives 17-70 years; start date at most a year ahead; PTKP K for married, TK otherwise; emergency phone differs
+  from the employee's; **Tanpa atasan** (`no_manager`) for the one person per company without a manager, otherwise the manager is
+  required. The self-service change request holds each field to the same format and cannot empty a field that has a value; a
+  re-typed legacy value ("0811-0000-0000") is not a change. The import checks the same formats but does **not** require the
+  columns the sheet lacks (emergency contact, payroll, notice period, photo), so an imported profile is completed on its first
+  edit. Not changed yet: the other forms (candidate, interview, leave, requisition, offer, offboarding).
+
 - **2026-11-25 (recruitment: "Mendesak" removed; target start date reminders).** The urgent marker is gone: the checkbox and
   reason on the request form, the tags, the urgent-first sort, the CSV column, the "MENDESAK ·" notice prefix, and the
   columns (migration `drop_urgent_from_requisitions`, which deletes the markers already set). In its place the target start date

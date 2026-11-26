@@ -58,7 +58,7 @@ function latestChange(): ProfileChangeRequest
 
 it('records only the fields that differ, with what the employee saw, and changes nothing yet', function () {
     askForChange($this->staffUser, $this->staff, [
-        'phone' => '0812-9999-0000',
+        'phone' => '081299990000',
         'address' => 'Jl. Lama 1',
         'bank_name' => 'BCA',
         'bank_account_number' => '999888777',
@@ -68,17 +68,48 @@ it('records only the fields that differ, with what the employee saw, and changes
 
     expect($change->status->value)->toBe('pending')
         ->and($change->changes)->toBe([
-            'phone' => ['before' => '0811-0000-0000', 'after' => '0812-9999-0000'],
+            'phone' => ['before' => '0811-0000-0000', 'after' => '081299990000'],
             'bank_account_number' => ['before' => '111222333', 'after' => '999888777'],
         ])
         ->and($this->staff->refresh()->phone)->toBe('0811-0000-0000')
         ->and($this->staff->bank_account_number)->toBe('111222333');
 });
 
-it('lets an emptied field mean "clear it"', function () {
-    askForChange($this->staffUser, $this->staff, ['address' => ''])->assertRedirect();
+it('does not let a field that has a value be emptied, and leaves out of it a field the form does not send', function () {
+    askForChange($this->staffUser, $this->staff, ['address' => ''])->assertSessionHasErrors(['address' => 'Alamat wajib diisi.']);
 
-    expect(latestChange()->changes)->toBe(['address' => ['before' => 'Jl. Lama 1', 'after' => null]]);
+    expect(ProfileChangeRequest::query()->count())->toBe(0);
+
+    // Not sent at all: left alone.
+    askForChange($this->staffUser, $this->staff, ['phone' => '081299990000'])->assertRedirect();
+
+    expect(array_keys(latestChange()->changes))->toBe(['phone']);
+});
+
+it('holds each field to its format, and writes numbers and phones the way they are stored', function () {
+    $bad = fn (array $fields) => askForChange($this->staffUser, $this->staff, $fields);
+
+    $bad(['phone' => '12345'])->assertSessionHasErrors(['phone' => 'Telepon harus nomor HP yang diawali 08 (10–13 digit).']);
+    $bad(['email' => 'bukan email'])->assertSessionHasErrors('email');
+    $bad(['bank_name' => 'Bank Antah Berantah'])->assertSessionHasErrors(['bank_name' => 'Pilih bank dari daftar.']);
+    $bad(['bank_account_number' => '12-34'])->assertSessionHasErrors(['bank_account_number' => 'No. rekening harus 6–20 digit angka.']);
+    $bad(['tax_number' => '123'])->assertSessionHasErrors(['tax_number' => 'NPWP harus 15 atau 16 digit angka.']);
+    $bad(['emergency_contact_name' => 'Budi 123'])->assertSessionHasErrors('emergency_contact_name');
+    $bad(['emergency_contact_relation' => 'Tetangga'])->assertSessionHasErrors(['emergency_contact_relation' => 'Pilih hubungan dari daftar.']);
+
+    askForChange($this->staffUser, $this->staff, [
+        'phone' => '+62 812-3456-7890',
+        'bank_name' => 'Bank Mandiri',
+        'bank_account_number' => '1234.567.890',
+        'tax_number' => '12.345.678.9-012.345',
+    ])->assertSessionDoesntHaveErrors();
+
+    expect(latestChange()->changes)->toBe([
+        'phone' => ['before' => '0811-0000-0000', 'after' => '081234567890'],
+        'bank_name' => ['before' => 'BCA', 'after' => 'Mandiri'],
+        'bank_account_number' => ['before' => '111222333', 'after' => '1234567890'],
+        'tax_number' => ['before' => null, 'after' => '123456789012345'],
+    ]);
 });
 
 it('never takes employment, pay or NIK fields from an employee', function () {
@@ -173,7 +204,7 @@ it('shows a waiting picture to HR and its owner through an authorised route, and
 // --- Reviewing ---
 
 it('shows HR only the changed fields, with the current and the asked-for value', function () {
-    askForChange($this->staffUser, $this->staff, ['phone' => '0812-9999-0000', 'bank_account_number' => '999888777'])->assertRedirect();
+    askForChange($this->staffUser, $this->staff, ['phone' => '081299990000', 'bank_account_number' => '999888777'])->assertRedirect();
 
     $this->actingAs($this->hr)->get(route('profile-changes.index'))->assertOk()
         ->assertInertia(fn (Assert $page) => $page
@@ -182,7 +213,7 @@ it('shows HR only the changed fields, with the current and the asked-for value',
             ->has('waiting.0.changes', 2)
             ->where('waiting.0.changes.0.label', 'Telepon')
             ->where('waiting.0.changes.0.before', '0811-0000-0000')
-            ->where('waiting.0.changes.0.after', '0812-9999-0000')
+            ->where('waiting.0.changes.0.after', '081299990000')
             ->where('waiting.0.canDecide', true));
 });
 
@@ -221,14 +252,14 @@ it('counts what is waiting for the menu badge, for HR only', function () {
 // --- Deciding ---
 
 it('applies an approved change and writes who asked and who approved to the audit trail', function () {
-    askForChange($this->staffUser, $this->staff, ['phone' => '0812-9999-0000', 'address' => 'Jl. Baru 9'])->assertRedirect();
+    askForChange($this->staffUser, $this->staff, ['phone' => '081299990000', 'address' => 'Jl. Baru 9'])->assertRedirect();
 
     $this->actingAs($this->hr)->put(route('profile-changes.decide', latestChange()), ['decision' => 'approve'])->assertRedirect();
 
     $this->staff->refresh();
     $change = latestChange();
 
-    expect($this->staff->phone)->toBe('0812-9999-0000')
+    expect($this->staff->phone)->toBe('081299990000')
         ->and($this->staff->address)->toBe('Jl. Baru 9')
         ->and($change->status->value)->toBe('approved')
         ->and($change->decided_by_user_id)->toBe($this->hr->id)
@@ -242,19 +273,19 @@ it('applies an approved change and writes who asked and who approved to the audi
 });
 
 it('does not overwrite a field HR changed after the request was made, and says so', function () {
-    askForChange($this->staffUser, $this->staff, ['phone' => '0812-9999-0000', 'address' => 'Jl. Baru 9'])->assertRedirect();
+    askForChange($this->staffUser, $this->staff, ['phone' => '081299990000', 'address' => 'Jl. Baru 9'])->assertRedirect();
 
     // HR corrects the phone number directly while the request waits.
     $this->actingAs($this->hr)->put(route('employees.update', $this->staff), [
         'employee_number' => $this->staff->employee_number, 'national_id' => $this->staff->national_id,
-        'full_name' => 'Wulan', 'employment_status' => 'active', 'phone' => '0813-1111-1111', 'address' => 'Jl. Lama 1',
+        'full_name' => 'Wulan', 'employment_status' => 'active', 'phone' => '081311111111', 'address' => 'Jl. Lama 1',
     ])->assertRedirect();
 
     $this->actingAs($this->hr)->put(route('profile-changes.decide', latestChange()), ['decision' => 'approve'])->assertRedirect();
 
     $this->staff->refresh();
 
-    expect($this->staff->phone)->toBe('0813-1111-1111')
+    expect($this->staff->phone)->toBe('081311111111')
         ->and($this->staff->address)->toBe('Jl. Baru 9')
         ->and(latestChange()->conflicts)->toBe(['Telepon']);
 });
@@ -274,7 +305,7 @@ it('replaces the picture on approval and deletes the old file', function () {
 });
 
 it('needs a reason to reject, and leaves the profile alone', function () {
-    askForChange($this->staffUser, $this->staff, ['phone' => '0812-9999-0000'])->assertRedirect();
+    askForChange($this->staffUser, $this->staff, ['phone' => '081299990000'])->assertRedirect();
 
     $this->actingAs($this->hr)->put(route('profile-changes.decide', latestChange()), ['decision' => 'reject'])
         ->assertSessionHasErrors(['note' => 'Tulis alasan penolakan.']);
@@ -286,7 +317,7 @@ it('needs a reason to reject, and leaves the profile alone', function () {
 });
 
 it('cannot be decided twice', function () {
-    askForChange($this->staffUser, $this->staff, ['phone' => '0812-9999-0000'])->assertRedirect();
+    askForChange($this->staffUser, $this->staff, ['phone' => '081299990000'])->assertRedirect();
     $this->actingAs($this->hr)->put(route('profile-changes.decide', latestChange()), ['decision' => 'approve'])->assertRedirect();
 
     $this->actingAs($this->hr)->put(route('profile-changes.decide', latestChange()), ['decision' => 'reject', 'note' => 'Terlambat'])->assertForbidden();
@@ -304,13 +335,13 @@ it('has HR edit other people\'s records directly, but their own only through ano
         ->and($this->hr->can('update', $mine))->toBeFalse();
     $this->actingAs($this->hr)->get(route('employees.edit', $mine))->assertForbidden();
 
-    askForChange($this->hr, $mine, ['phone' => '0812-5555-5555'])->assertRedirect();
+    askForChange($this->hr, $mine, ['phone' => '081255555555'])->assertRedirect();
 
     $this->actingAs($this->hr)->put(route('profile-changes.decide', latestChange()), ['decision' => 'approve'])->assertForbidden();
     expect($mine->refresh()->phone)->toBe('0811-5555-5555');
 
     $this->actingAs($otherHr)->put(route('profile-changes.decide', latestChange()), ['decision' => 'approve'])->assertRedirect();
-    expect($mine->refresh()->phone)->toBe('0812-5555-5555');
+    expect($mine->refresh()->phone)->toBe('081255555555');
 });
 
 // --- Notifications ---
@@ -318,7 +349,7 @@ it('has HR edit other people\'s records directly, but their own only through ano
 it('tells every other HR Admin about a request, and the employee about the decision', function () {
     $otherHr = changeUser(Role::HrAdmin, $this->company);
 
-    askForChange($this->staffUser, $this->staff, ['phone' => '0812-9999-0000'])->assertRedirect();
+    askForChange($this->staffUser, $this->staff, ['phone' => '081299990000'])->assertRedirect();
 
     expect($this->hr->notifications()->count())->toBe(1)
         ->and($otherHr->notifications()->count())->toBe(1)
@@ -335,7 +366,7 @@ it('does not tell an HR Admin about their own request', function () {
     $mine = Employee::factory()->forCompany($this->company)->create(['user_id' => $this->hr->id]);
     $otherHr = changeUser(Role::HrAdmin, $this->company);
 
-    askForChange($this->hr, $mine, ['phone' => '0812-5555-5555'])->assertRedirect();
+    askForChange($this->hr, $mine, ['phone' => '081255555555'])->assertRedirect();
 
     expect($this->hr->notifications()->count())->toBe(0)->and($otherHr->notifications()->count())->toBe(1);
 });

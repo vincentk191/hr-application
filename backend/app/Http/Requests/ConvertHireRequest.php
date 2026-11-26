@@ -6,6 +6,7 @@ use App\Concerns\ValidatesEmployeeDossier;
 use App\Models\CandidateOffer;
 use App\Models\Requisition;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 /**
  * Making the employee profile of a hire (REC-FIL-006/007): the fields of any new employee, checked by the same rules, in the
@@ -26,6 +27,11 @@ class ConvertHireRequest extends FormRequest
             && $this->user()?->can('convertHire', [$requisition, $offer]) === true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->normaliseDossier();
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -35,11 +41,27 @@ class ConvertHireRequest extends FormRequest
     }
 
     /**
+     * @return list<callable(Validator): void>
+     */
+    public function after(): array
+    {
+        return $this->dossierChecks();
+    }
+
+    /**
      * @return array<string, string>
      */
     public function messages(): array
     {
         return $this->dossierMessages();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return $this->dossierAttributes();
     }
 
     /**

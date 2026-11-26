@@ -40,6 +40,8 @@ function fakePhoto(string $name, int $kilobytes = 20): UploadedFile
 function newEmployeePayload(array $overrides = []): array
 {
     return [
+        // The photo comes from the test that sends one: a new profile needs it, an edit does not.
+        ...fullEmployeeForm(['photo' => null]),
         'employee_number' => 'EMP-7001',
         'national_id' => '3174000000007001',
         'full_name' => 'Dewi Lestari',
@@ -62,7 +64,10 @@ it('stores an uploaded photo and exposes its URL to the directory', function () 
     $this->actingAs($this->hr)
         ->get(route('employees.index'))
         ->assertInertia(fn (Assert $page) => $page
-            ->where('employees.0.photoUrl', fn ($url) => str_starts_with($url, "/employees/{$employee->id}/photo?v=")));
+            ->where('employees', fn ($employees) => str_starts_with(
+                (string) collect($employees)->firstWhere('id', $employee->id)['photoUrl'],
+                "/employees/{$employee->id}/photo?v=",
+            )));
 });
 
 it('keeps the WebP file the browser sends after shrinking the picture', function () {

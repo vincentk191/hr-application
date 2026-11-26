@@ -6,6 +6,7 @@ use App\Enums\ProfileChangeStatus;
 use App\Models\Employee;
 use App\Models\ProfileChangeRequest;
 use App\Models\User;
+use App\Support\Employees\EmployeeFormat;
 use App\Support\Notifications\Notifier;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -86,7 +87,11 @@ class SubmitProfileChange
             $before = $employee->getAttribute($field);
             $before = $before === null || $before === '' ? null : (string) $before;
 
-            if ($after !== $before) {
+            // A value stored the way it used to be typed ("0811-0000-0000") is the same as its written form ("081100000000"):
+            // asking for it again is not a change.
+            $beforeWritten = $before === null ? null : (EmployeeFormat::normalise([$field => $before])[$field] ?? null);
+
+            if ($after !== $before && $after !== $beforeWritten) {
                 $changes[$field] = ['before' => $before, 'after' => $after];
             }
         }

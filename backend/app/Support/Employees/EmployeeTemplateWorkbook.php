@@ -87,6 +87,10 @@ class EmployeeTemplateWorkbook
             ['Status Karyawan', $labels(EmploymentType::cases())],
             ['Zona Absen Karyawan', $labels(Zona::cases()).' (kosong = Hijau)'],
             ['Tanggal', '2026-12-31 atau 31/12/2026'],
+            ['Format angka', 'No KTP dan No KK 16 digit; NPWP 15 atau 16 digit; BPJS Kesehatan 13 digit; BPJS Ketenagakerjaan 11 digit; RT dan RW 3 digit (001); kode pos 5 digit; No Rekening 6–20 digit. Titik, strip, dan spasi diabaikan.'],
+            ['No Handphone', 'Diawali 08 (10–13 digit); +62 dan 62 dibaca sebagai 0.'],
+            ['NAMA_BANK', implode(', ', EmployeeChoices::BANKS)],
+            ['Pendidikan Terakhir', implode(', ', EmployeeChoices::EDUCATION)],
             ['Kolom sensitif', 'Bank, NPWP, KK, nama ibu, PTKP dan nomor BPJS hanya dibaca bila yang mengunggah berhak melihat data sensitif.'],
         ];
 

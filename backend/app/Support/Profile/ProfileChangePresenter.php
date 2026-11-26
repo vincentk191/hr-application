@@ -6,6 +6,7 @@ use App\Enums\Permission;
 use App\Models\Employee;
 use App\Models\ProfileChangeRequest;
 use App\Models\User;
+use App\Support\Employees\EmployeeFormat;
 
 /**
  * A profile change request as the pages show it: each changed field with its label, group and the
@@ -75,7 +76,7 @@ class ProfileChangePresenter
         $values = [];
 
         foreach (ProfileChangeRequest::FIELDS as $name => $definition) {
-            $fields[] = ['name' => $name, 'label' => $definition['label'], 'group' => $definition['group'], 'type' => $definition['type']];
+            $fields[] = ['name' => $name, 'label' => $definition['label'], 'group' => $definition['group'], 'type' => $definition['type'], ...EmployeeFormat::hints($name)];
             $values[$name] = $definition['type'] === 'photo' ? null : ($employee->getAttribute($name) === null ? null : (string) $employee->getAttribute($name));
         }
 

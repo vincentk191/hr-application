@@ -340,3 +340,34 @@ it('accepts the example row of its own template once the company, branch, depart
 
     expect(sheetImportResult())->toMatchArray(['total' => 1, 'created' => 1, 'rejected' => 0, 'dryRun' => true]);
 });
+
+it('reads numbers, phones, banks and education the way the form stores them, and refuses the ones it cannot read', function () {
+    importEmployeeWorkbook([
+        sheetRow(budiOnTheSheet([
+            'employee_number' => 'F-1', 'national_id' => 3174000000000031, 'phone' => '+62 812-3456-7890', 'id_rt' => '1', 'id_rw' => '2',
+            'bank_name' => 'Bank BCA', 'education_level' => 'SMA', 'bpjs_health_number' => '0001 2345 67890', 'bpjs_employment_number' => '123-4567-8901',
+        ])),
+        sheetRow(budiOnTheSheet(['employee_number' => 'F-2', 'national_id' => 3174000000000032, 'bpjs_health_number' => '12345'])),
+        sheetRow(budiOnTheSheet(['employee_number' => 'F-3', 'national_id' => 3174000000000033, 'bank_name' => 'Bank Antah Berantah'])),
+        sheetRow(budiOnTheSheet(['employee_number' => 'F-4', 'national_id' => 3174000000000034, 'phone' => '0215551234'])),
+        sheetRow(budiOnTheSheet(['employee_number' => 'F-5', 'national_id' => 3174000000000035, 'id_rt' => '1234'])),
+        sheetRow(budiOnTheSheet(['employee_number' => 'F-6', 'national_id' => 3174000000000036, 'education_level' => 'Profesor'])),
+    ]);
+
+    $errors = implode(' | ', sheetImportResult()['errors']);
+    $employee = Employee::where('employee_number', 'F-1')->sole();
+
+    expect(sheetImportResult())->toMatchArray(['created' => 1, 'rejected' => 5])
+        ->and($errors)->toContain('Baris 3: No. BPJS Kesehatan harus 13 digit angka.')
+        ->toContain('Baris 4: bank tidak ada di daftar')
+        ->toContain('Baris 5: Telepon harus nomor HP yang diawali 08')
+        ->toContain('Baris 6: RT harus 3 digit angka')
+        ->toContain('Baris 7: pendidikan terakhir harus salah satu dari')
+        ->and($employee->phone)->toBe('081234567890')
+        ->and($employee->id_rt)->toBe('001')
+        ->and($employee->id_rw)->toBe('002')
+        ->and($employee->bank_name)->toBe('BCA')
+        ->and($employee->education_level)->toBe('SMA/SMK')
+        ->and($employee->bpjs_health_number)->toBe('0001234567890')
+        ->and($employee->bpjs_employment_number)->toBe('12345678901');
+});

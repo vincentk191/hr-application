@@ -16,6 +16,11 @@ class UpdateEmployeeRequest extends FormRequest
         return $this->user()?->can('update', $this->route('employee')) === true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->normaliseDossier();
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -29,7 +34,10 @@ class UpdateEmployeeRequest extends FormRequest
      */
     public function after(): array
     {
+        $employee = $this->route('employee');
+
         return [
+            ...$this->dossierChecks($employee instanceof Employee ? $employee : null),
             function (Validator $validator): void {
                 $employee = $this->route('employee');
 
@@ -52,5 +60,13 @@ class UpdateEmployeeRequest extends FormRequest
     public function messages(): array
     {
         return $this->dossierMessages();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return $this->dossierAttributes();
     }
 }

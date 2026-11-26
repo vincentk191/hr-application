@@ -13,7 +13,15 @@ function size(bytes: number): string {
  * smaller file replaces the chosen one in the input, so that is what the form sends. A phone photo
  * of several MB goes up as a few dozen KB; nothing else about the form changes.
  */
-export function PhotoInput({ id, name }: { id: string; name: string }) {
+export function PhotoInput({
+    id,
+    name,
+    required = false,
+}: {
+    id: string;
+    name: string;
+    required?: boolean;
+}) {
     const [note, setNote] = useState<string | null>(null);
 
     const onChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -49,6 +57,7 @@ export function PhotoInput({ id, name }: { id: string; name: string }) {
                 name={name}
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
+                required={required}
                 onChange={onChange}
             />
             <p className="text-xs text-muted-foreground">

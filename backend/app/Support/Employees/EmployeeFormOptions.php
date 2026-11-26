@@ -62,6 +62,10 @@ class EmployeeFormOptions
             'religions' => array_map(fn (Religion $religion): array => ['value' => $religion->value, 'label' => $religion->label()], Religion::cases()),
             'maritalStatuses' => array_map(fn (MaritalStatus $status): array => ['value' => $status->value, 'label' => $status->label()], MaritalStatus::cases()),
             'ptkpStatuses' => array_map(fn (PtkpStatus $status): array => ['value' => $status->value, 'label' => $status->label()], PtkpStatus::cases()),
+            'educationLevels' => EmployeeChoices::options(EmployeeChoices::EDUCATION),
+            'banks' => EmployeeChoices::options(EmployeeChoices::BANKS),
+            'emergencyRelations' => EmployeeChoices::options(EmployeeChoices::RELATIONS),
+            'paymentMethods' => EmployeeChoices::options(EmployeeChoices::PAYMENT_METHODS),
         ];
     }
 }

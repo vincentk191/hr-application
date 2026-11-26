@@ -36,4 +36,9 @@ export type ProfileFormField = {
     label: string;
     group: string;
     type: 'text' | 'email' | 'textarea' | 'photo';
+    /** A field chosen from a list rather than typed (a bank, how someone is related). */
+    options?: string[];
+    /** The keyboard for a phone or a number, and the longest length of a number of fixed size. */
+    inputMode?: 'tel' | 'numeric';
+    maxLength?: number;
 };

@@ -102,6 +102,7 @@ it('creates an employee in the active company', function () {
 
     $this->actingAs($this->hr)
         ->post(route('employees.store'), [
+            ...fullEmployeeForm(),
             'employee_number' => 'EMP-9001',
             'national_id' => '3174000000009001',
             'full_name' => 'Karyawan Baru',
@@ -123,9 +124,11 @@ it('creates an employee in the active company', function () {
 it('puts a new employee in Zona Hijau unless HR picks another, and keeps it when the field is not sent', function () {
     $branch = Branch::factory()->forCompany($this->company)->create();
     $payload = fn (string $number, array $extra = []): array => [
+        ...fullEmployeeForm(),
         'employee_number' => $number,
         'national_id' => '3174'.str_pad(substr($number, -4), 12, '0', STR_PAD_LEFT),
-        'full_name' => "Karyawan {$number}",
+        // A name is letters only: the number's digits are spelled as letters.
+        'full_name' => 'Karyawan '.strtr(substr($number, -4), '0123456789', 'ABCDEFGHIJ'),
         'branch_id' => $branch->id,
         'employment_status' => EmploymentStatus::Active->value,
         ...$extra,
@@ -339,6 +342,7 @@ describe('adding an employee while every company is being viewed', function () {
     it('files the employee under the company that was chosen', function () {
         $this->actingAs($this->admin)
             ->post(route('employees.store'), [
+                ...fullEmployeeForm(),
                 'company_id' => $this->company->id,
                 'employee_number' => 'EMP-7001',
                 'national_id' => '3174000000007001',
@@ -430,6 +434,7 @@ it('leaves the account alone when something other than the name changes', functi
 function sheetFormPayload(Branch $branch, array $extra = []): array
 {
     return [
+        ...fullEmployeeForm(),
         'employee_number' => 'EMP-7001',
         'national_id' => '3174000000007001',
         'full_name' => 'Budi Santoso',

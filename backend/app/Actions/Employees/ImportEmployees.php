@@ -16,10 +16,12 @@ use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Position;
 use App\Models\User;
+use App\Support\Employees\EmployeeFormat;
 use App\Support\Employees\EmployeeSheet;
 use App\Support\Employees\InvalidEmployeeImport;
 use Carbon\CarbonImmutable;
 use Generator;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use PhpOffice\PhpSpreadsheet\Cell\Cell;
@@ -577,34 +579,46 @@ class ImportEmployees
             return 'tanggal lahir harus sebelum hari ini.';
         }
 
-        // Numbers typed with dots, dashes or spaces ("12.345.678.9-012.345") are read as their digits.
-        $row['national_id'] = $this->digitsOnly($row['national_id']);
-        $row['family_card_number'] = $this->digitsOnly($row['family_card_number']);
-        $row['tax_number'] = $this->digitsOnly($row['tax_number']);
+        // Numbers typed with dots, dashes or spaces ("12.345.678.9-012.345") are read as their digits, a phone as 08…, RT and RW to
+        // three digits, and a bank or an education written as the sheet likes ("Bank BCA", "SMA") as its listed entry.
+        $row = [...$row, ...EmployeeFormat::normalise(Arr::except($row, ['line']))];
+
+        $format = fn (string $field): array => ['nullable', ...EmployeeFormat::rules($field)];
 
         $validator = Validator::make($row, [
-            'employee_number' => ['max:50'],
-            'full_name' => ['max:255'],
+            'employee_number' => ['max:50', ...EmployeeFormat::rules('employee_number')],
+            'full_name' => ['max:255', ...EmployeeFormat::rules('full_name')],
             'email' => ['nullable', 'email', 'max:255'],
-            'phone' => ['nullable', 'max:50'],
+            'phone' => $format('phone'),
             'address' => ['nullable', 'max:1000'],
             'id_address' => ['nullable', 'max:1000'],
-            'national_id' => ['required', 'regex:/^\d{16}$/'],
-            'family_card_number' => ['nullable', 'regex:/^\d{16}$/'],
-            'tax_number' => ['nullable', 'regex:/^\d{15,16}$/'],
+            'national_id' => ['required', ...EmployeeFormat::rules('national_id')],
+            'family_card_number' => $format('family_card_number'),
+            'tax_number' => $format('tax_number'),
+            'bpjs_employment_number' => $format('bpjs_employment_number'),
+            'bpjs_health_number' => $format('bpjs_health_number'),
+            'bank_account_number' => $format('bank_account_number'),
+            'bank_account_holder' => $format('bank_account_holder'),
+            'bank_name' => $format('bank_name'),
+            'mother_name' => $format('mother_name'),
+            'birth_place' => $format('birth_place'),
+            'education_level' => $format('education_level'),
             'job_title' => ['nullable', 'max:150'],
-            'residence_postal_code' => ['nullable', 'max:10'],
-            'id_postal_code' => ['nullable', 'max:10'],
-            'id_rt' => ['nullable', 'max:10'],
-            'id_rw' => ['nullable', 'max:10'],
+            'residence_postal_code' => $format('residence_postal_code'),
+            'id_postal_code' => $format('id_postal_code'),
+            'id_rt' => $format('id_rt'),
+            'id_rw' => $format('id_rw'),
         ], [
-            'national_id.required' => 'NIK kosong.',
-            'national_id.regex' => 'NIK harus 16 digit angka (jika Excel mengubahnya menjadi 3,17E+15, format kolomnya sebagai teks).',
+            ...EmployeeFormat::messages(),
             'family_card_number.regex' => 'No KK harus 16 digit angka.',
             'tax_number.regex' => 'NPWP 16 harus 15 atau 16 digit angka.',
+            'national_id.required' => 'NIK kosong.',
+            'national_id.regex' => 'NIK harus 16 digit angka (jika Excel mengubahnya menjadi 3,17E+15, format kolomnya sebagai teks).',
             'employee_number.max' => 'ID karyawan terlalu panjang.',
             'full_name.max' => 'nama terlalu panjang.',
             'email.email' => 'email tidak valid.',
+            'bank_name.in' => 'bank tidak ada di daftar; tulis seperti BCA, Mandiri, BNI, BRI, atau Lainnya.',
+            'education_level.in' => 'pendidikan terakhir harus salah satu dari SD, SMP, SMA/SMK, D3, S1, S2, S3.',
             '*.max' => 'terlalu panjang.',
         ]);
 
