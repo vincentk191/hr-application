@@ -75,17 +75,17 @@ it('lets HR name a new direct superior, tells both, and keeps it on the audit tr
 
     changeSuperior($requisition, $this->newBossEmployee, extra: ['note' => 'Atasan lama pindah divisi.'])
         ->assertRedirect()->assertSessionDoesntHaveErrors()
-        ->assertInertiaFlash('toast', ['type' => 'success', 'message' => "Atasan langsung diganti ke {$this->newBossEmployee->full_name}."]);
+        ->assertInertiaFlash('toast', ['type' => 'success', 'message' => "Atasan diganti ke {$this->newBossEmployee->full_name}."]);
 
-    $entry = Activity::query()->where('description', 'Atasan langsung diganti')->sole();
+    $entry = Activity::query()->where('description', 'Atasan diganti')->sole();
 
     expect($requisition->refresh()->manager_employee_id)->toBe($this->newBossEmployee->id)
         ->and($entry->causer_id)->toBe($this->hr->id)
         ->and($entry->properties['from'])->toBe($this->oldBossEmployee->full_name)
         ->and($entry->properties['to'])->toBe($this->newBossEmployee->full_name)
         ->and($entry->properties['note'])->toBe('Atasan lama pindah divisi.')
-        ->and($this->newBoss->notifications()->get()->pluck('data.title')->implode(' '))->toContain('Anda atasan langsung')
-        ->and($this->oldBoss->notifications()->get()->pluck('data.title')->implode(' '))->toContain('bukan lagi atasan langsung')
+        ->and($this->newBoss->notifications()->get()->pluck('data.title')->implode(' '))->toContain('Anda atasan')
+        ->and($this->oldBoss->notifications()->get()->pluck('data.title')->implode(' '))->toContain('bukan lagi atasan')
         ->and($this->hr->notifications()->count())->toBe(0);
 });
 
@@ -145,7 +145,7 @@ it('names only an active employee of the company with an active account, other t
     changeSuperior($requisition, null)->assertSessionHasErrors('manager_employee_id');
 
     expect($requisition->refresh()->manager_employee_id)->toBe($this->oldBossEmployee->id)
-        ->and(Activity::query()->where('description', 'Atasan langsung diganti')->count())->toBe(0);
+        ->and(Activity::query()->where('description', 'Atasan diganti')->count())->toBe(0);
 });
 
 it('offers HR the choices, and nobody else', function () {

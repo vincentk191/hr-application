@@ -609,7 +609,7 @@ class RequisitionController extends Controller
         $validated = $request->validate([
             'manager_employee_id' => ['required', 'integer'],
             'note' => ['nullable', 'string', 'max:500'],
-        ], ['manager_employee_id.required' => 'Pilih atasan langsung.']);
+        ], ['manager_employee_id.required' => 'Pilih atasan.']);
 
         $superior = Employee::acrossCompanies()->with('user')
             ->whereKey($validated['manager_employee_id'])
@@ -625,7 +625,7 @@ class RequisitionController extends Controller
 
         $change->handle($requisition, $superior, $request->user(), $validated['note'] ?? null);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => "Atasan langsung diganti ke {$superior->full_name}."]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => "Atasan diganti ke {$superior->full_name}."]);
 
         return back();
     }

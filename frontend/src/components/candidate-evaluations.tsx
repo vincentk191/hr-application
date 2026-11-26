@@ -185,20 +185,26 @@ function Breakdown({ scores }: { scores: EvaluationScores | null }) {
     );
 }
 
-/** A dot in the recommendation's colour, with its name. */
-function RecommendationLabel({ value }: { value: Recommendation }) {
+/** The recommendation as a pill: its colour as the border, the tint and a dot, with its name. The same wherever it is shown. */
+function RecommendationPill({
+    value,
+    label,
+}: {
+    value: Recommendation;
+    label?: string;
+}) {
     return (
         <span
             className={cn(
-                'inline-flex items-center gap-1.5',
-                STYLE[value].text,
+                'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold',
+                STYLE[value].pill,
             )}
         >
             <span
                 aria-hidden
                 className={cn('size-2 rounded-full', STYLE[value].dot)}
             />
-            {STYLE[value].label}
+            {label ?? STYLE[value].label}
         </span>
     );
 }
@@ -314,21 +320,12 @@ function MyCard({ entry }: { entry: CandidateEvaluation }) {
                 </div>
                 <Score rating={entry.rating} />
             </div>
-            <span
-                className={cn(
-                    'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold',
-                    STYLE[entry.recommendation].pill,
-                )}
-            >
-                <span
-                    aria-hidden
-                    className={cn(
-                        'size-2 rounded-full',
-                        STYLE[entry.recommendation].dot,
-                    )}
+            <div>
+                <RecommendationPill
+                    value={entry.recommendation}
+                    label={entry.recommendationLabel}
                 />
-                {entry.recommendationLabel}
-            </span>
+            </div>
             <Breakdown scores={entry.scores} />
             <Note text={entry.note} />
         </div>
@@ -378,8 +375,11 @@ function OtherCard({ entry }: { entry: CandidateEvaluation }) {
                         <p className="truncate text-lg font-bold">
                             {entry.author ?? '—'}
                         </p>
-                        <p className="flex flex-wrap items-center gap-x-2 text-sm">
-                            <RecommendationLabel value={entry.recommendation} />
+                        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+                            <RecommendationPill
+                                value={entry.recommendation}
+                                label={entry.recommendationLabel}
+                            />
                             {entry.writtenOn && (
                                 <>
                                     <span

@@ -479,7 +479,7 @@ export function EmployeeForm({
 
                         <div className="grid gap-2">
                             <Label htmlFor="manager_id">
-                                Atasan langsung
+                                Atasan
                                 {!noManager && <RequiredMark />}
                             </Label>
                             <select

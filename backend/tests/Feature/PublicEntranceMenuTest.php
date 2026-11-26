@@ -39,7 +39,7 @@ beforeEach(function () {
     app(WorkflowEngine::class)->start($this->requisition, new RequisitionWorkflow, [], $this->boss)
         ->update(['current_stage' => RequisitionStage::Interview->value]);
 
-    $this->boss->notify(new InAppNotice('recruitment', 'Anda atasan langsung', 'REQ-0001', '/recruitment/'.$this->requisition->id));
+    $this->boss->notify(new InAppNotice('recruitment', 'Anda atasan', 'REQ-0001', '/recruitment/'.$this->requisition->id));
     $this->boss->notify(new InAppNotice('leave', 'Pengajuan menunggu', 'Cuti', '/leave-requests'));
 });
 
@@ -94,7 +94,7 @@ it('leaves notices about private modules out of the bell and the list on the pub
 
     expect(collect($public['notifications']['recent'])->pluck('title')->all())->toBe(['Pengajuan menunggu'])
         ->and($public['notifications']['unread'])->toBe(1)
-        ->and(collect($private['notifications']['recent'])->pluck('title')->sort()->values()->all())->toBe(['Anda atasan langsung', 'Pengajuan menunggu']);
+        ->and(collect($private['notifications']['recent'])->pluck('title')->sort()->values()->all())->toBe(['Anda atasan', 'Pengajuan menunggu']);
 
     $list = entranceProps('public', '/notifications')['list'];
     $recruitment = $this->boss->notifications()->where('data->kind', 'recruitment')->firstOrFail();

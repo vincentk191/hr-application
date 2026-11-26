@@ -51,7 +51,7 @@ export function OffboardingImpactPanel({ item }: { item: OffboardingCase }) {
             {impact.reports.length > 0 && (
                 <div className="space-y-2">
                     <p className="text-sm">
-                        {item.employee.name} masih menjadi atasan langsung{' '}
+                        {item.employee.name} masih menjadi atasan{' '}
                         {impact.reports.length} orang. Pindahkan mereka ke
                         atasan baru; permintaan yang menunggu tetap berjalan
                         lewat atasan baru mereka.

@@ -82,7 +82,7 @@ export default function BeritaAcara({ case: item }: { case: OffboardingCase }) {
                                 .filter(Boolean)
                                 .join(' · ') || '—'}
                         </Field>
-                        <Field label="Atasan langsung">
+                        <Field label="Atasan">
                             {item.employee.manager ?? '—'}
                         </Field>
                         <Field label="Jenis keluar">

@@ -389,7 +389,7 @@ export default function RequisitionForm({
             : type?.needsMonths && contractMonths === ''
               ? ['Lama kontrak']
               : []),
-        ...(managerId === '' ? ['Atasan langsung'] : []),
+        ...(managerId === '' ? ['Atasan'] : []),
         ...(targetStart === '' || startInPast || startTooFar
             ? ['Target mulai kerja']
             : []),

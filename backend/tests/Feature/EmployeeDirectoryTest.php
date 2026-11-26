@@ -584,7 +584,7 @@ it('tells the page whether closed and switched-off people are included', functio
     $this->actingAs($this->hr)->get(route('employees.index', ['inactive' => '1']))->assertInertia(fn (Assert $page) => $page->where('filters.inactive', true));
 });
 
-it('does not offer a closed profile or a switched-off account as an atasan langsung', function () {
+it('does not offer a closed profile or a switched-off account as an atasan', function () {
     directoryCases($this->company);
 
     $offered = collect($this->actingAs($this->hr)->get(route('employees.create'))->assertOk()->viewData('page')['props']['managers'])
@@ -593,7 +593,7 @@ it('does not offer a closed profile or a switched-off account as an atasan langs
     expect($offered)->toEqualCanonicalizing(['Aktif Bisa Masuk', 'Aktif Tanpa Akun', 'Aktif Menunggu']);
 });
 
-it('refuses a closed profile or a switched-off account as an atasan langsung when saving', function (string $name) {
+it('refuses a closed profile or a switched-off account as an atasan when saving', function (string $name) {
     directoryCases($this->company);
     $manager = Employee::query()->where('full_name', $name)->firstOrFail();
     $report = Employee::factory()->forCompany($this->company)->create();
@@ -606,12 +606,12 @@ it('refuses a closed profile or a switched-off account as an atasan langsung whe
             'employment_status' => EmploymentStatus::Active->value,
             'manager_id' => $manager->id,
         ])
-        ->assertSessionHasErrors(['manager_id' => 'Atasan langsung harus karyawan aktif dengan akun yang tidak dinonaktifkan.']);
+        ->assertSessionHasErrors(['manager_id' => 'Atasan harus karyawan aktif dengan akun yang tidak dinonaktifkan.']);
 
     expect($report->fresh()->manager_id)->toBeNull();
 })->with(['Aktif Akun Mati', 'Sudah Keluar']);
 
-it('accepts someone whose account is still waiting for activation as an atasan langsung', function () {
+it('accepts someone whose account is still waiting for activation as an atasan', function () {
     directoryCases($this->company);
     $manager = Employee::query()->where('full_name', 'Aktif Menunggu')->firstOrFail();
     $report = Employee::factory()->forCompany($this->company)->create();

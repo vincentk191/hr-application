@@ -132,7 +132,7 @@ export default function OfferLetter({
                             <Term label="Cabang">{letter.branch}</Term>
                         )}
                         {letter.manager && (
-                            <Term label="Atasan langsung">
+                            <Term label="Atasan">
                                 {letter.manager}
                             </Term>
                         )}

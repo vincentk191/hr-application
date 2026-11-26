@@ -210,7 +210,7 @@ return [
         'position_name' => 'posisi',
         'employment_type' => 'tipe kontrak',
         'contract_months' => 'lama kontrak',
-        'manager_employee_id' => 'atasan langsung',
+        'manager_employee_id' => 'atasan',
         'target_start_on' => 'target mulai kerja',
         'last_working_on' => 'hari kerja terakhir',
         'device_sn' => 'nomor seri pemindai',

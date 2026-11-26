@@ -8,7 +8,7 @@ use App\Models\User;
 use App\Support\Notifications\Notifier;
 
 /**
- * HR names a different direct superior (Atasan langsung) for a requisition already under way: the person first named has
+ * HR names a different direct superior (Atasan) for a requisition already under way: the person first named has
  * left, was the wrong one, or has no account to choose with. Choices the old superior already made stay, and the new
  * one may keep or take them back. Both are told, and the change is on the audit trail.
  */
@@ -30,7 +30,7 @@ class ChangeDirectSuperior
                 'to' => $superior->full_name,
                 'note' => filled($note) ? trim((string) $note) : null,
             ]))
-            ->log('Atasan langsung diganti');
+            ->log('Atasan diganti');
 
         $this->notifier->directSuperiorChanged($requisition, $previous, $superior, $by);
     }

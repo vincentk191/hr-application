@@ -162,7 +162,7 @@ it('moves to Penawaran only once somebody is picked, and only HR does it', funct
     afterTheInterview();
     $url = route('recruitment.offer', $requisition);
 
-    $this->actingAs($this->hr)->post($url)->assertSessionHasErrors(['advance' => 'Atasan langsung belum memilih kandidat.']);
+    $this->actingAs($this->hr)->post($url)->assertSessionHasErrors(['advance' => 'Atasan belum memilih kandidat.']);
     expect($requisition->refresh()->stage())->toBe(RequisitionStage::Interview);
 
     pick($requisition, $candidate)->assertRedirect();

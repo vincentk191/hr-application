@@ -318,7 +318,7 @@ export default function OffboardingForm({
                                                 {candidate.reportsCount > 0 && (
                                                     <p>
                                                         {candidate.name} masih
-                                                        menjadi atasan langsung{' '}
+                                                        menjadi atasan{' '}
                                                         {candidate.reportsCount}{' '}
                                                         orang. Bawahannya harus
                                                         dipindahkan ke atasan
@@ -343,7 +343,7 @@ export default function OffboardingForm({
                                         <dl className="grid gap-2 rounded-xl bg-muted/40 p-3 text-sm sm:grid-cols-2">
                                             <div>
                                                 <dt className="label-mono">
-                                                    Atasan langsung
+                                                    Atasan
                                                 </dt>
                                                 <dd>
                                                     {(candidate?.manager ??

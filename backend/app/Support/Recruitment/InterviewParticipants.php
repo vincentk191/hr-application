@@ -13,7 +13,7 @@ use Illuminate\Support\Collection;
 /**
  * Who sits in on a candidate's interview (REC-INT).
  *
- * The direct superior (Atasan langsung) always does: they come from the requisition, so they follow it when HR names a
+ * The direct superior (Atasan) always does: they come from the requisition, so they follow it when HR names a
  * different one. Besides them HR chooses, per candidate, from a short list: the HR admins of the company and the users with
  * the Manajemen role. An invitation made before participants could be chosen has no such list, and keeps the old
  * arrangement: every HR admin and the direct superior.

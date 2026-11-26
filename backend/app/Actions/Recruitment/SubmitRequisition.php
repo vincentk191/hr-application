@@ -76,10 +76,10 @@ class SubmitRequisition
         }
 
         if ($requisition->manager_employee_id === null) {
-            $problems['manager_employee_id'] = 'Pilih atasan langsung.';
+            $problems['manager_employee_id'] = 'Pilih atasan.';
         } elseif (! Employee::acrossCompanies()->whereKey($requisition->manager_employee_id)->where('company_id', $requisition->company_id)
             ->assignable()->exists()) {
-            $problems['manager_employee_id'] = 'Atasan langsung sudah tidak aktif. Pilih yang lain.';
+            $problems['manager_employee_id'] = 'Atasan sudah tidak aktif. Pilih yang lain.';
         }
 
         if ($requisition->target_start_on === null) {

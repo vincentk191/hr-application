@@ -89,7 +89,7 @@ it('asks the Atasan to approve, lets HR know it exists, and tells the requester 
     $info = $this->hr->notifications()->get();
     expect($info)->toHaveCount(1)
         ->and($info[0]->data['title'])->toBe("{$leave->reference()} diajukan oleh {$this->staff->full_name}")
-        ->and($info[0]->data['body'])->toContain('menunggu Atasan langsung')
+        ->and($info[0]->data['body'])->toContain('menunggu Atasan')
         ->and($info[0]->data['url'])->toBe("/leave-requests?open={$leave->id}");
 
     notifDecide($this->boss, $leave, 'approve');

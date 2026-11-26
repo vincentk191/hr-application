@@ -43,7 +43,7 @@ class ProposeOffers
             ->get();
 
         if ($candidates->isEmpty()) {
-            throw ValidationException::withMessages(['candidate_ids' => 'Pilih setidaknya satu kandidat yang sudah dipilih atasan langsung dan belum diajukan.']);
+            throw ValidationException::withMessages(['candidate_ids' => 'Pilih setidaknya satu kandidat yang sudah dipilih atasan dan belum diajukan.']);
         }
 
         $offers = DB::transaction(fn (): array => array_values($candidates->map(function (Candidate $candidate) use ($requisition, $by): CandidateOffer {

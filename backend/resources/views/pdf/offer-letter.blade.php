@@ -58,7 +58,7 @@
             <tr><td class="label">Cabang</td><td class="value">: {{ $letter['branch'] }}</td></tr>
         @endif
         @if (! empty($letter['manager']))
-            <tr><td class="label">Atasan langsung</td><td class="value">: {{ $letter['manager'] }}</td></tr>
+            <tr><td class="label">Atasan</td><td class="value">: {{ $letter['manager'] }}</td></tr>
         @endif
         @if (! empty($letter['contract']))
             <tr><td class="label">Status kerja</td><td class="value">: {{ $letter['contract'] }}</td></tr>

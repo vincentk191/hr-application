@@ -121,7 +121,7 @@ danger, void); `lib/status.ts` holds the tone for each flow (`decisionTone`, `of
 `checklistGroupTone`, `offerStageTone`, `inviteStateTone`, `rekapStatusTone`, `ageTone`). All 28 status badges moved
 onto it, the 315 raw amber/emerald/red/sky/orange classes became tokens (dark-mode companions removed), approved is
 green everywhere including the approval chain and the leave dialog marker, and the approval chain's open step no
-longer uses the brand red. Leave requests that are waiting show how long (`Atasan langsung · 4 hari`), warming from
+longer uses the brand red. Leave requests that are waiting show how long (`Atasan · 4 hari`), warming from
 amber to orange at 3 days and red at 7.
 - **Decisions I made that you may want to change:** an active employee is a green "success" pill (it is on every
   directory row, so that is a lot of green; neutral would be the quiet alternative); recruitment requisitions that

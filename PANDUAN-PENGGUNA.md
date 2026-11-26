@@ -209,8 +209,8 @@ bertambah sesuai hak Anda.
   bentrok ditolak.
 - **Sakit:** diisi untuk hari yang sudah lewat, saat Anda sudah ditandai **Alpa**. Pengajuan sakit dikirim ke **HR**, dan
   bila disetujui, Alpa pada hari itu berubah menjadi Sakit. Lampiran wajib.
-- **Jenis lain (cuti, izin):** dikirim ke **atasan langsung** Anda untuk disetujui. HR dapat melihat dan diberi tahu, tetapi
-  tidak menyetujui. Bila Anda belum punya atasan langsung di data, HR yang memutuskan.
+- **Jenis lain (cuti, izin):** dikirim ke **atasan** Anda untuk disetujui. HR dapat melihat dan diberi tahu, tetapi
+  tidak menyetujui. Bila Anda belum punya atasan di data, HR yang memutuskan.
 - Tidak ada saldo cuti di aplikasi: yang tercatat adalah cuti yang sudah diambil.
 
 ### 1.6 Memantau pengajuan
@@ -259,9 +259,9 @@ profil Anda lagi.
 
 ## Bagian 2. Supervisor
 
-Supervisor adalah karyawan yang punya bawahan: orang-orang yang **atasan langsungnya** adalah Anda di data HR.
-**Persetujuan pengajuan mengikuti atasan langsung di data**, bukan sekadar nama peran. Siapa pun yang ditetapkan HR sebagai
-atasan langsung seseorang otomatis dapat menyetujui pengajuan orang itu dan melihat tim mereka.
+Supervisor adalah karyawan yang punya bawahan: orang-orang yang **atasannya** adalah Anda di data HR.
+**Persetujuan pengajuan mengikuti atasan di data**, bukan sekadar nama peran. Siapa pun yang ditetapkan HR sebagai
+atasan seseorang otomatis dapat menyetujui pengajuan orang itu dan melihat tim mereka.
 
 ### 2.1 Persiapan satu kali
 
@@ -308,7 +308,7 @@ dimaafkan dilakukan HR.
 
 1. Buka **Rekrutmen** > **Ajukan Lowongan**. Tombol hanya muncul untuk supervisor atas departemen yang dipimpinnya.
 2. **Langkah 1, Permintaan:** posisi, departemen, cabang (opsional), jumlah kuota, tipe kontrak (Kontrak dan Magang
-   meminta lama dalam bulan), **atasan langsung**, target mulai kerja (hari ini atau lebih), dan alasan permintaan.
+   meminta lama dalam bulan), **atasan**, target mulai kerja (hari ini atau lebih), dan alasan permintaan.
 3. **Langkah 2, Isi lowongan dan checklist kandidat:** Tentang Posisi, Tanggung Jawab Utama (minimal satu subjudul dengan
    satu poin), Benefit & Fasilitas (boleh kosong), serta checklist kualifikasi dan skills (kandidat menjawab ya atau tidak
    per baris).
@@ -317,7 +317,7 @@ dimaafkan dilakukan HR.
    ditolak, lowongan kembali menjadi draft dengan alasannya; perbaiki dan kirim lagi. Selama belum ada yang memutuskan,
    Anda masih dapat mengubahnya.
 
-### 2.6 Menjadi atasan langsung dalam rekrutmen
+### 2.6 Menjadi atasan dalam rekrutmen
 
 - Anda dapat ikut **Interview** sebagai peserta dan mengisi **evaluasi** untuk kandidat posisi Anda.
 - Setelah interview, **Anda memilih** kandidat yang Anda inginkan (tombol **Pilih** pada kandidat yang sudah
@@ -355,7 +355,7 @@ besar. Peran ini tidak mengelola data atau dokumen: dokumen, rekening, gaji, dan
 | Menyetujui lowongan baru | **Rekrutmen** | Anda mengisi **Ekspektasi Gaji** (rentang minimum dan maksimum) |
 | Menyetujui penawaran kerja | **Rekrutmen** > lowongan > tab **Penawaran** | Anda menetapkan gaji awal |
 | Menyetujui offboarding | **Offboarding** | Selalu Manajemen yang pertama menyetujui |
-| Menyetujui pengajuan | **Pengajuan** | Hanya bila Anda atasan langsung orang itu |
+| Menyetujui pengajuan | **Pengajuan** | Hanya bila Anda atasan orang itu |
 | Mengajukan atas nama bawahan | **Pengajuan** > **Ajukan** | Hanya untuk bawahan Anda; boleh tanggal lampau |
 | Ikut interview dan evaluasi | **Rekrutmen** > kandidat | Sebagai peserta yang dipilih HR |
 | Melihat seluruh karyawan | **Direktori** | Seluruh perusahaan, tanpa dokumen dan data sensitif |
@@ -373,7 +373,7 @@ Semua yang menunggu Anda muncul sebagai angka di samping menu dan di kartu **Men
 ### 3.4 Menyetujui penawaran kerja
 
 1. Buka **Rekrutmen** > lowongan > tab **Penawaran**.
-2. Tiap kandidat yang dipilih atasan langsung tampil sebagai usulan, lengkap dengan "Direkomendasikan oleh n pewawancara".
+2. Tiap kandidat yang dipilih atasan tampil sebagai usulan, lengkap dengan "Direkomendasikan oleh n pewawancara".
 3. Tetapkan **gaji awal**, lalu **Setujui**. Atau **Tolak** dengan alasan: kandidat kembali ke daftar Interview.
 4. HR lalu menyusun surat penawaran (Bagian 4.7).
 
@@ -432,7 +432,7 @@ dibuat Admin Sistem; Departemen dan Posisi bisa dibuat HR di **Panel admin** (me
 | Lokasi kerja (cabang) | Dianjurkan | Harus sudah ada. Kosong = satu-satunya cabang perusahaan; ditolak bila cabangnya lebih dari satu |
 | Divisi (departemen), Posisi | Dianjurkan | Harus sudah ada dan sama ejaannya |
 | Jabatan | Bebas | Teks bebas |
-| Supervisor | **Sangat dianjurkan** | Nomor induk atau nama lengkap atasan langsung, dari karyawan yang sudah ada atau yang ada di berkas yang sama |
+| Supervisor | **Sangat dianjurkan** | Nomor induk atau nama lengkap atasan, dari karyawan yang sudah ada atau yang ada di berkas yang sama |
 | Status Karyawan | Dianjurkan | Tetap / Kontrak / Percobaan / Magang |
 | Zona | Opsional | Hijau / Merah / Hitam (kosong = Hijau) |
 | Tanggal | | Format `2026-12-31` atau `31/12/2026` (hari dulu) |
@@ -455,12 +455,12 @@ ditimpa, jadi aman bila Anda mengulang. Untuk mengoreksi karyawan yang sudah mas
 
 **Langkah 3b. Alternatif: menambah satu per satu.**
 **Direktori** > **Tambah karyawan**. Isi bagian **Kepegawaian** (ID karyawan, Nama lengkap, Cabang, Departemen, Posisi,
-Jabatan, **Atasan langsung**, Status, Zona, Tanggal bergabung), **Data pribadi**, **Kontak** (isi **NIK** 16 digit:
+Jabatan, **Atasan**, Status, Zona, Tanggal bergabung), **Data pribadi**, **Kontak** (isi **NIK** 16 digit:
 "dipakai karyawan untuk mendaftar"), alamat, dan bila berhak, keluarga, bank dan pajak, kesehatan, serta penggajian.
 Klik simpan.
 
 **Langkah 4. Periksa sebelum mengundang.**
-Buka beberapa profil. Pastikan **ID karyawan** dan **NIK** benar (karyawan akan mengetiknya persis), dan **Atasan langsung**
+Buka beberapa profil. Pastikan **ID karyawan** dan **NIK** benar (karyawan akan mengetiknya persis), dan **Atasan**
 terisi. NIK dan ID adalah "kunci" pendaftaran: salah satu huruf saja membuat pendaftaran gagal.
 
 **Langkah 5. Minta karyawan mendaftar.**
@@ -505,7 +505,7 @@ Di **Direktori**, cek siapa yang belum mendaftar dan ingatkan. Kasus yang sering
 - **Karyawan nonaktif:** secara bawaan Direktori hanya menampilkan karyawan yang masih bekerja dan akunnya tidak
   **Dinonaktifkan** (akun **Menunggu aktivasi** dan **Belum terdaftar** tetap tampil). Klik **Termasuk nonaktif** untuk melihat
   semuanya; yang masih aktif tampil lebih dulu. Memilih status **Nonaktif** langsung menampilkan karyawan yang sudah keluar.
-  Karyawan yang sudah keluar atau akunnya **Dinonaktifkan** juga tidak bisa dipilih sebagai **atasan langsung** (di formulir
+  Karyawan yang sudah keluar atau akunnya **Dinonaktifkan** juga tidak bisa dipilih sebagai **atasan** (di formulir
   karyawan, impor, permintaan rekrutmen, dan saat memindahkan bawahan di offboarding) maupun kepala departemen. Atasan yang
   sudah terpasang tidak berubah sampai HR menggantinya.
 - **Ekspor:** **Direktori** > **Ekspor** untuk daftar karyawan.
@@ -525,7 +525,7 @@ Di **Direktori**, cek siapa yang belum mendaftar dan ingatkan. Kasus yang sering
 - **Lihat semua:** menu **Pengajuan** menampilkan semua pengajuan perusahaan; filter status, jenis, cabang, departemen,
   dan bulan. **Ekspor** mengunduh sesuai filter.
 - **Menyetujui:** HR menyetujui hanya (a) pengajuan **Sakit**, dan (b) pengajuan karyawan yang **tidak punya atasan
-  langsung**. Pengajuan lain diputuskan atasan langsung; HR hanya melihat dan diberi tahu.
+  langsung**. Pengajuan lain diputuskan atasan; HR hanya melihat dan diberi tahu.
 - **Mengajukan atas nama:** **Ajukan** > pilih karyawan. HR boleh memakai tanggal lampau, dan memperbaiki pengajuan karyawan yang
   tidak punya akun.
 - **Sakit:** karyawan ditandai **Alpa** lebih dulu, lalu mengajukan sakit untuk hari lampau dengan lampiran. Saat Anda
@@ -571,12 +571,12 @@ Semua dilakukan lewat VPN di menu **Rekrutmen**. Urutannya:
      perusahaan sudah menghubungkan Google (Bagian 5.9).
    - Kandidat mendapat **tautan pribadi** ke formulir yang dibuka tanpa akun. Ia menjawab checklist yang diajukan
      (ya atau tidak per baris). Tautan sekali pakai dan kedaluwarsa.
-   - Atur **peserta** per kandidat (HR, Manajemen, atasan langsung terkunci). Peserta ikut dan mengisi **evaluasi**.
+   - Atur **peserta** per kandidat (HR, Manajemen, atasan terkunci). Peserta ikut dan mengisi **evaluasi**.
    - **Hapus jadwal** membatalkan jadwal (kandidat tetap shortlist).
    - Menolak kandidat: **Tolak** (alasan), bisa **Pulihkan**. Email penolakan dikirim **pagi berikutnya** setelah HR
      meninjau drafnya.
 5. **Penawaran:**
-   - **Atasan langsung** memilih kandidat (**Pilih**). HR klik **Lanjut ke Penawaran**.
+   - **Atasan** memilih kandidat (**Pilih**). HR klik **Lanjut ke Penawaran**.
    - **Manajemen** menyetujui dan menetapkan gaji (Bagian 3.4).
    - HR mengisi **syarat**: tanggal mulai (di masa depan), gaji, masa percobaan (maksimal 3 bulan). Satu set syarat dapat
      dipakai beberapa kandidat.
@@ -783,7 +783,7 @@ Untuk karyawan baru hasil rekrutmen, gunakan **Jadikan karyawan** (4.7) sebagai 
 | `[ALAMAT VPN]` tidak terbuka dan VPN mati | VPN belum dinyalakan | Nyalakan WireGuard |
 | Pengajuan saya tidak bisa diubah | Hanya pengajuan yang **ditolak** yang bisa diubah dan diajukan ulang | Hubungi atasan atau HR untuk menolaknya, lalu ajukan ulang |
 | Pengajuan sakit tidak bisa dikirim | Lampiran wajib untuk Sakit; hari harus sudah ditandai Alpa dan masih dalam "boleh mundur" | Lampirkan surat; bila tanggal terlalu lampau, HR yang mengajukan atas nama |
-| Pengajuan saya langsung ke HR, bukan atasan | Atasan langsung belum diisi di profil | HR mengisi **Atasan langsung** di **Ubah data** |
+| Pengajuan saya langsung ke HR, bukan atasan | Atasan belum diisi di profil | HR mengisi **Atasan** di **Ubah data** |
 | Impor: "ditolak" untuk beberapa baris | Cabang, Departemen, atau Posisi tidak ada atau salah ketik; nama perusahaan tidak sama; NIK bukan 16 digit | Baca daftar kesalahan, perbaiki berkas, ulangi pemeriksaan |
 | Impor menolak semuanya | Belum memilih perusahaan di pemilih perusahaan | Pilih perusahaan lalu ulangi |
 | Notifikasi di ponsel tidak muncul | Belum diaktifkan di perangkat itu; di iPhone aplikasi belum dipasang ke layar utama; izin diblokir | A.3: pasang ke layar utama, aktifkan di **Pengaturan > Notifikasi**, izinkan di pengaturan situs bila diblokir |

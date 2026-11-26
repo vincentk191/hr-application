@@ -467,7 +467,7 @@ class Employee extends Model
     }
 
     /**
-     * Who may be named in another record, such as someone's atasan langsung: still employed, and not holding an account that
+     * Who may be named in another record, such as someone's atasan: still employed, and not holding an account that
      * was switched off. A person with no account yet, or one waiting for HR to activate it, still counts, since both are
      * about to start. The directory shows the same people by default.
      *

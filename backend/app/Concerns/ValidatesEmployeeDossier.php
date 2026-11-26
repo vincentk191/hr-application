@@ -86,7 +86,7 @@ trait ValidatesEmployeeDossier
                     }
 
                     if (! Employee::acrossCompanies()->assignable()->whereKey($value)->exists()) {
-                        $fail('Atasan langsung harus karyawan aktif dengan akun yang tidak dinonaktifkan.');
+                        $fail('Atasan harus karyawan aktif dengan akun yang tidak dinonaktifkan.');
                     }
                 },
             ],
@@ -195,7 +195,7 @@ trait ValidatesEmployeeDossier
             'full_name.required' => 'Isi nama lengkap.',
             'branch_id.required' => 'Pilih cabang.',
             'branch_id.exists' => 'Cabang ini tidak ditemukan di perusahaan ini.',
-            'manager_id.required' => 'Pilih atasan langsung, atau centang "Tanpa atasan".',
+            'manager_id.required' => 'Pilih atasan, atau centang "Tanpa atasan".',
             'national_id.required' => 'Isi NIK.',
             'national_id.unique' => 'NIK ini sudah terdaftar pada karyawan lain.',
             'photo.required' => 'Foto profil wajib diisi.',
@@ -224,7 +224,7 @@ trait ValidatesEmployeeDossier
     {
         return [
             'employee_number' => 'ID karyawan', 'full_name' => 'Nama lengkap', 'photo' => 'Foto profil', 'branch_id' => 'Cabang',
-            'department_id' => 'Departemen', 'position_id' => 'Posisi', 'job_title' => 'Jabatan', 'manager_id' => 'Atasan langsung',
+            'department_id' => 'Departemen', 'position_id' => 'Posisi', 'job_title' => 'Jabatan', 'manager_id' => 'Atasan',
             'employment_type' => 'Jenis kontrak', 'notice_days' => 'Masa pemberitahuan', 'joined_on' => 'Tanggal bergabung',
             'email' => 'Email', 'phone' => 'Telepon', 'address' => 'Alamat', 'national_id' => 'NIK',
             'emergency_contact_name' => 'Nama kontak darurat', 'emergency_contact_phone' => 'Telepon darurat',

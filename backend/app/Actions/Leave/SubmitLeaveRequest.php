@@ -112,7 +112,7 @@ class SubmitLeaveRequest
         $supervisor = $employee->manager?->user;
 
         if ($supervisor !== null && $supervisor->is_active) {
-            return [StepBlueprint::forUser('Atasan langsung', $supervisor)];
+            return [StepBlueprint::forUser('Atasan', $supervisor)];
         }
 
         return [StepBlueprint::forRole('HR Admin (tanpa atasan)', Role::HrAdmin)];

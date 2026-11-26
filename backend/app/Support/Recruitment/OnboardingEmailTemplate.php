@@ -33,7 +33,7 @@ class OnboardingEmailTemplate
         'perusahaan' => 'Nama perusahaan',
         'departemen' => 'Departemen (kosong bila tidak ada)',
         'cabang' => 'Cabang (kosong bila tidak ada)',
-        'atasan' => 'Atasan langsung (kosong bila tidak ada)',
+        'atasan' => 'Atasan (kosong bila tidak ada)',
         'tanggal_mulai' => 'Tanggal mulai kerja, mis. 1 Desember 2026',
         'waktu_tempat' => 'Waktu dan tempat hari pertama: HR mengisinya sebelum email dikirim',
         'alamat_daftar' => 'Alamat halaman Daftar untuk membuat akun',
@@ -48,7 +48,7 @@ Terima kasih telah menerima penawaran kami. Selamat bergabung di {perusahaan} se
 
 Hari pertama Anda: {tanggal_mulai}
 Waktu dan tempat: {waktu_tempat}
-Atasan langsung: {atasan}
+Atasan: {atasan}
 
 Mohon membawa:
 - KTP asli dan fotokopinya

@@ -12,7 +12,6 @@ import {
     Minus,
     Plus,
     User,
-    UserCheck,
     Video,
     X,
 } from 'lucide-react';
@@ -843,8 +842,16 @@ function CandidateSummaryRow({
 
     return (
         <li
-            className="relative flex items-center gap-3 rounded-2xl border bg-card p-3 focus-within:bg-muted/40 hover:bg-muted/40"
+            className={`relative flex items-center gap-3 rounded-2xl border p-3 transition-[opacity,background-color,border-color] duration-200 ${
+                candidate.isRejected
+                    ? // Ruled out: greyed and faded; on hover it comes forward but stays a shade darker than the others.
+                      'bg-muted/60 opacity-50 grayscale focus-within:bg-muted focus-within:opacity-90 hover:bg-muted hover:opacity-90'
+                    : candidate.isSelected
+                      ? 'border-success bg-card focus-within:bg-muted/40 hover:bg-muted/40'
+                      : 'bg-card focus-within:bg-muted/40 hover:bg-muted/40'
+            }`}
             data-test="interview-candidate"
+            data-chosen={candidate.isSelected}
         >
             <ScoreRing evaluations={candidate.evaluations} />
             {/* The button's overlay makes the whole card open the drawer; the place button sits above it. */}
@@ -886,12 +893,6 @@ function CandidateSummaryRow({
                         <MessageSquare
                             className="size-4"
                             aria-label="Ada catatan"
-                        />
-                    )}
-                    {candidate.isSelected && (
-                        <UserCheck
-                            className="size-4 text-success-text"
-                            aria-label="Dipilih"
                         />
                     )}
                     {candidate.googleMissing && (
@@ -1125,8 +1126,10 @@ function WeekCalendar({
                                             }
                                             className={`block w-full rounded-xl border p-3 text-left text-sm transition-shadow focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
                                                 entry.at < now
-                                                    ? 'bg-muted text-muted-foreground'
-                                                    : 'border-primary/40 bg-primary/10'
+                                                    ? `bg-muted text-muted-foreground ${entry.candidate.isSelected ? 'border-success' : ''}`
+                                                    : entry.candidate.isSelected
+                                                      ? 'border-success bg-primary/10'
+                                                      : 'border-primary/40 bg-primary/10'
                                             }`}
                                             data-test="agenda-entry"
                                         >
@@ -1244,8 +1247,10 @@ function WeekCalendar({
                                             }
                                             className={`relative block w-full rounded-lg border p-2 text-left text-xs transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
                                                 entry.at < now
-                                                    ? 'bg-muted text-muted-foreground'
-                                                    : 'border-primary/40 bg-primary/10'
+                                                    ? `bg-muted text-muted-foreground ${entry.candidate.isSelected ? 'border-success' : ''}`
+                                                    : entry.candidate.isSelected
+                                                      ? 'border-success bg-primary/10'
+                                                      : 'border-primary/40 bg-primary/10'
                                             }`}
                                             data-test="calendar-entry"
                                         >

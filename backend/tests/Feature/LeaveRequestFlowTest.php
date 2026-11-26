@@ -70,7 +70,7 @@ it('sends a request to the employee\'s Atasan only, not on to HR', function () {
     expect($leave->days)->toBe(3)
         ->and($leave->workflow->stage())->toBe(LeaveRequestStage::Submitted)
         ->and($steps)->toHaveCount(1)
-        ->and($steps[0]->label)->toBe('Atasan langsung')
+        ->and($steps[0]->label)->toBe('Atasan')
         ->and($steps[0]->approver_user_id)->toBe($supervisorUser->id)
         ->and($steps[0]->status)->toBe(WorkflowStepStatus::Pending);
 });
@@ -138,7 +138,7 @@ it('still shows HR Admin every request, and marks none of them as theirs to deci
         ->assertInertia(fn (Assert $page) => $page
             ->has('requests', 1)
             ->where('requests.0.canDecide', false)
-            ->where('requests.0.waitingOn', 'Atasan langsung')
+            ->where('requests.0.waitingOn', 'Atasan')
             ->where('waitingOnMe', 0));
 });
 

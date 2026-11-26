@@ -157,7 +157,7 @@ it('lets one person per company have no manager, and asks everyone else for one'
         ->assertSessionHasErrors(['manager_id' => 'Hanya satu karyawan yang boleh tanpa atasan; Budi Santoso sudah tanpa atasan.']);
 
     saveProfile(['employee_number' => 'EMP-5003', 'national_id' => '3174000000005003', 'manager_id' => null])
-        ->assertSessionHasErrors(['manager_id' => 'Pilih atasan langsung, atau centang "Tanpa atasan".']);
+        ->assertSessionHasErrors(['manager_id' => 'Pilih atasan, atau centang "Tanpa atasan".']);
 });
 
 it('does not ask for the sensitive fields of someone who may not handle them, and does not store them', function () {

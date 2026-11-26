@@ -102,7 +102,7 @@ it('opens only the first step of a chain', function () {
     $hr = hrAdmin($this->company);
 
     $instance = $this->engine->start($this->subject, $this->definition, [
-        StepBlueprint::forUser('Atasan langsung', $sv),
+        StepBlueprint::forUser('Atasan', $sv),
         StepBlueprint::forRole('HR Admin', Role::HrAdmin),
     ]);
 
@@ -112,7 +112,7 @@ it('opens only the first step of a chain', function () {
         ->and($steps[0]->status)->toBe(WorkflowStepStatus::Pending)
         // Sequential by construction, not by convention (OFF-SIG-005).
         ->and($steps[1]->status)->toBe(WorkflowStepStatus::Locked)
-        ->and($this->engine->waitingOn($instance)->label)->toBe('Atasan langsung');
+        ->and($this->engine->waitingOn($instance)->label)->toBe('Atasan');
 });
 
 it('refuses a decision on a step that is still locked', function () {
@@ -120,7 +120,7 @@ it('refuses a decision on a step that is still locked', function () {
     $hr = hrAdmin($this->company);
 
     $instance = $this->engine->start($this->subject, $this->definition, [
-        StepBlueprint::forUser('Atasan langsung', $sv),
+        StepBlueprint::forUser('Atasan', $sv),
         StepBlueprint::forRole('HR Admin', Role::HrAdmin),
     ]);
 
@@ -132,7 +132,7 @@ it('opens the next step once the current one is approved', function () {
     $hr = hrAdmin($this->company);
 
     $instance = $this->engine->start($this->subject, $this->definition, [
-        StepBlueprint::forUser('Atasan langsung', $sv),
+        StepBlueprint::forUser('Atasan', $sv),
         StepBlueprint::forRole('HR Admin', Role::HrAdmin),
     ]);
 
@@ -150,7 +150,7 @@ it('binds a resolved step to that one person', function () {
     $anotherSupervisor = supervisor($this->company);
 
     $instance = $this->engine->start($this->subject, $this->definition, [
-        StepBlueprint::forUser('Atasan langsung', $sv),
+        StepBlueprint::forUser('Atasan', $sv),
     ]);
 
     // Holding the same role is not enough once a step names a person (CORE-RBA-005).
@@ -175,7 +175,7 @@ it('refuses a decision from someone who is not the approver', function () {
     $sv = supervisor($this->company);
 
     $instance = $this->engine->start($this->subject, $this->definition, [
-        StepBlueprint::forUser('Atasan langsung', $sv),
+        StepBlueprint::forUser('Atasan', $sv),
     ]);
 
     $this->engine->approve($instance->steps[0], hrAdmin($this->company));
@@ -185,7 +185,7 @@ it('refuses to decide the same step twice', function () {
     $sv = supervisor($this->company);
 
     $instance = $this->engine->start($this->subject, $this->definition, [
-        StepBlueprint::forUser('Atasan langsung', $sv),
+        StepBlueprint::forUser('Atasan', $sv),
     ]);
 
     $this->engine->approve($instance->steps[0], $sv);
@@ -196,7 +196,7 @@ it('stops the chain on a rejection rather than opening the next step', function 
     $sv = supervisor($this->company);
 
     $instance = $this->engine->start($this->subject, $this->definition, [
-        StepBlueprint::forUser('Atasan langsung', $sv),
+        StepBlueprint::forUser('Atasan', $sv),
         StepBlueprint::forRole('HR Admin', Role::HrAdmin),
     ]);
 
@@ -215,7 +215,7 @@ it('requires a reason on a rejection', function () {
     $sv = supervisor($this->company);
 
     $instance = $this->engine->start($this->subject, $this->definition, [
-        StepBlueprint::forUser('Atasan langsung', $sv),
+        StepBlueprint::forUser('Atasan', $sv),
     ]);
 
     $this->engine->reject($instance->steps[0], $sv, '   ');
@@ -232,14 +232,14 @@ it('blocks a guarded transition and says why', function () {
     $sv = supervisor($this->company);
 
     $instance = $this->engine->start($this->subject, $this->definition, [
-        StepBlueprint::forUser('Atasan langsung', $sv),
+        StepBlueprint::forUser('Atasan', $sv),
     ]);
     $instance = $this->engine->transitionTo($instance, Stage::Submitted);
 
     $reasons = $this->engine->blockingReasons($instance, Stage::Checklist);
 
     expect($reasons)->toHaveCount(1)
-        ->and($reasons[0])->toContain('Atasan langsung');
+        ->and($reasons[0])->toContain('Atasan');
 
     // The UI asks blockingReasons() to disable the action; attempting it anyway throws.
     expect(fn () => $this->engine->transitionTo($instance, Stage::Checklist))
@@ -250,7 +250,7 @@ it('allows a guarded transition once the chain is approved', function () {
     $sv = supervisor($this->company);
 
     $instance = $this->engine->start($this->subject, $this->definition, [
-        StepBlueprint::forUser('Atasan langsung', $sv),
+        StepBlueprint::forUser('Atasan', $sv),
     ]);
     $instance = $this->engine->transitionTo($instance, Stage::Submitted);
     $this->engine->approve($instance->steps()->first(), $sv);
@@ -282,7 +282,7 @@ it('marks the instance complete on reaching a final stage', function () {
     $sv = supervisor($this->company);
 
     $instance = $this->engine->start($this->subject, $this->definition, [
-        StepBlueprint::forUser('Atasan langsung', $sv),
+        StepBlueprint::forUser('Atasan', $sv),
     ]);
     $instance = $this->engine->transitionTo($instance, Stage::Submitted);
     $this->engine->approve($instance->steps()->first(), $sv);
@@ -365,7 +365,7 @@ it('tags a comment with the stage it was written in', function () {
 it('rebuilds a chain when a later stage decides its own approvers', function () {
     $sv = supervisor($this->company);
     $instance = $this->engine->start($this->subject, $this->definition, [
-        StepBlueprint::forUser('Atasan langsung', $sv),
+        StepBlueprint::forUser('Atasan', $sv),
     ]);
 
     // Offboarding's checklist owners are only known once HR assembles the checklist.
@@ -404,7 +404,7 @@ it('finds the steps waiting on a given person', function () {
     $hr = hrAdmin($this->company);
 
     $this->engine->start($this->subject, $this->definition, [
-        StepBlueprint::forUser('Atasan langsung', $sv),
+        StepBlueprint::forUser('Atasan', $sv),
         StepBlueprint::forRole('HR Admin', Role::HrAdmin),
     ]);
 

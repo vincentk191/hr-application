@@ -1114,7 +1114,7 @@ export function OfferTab({ item }: { item: Requisition }) {
                 className="surface p-6 text-sm text-muted-foreground"
                 data-test="offer-tab"
             >
-                {item.selectedCount} kandidat dipilih atasan langsung.
+                {item.selectedCount} kandidat dipilih atasan.
             </section>
         );
     }
@@ -1176,7 +1176,7 @@ export function OfferTab({ item }: { item: Requisition }) {
                     <header className="flex items-center justify-between gap-3">
                         <h2 className="label-mono flex items-center gap-2">
                             <UserCheck className="size-4" aria-hidden />
-                            Dipilih Atasan Langsung
+                            Dipilih Atasan
                         </h2>
                         <span className="label-mono inline-flex items-center gap-1.5">
                             <Users className="size-4" aria-hidden />

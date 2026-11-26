@@ -166,7 +166,7 @@ class RequisitionPolicy
     }
 
     /**
-     * The new hire's direct superior (Atasan langsung) is an interviewer, and sees the candidates who were invited, and
+     * The new hire's direct superior (Atasan) is an interviewer, and sees the candidates who were invited, and
      * only those, once the requisition reaches Interview. No phone, email or note: they need to prepare, not to contact.
      */
     public function viewInterviewees(User $user, Requisition $requisition): bool

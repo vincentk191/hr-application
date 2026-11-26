@@ -629,7 +629,7 @@ export default function RequisitionShow({
                           <DecisionDialog
                               form={superior.form(item.id)}
                               decision="change-superior"
-                              title={`Ganti Atasan Langsung — ${item.positionName}`}
+                              title={`Ganti Atasan — ${item.positionName}`}
                               subtitle={`${item.reference} · saat ini ${item.manager ?? '—'}`}
                               fieldLabel="Alasan"
                               hint="Opsional · hanya karyawan dengan akun aktif"
@@ -640,7 +640,7 @@ export default function RequisitionShow({
                                           htmlFor="manager_employee_id"
                                           className="text-sm font-semibold text-muted-foreground"
                                       >
-                                          Atasan langsung baru
+                                          Atasan baru
                                       </label>
                                       <select
                                           id="manager_employee_id"

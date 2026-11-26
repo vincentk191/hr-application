@@ -238,7 +238,7 @@ export default function LeaveRequestCreate({
                             <p className="text-xs text-muted-foreground">
                                 {isSakit
                                     ? 'Isi hari yang sudah lewat saat karyawan ditandai Alpa. Pengajuan sakit dikirim ke HR Admin; bila disetujui, Alpa pada hari itu berubah menjadi Sakit.'
-                                    : 'Pengajuan dikirim ke atasan langsung karyawan untuk disetujui. HR Admin dapat melihat semua pengajuan dan diberi tahu, tetapi tidak menyetujuinya.'}
+                                    : 'Pengajuan dikirim ke atasan karyawan untuk disetujui. HR Admin dapat melihat semua pengajuan dan diberi tahu, tetapi tidak menyetujuinya.'}
                             </p>
 
                             <div className="flex gap-2">

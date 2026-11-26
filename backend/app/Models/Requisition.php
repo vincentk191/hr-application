@@ -122,7 +122,7 @@ class Requisition extends Model
     }
 
     /**
-     * The person the new hire will report to (Atasan langsung), read across companies like an offboarding case's
+     * The person the new hire will report to (Atasan), read across companies like an offboarding case's
      * employee: the policy and the request decide who may see or choose them.
      *
      * @return BelongsTo<Employee, $this>
@@ -247,7 +247,7 @@ class Requisition extends Model
     /**
      * The requisitions this person may see (CORE-RBA-004). A draft is its requester's alone. Once sent: HR sees
      * every one in the company, Management every one too (they approve them), and a department's head those for
-     * their department. The requester always sees their own, and the new hire's direct superior (Atasan langsung) sees
+     * their department. The requester always sees their own, and the new hire's direct superior (Atasan) sees
      * the one they will interview for, once it is sent.
      *
      * @param  Builder<static>  $query

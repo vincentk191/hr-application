@@ -21,6 +21,6 @@ class HasSelectedCandidate implements TransitionGuard
 
     public function message(WorkflowInstance $instance): string
     {
-        return 'Atasan langsung belum memilih kandidat.';
+        return 'Atasan belum memilih kandidat.';
     }
 }

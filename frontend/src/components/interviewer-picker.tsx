@@ -74,7 +74,7 @@ export function InterviewerPicker({
 
             {superior && (
                 <div className="space-y-1">
-                    <p className="label-mono text-xs">Atasan langsung</p>
+                    <p className="label-mono text-xs">Atasan</p>
                     <span
                         className="chip inline-flex items-center gap-1.5 opacity-70"
                         data-on="true"

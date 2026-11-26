@@ -207,7 +207,7 @@ security pass (Phase 7). What remains is listed in the checklist below. Recruitm
   stay), audited ("Offer letter template changed"). It refuses a placeholder that does not exist. Stored in `app_settings`
   (`recruitment.offer_letter`) through `Support/Recruitment/OfferLetterTemplate`, whose built-in text is the wording that used to
   be in the page, so nothing changes until someone edits it. **The terms are not part of the wording:** Posisi, Departemen,
-  Cabang, Atasan langsung, Status kerja, Tanggal mulai, Masa percobaan and Gaji are always printed from the offer, so editing the
+  Cabang, Atasan, Status kerja, Tanggal mulai, Masa percobaan and Gaji are always printed from the offer, so editing the
   text cannot drop them. **Per offer,** "Atur ketentuan" gains **Nomor surat** (free text, no auto-numbering) and **Catatan surat**
   (printed as "Catatan:" under the terms), both optional and locked once sent (migration `add_letter_details_to_candidate_offers_table`:
   `letter_number`, `letter_note`, `letter_snapshot`). The letter shows the company's logo when it has one. **A sent letter keeps
@@ -436,7 +436,7 @@ security pass (Phase 7). What remains is listed in the checklist below. Recruitm
   `emailed_at`); run `php artisan migrate` on every environment.
   - **Terms (REC-OFR-001/002/006).** `SetOfferTerms`, route `recruitment.offers.terms`, policy `setOfferTerms` (HR, an approved
     offer, until it is sent): the **start date** (a real date **after today**) and the **probation** (0 to 3 months, 0 = none). The
-    salary is Management's figure and is shown, not editable. Posisi, Departemen, Cabang, Atasan langsung and the contract
+    salary is Management's figure and is shown, not editable. Posisi, Departemen, Cabang, Atasan and the contract
     type come from the requisition. `CandidateOffer::hasTerms()` is salary, start date and probation all set.
   - **The letter (REC-OFS-007).** A print page, `recruitment.offers.letter` (`pages/recruitment/offer-letter.tsx`, Cetak / PDF like the
     berita acara), HR only, once the terms are set, before and after sending; always built from the offer as it is now.
@@ -483,7 +483,7 @@ security pass (Phase 7). What remains is listed in the checklist below. Recruitm
     neither the offers nor who they are for.
   - **Dashboard and badge.** "Menunggu keputusan" has a new "Penawaran" line (`AdminOverview`), and the Rekrutmen menu badge counts offers
     waiting on the person as well as requisitions (`RecruitmentTodo`).
-  - **Screen.** The Penawaran tab (`requisition-offer.tsx`): "Dipilih atasan langsung" with checkboxes and "Ajukan ke Manajemen" for
+  - **Screen.** The Penawaran tab (`requisition-offer.tsx`): "Dipilih atasan" with checkboxes and "Ajukan ke Manajemen" for
     HR, and "Penawaran" with each offer's status, "Direkomendasikan oleh n dari m pewawancara", the salary once set, the decision
     and its note, and the buttons that are the viewer's (Setujui, Tolak, Tarik).
   - **Not done:** a comment thread **per offer** (the plan listed one). Decision notes are kept as comments on the offer, and the
@@ -495,9 +495,9 @@ security pass (Phase 7). What remains is listed in the checklist below. Recruitm
 - **2026-11-11 (recruitment: HR can name a different direct superior; found while testing Phase 2, branch `feature/recruitement`).**
   The superior of REC-0010 could not choose because the login used was not the one linked to the employee named as Atasan
   langsung (the app ties the choice to the employee record's own account, not to a name), and nothing allowed correcting it
-  once the requisition was decided. **Decided with the user:** PIC (the requester) and Atasan langsung are two separate
+  once the requisition was decided. **Decided with the user:** PIC (the requester) and Atasan are two separate
   things; the wizard already offers the requester as the default superior, who can be reset to someone else; the PIC can
-  view the workflow and comment; the Atasan langsung alone chooses the candidate.
+  view the workflow and comment; the Atasan alone chooses the candidate.
   - **Ganti atasan.** `ChangeDirectSuperior`, policy `changeSuperior`, route `recruitment.superior` (PUT): HR only, from
     Posting to Penawaran. The new superior must be an **active employee of the requisition's company with an active
     account** (a superior without one could never choose), other than the one already named, so the same mistake cannot be
@@ -584,7 +584,7 @@ security pass (Phase 7). What remains is listed in the checklist below. Recruitm
     at Interview and Offer to those who see the candidates (HR, and the direct superior): the company's **holidays** (group-wide
     or the company's; not those for one department or another Cabang; events are left out) and the **leave** (waiting or
     approved, working days only, through the leave queue's own visibility) of the **PIC** (who raised the requisition), the
-    **Atasan langsung** (shown on their own when it is someone else) and **HR** (every active HR Admin of the company with an
+    **Atasan** (shown on their own when it is someone else) and **HR** (every active HR Admin of the company with an
     employee record); someone holding several roles shows once with all of them. Window: four weeks back, sixteen ahead. On
     the calendar a holiday tints its column and is named in the day's header, and each absence is a chip with the person and
     role (dashed while the leave is still waiting); on a phone the open day's agenda lists them in full. The invite form warns
@@ -603,7 +603,7 @@ security pass (Phase 7). What remains is listed in the checklist below. Recruitm
     audit trail; taking it back is quiet. A candidate HR then turns down stops counting as chosen (`Candidate::isSelected()`,
     `scopeSelected`) and counts again if HR restores them.
   - **Lanjut ke Penawaran (REC-PIP).** `AdvanceToOffer`, policy `advanceToOffer` (HR, from Interview), route
-    `recruitment.offer`; guard `HasSelectedCandidate` ("Atasan langsung belum memilih kandidat.") on the Offer stage.
+    `recruitment.offer`; guard `HasSelectedCandidate` ("Atasan belum memilih kandidat.") on the Offer stage.
   - **Screens.** The drawer shows a green "Dipilih" banner, and the superior gets "Pilih" (UserCheck) and "Batalkan pilihan"
     (UserMinus) in a bottom bar; the Interview list marks chosen rows with the icon; the new Penawaran tab
     (`requisition-offer.tsx`) lists the chosen candidates with "n dari m penilai: Lanjut" and the quota, to HR and the
@@ -636,7 +636,7 @@ security pass (Phase 7). What remains is listed in the checklist below. Recruitm
     the time in the app (re-inviting already makes a new link and message and moves the form's day).
   - **Interview feedback (REC-INT).** `candidate_evaluations`: one row per person per candidate (a 1 to 5 rating, a
     recommendation Lanjut / Pertimbangkan / Tidak lanjut, a note), changed by saving again. **Who:** HR (`manage-recruitment`)
-    and the requisition's **direct superior (Atasan langsung)**, once the interview's time has passed, for a candidate who
+    and the requisition's **direct superior (Atasan)**, once the interview's time has passed, for a candidate who
     was invited, at Interview or Offer (`RequisitionPolicy::evaluate`). **The superior's view:** they now see a requisition
     once it is sent (`Requisition::visibleTo`, and the Rekrutmen menu), and in it only the candidates **invited** to
     interview, with phone, email and note left out (`viewInterviewees`), and may open those candidates' CVs; they cannot
@@ -937,7 +937,7 @@ security pass (Phase 7). What remains is listed in the checklist below. Recruitm
     and role suites pass (158). PHPStan clean on the new files; TypeScript and the formatter clean.
   - **Not done:** viewing the pages in a browser; the full suite was not run for this entry.
   - **Same day, reworked to the design's template** (the Phase 4 notes list the rules): the wizard's step 1 gained Tipe
-    kontrak and Atasan langsung, step 2 became the fixed job posting and candidate checklist, and step 3 the review page
+    kontrak and Atasan, step 2 became the fixed job posting and candidate checklist, and step 3 the review page
     (`components/requisition-summary.tsx`, shared with the pipeline's stage 01 tab; `components/line-list-editor.tsx`).
     **A start date in the past is refused**, in the company timezone, when saving and again when sending. The admin page
     **Template rekrutmen** sets the base lines. Checked: `RequisitionTemplateTest` (15: the date rules including the
@@ -2021,7 +2021,7 @@ and the scheduling automation.
 - **Editing:** a draft any time; once sent, until someone has decided (REC-WIZ-005). A rejection returns it as a draft
   with the reason in the thread (`WorkflowEngine::reopen` keeps it on resubmission).
 - **The template every requisition follows (added the same day, from the design screenshots).** Step 1 "The ask" has
-  Posisi, Departemen, Cabang (optional), Jumlah kuota, **Tipe kontrak**, **Atasan langsung**, Target mulai kerja and
+  Posisi, Departemen, Cabang (optional), Jumlah kuota, **Tipe kontrak**, **Atasan**, Target mulai kerja and
   Alasan permintaan (no Prioritas, decided). Step 2 is fixed: the **job posting** (Tentang Posisi, one paragraph;
   Tanggung Jawab Utama, with subtitles the requester names, adds and removes, each holding lines; Benefit & Fasilitas)
   and the **candidate checklist** (Kualifikasi: Pendidikan, Pengalaman; Skills: Hard Skills, Soft Skills; Nilai Plus),
@@ -2032,7 +2032,7 @@ and the scheduling automation.
     Fasilitas and Nilai Plus may be empty. A draft needs only a position name and a department.
   - **Tipe kontrak:** the app's employment types; Kontrak and Magang also take a length in months (1-60) and read
     "Kontrak 1 tahun" / "Magang 6 bulan" (`Requisition::contractLabel`); the length is dropped for the other types.
-  - **Atasan langsung:** an active employee of the department's company, defaulting to the requester's own record;
+  - **Atasan:** an active employee of the department's company, defaulting to the requester's own record;
     required to send, and checked again then (someone who has left since is refused).
   - **The start date is never in the past** (`SaveRequisitionRequest::checkStartDate`): today or later, judged in the
     company timezone (`attendance.device_timezone`, so 01:00 Jakarta is not "yesterday" on a UTC server), and no
@@ -2161,7 +2161,7 @@ Screening now happens inside the platforms, and the app only meets the people HR
 `REC-OFR`, `REC-FIL`, `REC-CAN` in the features workbook and `context.md` §9.3 steps 10 to 14, as adjusted for the free
 platform accounts above (no career page, manual posting, nothing public except the invited candidate's form).
 
-- **Decisions (the user, 2026-11-10).** (1) **The direct superior (Atasan langsung) chooses the candidate they prefer.** HR
+- **Decisions (the user, 2026-11-10).** (1) **The direct superior (Atasan) chooses the candidate they prefer.** HR
   keeps turning candidates down, since the candidate list is HR's. (2) **The offer letter is a print page**, as the berita
   acara is (Cetak / PDF), so no new dependency. (3) **Every email to a candidate is an opt-in tick box**, as the
   cancellation email is: rejection, "position filled", and the offer. *(Both (2) and (3) are revised for email by
@@ -2313,7 +2313,7 @@ scans and returns it).
 | --------------------------------- | --------------------------- | --- | --- | ------ | ----------------------------------------------------------- |
 | `REC-DSH`                         | Recruitment dashboard       | 9   | 6   | ✅     | Built 11-06 as well: CSV export (007), the "what waits on me" badge (008), the "Mendesak" tag. Built 10-28: tiles (open, waiting approval, quota open, my drafts: candidates and interviews wait on stages 03/04), table (Jabatan + ID, Departemen, Kuota filled/quota, Kand., Update Terakhir or "Belum diajukan", Status, PIC), status and department filters, row routing (a draft opens the wizard), "+ Ajukan Lowongan", company switcher. The badge (008) counts only approvals assigned to the person, as the dashboard card does; HR hears of new requests through notifications. Unread comments show as a red count on the list rows (also on Offboarding) |
 | `REC-WIZ`                         | Requisition wizard shell    | 6   | 4   | ✅     | Built 10-28: stepper, Sebelumnya/Selanjutnya keeping the values, Simpan Draft at any step (back to the dashboard), resume at the saved step, edit while sent and undecided (005). Built 11-06: the "Mendesak" marker with a reason (006), a marker only |
-| `REC-WZ1` · `REC-WZ2` · `REC-WZ3` | Wizard steps 01–03          | 8   | 7   | ✅     | Built 10-28, reworked the same day to the design's fixed template (see the Phase 4 notes). Step 1 "The ask": Posisi, Departemen, Cabang (optional, added), Jumlah kuota (whole, ≥ 1), Tipe kontrak (+ months for Kontrak/Magang), Atasan langsung, Target mulai kerja (never in the past), Alasan permintaan. Step 2: the job posting (Tentang Posisi, Tanggung Jawab Utama with the requester's own subtitles, Benefit & Fasilitas) and the candidate checklist (Kualifikasi, Skills, Nilai Plus). Step 3: one review page, then "Ajukan untuk Persetujuan" builds the chain. `REC-WZ2-002`'s requirement list is now the checklist; its base is the admin template (`REC-TPL-001`) |
+| `REC-WZ1` · `REC-WZ2` · `REC-WZ3` | Wizard steps 01–03          | 8   | 7   | ✅     | Built 10-28, reworked the same day to the design's fixed template (see the Phase 4 notes). Step 1 "The ask": Posisi, Departemen, Cabang (optional, added), Jumlah kuota (whole, ≥ 1), Tipe kontrak (+ months for Kontrak/Magang), Atasan, Target mulai kerja (never in the past), Alasan permintaan. Step 2: the job posting (Tentang Posisi, Tanggung Jawab Utama with the requester's own subtitles, Benefit & Fasilitas) and the candidate checklist (Kualifikasi, Skills, Nilai Plus). Step 3: one review page, then "Ajukan untuk Persetujuan" builds the chain. `REC-WZ2-002`'s requirement list is now the checklist; its base is the admin template (`REC-TPL-001`) |
 | `REC-TPL`                         | Templates (admin)           | 1   | 0   | 🟡     | Built 10-28: admin page **Template rekrutmen** (parent-wide HR Admin) holds the base lines for Benefit & Fasilitas and for each fixed checklist subtitle (Pendidikan, Pengalaman, Hard Skills, Soft Skills, Nilai Plus); a new requisition copies them. The sections and subtitles themselves are fixed in code |
 | `REC-PIP`                         | Requisition pipeline        | 6   | 4   | 🟡     | Built 10-28: header and breadcrumb, 6-stage tracker with the date each was reached, locked future stages, forward-only (`RequisitionWorkflow`), opens on the current stage, status line (006). Stages 02, 03 and 04 (invitation) are built (11-04). Built 11-10: HR's "Lanjut ke Penawaran" once the direct superior has chosen a candidate (guard `HasSelectedCandidate`), and the Penawaran tab listing the chosen. Built 11-11: "Tandai Selesai" moves a requisition from Penawaran to Terisi once the quota is full, and the Terisi tab lists the hires. A cancelled requisition keeps the stages it reached open |
 | `REC-APR`                         | Stage 01 Approval           | 9   | 5   | ✅     | Built 10-28: chain Manajemen → HR (decided 2026-10-28, see Phase 4 notes), "Setujui sebagai …", reject with a reason back to a draft, "Lanjut ke Posting" gated on every approval, Edit, "Diajukan <date> oleh <requester>", Ekspektasi Gaji required for Management's approval with "Simpan" before it (007/008), comment thread (009) |

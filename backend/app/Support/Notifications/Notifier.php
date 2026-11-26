@@ -534,7 +534,7 @@ class Notifier
             $accepted ? "{$name} menerima penawaran: {$requisition->position_name}" : "{$name} menolak penawaran: {$requisition->position_name}",
             $accepted
                 ? "{$requisition->reference()} · {$requisition->filledCount()} dari {$requisition->quota} terisi."
-                : "{$requisition->reference()} · tempat masih terbuka, atasan langsung dapat memilih kandidat lain.",
+                : "{$requisition->reference()} · tempat masih terbuka, atasan dapat memilih kandidat lain.",
             route('recruitment.show', $requisition, absolute: false),
         );
 
@@ -582,8 +582,8 @@ class Notifier
         $link = route('recruitment.show', $requisition, absolute: false);
 
         collect([
-            [$current->user, new InAppNotice('recruitment', "Anda atasan langsung: {$requisition->position_name}", "{$requisition->reference()} · Anda yang memilih kandidat setelah interview.", $link)],
-            [$previous?->user, new InAppNotice('recruitment', "Anda bukan lagi atasan langsung: {$requisition->position_name}", "{$requisition->reference()} · digantikan oleh {$current->full_name}.", $link)],
+            [$current->user, new InAppNotice('recruitment', "Anda atasan: {$requisition->position_name}", "{$requisition->reference()} · Anda yang memilih kandidat setelah interview.", $link)],
+            [$previous?->user, new InAppNotice('recruitment', "Anda bukan lagi atasan: {$requisition->position_name}", "{$requisition->reference()} · digantikan oleh {$current->full_name}.", $link)],
         ])
             ->filter(fn (array $pair): bool => $pair[0] instanceof User && $pair[0]->is_active && $pair[0]->isNot($actor))
             ->each(fn (array $pair) => $pair[0]->notify($pair[1]));
@@ -819,7 +819,7 @@ class Notifier
     }
 
     /**
-     * The new hire's direct superior (Atasan langsung), when the requisition names one who has an account.
+     * The new hire's direct superior (Atasan), when the requisition names one who has an account.
      */
     private function directSuperiorOf(Requisition $requisition): ?User
     {

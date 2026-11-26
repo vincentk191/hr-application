@@ -32,7 +32,7 @@ class OfferLetterTemplate
         'perusahaan' => 'Nama perusahaan',
         'departemen' => 'Departemen (kosong bila tidak ada)',
         'cabang' => 'Cabang (kosong bila tidak ada)',
-        'atasan' => 'Atasan langsung (kosong bila tidak ada)',
+        'atasan' => 'Atasan (kosong bila tidak ada)',
         'status_kerja' => 'Status kerja, mis. PKWT 1 tahun (kosong bila tidak ada)',
         'tanggal_mulai' => 'Tanggal mulai kerja, mis. 1 Desember 2026',
         'masa_percobaan' => 'Masa percobaan, mis. 3 bulan',

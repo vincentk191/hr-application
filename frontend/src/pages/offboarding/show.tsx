@@ -236,7 +236,7 @@ function SubmittedTab({ item }: { item: OffboardingCase }) {
                         .filter(Boolean)
                         .join(' · ') || '—'}
                 </Row>
-                <Row label="Atasan langsung">
+                <Row label="Atasan">
                     {item.employee.manager ?? '—'}
                 </Row>
                 <Row label="Jenis keluar">{item.exitType ?? '—'}</Row>

@@ -91,7 +91,7 @@ class ManageOfferLetterTemplate extends Page
             'Perihal: '.PlaceholderText::fill((string) $template['subject'], $values),
             "Kepada Yth.\n".$values['nama'],
             PlaceholderText::fill((string) $template['opening'], $values),
-            '[Ketentuan: posisi, departemen, cabang, atasan langsung, status kerja, tanggal mulai, masa percobaan dan gaji. Selalu dicetak dari penawaran.]',
+            '[Ketentuan: posisi, departemen, cabang, atasan, status kerja, tanggal mulai, masa percobaan dan gaji. Selalu dicetak dari penawaran.]',
             PlaceholderText::fill((string) $template['closing'], $values),
             "Hormat kami,\n".$values['perusahaan']."\n\n[Penandatangan sesuai perusahaan]",
         ]);

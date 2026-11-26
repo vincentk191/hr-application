@@ -220,7 +220,7 @@ export function RequisitionSummary({
                     <Cell label="Target mulai kerja">
                         {formatDate(data.targetStartOn)}
                     </Cell>
-                    <Cell label="Atasan langsung">{data.manager ?? '—'}</Cell>
+                    <Cell label="Atasan">{data.manager ?? '—'}</Cell>
                 </dl>
                 <div className="border-t p-4">
                     <p className="label-mono">Alasan permintaan</p>

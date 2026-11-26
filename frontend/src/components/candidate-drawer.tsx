@@ -1,4 +1,4 @@
-﻿import { router } from '@inertiajs/react';
+﻿import { Link, router } from '@inertiajs/react';
 import {
     Ban,
     CalendarCheck,
@@ -18,6 +18,7 @@ import {
     Trash2,
     UserCheck,
     UserMinus,
+    UserPlus,
     Users,
     X,
 } from 'lucide-react';
@@ -61,6 +62,8 @@ import {
     uninvite,
 } from '@/routes/recruitment/candidates';
 import { resend as resendRejectionEmail } from '@/routes/recruitment/candidates/rejection-email';
+import { show as showEmployee } from '@/routes/employees';
+import { employee as employeeOfOffer } from '@/routes/recruitment/offers';
 import type { Candidate, Requisition } from '@/types/recruitment';
 import { StatusPill } from '@/components/status-pill';
 
@@ -292,24 +295,40 @@ function DrawerBody({
     // The evaluation form is a panel of its own over this one, opened from "Penilaian" in the foot, whichever tab is showing.
     const [evaluating, setEvaluating] = useState(false);
     const ownEvaluation = myEvaluation(candidate);
+    // Someone who accepted an offer is at the last step: what is left for them is the employee profile, and nothing else of
+    // the process applies any more. Someone turned down is out of the process: only taking that back, or sending its email
+    // again, is left.
+    const hire = (item.offers ?? []).find(
+        (offer) =>
+            offer.candidateId === candidate.id && offer.stage === 'accepted',
+    );
+    const ruledOut = candidate.isRejected && hire === undefined;
+    const open = hire === undefined && !ruledOut;
     const interviewActions =
-        (onInvite !== undefined &&
-            item.canManageInterview &&
-            !candidate.isRejected) ||
-        candidate.canExportEvent;
-    const canReject = item.canManageScreening && candidate.canReject;
-    const canRestore = item.canManageScreening && candidate.canRestore;
+        open &&
+        ((onInvite !== undefined && item.canManageInterview) ||
+            candidate.canExportEvent);
+    const canReject = open && item.canManageScreening && candidate.canReject;
+    const canRestore =
+        ruledOut && item.canManageScreening && candidate.canRestore;
     const canResendEmail =
+        ruledOut &&
         candidate.canResendRejectionEmail &&
         (candidate.rejectionEmail ?? null) !== null;
+    const canEvaluate = open && candidate.canEvaluate;
+    const canSelect = open && candidate.canSelect;
+    const canUnselect = open && candidate.canUnselect;
+    const hireAction =
+        hire !== undefined && (hire.canConvert || hire.employeeId !== null);
     const hasActions =
         interviewActions ||
-        candidate.canEvaluate ||
+        canEvaluate ||
         canReject ||
         canRestore ||
-        candidate.canSelect ||
-        candidate.canUnselect ||
-        canResendEmail;
+        canSelect ||
+        canUnselect ||
+        canResendEmail ||
+        hireAction;
 
     return (
         <>
@@ -419,12 +438,41 @@ function DrawerBody({
                     className="flex flex-wrap gap-2 border-t bg-card p-4"
                     data-test="candidate-actions"
                 >
-                    <InterviewActions
-                        item={item}
-                        candidate={candidate}
-                        onInvite={onInvite}
-                    />
-                    {candidate.canSelect && (
+                    {hire !== undefined && hire.canConvert && (
+                        <Button asChild data-test="convert-hire">
+                            <Link
+                                href={
+                                    employeeOfOffer({
+                                        requisition: item.id,
+                                        offer: hire.id,
+                                    }).url
+                                }
+                            >
+                                <UserPlus className="size-4" aria-hidden />
+                                Jadikan Karyawan
+                            </Link>
+                        </Button>
+                    )}
+                    {hire !== undefined && hire.employeeId !== null && (
+                        <Button
+                            asChild
+                            variant="outline"
+                            data-test="open-employee"
+                        >
+                            <Link href={showEmployee(hire.employeeId).url}>
+                                <UserCheck className="size-4" aria-hidden />
+                                Karyawan
+                            </Link>
+                        </Button>
+                    )}
+                    {interviewActions && (
+                        <InterviewActions
+                            item={item}
+                            candidate={candidate}
+                            onInvite={onInvite}
+                        />
+                    )}
+                    {canSelect && (
                         <Button
                             type="button"
                             disabled={choosing}
@@ -448,7 +496,7 @@ function DrawerBody({
                             Pilih
                         </Button>
                     )}
-                    {candidate.canEvaluate && (
+                    {canEvaluate && (
                         <Button
                             type="button"
                             variant={ownEvaluation ? 'outline' : 'default'}
@@ -463,7 +511,7 @@ function DrawerBody({
                             Penilaian
                         </Button>
                     )}
-                    {candidate.canUnselect && (
+                    {canUnselect && (
                         <Button
                             type="button"
                             variant="outline"
