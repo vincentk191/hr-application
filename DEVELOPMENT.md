@@ -71,6 +71,13 @@ security pass (Phase 7). What remains is listed in the checklist below. Recruitm
 
 ## Change log (latest first)
 
+- **2026-11-26 (candidate panel and signed letter).** The candidate's form ("Formulir Kandidat") moved from Ringkasan to the
+  Dokumen tab of the candidate panel. The offer letter the candidate signed and sent back is now also filed on the employee's
+  documents (`FileSignedLetterOnEmployee`): at "Jadikan karyawan" if HR has filed it already, and when HR files it after the
+  profile exists. It is a restricted Kontrak document, "Surat penawaran bertanda tangan - REQ-xxxx"; a replacement letter is a new
+  version of the same document. The offer keeps its own copy; removing the letter from the offer does not remove it from the
+  dossier.
+
 - **2026-11-26 (employee profile: required fields and formats).** A new profile needs every field; only **Blok KTP**, **Tanggal
   keluar** and Zona (Hijau when left out) are optional. An edit keeps what it leaves out but refuses a submitted field that is
   blank or malformed (the form submits every field, so in the UI everything is required). The sensitive fields (bank, NPWP, KK,

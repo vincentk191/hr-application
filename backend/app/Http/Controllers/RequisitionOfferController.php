@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\Recruitment\ConvertHireToEmployee;
 use App\Actions\Recruitment\DecideOffer;
+use App\Actions\Recruitment\FileSignedLetterOnEmployee;
 use App\Actions\Recruitment\ProposeOffers;
 use App\Actions\Recruitment\RespondToOffer;
 use App\Actions\Recruitment\SendOffer;
@@ -258,6 +259,13 @@ class RequisitionOfferController extends Controller
 
         if ($before !== null) {
             Storage::disk(CandidateOffer::DISK)->delete($before);
+        }
+
+        // A hire who is already an employee has the signed letter on their documents too.
+        $employee = $offer->employee_id === null ? null : Employee::acrossCompanies()->find($offer->employee_id);
+
+        if ($employee !== null) {
+            app(FileSignedLetterOnEmployee::class)->handle($requisition, $offer, $employee, $request->user());
         }
 
         activity('recruitment')

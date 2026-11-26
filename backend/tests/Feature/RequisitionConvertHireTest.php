@@ -19,6 +19,7 @@ use App\Workflows\Definitions\RequisitionWorkflow;
 use App\Workflows\WorkflowEngine;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RoleSeeder;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Activitylog\Models\Activity;
@@ -294,4 +295,50 @@ it('files the induction form on the new employee when a hire becomes an employee
 
     expect($form)->not->toBeNull()
         ->and($form->expires_on->toDateString())->toBe('2026-11-11');
+});
+
+function fileSignedLetter(string $name = 'surat-ttd.pdf'): void
+{
+    test()->actingAs(test()->hr)->post(
+        route('recruitment.offers.signed-letter.store', [test()->requisition, test()->offer]),
+        ['signed_letter' => UploadedFile::fake()->create($name, 100, 'application/pdf')],
+    )->assertSessionDoesntHaveErrors();
+}
+
+it('files the signed offer letter on the new employee documents as a restricted contract, and keeps the offer copy', function () {
+    fileSignedLetter();
+
+    hireConvert($this->requisition, $this->offer)->assertSessionDoesntHaveErrors();
+
+    $employee = Employee::query()->where('employee_number', 'EMP-0100')->sole();
+    $document = $employee->documents()->where('category', DocumentCategory::Contract)->sole();
+    $version = $document->versions()->sole();
+
+    expect($document->title)->toBe('Surat penawaran bertanda tangan — '.$this->requisition->reference())
+        ->and($document->is_restricted)->toBeTrue()
+        ->and($version->original_name)->toBe('surat-ttd.pdf')
+        ->and($version->uploaded_by_user_id)->toBe($this->hr->id);
+
+    Storage::disk('local')->assertExists($version->path);
+    Storage::disk('local')->assertExists($this->offer->refresh()->signed_letter_path);
+});
+
+it('files a signed letter that comes after the profile was made, and a replacement as a new version of the same document', function () {
+    hireConvert($this->requisition, $this->offer)->assertSessionDoesntHaveErrors();
+
+    $employee = Employee::query()->where('employee_number', 'EMP-0100')->sole();
+    expect($employee->documents()->where('category', DocumentCategory::Contract)->count())->toBe(0);
+
+    fileSignedLetter('pertama.pdf');
+    fileSignedLetter('kedua.pdf');
+
+    $document = $employee->documents()->where('category', DocumentCategory::Contract)->sole();
+
+    expect($document->versions()->reorder('version_no')->pluck('original_name')->all())->toBe(['pertama.pdf', 'kedua.pdf']);
+});
+
+it('files nothing for the employee when no signed letter was filed', function () {
+    hireConvert($this->requisition, $this->offer)->assertSessionDoesntHaveErrors();
+
+    expect(Employee::query()->where('employee_number', 'EMP-0100')->sole()->documents()->where('category', DocumentCategory::Contract)->count())->toBe(0);
 });

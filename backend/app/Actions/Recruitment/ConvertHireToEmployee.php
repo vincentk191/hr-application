@@ -49,6 +49,8 @@ class ConvertHireToEmployee
             CreateInductionFormJob::dispatch($employee->id)->afterCommit();
 
             $this->fileCandidateCv($requisition, $offer, $employee, $by);
+            // The letter the candidate signed, if HR has filed it already; filed later, it follows the offer to the employee.
+            app(FileSignedLetterOnEmployee::class)->handle($requisition, $locked, $employee, $by);
 
             activity('recruitment')
                 ->performedOn($requisition)

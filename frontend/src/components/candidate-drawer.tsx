@@ -645,8 +645,6 @@ function OverviewTab({ candidate }: { candidate: Candidate }) {
                 />
                 <Field label="Catatan" value={candidate.note} />
             </dl>
-
-            <Questionnaire candidate={candidate} />
         </div>
     );
 }
@@ -785,7 +783,7 @@ function Questionnaire({ candidate }: { candidate: Candidate }) {
     );
 }
 
-/** The CV, opened in a pop-up when it is a picture and downloaded otherwise. */
+/** The CV, opened in a pop-up when it is a picture and downloaded otherwise, and the form the candidate filled in. */
 function DocumentsTab({ candidate }: { candidate: Candidate }) {
     const file =
         candidate.cvUrl === null
@@ -798,7 +796,7 @@ function DocumentsTab({ candidate }: { candidate: Candidate }) {
     const { open, dialog } = useFilePreview(file ? [file] : []);
 
     return (
-        <div data-test="candidate-documents">
+        <div className="flex flex-col gap-4" data-test="candidate-documents">
             {file === null ? (
                 <p className="text-sm text-muted-foreground">Belum ada CV.</p>
             ) : (
@@ -824,6 +822,7 @@ function DocumentsTab({ candidate }: { candidate: Candidate }) {
                     />
                 </dl>
             )}
+            <Questionnaire candidate={candidate} />
             {dialog}
         </div>
     );
