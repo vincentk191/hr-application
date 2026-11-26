@@ -4,6 +4,7 @@ import { formatDate } from '@/lib/format';
 import type { Candidate } from '@/types/recruitment';
 import { inviteStateTone } from '@/lib/status';
 import type { StatusTone } from '@/lib/status';
+import { CollapsibleSection } from '@/components/collapsible-section';
 
 /** Where a candidate's invitation stands, in words and in the badge's colour. */
 export const INVITE_STATE: Record<
@@ -64,7 +65,7 @@ function sentLabel(sentAt: string | null, sentOn: string | null): string {
 /**
  * The invitation as it was sent, laid out like the email: who it went to, when and how, the subject, and the text folded
  * to its first lines until HR asks for all of it. The personal link is left out, since it is shown only when the
- * invitation is made.
+ * invitation is made. It starts folded: the heading opens it.
  */
 export function InvitationEmail({ candidate }: { candidate: Candidate }) {
     const sent = candidate.invitation;
@@ -94,23 +95,26 @@ export function InvitationEmail({ candidate }: { candidate: Candidate }) {
     ];
 
     return (
-        <section className="space-y-2" data-test="invitation-preview">
-            <header className="flex items-center justify-between gap-3">
-                <h3 className="label-mono">
-                    {sent.viaGoogle
-                        ? 'Undangan Google Calendar'
-                        : sent.emailed
-                          ? 'Email undangan'
-                          : 'Pesan undangan'}
-                </h3>
+        <CollapsibleSection
+            title={
+                sent.viaGoogle
+                    ? 'Undangan Google Calendar'
+                    : sent.emailed
+                      ? 'Email Undangan'
+                      : 'Pesan Undangan'
+            }
+            defaultOpen={false}
+            contentClassName="pt-2"
+            testId="invitation-preview"
+            aside={
                 <CopyButton
                     variant="ghost"
                     label="Salin teks"
                     text={sent.message}
                     testId="copy-sent-invitation"
                 />
-            </header>
-
+            }
+        >
             <div className="overflow-hidden rounded-2xl border">
                 <dl className="grid grid-cols-[5rem_1fr] gap-x-3 gap-y-2 p-4 text-sm">
                     {rows.map((row) => (
@@ -151,6 +155,6 @@ export function InvitationEmail({ candidate }: { candidate: Candidate }) {
                     {expanded ? 'Sembunyikan email' : 'Tampilkan email lengkap'}
                 </button>
             </div>
-        </section>
+        </CollapsibleSection>
     );
 }

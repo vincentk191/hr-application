@@ -22,6 +22,7 @@ import {
     X,
 } from 'lucide-react';
 import { useState } from 'react';
+import { CollapsibleSection } from '@/components/collapsible-section';
 import {
     EvaluationSheet,
     Evaluations,
@@ -244,15 +245,10 @@ function RejectionEmailFields({
 }
 
 /**
- * How the rejection email is doing (waiting for its morning, sent, failed, or stopped), with "Kirim ulang" when it failed.
+ * How the rejection email is doing (waiting for its morning, sent, failed, or stopped). Sending it again, when it failed, is
+ * in the foot of the panel with the other actions.
  */
-function RejectionEmailStatus({
-    item,
-    candidate,
-}: {
-    item: Requisition;
-    candidate: Candidate;
-}) {
+function RejectionEmailStatus({ candidate }: { candidate: Candidate }) {
     const email = candidate.rejectionEmail ?? null;
 
     if (email === null) {
@@ -274,26 +270,6 @@ function RejectionEmailStatus({
                     ? `: ${email.error}`
                     : ''}
             </span>
-            {candidate.canResendRejectionEmail && (
-                <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() =>
-                        router.post(
-                            resendRejectionEmail.url({
-                                requisition: item.id,
-                                candidate: candidate.id,
-                            }),
-                            {},
-                            { preserveScroll: true },
-                        )
-                    }
-                    data-test="resend-rejection-email"
-                >
-                    <Send className="size-4" aria-hidden />
-                    Kirim ulang
-                </Button>
-            )}
         </div>
     );
 }
@@ -313,11 +289,27 @@ function DrawerBody({
 }) {
     const [restoring, setRestoring] = useState(false);
     const [choosing, setChoosing] = useState(false);
-    // The evaluation form is a panel of its own over this one, opened from the prompt in the Interview tab or from the
-    // "Ubah penilaian" button in the foot, whichever tab is showing.
+    // The evaluation form is a panel of its own over this one, opened from "Penilaian" in the foot, whichever tab is showing.
     const [evaluating, setEvaluating] = useState(false);
-    const changesOwnEvaluation =
-        candidate.canEvaluate && myEvaluation(candidate) !== undefined;
+    const ownEvaluation = myEvaluation(candidate);
+    const interviewActions =
+        (onInvite !== undefined &&
+            item.canManageInterview &&
+            !candidate.isRejected) ||
+        candidate.canExportEvent;
+    const canReject = item.canManageScreening && candidate.canReject;
+    const canRestore = item.canManageScreening && candidate.canRestore;
+    const canResendEmail =
+        candidate.canResendRejectionEmail &&
+        (candidate.rejectionEmail ?? null) !== null;
+    const hasActions =
+        interviewActions ||
+        candidate.canEvaluate ||
+        canReject ||
+        canRestore ||
+        candidate.canSelect ||
+        candidate.canUnselect ||
+        canResendEmail;
 
     return (
         <>
@@ -366,10 +358,7 @@ function DrawerBody({
                                 {candidate.rejectedReason}
                             </p>
                         )}
-                        <RejectionEmailStatus
-                            item={item}
-                            candidate={candidate}
-                        />
+                        <RejectionEmailStatus candidate={candidate} />
                     </div>
                 </div>
             )}
@@ -412,12 +401,7 @@ function DrawerBody({
                 {tab === 'overview' && <OverviewTab candidate={candidate} />}
                 {tab === 'documents' && <DocumentsTab candidate={candidate} />}
                 {tab === 'interview' && (
-                    <InterviewSection
-                        candidate={candidate}
-                        item={item}
-                        onInvite={onInvite}
-                        onEvaluate={() => setEvaluating(true)}
-                    />
+                    <InterviewSection candidate={candidate} item={item} />
                 )}
             </div>
 
@@ -430,20 +414,124 @@ function DrawerBody({
                 />
             )}
 
-            {(item.canManageScreening || changesOwnEvaluation) && (
-                <div className="flex flex-wrap gap-2 border-t bg-card p-4">
-                    {changesOwnEvaluation && (
+            {hasActions && (
+                <div
+                    className="flex flex-wrap gap-2 border-t bg-card p-4"
+                    data-test="candidate-actions"
+                >
+                    <InterviewActions
+                        item={item}
+                        candidate={candidate}
+                        onInvite={onInvite}
+                    />
+                    {candidate.canSelect && (
                         <Button
                             type="button"
-                            variant="outline"
+                            disabled={choosing}
+                            onClick={() =>
+                                router.post(
+                                    select.url({
+                                        requisition: item.id,
+                                        candidate: candidate.id,
+                                    }),
+                                    {},
+                                    {
+                                        preserveScroll: true,
+                                        onStart: () => setChoosing(true),
+                                        onFinish: () => setChoosing(false),
+                                    },
+                                )
+                            }
+                            data-test="select-candidate"
+                        >
+                            <UserCheck className="size-4" aria-hidden />
+                            Pilih
+                        </Button>
+                    )}
+                    {candidate.canEvaluate && (
+                        <Button
+                            type="button"
+                            variant={ownEvaluation ? 'outline' : 'default'}
                             onClick={() => setEvaluating(true)}
-                            data-test="edit-evaluation"
+                            data-test={
+                                ownEvaluation
+                                    ? 'edit-evaluation'
+                                    : 'start-evaluation'
+                            }
                         >
                             <Pencil className="size-4" aria-hidden />
                             Penilaian
                         </Button>
                     )}
-                    {candidate.canReject && (
+                    {candidate.canUnselect && (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            disabled={choosing}
+                            onClick={() =>
+                                router.delete(
+                                    unselect.url({
+                                        requisition: item.id,
+                                        candidate: candidate.id,
+                                    }),
+                                    {
+                                        preserveScroll: true,
+                                        onStart: () => setChoosing(true),
+                                        onFinish: () => setChoosing(false),
+                                    },
+                                )
+                            }
+                            data-test="unselect-candidate"
+                        >
+                            <UserMinus className="size-4" aria-hidden />
+                            Batalkan pilihan
+                        </Button>
+                    )}
+                    {canResendEmail && (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() =>
+                                router.post(
+                                    resendRejectionEmail.url({
+                                        requisition: item.id,
+                                        candidate: candidate.id,
+                                    }),
+                                    {},
+                                    { preserveScroll: true },
+                                )
+                            }
+                            data-test="resend-rejection-email"
+                        >
+                            <Send className="size-4" aria-hidden />
+                            Kirim ulang email
+                        </Button>
+                    )}
+                    {canRestore && (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            disabled={restoring}
+                            onClick={() =>
+                                router.delete(
+                                    restore.url({
+                                        requisition: item.id,
+                                        candidate: candidate.id,
+                                    }),
+                                    {
+                                        preserveScroll: true,
+                                        onStart: () => setRestoring(true),
+                                        onFinish: () => setRestoring(false),
+                                    },
+                                )
+                            }
+                            data-test="restore-candidate"
+                        >
+                            <RotateCcw className="size-4" aria-hidden />
+                            Pulihkan
+                        </Button>
+                    )}
+                    {canReject && (
                         <DecisionDialog
                             form={reject.form({
                                 requisition: item.id,
@@ -481,84 +569,6 @@ function DrawerBody({
                                 </Button>
                             }
                         />
-                    )}
-                    {candidate.canRestore && (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            disabled={restoring}
-                            onClick={() =>
-                                router.delete(
-                                    restore.url({
-                                        requisition: item.id,
-                                        candidate: candidate.id,
-                                    }),
-                                    {
-                                        preserveScroll: true,
-                                        onStart: () => setRestoring(true),
-                                        onFinish: () => setRestoring(false),
-                                    },
-                                )
-                            }
-                            data-test="restore-candidate"
-                        >
-                            <RotateCcw className="size-4" aria-hidden />
-                            <span className="hidden sm:inline">Pulihkan</span>
-                            <span className="sr-only sm:hidden">Pulihkan</span>
-                        </Button>
-                    )}
-                </div>
-            )}
-
-            {(candidate.canSelect || candidate.canUnselect) && (
-                <div className="flex flex-wrap gap-2 border-t bg-card p-4">
-                    {candidate.canSelect && (
-                        <Button
-                            type="button"
-                            disabled={choosing}
-                            onClick={() =>
-                                router.post(
-                                    select.url({
-                                        requisition: item.id,
-                                        candidate: candidate.id,
-                                    }),
-                                    {},
-                                    {
-                                        preserveScroll: true,
-                                        onStart: () => setChoosing(true),
-                                        onFinish: () => setChoosing(false),
-                                    },
-                                )
-                            }
-                            data-test="select-candidate"
-                        >
-                            <UserCheck className="size-4" aria-hidden />
-                            Pilih
-                        </Button>
-                    )}
-                    {candidate.canUnselect && (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            disabled={choosing}
-                            onClick={() =>
-                                router.delete(
-                                    unselect.url({
-                                        requisition: item.id,
-                                        candidate: candidate.id,
-                                    }),
-                                    {
-                                        preserveScroll: true,
-                                        onStart: () => setChoosing(true),
-                                        onFinish: () => setChoosing(false),
-                                    },
-                                )
-                            }
-                            data-test="unselect-candidate"
-                        >
-                            <UserMinus className="size-4" aria-hidden />
-                            Batalkan pilihan
-                        </Button>
                     )}
                 </div>
             )}
@@ -641,19 +651,19 @@ function OverviewTab({ candidate }: { candidate: Candidate }) {
     );
 }
 
-/** What the candidate answered on the form, line by line, with their own details beneath. */
+/** What the candidate answered on the form, line by line, with their own details beneath. Folds away under its heading. */
 function Questionnaire({ candidate }: { candidate: Candidate }) {
     const form = candidate.form;
 
     if (form === null) {
         return (
-            <section
+            <CollapsibleSection
                 className="rounded-xl border p-4"
-                data-test="no-questionnaire"
+                title="Formulir Kandidat"
+                titleClassName="font-extrabold tracking-tight"
+                contentClassName="pt-1"
+                testId="no-questionnaire"
             >
-                <h3 className="mb-1 font-extrabold tracking-tight">
-                    Formulir Kandidat
-                </h3>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                     {candidate.inviteState === 'none' ? (
                         <>
@@ -705,29 +715,28 @@ function Questionnaire({ candidate }: { candidate: Candidate }) {
                         </>
                     )}
                 </div>
-            </section>
+            </CollapsibleSection>
         );
     }
 
     const groups = [...new Set(form.answers.map((answer) => answer.group))];
 
     return (
-        <section
-            className="space-y-3 rounded-xl border p-4"
-            data-test="questionnaire"
-        >
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h3 className="font-extrabold tracking-tight">
-                    Formulir Kandidat
-                </h3>
-                <p className="label-mono">
+        <CollapsibleSection
+            className="rounded-xl border p-4"
+            title="Formulir Kandidat"
+            titleClassName="font-extrabold tracking-tight"
+            contentClassName="space-y-3 pt-3"
+            testId="questionnaire"
+            aside={
+                <p className="label-mono shrink-0">
                     {form.yes} dari {form.answers.length} YA
                     {candidate.formSubmittedOn
                         ? ` · dikirim ${formatDate(candidate.formSubmittedOn)}`
                         : ''}
                 </p>
-            </div>
-
+            }
+        >
             {groups.map((group) => (
                 <div key={group}>
                     <p className="label-mono mb-1">{group}</p>
@@ -772,7 +781,7 @@ function Questionnaire({ candidate }: { candidate: Candidate }) {
             {form.message && (
                 <p className="text-sm whitespace-pre-line">“{form.message}”</p>
             )}
-        </section>
+        </CollapsibleSection>
     );
 }
 
@@ -857,21 +866,18 @@ function Milestone({ label, date }: { label: string; date: string | null }) {
 }
 
 /**
- * The interview: the day, time and place with where the invitation stands and the two things HR does with it (change the
- * schedule, or send the same invitation again), then the invitation as it went out and the evaluations.
+ * What can be done about the interview, as the buttons of the panel's foot: schedule (or schedule again), add it to a
+ * calendar, send the invitation again, clear the schedule, and make a new form link. The panel shows them on every tab.
  */
-function InterviewSection({
+function InterviewActions({
     item,
     candidate,
     onInvite,
-    onEvaluate,
 }: {
     item: Requisition;
     candidate: Candidate;
     onInvite?: (candidate: Candidate) => void;
-    onEvaluate: () => void;
 }) {
-    const state = INVITE_STATE[candidate.inviteState];
     const at = interviewMoment(candidate.interviewAtInput);
     const [resending, setResending] = useState(false);
     const [renewing, setRenewing] = useState(false);
@@ -881,6 +887,8 @@ function InterviewSection({
         onInvite !== undefined &&
         item.canManageInterview &&
         !candidate.isRejected;
+    // Clearing the schedule and a new form link belong with the interview actions, not on their own.
+    const interviewActions = canManage || candidate.canExportEvent;
 
     // The old link stops working, and the candidate may be holding it: ask first.
     const renewLink = async () => {
@@ -970,8 +978,89 @@ function InterviewSection({
     };
 
     return (
-        <div className="flex flex-col gap-5" data-test="candidate-interview">
+        <>
             {dialog}
+
+            {canManage && (
+                <Button
+                    type="button"
+                    variant={at === null ? 'default' : 'outline'}
+                    onClick={() => onInvite(candidate)}
+                    data-test="invite-candidate"
+                >
+                    <CalendarDays className="size-4" />
+                    {at === null ? 'Jadwalkan' : 'Jadwalkan ulang'}
+                </Button>
+            )}
+            {candidate.canExportEvent && (
+                <Button asChild variant="outline" data-test="add-to-calendar">
+                    <a
+                        href={eventFile.url({
+                            requisition: item.id,
+                            candidate: candidate.id,
+                        })}
+                    >
+                        <CalendarPlus className="size-4" />
+                        Tambah ke kalender
+                    </a>
+                </Button>
+            )}
+            {canResend && (
+                <Button
+                    type="button"
+                    variant="outline"
+                    disabled={resending}
+                    onClick={resend}
+                    data-test="resend-invitation"
+                >
+                    <Send className="size-4" />
+                    Kirim ulang undangan
+                </Button>
+            )}
+            {interviewActions && candidate.canCancelInterview && (
+                <Button
+                    type="button"
+                    variant="outline"
+                    disabled={deleting}
+                    onClick={deleteSchedule}
+                    data-test="delete-schedule"
+                >
+                    <Trash2 className="size-4" aria-hidden />
+                    Jadwal
+                </Button>
+            )}
+            {interviewActions && candidate.canRenewFormLink && (
+                <Button
+                    type="button"
+                    variant="outline"
+                    disabled={renewing}
+                    onClick={renewLink}
+                    data-test="renew-form-link"
+                >
+                    <RefreshCw className="size-4" aria-hidden />
+                    Tautan Formulir
+                </Button>
+            )}
+        </>
+    );
+}
+
+/**
+ * The interview: the day, time and place with where the invitation stands, then the invitation as it went out and the
+ * evaluations. What HR does about it is in the foot of the panel (see InterviewActions).
+ */
+function InterviewSection({
+    item,
+    candidate,
+}: {
+    item: Requisition;
+    candidate: Candidate;
+}) {
+    const state = INVITE_STATE[candidate.inviteState];
+    const at = interviewMoment(candidate.interviewAtInput);
+
+    return (
+        <div className="flex flex-col gap-5" data-test="candidate-interview">
             <section className="overflow-hidden rounded-2xl border">
                 <div className="space-y-3 p-4">
                     <div className="flex items-center justify-between gap-3">
@@ -1085,85 +1174,11 @@ function InterviewSection({
                         />
                     </div>
                 )}
-
-                {(canManage || candidate.canExportEvent) && (
-                    <div className="flex flex-wrap gap-2 border-t p-4">
-                        {canManage && (
-                            <Button
-                                type="button"
-                                className="rounded-full"
-                                onClick={() => onInvite(candidate)}
-                                data-test="invite-candidate"
-                            >
-                                <CalendarDays className="size-4" />
-                                {at === null ? 'Jadwalkan' : 'Jadwalkan ulang'}
-                            </Button>
-                        )}
-                        {candidate.canExportEvent && (
-                            <Button
-                                asChild
-                                variant="outline"
-                                className="rounded-full"
-                                data-test="add-to-calendar"
-                            >
-                                <a
-                                    href={eventFile.url({
-                                        requisition: item.id,
-                                        candidate: candidate.id,
-                                    })}
-                                >
-                                    <CalendarPlus className="size-4" />
-                                    Tambah ke kalender
-                                </a>
-                            </Button>
-                        )}
-                        {canResend && (
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="rounded-full"
-                                disabled={resending}
-                                onClick={resend}
-                                data-test="resend-invitation"
-                            >
-                                <Send className="size-4" />
-                                Kirim ulang undangan
-                            </Button>
-                        )}
-                        {candidate.canCancelInterview && (
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="rounded-full"
-                                disabled={deleting}
-                                onClick={deleteSchedule}
-                                data-test="delete-schedule"
-                            >
-                                <Trash2 className="size-4" aria-hidden />
-                                Jadwal
-                            </Button>
-                        )}
-                        {candidate.canRenewFormLink && (
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="rounded-full"
-                                title="Buat tautan baru"
-                                disabled={renewing}
-                                onClick={renewLink}
-                                data-test="renew-form-link"
-                            >
-                                <RefreshCw className="size-4" aria-hidden />
-                                Tautan Formulir
-                            </Button>
-                        )}
-                    </div>
-                )}
             </section>
 
             <InvitationEmail candidate={candidate} />
 
-            <Evaluations candidate={candidate} onEvaluate={onEvaluate} />
+            <Evaluations candidate={candidate} />
         </div>
     );
 }

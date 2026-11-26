@@ -1,6 +1,7 @@
 import { Form } from '@inertiajs/react';
 import { Check, Minus, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { CollapsibleSection } from '@/components/collapsible-section';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import InputError from '@/components/input-error';
 import { formatDate } from '@/lib/format';
@@ -335,7 +336,7 @@ function MyCard({ entry }: { entry: CandidateEvaluation }) {
 }
 
 /** Shown to someone who may evaluate and has not yet: a prompt, not a form. */
-function NotYetRated({ onStart }: { onStart: () => void }) {
+function NotYetRated({ onStart }: { onStart?: () => void }) {
     return (
         <div
             className="space-y-3 rounded-3xl border border-dashed p-4"
@@ -345,14 +346,16 @@ function NotYetRated({ onStart }: { onStart: () => void }) {
             <p className="text-muted-foreground">
                 Beri nilai dan rekomendasi setelah interview selesai.
             </p>
-            <Button
-                type="button"
-                className="h-12 w-full rounded-full text-base"
-                onClick={onStart}
-                data-test="start-evaluation"
-            >
-                Beri penilaian
-            </Button>
+            {onStart && (
+                <Button
+                    type="button"
+                    className="h-12 w-full rounded-full text-base"
+                    onClick={onStart}
+                    data-test="start-evaluation"
+                >
+                    Beri penilaian
+                </Button>
+            )}
         </div>
     );
 }
@@ -673,23 +676,26 @@ export function EvaluationSheet({
  * The evaluations of a candidate after the interview: the average and how the interviewers split, the signed-in person's
  * own card (or a prompt to give one), and what the others wrote. HR and the new hire's direct superior may evaluate once
  * the interview time has passed; everyone who sees the candidate sees what was written. The form itself is the
- * EvaluationSheet, opened by `onEvaluate` here or by "Ubah penilaian" in the foot of the candidate's panel.
+ * EvaluationSheet, opened by `onEvaluate` where it is given, or by "Penilaian" in the foot of the candidate's panel. The
+ * section folds away under its heading.
  */
 export function Evaluations({
     candidate,
     onEvaluate,
 }: {
     candidate: Candidate;
-    onEvaluate: () => void;
+    onEvaluate?: () => void;
 }) {
     const mine = myEvaluation(candidate);
     const others = candidate.evaluations.filter((entry) => !entry.isMine);
     const hasOwnSpot = candidate.canEvaluate || mine !== undefined;
 
     return (
-        <section className="space-y-4" data-test="evaluations">
-            <h3 className="label-mono">Penilaian</h3>
-
+        <CollapsibleSection
+            title="Penilaian"
+            contentClassName="space-y-4 pt-3"
+            testId="evaluations"
+        >
             {candidate.evaluations.length > 0 ? (
                 <Summary evaluations={candidate.evaluations} />
             ) : (
@@ -722,6 +728,6 @@ export function Evaluations({
                     </ul>
                 </div>
             )}
-        </section>
+        </CollapsibleSection>
     );
 }
