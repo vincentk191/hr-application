@@ -13,7 +13,6 @@ import {
     Pencil,
     Phone,
     RefreshCw,
-    RotateCcw,
     Send,
     Trash2,
     UserCheck,
@@ -23,6 +22,7 @@ import {
     X,
 } from 'lucide-react';
 import { useState } from 'react';
+import { candidateOutcome } from '@/components/candidate-outcome';
 import { CollapsibleSection } from '@/components/collapsible-section';
 import {
     EvaluationSheet,
@@ -56,14 +56,16 @@ import {
     formLink,
     invite,
     reject,
-    restore,
     select,
     unselect,
     uninvite,
 } from '@/routes/recruitment/candidates';
-import { resend as resendRejectionEmail } from '@/routes/recruitment/candidates/rejection-email';
 import { show as showEmployee } from '@/routes/employees';
-import { employee as employeeOfOffer } from '@/routes/recruitment/offers';
+import {
+    employee as employeeOfOffer,
+    store as proposeOffers,
+} from '@/routes/recruitment/offers';
+import { toast } from 'sonner';
 import type { Candidate, Requisition } from '@/types/recruitment';
 import { StatusPill } from '@/components/status-pill';
 
@@ -290,44 +292,53 @@ function DrawerBody({
     onTab: (tab: CandidateTab) => void;
     onInvite?: (candidate: Candidate) => void;
 }) {
-    const [restoring, setRestoring] = useState(false);
+    const [proposing, setProposing] = useState(false);
     const [choosing, setChoosing] = useState(false);
     // The evaluation form is a panel of its own over this one, opened from "Penilaian" in the foot, whichever tab is showing.
     const [evaluating, setEvaluating] = useState(false);
     const ownEvaluation = myEvaluation(candidate);
     // Someone who accepted an offer is at the last step: what is left for them is the employee profile, and nothing else of
-    // the process applies any more. Someone turned down is out of the process: only taking that back, or sending its email
-    // again, is left.
-    const hire = (item.offers ?? []).find(
+    // the process applies any more. Someone ruled out (turned down by HR, or who said no to an offer) has no action at all.
+    const offers = item.offers ?? [];
+    const hire = offers.find(
         (offer) =>
             offer.candidateId === candidate.id && offer.stage === 'accepted',
     );
-    const ruledOut = candidate.isRejected && hire === undefined;
+    const ruledOut =
+        candidateOutcome(candidate, item.offers) === 'rejected' &&
+        hire === undefined;
     const open = hire === undefined && !ruledOut;
+    const declined = ruledOut
+        ? offers.filter((offer) => offer.candidateId === candidate.id).at(-1)
+        : undefined;
+    const withManagement = offers.some(
+        (offer) =>
+            offer.candidateId === candidate.id &&
+            (offer.isLive || offer.stage === 'accepted'),
+    );
     const interviewActions =
         open &&
         ((onInvite !== undefined && item.canManageInterview) ||
             candidate.canExportEvent);
     const canReject = open && item.canManageScreening && candidate.canReject;
-    const canRestore =
-        ruledOut && item.canManageScreening && candidate.canRestore;
-    const canResendEmail =
-        ruledOut &&
-        candidate.canResendRejectionEmail &&
-        (candidate.rejectionEmail ?? null) !== null;
     const canEvaluate = open && candidate.canEvaluate;
     const canSelect = open && candidate.canSelect;
     const canUnselect = open && candidate.canUnselect;
+    // The Atasan has chosen them: HR puts them to Management from here.
+    const canPropose =
+        open &&
+        candidate.isSelected &&
+        item.canProposeOffers &&
+        !withManagement;
     const hireAction =
         hire !== undefined && (hire.canConvert || hire.employeeId !== null);
     const hasActions =
         interviewActions ||
         canEvaluate ||
         canReject ||
-        canRestore ||
         canSelect ||
         canUnselect ||
-        canResendEmail ||
+        canPropose ||
         hireAction;
 
     return (
@@ -378,6 +389,31 @@ function DrawerBody({
                             </p>
                         )}
                         <RejectionEmailStatus candidate={candidate} />
+                    </div>
+                </div>
+            )}
+
+            {declined !== undefined && !candidate.isRejected && (
+                <div
+                    className="flex items-start gap-2 border-b bg-destructive/10 px-4 py-3 text-sm"
+                    data-test="candidate-declined"
+                >
+                    <Ban
+                        className="mt-0.5 size-4 shrink-0 text-destructive"
+                        aria-hidden
+                    />
+                    <div className="min-w-0">
+                        <p className="font-semibold">
+                            Menolak penawaran
+                            {declined.respondedOn
+                                ? ` · ${formatDate(declined.respondedOn)}`
+                                : ''}
+                        </p>
+                        {declined.declineReason && (
+                            <p className="break-words text-muted-foreground">
+                                {declined.declineReason}
+                            </p>
+                        )}
                     </div>
                 </div>
             )}
@@ -472,6 +508,32 @@ function DrawerBody({
                             onInvite={onInvite}
                         />
                     )}
+                    {canPropose && (
+                        <Button
+                            type="button"
+                            disabled={proposing}
+                            onClick={() =>
+                                router.post(
+                                    proposeOffers.url(item.id),
+                                    { candidate_ids: [candidate.id] },
+                                    {
+                                        preserveScroll: true,
+                                        onStart: () => setProposing(true),
+                                        onFinish: () => setProposing(false),
+                                        onError: (errors) =>
+                                            toast.error(
+                                                errors.candidate_ids ??
+                                                    'Belum bisa diajukan.',
+                                            ),
+                                    },
+                                )
+                            }
+                            data-test="propose-offers"
+                        >
+                            <Send className="size-4" aria-hidden />
+                            Ajukan ke Manajemen
+                        </Button>
+                    )}
                     {canSelect && (
                         <Button
                             type="button"
@@ -533,50 +595,6 @@ function DrawerBody({
                         >
                             <UserMinus className="size-4" aria-hidden />
                             Batalkan pilihan
-                        </Button>
-                    )}
-                    {canResendEmail && (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() =>
-                                router.post(
-                                    resendRejectionEmail.url({
-                                        requisition: item.id,
-                                        candidate: candidate.id,
-                                    }),
-                                    {},
-                                    { preserveScroll: true },
-                                )
-                            }
-                            data-test="resend-rejection-email"
-                        >
-                            <Send className="size-4" aria-hidden />
-                            Kirim ulang email
-                        </Button>
-                    )}
-                    {canRestore && (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            disabled={restoring}
-                            onClick={() =>
-                                router.delete(
-                                    restore.url({
-                                        requisition: item.id,
-                                        candidate: candidate.id,
-                                    }),
-                                    {
-                                        preserveScroll: true,
-                                        onStart: () => setRestoring(true),
-                                        onFinish: () => setRestoring(false),
-                                    },
-                                )
-                            }
-                            data-test="restore-candidate"
-                        >
-                            <RotateCcw className="size-4" aria-hidden />
-                            Pulihkan
                         </Button>
                     )}
                     {canReject && (

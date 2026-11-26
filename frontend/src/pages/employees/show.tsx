@@ -612,45 +612,6 @@ export default function EmployeeShow({
                                         )}
                                     />
                                 </CardGroup>
-                                <CardGroup title="Alamat Tinggal">
-                                    <Field
-                                        label="Alamat"
-                                        value={employee.contact.address}
-                                    />
-                                    <Field
-                                        label="Kelurahan"
-                                        value={
-                                            employee.residence.residence_village
-                                        }
-                                    />
-                                    <Field
-                                        label="Kecamatan"
-                                        value={
-                                            employee.residence
-                                                .residence_district
-                                        }
-                                    />
-                                    <Field
-                                        label="Kabupaten / kota"
-                                        value={
-                                            employee.residence.residence_city
-                                        }
-                                    />
-                                    <Field
-                                        label="Provinsi"
-                                        value={
-                                            employee.residence
-                                                .residence_province
-                                        }
-                                    />
-                                    <Field
-                                        label="Kode pos"
-                                        value={
-                                            employee.residence
-                                                .residence_postal_code
-                                        }
-                                    />
-                                </CardGroup>
                                 <CardGroup title="Alamat KTP">
                                     <Field
                                         label="Alamat"
@@ -731,7 +692,73 @@ export default function EmployeeShow({
                                         </div>
                                     </CardGroup>
                                 )}
+                                {employee.coverage ? (
+                                    <CardGroup title="Kesehatan & Asuransi">
+                                        <Field
+                                            label="BPJS Ketenagakerjaan"
+                                            value={
+                                                employee.coverage
+                                                    .bpjs_employment_number
+                                            }
+                                            reveal={revealTarget(
+                                                employee,
+                                                'bpjs_employment_number',
+                                                'BPJS Ketenagakerjaan',
+                                            )}
+                                        />
+                                        <Field
+                                            label="BPJS Kesehatan"
+                                            value={
+                                                employee.coverage
+                                                    .bpjs_health_number
+                                            }
+                                            reveal={revealTarget(
+                                                employee,
+                                                'bpjs_health_number',
+                                                'BPJS Kesehatan',
+                                            )}
+                                        />
+                                    </CardGroup>
+                                ) : (
+                                    <CardGroup title="Kesehatan & Asuransi">
+                                        <div className="flex items-center gap-2 py-1.5 text-sm text-muted-foreground">
+                                            <Lock
+                                                className="size-4"
+                                                aria-hidden
+                                            />
+                                            Data ini dibatasi dan tidak dapat
+                                            Anda lihat.
+                                        </div>
+                                    </CardGroup>
+                                )}
                             </div>
+                        </Card>
+
+                        <Card title="Alamat Tinggal">
+                            <Field
+                                label="Alamat"
+                                value={employee.contact.address}
+                            />
+                            <Field
+                                label="Kelurahan"
+                                value={employee.residence.residence_village}
+                            />
+                            <Field
+                                label="Kecamatan"
+                                value={employee.residence.residence_district}
+                            />
+                            <Field
+                                label="Kabupaten / kota"
+                                value={employee.residence.residence_city}
+                            />
+                            <Field
+                                label="Provinsi"
+                                value={employee.residence.residence_province}
+                            />
+                            <Field
+                                label="Kode pos"
+                                value={employee.residence.residence_postal_code}
+                            />
                         </Card>
 
                         {employee.bank ? (
@@ -777,33 +804,6 @@ export default function EmployeeShow({
                             </Card>
                         ) : (
                             <RestrictedCard title="Bank & Pajak" />
-                        )}
-
-                        {employee.coverage ? (
-                            <Card title="Kesehatan & Asuransi">
-                                <Field
-                                    label="BPJS Ketenagakerjaan"
-                                    value={
-                                        employee.coverage.bpjs_employment_number
-                                    }
-                                    reveal={revealTarget(
-                                        employee,
-                                        'bpjs_employment_number',
-                                        'BPJS Ketenagakerjaan',
-                                    )}
-                                />
-                                <Field
-                                    label="BPJS Kesehatan"
-                                    value={employee.coverage.bpjs_health_number}
-                                    reveal={revealTarget(
-                                        employee,
-                                        'bpjs_health_number',
-                                        'BPJS Kesehatan',
-                                    )}
-                                />
-                            </Card>
-                        ) : (
-                            <RestrictedCard title="Kesehatan & Asuransi" />
                         )}
 
                         {employee.payroll ? (

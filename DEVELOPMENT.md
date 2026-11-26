@@ -71,6 +71,14 @@ security pass (Phase 7). What remains is listed in the checklist below. Recruitm
 
 ## Change log (latest first)
 
+- **2026-11-26 (recruitment: outcome icons; no "Dipilih Atasan" list).** The "Dipilih Atasan" list on the Penawaran tab is gone:
+  HR now puts a candidate the Atasan chose to Management with "Ajukan ke Manajemen" in that candidate's panel (one candidate at
+  a time). On the interview cards the meeting's date and time give way, once the meeting is over, to an outcome icon: green check
+  (disetujui), amber hourglass (menunggu keputusan), red cross (ditolak). A candidate counts as ditolak when HR turned them down
+  **or** said no to an offer later (`candidateOutcome` in `components/candidate-outcome.tsx`): the card is greyed, moves to the
+  "Ditolak" group and leaves the calendar. A ditolak candidate's panel has no action buttons (so no Pulihkan or Kirim ulang email
+  either); one who declined an offer shows "Menolak penawaran" with the reason at the top.
+
 - **2026-11-26 (candidate panel and signed letter).** The candidate's form ("Formulir Kandidat") moved from Ringkasan to the
   Dokumen tab of the candidate panel. The offer letter the candidate signed and sent back is now also filed on the employee's
   documents (`FileSignedLetterOnEmployee`): at "Jadikan karyawan" if HR has filed it already, and when HR files it after the

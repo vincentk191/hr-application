@@ -24,6 +24,11 @@ import {
     leadingRecommendations,
 } from '@/components/candidate-evaluations';
 import { CandidateDrawer } from '@/components/candidate-drawer';
+import {
+    candidateOutcome,
+    OutcomeIcon,
+    type CandidateOutcome,
+} from '@/components/candidate-outcome';
 import type { CandidateTab } from '@/components/candidate-drawer';
 import { modeLabel } from '@/components/candidate-invitation';
 import { GoogleConnectionBar } from '@/components/google-connection';
@@ -828,11 +833,13 @@ function PlaceButton({ candidate }: { candidate: Candidate }) {
  */
 function CandidateSummaryRow({
     candidate,
+    outcome,
     at,
     now,
     onOpen,
 }: {
     candidate: Candidate;
+    outcome: CandidateOutcome;
     at: Date | null;
     now: Date;
     onOpen: (candidate: Candidate) => void;
@@ -843,15 +850,15 @@ function CandidateSummaryRow({
     return (
         <li
             className={`relative flex items-center gap-3 rounded-2xl border p-3 transition-[opacity,background-color,border-color] duration-200 ${
-                candidate.isRejected
+                outcome === 'rejected'
                     ? // Ruled out: greyed and faded; on hover it comes forward but stays a shade darker than the others.
                       'bg-muted/60 opacity-50 grayscale focus-within:bg-muted focus-within:opacity-90 hover:bg-muted hover:opacity-90'
-                    : candidate.isSelected
+                    : outcome === 'approved'
                       ? 'border-success bg-card focus-within:bg-muted/40 hover:bg-muted/40'
                       : 'bg-card focus-within:bg-muted/40 hover:bg-muted/40'
             }`}
             data-test="interview-candidate"
-            data-chosen={candidate.isSelected}
+            data-outcome={outcome}
         >
             <ScoreRing evaluations={candidate.evaluations} />
             {/* The button's overlay makes the whole card open the drawer; the place button sits above it. */}
@@ -864,7 +871,9 @@ function CandidateSummaryRow({
                     {candidate.name}
                 </span>
                 <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 font-mono text-sm text-muted-foreground">
-                    {at ? (
+                    {outcome === 'rejected' || (at !== null && at < now) ? (
+                        <OutcomeIcon outcome={outcome} />
+                    ) : at ? (
                         <>
                             <span
                                 className={`inline-flex items-center gap-1.5 ${sameDay(at, now) ? 'text-danger-text' : ''}`}
@@ -1445,11 +1454,15 @@ export function InterviewTab({
         );
     }
 
-    // Someone HR turned down is out of the calendar and the groups, and listed apart at the end.
+    // Someone HR turned down, or who said no to an offer, is out of the calendar and the groups, and listed apart at the end.
+    const outcomeOf = (candidate: Candidate) =>
+        candidateOutcome(candidate, item.offers);
     const inProcess = item.shortlist.filter(
-        (candidate) => !candidate.isRejected,
+        (candidate) => outcomeOf(candidate) !== 'rejected',
     );
-    const rejected = item.shortlist.filter((candidate) => candidate.isRejected);
+    const rejected = item.shortlist.filter(
+        (candidate) => outcomeOf(candidate) === 'rejected',
+    );
     const entries: Scheduled[] = inProcess.flatMap((candidate) => {
         const at = parseLocal(candidate.interviewAtInput);
 
@@ -1487,6 +1500,7 @@ export function InterviewTab({
         <CandidateSummaryRow
             key={candidate.id}
             candidate={candidate}
+            outcome={outcomeOf(candidate)}
             at={at}
             now={now}
             onOpen={(chosen) => openDrawer(chosen.id)}

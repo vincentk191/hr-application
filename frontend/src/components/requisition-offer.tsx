@@ -12,9 +12,7 @@ import {
     Trash2,
     Undo2,
     Upload,
-    UserCheck,
     UserX,
-    Users,
     X,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -36,7 +34,6 @@ import {
     letterPdf,
     send as sendOffer,
     signedLetter,
-    store,
     terms,
     withdraw,
 } from '@/routes/recruitment/offers';
@@ -59,22 +56,6 @@ function recommendedLabel(forward: number, total: number): string | null {
     return total === 0
         ? null
         : `Direkomendasikan oleh ${forward} dari ${total} pewawancara`;
-}
-
-function recommendation(candidate: Candidate): string | null {
-    return recommendedLabel(
-        candidate.evaluations.filter(
-            (entry) => entry.recommendation === 'continue',
-        ).length,
-        candidate.evaluations.length,
-    );
-}
-
-/** How an earlier offer to someone chosen again ended: "Ditolak Manajemen “reason”", or nothing if there was none. */
-function earlierOutcome(offer: CandidateOffer | undefined): string | null {
-    return offer
-        ? `penawaran sebelumnya: ${offer.stageLabel}${offer.decisionNote ? ` “${offer.decisionNote}”` : ''}`
-        : null;
 }
 
 /** The name and the line under it, which opens the candidate's card. */
@@ -1095,18 +1076,15 @@ function OfferRow({
 }
 
 /**
- * Stage 05 Penawaran (REC-OFS). HR ticks the candidates the direct superior chose and puts them to Management ("Ajukan ke
- * Manajemen"); each becomes an offer that Management approves with a starting salary or rejects with a reason (a rejected
- * candidate goes back to the interview list), and that HR can pull back until it is sent. Who sees what: HR and the
- * direct superior see the chosen and the offers; Management sees the offers and the candidates they are for, and no
- * others; everyone else sees how many were chosen.
+ * Stage 05 Penawaran (REC-OFS): the offers. HR puts a candidate the Atasan chose to Management from that candidate's panel
+ * ("Ajukan ke Manajemen"); each becomes an offer that Management approves with a starting salary or rejects with a reason
+ * (a rejected candidate goes back to the interview list), and that HR can pull back until it is sent. Who sees what: HR and the
+ * direct superior see the offers; Management sees the offers and the candidates they are for, and no others; everyone else
+ * sees how many were chosen.
  */
 export function OfferTab({ item }: { item: Requisition }) {
     const [viewingId, setViewingId] = useState<number | null>(null);
     const [drawerTab, setDrawerTab] = useState<CandidateTab>('interview');
-    const [ticked, setTicked] = useState<number[]>([]);
-    const [proposing, setProposing] = useState(false);
-    const [error, setError] = useState<string | undefined>();
 
     if (item.offers === null) {
         return (
@@ -1120,25 +1098,11 @@ export function OfferTab({ item }: { item: Requisition }) {
     }
 
     const offers = item.offers;
-    // Someone with a live offer, or who accepted one, is with Management or hired: not there to be put forward.
-    const liveIds = new Set(
-        offers
-            .filter((offer) => offer.isLive || offer.stage === 'accepted')
-            .map((offer) => offer.candidateId),
-    );
-    // The chosen who are not yet with Management: what HR can still put forward.
-    const ready = (item.shortlist ?? []).filter(
-        (candidate) => candidate.isSelected && !liveIds.has(candidate.id),
-    );
-    // A candidate appears once. Offers come oldest first, so the last one of each candidate is where they stand now, and
-    // someone chosen again after a rejection or a withdrawal is in the list above, with how the earlier offer ended.
+    // A candidate appears once. Offers come oldest first, so the last one of each candidate is where they stand now.
     const latestOffer = new Map<number, CandidateOffer>();
     offers.forEach((offer) => latestOffer.set(offer.candidateId, offer));
-    const readyIds = new Set(ready.map((candidate) => candidate.id));
     const shownOffers = offers.filter(
-        (offer) =>
-            latestOffer.get(offer.candidateId) === offer &&
-            !readyIds.has(offer.candidateId),
+        (offer) => latestOffer.get(offer.candidateId) === offer,
     );
     const candidates: Candidate[] = [
         ...(item.shortlist ?? []),
@@ -1153,117 +1117,8 @@ export function OfferTab({ item }: { item: Requisition }) {
         setViewingId(candidateId);
     };
 
-    const propose = () =>
-        router.post(
-            store.url(item.id),
-            { candidate_ids: ticked },
-            {
-                preserveScroll: true,
-                onStart: () => {
-                    setProposing(true);
-                    setError(undefined);
-                },
-                onSuccess: () => setTicked([]),
-                onError: (errors) => setError(errors.candidate_ids),
-                onFinish: () => setProposing(false),
-            },
-        );
-
     return (
         <div className="space-y-5" data-test="offer-tab">
-            {item.shortlist !== null && (
-                <section className="surface space-y-4 p-4">
-                    <header className="flex items-center justify-between gap-3">
-                        <h2 className="label-mono flex items-center gap-2">
-                            <UserCheck className="size-4" aria-hidden />
-                            Dipilih Atasan
-                        </h2>
-                        <span className="label-mono inline-flex items-center gap-1.5">
-                            <Users className="size-4" aria-hidden />
-                            {item.selectedCount}
-                            {item.quota ? ` / ${item.quota}` : ''}
-                        </span>
-                    </header>
-
-                    {ready.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                            {item.selectedCount === 0
-                                ? 'Belum ada yang dipilih.'
-                                : 'Semua yang dipilih sudah diajukan.'}
-                        </p>
-                    ) : (
-                        <ul className="space-y-2.5">
-                            {ready.map((candidate) => (
-                                <li
-                                    key={candidate.id}
-                                    className="flex items-center gap-3 rounded-2xl border bg-card p-3"
-                                    data-test="ready-candidate"
-                                >
-                                    {item.canProposeOffers && (
-                                        <input
-                                            type="checkbox"
-                                            className="size-4 accent-primary"
-                                            aria-label={`Pilih ${candidate.name}`}
-                                            checked={ticked.includes(
-                                                candidate.id,
-                                            )}
-                                            onChange={(event) =>
-                                                setTicked((current) =>
-                                                    event.target.checked
-                                                        ? [
-                                                              ...current,
-                                                              candidate.id,
-                                                          ]
-                                                        : current.filter(
-                                                              (id) =>
-                                                                  id !==
-                                                                  candidate.id,
-                                                          ),
-                                                )
-                                            }
-                                        />
-                                    )}
-                                    <Person
-                                        name={candidate.name}
-                                        detail={
-                                            [
-                                                recommendation(candidate),
-                                                candidate.selectedOn
-                                                    ? `dipilih ${formatDate(candidate.selectedOn)}`
-                                                    : null,
-                                                earlierOutcome(
-                                                    latestOffer.get(
-                                                        candidate.id,
-                                                    ),
-                                                ),
-                                            ]
-                                                .filter(Boolean)
-                                                .join(' · ') || '—'
-                                        }
-                                        onOpen={() => open(candidate.id)}
-                                    />
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-
-                    {item.canProposeOffers && ready.length > 0 && (
-                        <div className="space-y-1">
-                            <Button
-                                disabled={ticked.length === 0 || proposing}
-                                onClick={propose}
-                                data-test="propose-offers"
-                            >
-                                <Send className="size-4" aria-hidden />
-                                Ajukan ke Manajemen
-                                {ticked.length > 0 ? ` (${ticked.length})` : ''}
-                            </Button>
-                            <InputError message={error} />
-                        </div>
-                    )}
-                </section>
-            )}
-
             <section className="surface space-y-4 p-4">
                 <header className="flex items-center justify-between gap-3">
                     <h2 className="label-mono flex items-center gap-2">

@@ -689,53 +689,6 @@ export function EmployeeForm({
                             error={errors.national_id}
                         />
                         <h3 className="label-mono pt-2 sm:col-span-2">
-                            Alamat Tinggal
-                        </h3>
-                        <div className="sm:col-span-2">
-                            <TextField
-                                name="address"
-                                label="Alamat (jalan, nomor)"
-                                defaultValue={employee?.contact.address}
-                                error={errors.address}
-                            />
-                        </div>
-                        <TextField
-                            name="residence_village"
-                            label="Kelurahan"
-                            defaultValue={employee?.residence.residence_village}
-                            error={errors.residence_village}
-                        />
-                        <TextField
-                            name="residence_district"
-                            label="Kecamatan"
-                            defaultValue={
-                                employee?.residence.residence_district
-                            }
-                            error={errors.residence_district}
-                        />
-                        <TextField
-                            name="residence_city"
-                            label="Kabupaten / kota"
-                            defaultValue={employee?.residence.residence_city}
-                            error={errors.residence_city}
-                        />
-                        <TextField
-                            name="residence_province"
-                            label="Provinsi"
-                            defaultValue={
-                                employee?.residence.residence_province
-                            }
-                            error={errors.residence_province}
-                        />
-                        <TextField
-                            name="residence_postal_code"
-                            label="Kode pos"
-                            defaultValue={
-                                employee?.residence.residence_postal_code
-                            }
-                            error={errors.residence_postal_code}
-                        />
-                        <h3 className="label-mono pt-2 sm:col-span-2">
                             Alamat KTP
                         </h3>
                         <p className="-mt-2 text-sm text-muted-foreground sm:col-span-2">
@@ -825,8 +778,78 @@ export function EmployeeForm({
                                     }
                                     error={errors.mother_name}
                                 />
+                                <h3 className="label-mono pt-2 sm:col-span-2">
+                                    Kesehatan & Asuransi
+                                </h3>
+                                <p className="-mt-2 text-sm text-muted-foreground sm:col-span-2">
+                                    Data lainnya dapat dilihat di situs BPJS.
+                                </p>
+                                <TextField
+                                    name="bpjs_employment_number"
+                                    label="No. BPJS Ketenagakerjaan"
+                                    defaultValue={
+                                        employee?.coverage
+                                            ?.bpjs_employment_number
+                                    }
+                                    error={errors.bpjs_employment_number}
+                                />
+                                <TextField
+                                    name="bpjs_health_number"
+                                    label="No. BPJS Kesehatan"
+                                    defaultValue={
+                                        employee?.coverage?.bpjs_health_number
+                                    }
+                                    error={errors.bpjs_health_number}
+                                />
                             </>
                         )}
+                    </Section>
+
+                    <Section title="Alamat Tinggal">
+                        <div className="sm:col-span-2">
+                            <TextField
+                                name="address"
+                                label="Alamat (jalan, nomor)"
+                                defaultValue={employee?.contact.address}
+                                error={errors.address}
+                            />
+                        </div>
+                        <TextField
+                            name="residence_village"
+                            label="Kelurahan"
+                            defaultValue={employee?.residence.residence_village}
+                            error={errors.residence_village}
+                        />
+                        <TextField
+                            name="residence_district"
+                            label="Kecamatan"
+                            defaultValue={
+                                employee?.residence.residence_district
+                            }
+                            error={errors.residence_district}
+                        />
+                        <TextField
+                            name="residence_city"
+                            label="Kabupaten / kota"
+                            defaultValue={employee?.residence.residence_city}
+                            error={errors.residence_city}
+                        />
+                        <TextField
+                            name="residence_province"
+                            label="Provinsi"
+                            defaultValue={
+                                employee?.residence.residence_province
+                            }
+                            error={errors.residence_province}
+                        />
+                        <TextField
+                            name="residence_postal_code"
+                            label="Kode pos"
+                            defaultValue={
+                                employee?.residence.residence_postal_code
+                            }
+                            error={errors.residence_postal_code}
+                        />
                     </Section>
 
                     {canEditSensitive && (
@@ -882,29 +905,6 @@ export function EmployeeForm({
                                         employee?.bank?.payment_method
                                     }
                                     error={errors.payment_method}
-                                />
-                            </Section>
-
-                            <Section
-                                title="Kesehatan & Asuransi"
-                                description="Data lainnya dapat dilihat di situs BPJS."
-                            >
-                                <TextField
-                                    name="bpjs_employment_number"
-                                    label="No. BPJS Ketenagakerjaan"
-                                    defaultValue={
-                                        employee?.coverage
-                                            ?.bpjs_employment_number
-                                    }
-                                    error={errors.bpjs_employment_number}
-                                />
-                                <TextField
-                                    name="bpjs_health_number"
-                                    label="No. BPJS Kesehatan"
-                                    defaultValue={
-                                        employee?.coverage?.bpjs_health_number
-                                    }
-                                    error={errors.bpjs_health_number}
                                 />
                             </Section>
 
