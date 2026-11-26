@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { CollapsibleSection } from '@/components/collapsible-section';
 import { MaskedValue, type RevealTarget } from '@/components/masked-value';
 
 /**
@@ -64,7 +65,10 @@ export function Card({
     );
 }
 
-/** A titled run of fields inside a grouped Card ("Kontak", "Alamat KTP"). */
+/**
+ * A run of fields inside a grouped Card. With a title ("Kontak", "Alamat KTP") it folds away under that title; without one it
+ * is always shown. A group never splits across the Card's columns, so the groups flow one under another with no gaps.
+ */
 export function CardGroup({
     title,
     children,
@@ -73,9 +77,14 @@ export function CardGroup({
     children: ReactNode;
 }) {
     return (
-        <div>
-            {title && <h4 className="label-mono mb-1">{title}</h4>}
-            <dl className="divide-y">{children}</dl>
+        <div className="mb-4 break-inside-avoid">
+            {title ? (
+                <CollapsibleSection title={title} contentClassName="pt-1">
+                    <dl className="divide-y">{children}</dl>
+                </CollapsibleSection>
+            ) : (
+                <dl className="divide-y">{children}</dl>
+            )}
         </div>
     );
 }

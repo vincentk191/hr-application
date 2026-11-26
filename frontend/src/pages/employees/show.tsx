@@ -557,7 +557,7 @@ export default function EmployeeShow({
                             grouped
                             className="lg:col-span-2"
                         >
-                            <div className="grid gap-x-8 gap-y-4 lg:grid-cols-2">
+                            <div className="lg:columns-2 lg:gap-x-8">
                                 <CardGroup>
                                     <Field
                                         label="Jenis kelamin"
