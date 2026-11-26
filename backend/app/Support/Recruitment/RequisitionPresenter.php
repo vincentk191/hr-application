@@ -59,8 +59,6 @@ class RequisitionPresenter
             'step' => $this->stepNumber($stage),
             'statusLabel' => $this->statusLabel($requisition, $stage),
             'isDraft' => $stage === RequisitionStage::Draft,
-            'isUrgent' => $requisition->is_urgent,
-            'urgentReason' => $requisition->is_urgent ? $requisition->urgent_reason : null,
             'createdBy' => $requisition->creator?->name,
             'unreadComments' => $unreadComments,
             // The date the latest stage was reached; a draft has none ("Belum diajukan", REC-DSH-004).

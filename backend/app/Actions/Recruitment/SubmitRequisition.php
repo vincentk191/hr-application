@@ -2,7 +2,6 @@
 
 namespace App\Actions\Recruitment;
 
-use App\Enums\EmploymentStatus;
 use App\Enums\RequisitionStage;
 use App\Http\Requests\SaveRequisitionRequest;
 use App\Models\Employee;
@@ -91,10 +90,6 @@ class SubmitRequisition
 
         if (trim((string) $requisition->reason) === '') {
             $problems['reason'] = 'Isi alasan permintaan.';
-        }
-
-        if ($requisition->is_urgent && trim((string) $requisition->urgent_reason) === '') {
-            $problems['urgent_reason'] = 'Isi alasan mendesak.';
         }
 
         if (trim((string) $requisition->about) === '') {

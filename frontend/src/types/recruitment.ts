@@ -29,9 +29,6 @@ export type RequisitionRow = {
     /** Where in the stage it is, e.g. "Menunggu persetujuan HR" (REC-PIP-006). */
     statusLabel: string;
     isDraft: boolean;
-    /** Marked "Mendesak" by the requester (REC-WIZ-006). */
-    isUrgent: boolean;
-    urgentReason: string | null;
     createdBy: string | null;
     /** Comments on its thread that the person looking has not read yet. */
     unreadComments: number;

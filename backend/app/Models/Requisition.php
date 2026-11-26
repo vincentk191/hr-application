@@ -41,8 +41,6 @@ use Illuminate\Support\Carbon;
  * @property list<string>|null $benefits
  * @property array<string, list<string>>|null $checklist
  * @property int $draft_step
- * @property bool $is_urgent
- * @property string|null $urgent_reason
  * @property int|null $salary_min
  * @property int|null $salary_max
  * @property int|null $salary_set_by_user_id
@@ -68,8 +66,6 @@ use Illuminate\Support\Carbon;
     'benefits',
     'checklist',
     'draft_step',
-    'is_urgent',
-    'urgent_reason',
     'salary_min',
     'salary_max',
     'salary_set_by_user_id',
@@ -95,7 +91,6 @@ class Requisition extends Model
             'benefits' => 'array',
             'checklist' => 'array',
             'draft_step' => 'integer',
-            'is_urgent' => 'boolean',
             'salary_min' => 'integer',
             'salary_max' => 'integer',
             'submitted_at' => 'datetime',

@@ -764,24 +764,10 @@ export default function RequisitionShow({
                         </p>
                         <div
                             className={`mt-2 flex-wrap items-center gap-2 max-md:hidden ${
-                                showStageBadge || item.isUrgent || detail
-                                    ? 'flex'
-                                    : 'hidden'
+                                showStageBadge || detail ? 'flex' : 'hidden'
                             }`}
                         >
                             {showStageBadge && <Badge>{item.stageLabel}</Badge>}
-                            {item.isUrgent && (
-                                <Badge
-                                    variant="destructive"
-                                    title={item.urgentReason ?? undefined}
-                                    data-test="urgent-tag"
-                                >
-                                    Mendesak
-                                    {item.urgentReason
-                                        ? ` · ${item.urgentReason}`
-                                        : ''}
-                                </Badge>
-                            )}
                             {detail && (
                                 <span
                                     className="text-sm text-muted-foreground"

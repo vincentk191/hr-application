@@ -1058,26 +1058,6 @@ function OfferRow({
                             </Link>
                         </Button>
                     )}
-                    {offer.canViewLetter && (
-                        <Button
-                            asChild
-                            size="sm"
-                            variant="outline"
-                            data-test="offer-letter-pdf"
-                        >
-                            <a
-                                href={letterPdf.url({
-                                    requisition: item.id,
-                                    offer: offer.id,
-                                })}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                            >
-                                <FileText className="size-4" aria-hidden />
-                                Surat PDF
-                            </a>
-                        </Button>
-                    )}
                     {offer.canSend && <SendOffer item={item} offer={offer} />}
                     {offer.canRespond && (
                         <>

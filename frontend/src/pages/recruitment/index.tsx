@@ -1,6 +1,5 @@
 import { Head, Link, router, setLayoutProps } from '@inertiajs/react';
 import { Download, Plus } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { statusDetail } from '@/components/requisition-summary';
 import { Button } from '@/components/ui/button';
 import { UnreadComments } from '@/components/unread-comments';
@@ -35,20 +34,6 @@ function quota(row: RequisitionRow): string {
 
 function lastUpdate(row: RequisitionRow): string {
     return row.lastUpdate ?? 'Belum diajukan';
-}
-
-/** The "Mendesak" tag, with the requester's reason on hover. */
-function UrgentTag({ row }: { row: RequisitionRow }) {
-    return row.isUrgent ? (
-        <Badge
-            variant="destructive"
-            className="ml-1 align-middle"
-            title={row.urgentReason ?? undefined}
-            data-test="urgent-tag"
-        >
-            Mendesak
-        </Badge>
-    ) : null;
 }
 
 function StatusBadge({ row }: { row: RequisitionRow }) {
@@ -267,7 +252,6 @@ export default function RecruitmentIndex({
                                             <div className="min-w-0">
                                                 <p className="font-medium">
                                                     {row.positionName}{' '}
-                                                    <UrgentTag row={row} />{' '}
                                                     <UnreadComments
                                                         count={
                                                             row.unreadComments
@@ -343,7 +327,6 @@ export default function RecruitmentIndex({
                                                     }
                                                 >
                                                     {row.positionName}{' '}
-                                                    <UrgentTag row={row} />{' '}
                                                     <UnreadComments
                                                         count={
                                                             row.unreadComments

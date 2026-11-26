@@ -20,6 +20,7 @@ use App\Models\WorkflowStep;
 use App\Notifications\InAppNotice;
 use App\Support\Recruitment\InterviewParticipants;
 use App\Support\Recruitment\InvitationMessage;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -328,14 +329,12 @@ class Notifier
             return;
         }
 
-        $urgent = $requisition->is_urgent ? 'MENDESAK · ' : '';
-
         $notice = new InAppNotice(
             'recruitment',
-            $urgent.($resubmitted
+            $resubmitted
                 ? "{$requisition->reference()} diajukan ulang: {$requisition->position_name}"
-                : "{$requisition->reference()}: lowongan {$requisition->position_name} menunggu persetujuan {$step->label}"),
-            "{$requisition->department?->name} · kuota {$requisition->quota}".($requisition->is_urgent ? " · {$requisition->urgent_reason}" : ''),
+                : "{$requisition->reference()}: lowongan {$requisition->position_name} menunggu persetujuan {$step->label}",
+            "{$requisition->department?->name} · kuota {$requisition->quota}",
             route('recruitment.show', $requisition, absolute: false),
         );
 
@@ -363,10 +362,10 @@ class Notifier
 
         $notice = new InAppNotice(
             'recruitment',
-            ($requisition->is_urgent ? 'MENDESAK · ' : '').($resubmitted
+            $resubmitted
                 ? "{$requisition->reference()} diajukan ulang: {$requisition->position_name}"
-                : "{$requisition->reference()}: lowongan {$requisition->position_name} diajukan"),
-            "{$requisition->department?->name} · kuota {$requisition->quota} · menunggu {$waitingOn}".($requisition->is_urgent ? " · {$requisition->urgent_reason}" : ''),
+                : "{$requisition->reference()}: lowongan {$requisition->position_name} diajukan",
+            "{$requisition->department?->name} · kuota {$requisition->quota} · menunggu {$waitingOn}",
             route('recruitment.show', $requisition, absolute: false),
         );
 
@@ -605,6 +604,38 @@ class Notifier
         $this->hrAdmins($requisition->company_id)
             ->reject(fn (User $user): bool => $user->is($actor))
             ->each(fn (User $user) => $user->notify($notice));
+    }
+
+    /**
+     * A requisition's target start date is near and nobody has filled the role yet: tell HR and the new hire's direct
+     * superior, short and plain. Sent once per person per day (the key holds the day), so the daily run can be repeated.
+     */
+    public function requisitionStartNear(Requisition $requisition, int $daysLeft, CarbonImmutable $today): void
+    {
+        $when = match (true) {
+            $daysLeft <= 0 => 'hari ini',
+            $daysLeft === 1 => 'besok',
+            default => "{$daysLeft} hari lagi",
+        };
+
+        $notice = new InAppNotice(
+            'recruitment',
+            "Mulai kerja {$when}: {$requisition->position_name}",
+            "{$requisition->reference()} · belum terisi",
+            route('recruitment.show', $requisition, absolute: false),
+            "requisition-start:{$requisition->id}:{$today->toDateString()}",
+        );
+
+        $people = $this->recruitmentManagers($requisition->company_id);
+        $superior = $this->directSuperiorOf($requisition);
+
+        if ($superior !== null) {
+            $people->push($superior);
+        }
+
+        foreach ($people->unique('id') as $user) {
+            $this->once($user, $notice);
+        }
     }
 
     /**

@@ -502,40 +502,6 @@ it('flags on the dashboard which requisitions have comments the person has not r
     expect($unreadOnList($this->mira->user))->toBe(0);
 });
 
-// --- Fast-track: "Mendesak" (REC-WIZ-006) ---
-
-it('marks a requisition urgent with a reason, tells its approvers, and lists it first', function () {
-    $normal = submittedRequisition();
-    draftRequisition($this->rudi->user, $this->gudang, ['is_urgent' => 1, 'urgent_reason' => 'Pegawai keluar mendadak', 'send' => 1])->assertRedirect();
-    $urgent = latestRequisition()->refresh();
-
-    expect($urgent->is_urgent)->toBeTrue()->and($urgent->urgent_reason)->toBe('Pegawai keluar mendadak')
-        ->and($normal->refresh()->is_urgent)->toBeFalse();
-
-    $urgentNotices = $this->mira->user->notifications()->get()->filter(fn ($notice): bool => str_starts_with((string) $notice->data['title'], 'MENDESAK · '));
-
-    expect($urgentNotices)->toHaveCount(1)->and(json_encode($urgentNotices->first()->data))->toContain('Pegawai keluar mendadak');
-
-    $this->actingAs($this->hr)->get(route('recruitment.index'))
-        ->assertInertia(fn (Assert $page) => $page
-            ->where('requisitions.0.id', $urgent->id)
-            ->where('requisitions.0.isUrgent', true)
-            ->where('requisitions.0.urgentReason', 'Pegawai keluar mendadak')
-            ->where('requisitions.1.isUrgent', false));
-});
-
-it('will not send an urgent requisition without saying why', function () {
-    draftRequisition($this->rudi->user, $this->gudang, ['is_urgent' => 1, 'urgent_reason' => '  ', 'send' => 1])->assertSessionHasErrors('urgent_reason');
-
-    expect(stageOfRequisition(latestRequisition()))->toBe('draft');
-});
-
-it('keeps no reason on a requisition that is not urgent', function () {
-    draftRequisition($this->rudi->user, $this->gudang, ['is_urgent' => 0, 'urgent_reason' => 'Lupa dihapus'])->assertRedirect();
-
-    expect(latestRequisition()->urgent_reason)->toBeNull();
-});
-
 // --- CSV export (REC-DSH-007) ---
 
 it('exports the dashboard rows as filtered, with the salary only for those who see it', function () {

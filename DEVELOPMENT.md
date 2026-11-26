@@ -71,6 +71,17 @@ security pass (Phase 7). What remains is listed in the checklist below. Recruitm
 
 ## Change log (latest first)
 
+- **2026-11-25 (recruitment: "Mendesak" removed; target start date reminders).** The urgent marker is gone: the checkbox and
+  reason on the request form, the tags, the urgent-first sort, the CSV column, the "MENDESAK ·" notice prefix, and the
+  columns (migration `drop_urgent_from_requisitions`, which deletes the markers already set). In its place the target start date
+  (`requisitions.target_start_on`) drives reminders: `recruitment:start-reminders` (08:00 company time, `SendRequisitionStartReminders`)
+  tells HR (`manage-recruitment`) and the direct superior once a day from 7 days before through the day itself ("Mulai kerja 3
+  hari lagi: Posisi", "REQ-0001 · belum terisi"), while the requisition is open (`Requisition::open()`: sent, not filled, not
+  cancelled). `Notifier::requisitionStartNear`, dedupe key `requisition-start:{id}:{day}`. The Kalender page has a "Mulai kerja"
+  panel (`StartDatesOnCalendar`, prop `startDates`) read from the requisitions, **not** a `CalendarEvent`: any calendar event makes
+  its day a non-working day for everyone it covers and is visible company-wide. Only holders of `view-attendance` (HR Admin) can
+  open the page, so a Supervisor does not see it; nothing is shown on the public entrance.
+
 - **2026-11-25 (UI trims; Potongan absensi page; no applicant total).** The Absensi calendar's status panel no longer ends
   with the attendance-percentage note. The total number of applicants (`requisitions.applicants_count`) is gone: the **Pelamar**
   step of the Rekrutmen funnel, the "N pelamar" part of the Screening status line (now "M shortlist"), the `applicantsCount`

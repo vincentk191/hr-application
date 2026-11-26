@@ -118,8 +118,8 @@ class RequisitionController extends Controller
     }
 
     /**
-     * The dashboard's requisitions as the filters narrow them, urgent ones first: what the table shows and what the
-     * CSV export carries.
+     * The dashboard's requisitions as the filters narrow them, newest first: what the table shows and what the CSV
+     * export carries.
      *
      * @param  array{status: string, department: string|null}  $filters
      * @return Collection<int, Requisition>
@@ -131,7 +131,6 @@ class RequisitionController extends Controller
             ->when($filters['status'] === 'open', fn (Builder $query) => $query->open())
             ->when(! in_array($filters['status'], ['open', 'all'], true), fn (Builder $query) => $query->whereHas('workflow', fn (Builder $workflow) => $workflow->where('current_stage', $filters['status'])))
             ->when($filters['department'] !== null, fn (Builder $query) => $query->whereHas('department', fn (Builder $department) => $department->where('name', $filters['department'])))
-            ->orderByDesc('is_urgent')
             ->latest('id')
             ->get();
     }
@@ -160,7 +159,6 @@ class RequisitionController extends Controller
                 $row['candidates'],
                 $row['stageLabel'],
                 $row['statusLabel'],
-                $row['isUrgent'] ? 'Ya' : '',
                 $row['lastUpdate'],
                 $row['createdBy'],
                 ...($withSalary ? [$requisition->salary_min, $requisition->salary_max] : []),
@@ -168,7 +166,7 @@ class RequisitionController extends Controller
         });
 
         return CsvDownload::stream('rekrutmen-'.now()->format('Y-m-d').'.csv', [
-            ['Referensi', 'Posisi', 'Departemen', 'Cabang', 'Kuota', 'Terisi', 'Shortlist', 'Tahap', 'Status', 'Mendesak', 'Diperbarui', 'PIC', ...($withSalary ? ['Gaji minimal', 'Gaji maksimal'] : [])],
+            ['Referensi', 'Posisi', 'Departemen', 'Cabang', 'Kuota', 'Terisi', 'Shortlist', 'Tahap', 'Status', 'Diperbarui', 'PIC', ...($withSalary ? ['Gaji minimal', 'Gaji maksimal'] : [])],
             ...$rows,
         ]);
     }

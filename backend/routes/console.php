@@ -39,6 +39,12 @@ Schedule::command('recruitment:interview-reminders')
     ->dailyAt('08:00')
     ->timezone((string) config('attendance.device_timezone'));
 
+// A role still open in the week before its target start date, and on the day: HR and the direct superior are told each
+// morning (REC-WIZ). Each is told once a day, so running it again changes nothing.
+Schedule::command('recruitment:start-reminders')
+    ->dailyAt('08:00')
+    ->timezone((string) config('attendance.device_timezone'));
+
 // Interviews made through Google Calendar (REC-INT): follow a time changed there, flag an event deleted there. Outbound only, so
 // nothing about Google is reachable from outside. Skipped when the app is not set up for Google at all.
 Schedule::command('recruitment:sync-google-events')

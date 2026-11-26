@@ -21,6 +21,7 @@ use App\Support\Attendance\WorkSchedule;
 use App\Support\CompanyContext;
 use App\Support\CsvDownload;
 use App\Support\OrganisationNames;
+use App\Support\Recruitment\StartDatesOnCalendar;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -90,6 +91,7 @@ class AttendanceCalendarController extends Controller
             'onLeave' => $this->onLeave($data['rows'], $data['from'], $data['to'], $data['filters']['leaveType']),
             'events' => $this->events($request, $data['from'], $data['to'], $data['filters']['branches']),
             'eventForm' => $this->eventForm($request),
+            'startDates' => app(StartDatesOnCalendar::class)->for($request->user(), $data['from'], $data['to']),
             'filters' => $data['filters'],
             'options' => [
                 'branches' => OrganisationNames::branches($request->user()),
