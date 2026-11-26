@@ -15,7 +15,7 @@ import {
     Trash2,
     X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useConfirm } from '@/components/confirm-dialog';
 import { InfoHint } from '@/components/info-hint';
@@ -30,6 +30,7 @@ import {
     lineCount,
 } from '@/components/requisition-summary';
 import { RequisitionWizardSteps } from '@/components/requisition-wizard-steps';
+import { INVALID_FIELDS, showFirstInvalid } from '@/lib/invalid';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -73,23 +74,27 @@ function FieldRow({
     htmlFor,
     hint,
     error,
+    invalid = false,
     children,
 }: {
     label: string;
     htmlFor?: string;
     hint?: string;
     error?: string;
+    /** The field still needs filling in: its boxes turn red. */
+    invalid?: boolean;
     children: ReactNode;
 }) {
     return (
-        <div className="grid border-t first:border-t-0 md:grid-cols-[14rem_minmax(0,1fr)]">
-            <div className="border-b p-4 md:border-r md:border-b-0">
+        <div
+            className={`grid border-t first:border-t-0 md:grid-cols-[14rem_minmax(0,1fr)] ${invalid ? INVALID_FIELDS : ''}`}
+            data-invalid={invalid}
+        >
+            <div className="flex items-start gap-1.5 border-b p-4 md:border-r md:border-b-0">
                 <Label htmlFor={htmlFor} className="text-sm font-semibold">
                     {label}
                 </Label>
-                {hint && (
-                    <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
-                )}
+                {hint && <InfoHint label={label}>{hint}</InfoHint>}
             </div>
             <div className="min-w-0 space-y-1 p-4">
                 {children}
@@ -104,15 +109,21 @@ function Section({
     number,
     title,
     note,
+    invalid = false,
     children,
 }: {
     number: string;
     title: string;
     note?: string;
+    /** The section still needs filling in: its border and boxes turn red. */
+    invalid?: boolean;
     children: ReactNode;
 }) {
     return (
-        <section className="surface overflow-hidden">
+        <section
+            className={`surface overflow-hidden ${invalid ? `border-destructive ${INVALID_FIELDS}` : ''}`}
+            data-invalid={invalid}
+        >
             <header className="flex items-center justify-between gap-3 border-b bg-muted/40 px-4 py-3">
                 <h2 className="flex items-baseline gap-3 text-lg font-extrabold tracking-tight">
                     <span className="label-mono">{number}</span>
@@ -270,6 +281,9 @@ export default function RequisitionForm({
         existing?.checklist ?? template.checklist,
     );
     const [stepError, setStepError] = useState<string | null>(null);
+    // Once the person has tried to go on or send with something missing, the missing fields turn red.
+    const [showMissing, setShowMissing] = useState(false);
+    const [pointAtMissing, setPointAtMissing] = useState(false);
 
     const department = departments.find(
         (option) => String(option.id) === departmentId,
@@ -382,16 +396,21 @@ export default function RequisitionForm({
         ...(reason.trim() === '' ? ['Alasan permintaan'] : []),
     ];
 
-    /** What it still asks of step 2: the posting's two required parts, and the checklist's two required sections. */
-    const missingDetails: string[] = [
-        ...(about.trim() === '' ? ['Tentang Posisi'] : []),
-        ...(groups.length === 0 ||
+    const responsibilitiesMissing =
+        groups.length === 0 ||
         groups.some(
             (group) =>
                 group.title.trim() === '' || lineCount(group.items) === 0,
-        )
-            ? ['Tanggung Jawab Utama']
-            : []),
+        );
+
+    /** A field is red when it is missing after an attempt to go on, or when the server refused it. */
+    const bad = (missing: boolean, error?: string): boolean =>
+        Boolean(error) || (showMissing && missing);
+
+    /** What it still asks of step 2: the posting's two required parts, and the checklist's two required sections. */
+    const missingDetails: string[] = [
+        ...(about.trim() === '' ? ['Tentang Posisi'] : []),
+        ...(responsibilitiesMissing ? ['Tanggung Jawab Utama'] : []),
         ...(counts.qualification === 0 ? ['Kualifikasi'] : []),
         ...(counts.skills === 0 ? ['Skills'] : []),
     ];
@@ -442,11 +461,23 @@ export default function RequisitionForm({
     };
 
     const goTo = (next: Step) => {
-        if (next > 1 && step === 1) {
-            const problem = stepOneProblem();
+        if (next > step) {
+            const problem = step === 1 ? stepOneProblem() : null;
 
-            if (problem) {
+            if (problem || (step === 1 && missingRequest.length > 0)) {
                 setStepError(problem);
+                setShowMissing(true);
+                setPointAtMissing(true);
+
+                return;
+            }
+
+            // On to the review with the details unfinished: they are what is shown, on their own step.
+            if (next === 3 && missingDetails.length > 0) {
+                setStepError(null);
+                setShowMissing(true);
+                setPointAtMissing(true);
+                setStep(2);
 
                 return;
             }
@@ -455,6 +486,13 @@ export default function RequisitionForm({
         setStepError(null);
         setStep(next);
     };
+
+    useEffect(() => {
+        if (pointAtMissing) {
+            showFirstInvalid();
+            setPointAtMissing(false);
+        }
+    }, [pointAtMissing, step]);
 
     const target = existing ? update.form(existing.id) : store.form();
 
@@ -503,11 +541,6 @@ export default function RequisitionForm({
                                   name="send"
                                   value="1"
                                   disabled={!complete}
-                                  title={
-                                      complete
-                                          ? undefined
-                                          : `Belum lengkap: ${[...missingRequest, ...missingDetails].join(', ')}.`
-                                  }
                                   data-test="send-requisition"
                                   className={className}
                               >
@@ -772,6 +805,10 @@ export default function RequisitionForm({
                                 >
                                     <FieldRow
                                         label="Posisi"
+                                        invalid={bad(
+                                            positionName.trim() === '',
+                                            errors.position_name,
+                                        )}
                                         htmlFor="position_name"
                                         error={errors.position_name}
                                     >
@@ -840,6 +877,10 @@ export default function RequisitionForm({
                                     </FieldRow>
                                     <FieldRow
                                         label="Departemen"
+                                        invalid={bad(
+                                            departmentId === '',
+                                            errors.department_id,
+                                        )}
                                         htmlFor="department_id"
                                         error={errors.department_id}
                                     >
@@ -898,6 +939,12 @@ export default function RequisitionForm({
                                     </FieldRow>
                                     <FieldRow
                                         label="Jumlah kuota"
+                                        invalid={bad(
+                                            quota === '' ||
+                                                !/^\d+$/.test(quota) ||
+                                                Number(quota) < 1,
+                                            errors.quota,
+                                        )}
                                         htmlFor="quota"
                                         error={errors.quota}
                                     >
@@ -920,6 +967,15 @@ export default function RequisitionForm({
                                 <Section number="02" title="Konteks Permintaan">
                                     <FieldRow
                                         label="Tipe kontrak"
+                                        invalid={bad(
+                                            employmentType === '' ||
+                                                Boolean(
+                                                    type?.needsMonths &&
+                                                    contractMonths === '',
+                                                ),
+                                            errors.employment_type ??
+                                                errors.contract_months,
+                                        )}
                                         htmlFor="employment_type"
                                         error={
                                             errors.employment_type ??
@@ -978,6 +1034,10 @@ export default function RequisitionForm({
                                     </FieldRow>
                                     <FieldRow
                                         label="Atasan"
+                                        invalid={bad(
+                                            managerId === '',
+                                            errors.manager_employee_id,
+                                        )}
                                         htmlFor="manager_employee_id"
                                         error={errors.manager_employee_id}
                                     >
@@ -1011,6 +1071,12 @@ export default function RequisitionForm({
                                     </FieldRow>
                                     <FieldRow
                                         label="Target mulai kerja"
+                                        invalid={bad(
+                                            targetStart === '' ||
+                                                startInPast ||
+                                                startTooFar,
+                                            errors.target_start_on,
+                                        )}
                                         htmlFor="target_start_on"
                                         hint="Masih bisa berubah saat surat penawaran dibuat"
                                         error={
@@ -1042,6 +1108,10 @@ export default function RequisitionForm({
                                     </FieldRow>
                                     <FieldRow
                                         label="Alasan permintaan"
+                                        invalid={bad(
+                                            reason.trim() === '',
+                                            errors.reason,
+                                        )}
                                         htmlFor="reason"
                                         error={errors.reason}
                                     >
@@ -1059,14 +1129,9 @@ export default function RequisitionForm({
                                 </Section>
 
                                 <div
-                                    className="surface flex flex-wrap items-center justify-between gap-3 bg-muted/40 p-4"
+                                    className="surface flex flex-wrap items-center justify-end gap-3 bg-muted/40 p-4"
                                     data-test="step-one-banner"
                                 >
-                                    <p className="label-mono uppercase">
-                                        {missingRequest.length === 0
-                                            ? 'Semua baris wajib sudah diisi'
-                                            : `${missingRequest.length} baris wajib belum diisi: ${missingRequest.join(' dan ')}`}
-                                    </p>
                                     <Button
                                         type="button"
                                         onClick={() => goTo(2)}
@@ -1088,7 +1153,14 @@ export default function RequisitionForm({
                                     Detail Lowongan
                                 </h2>
 
-                                <Section number="01" title="Tentang Posisi">
+                                <Section
+                                    number="01"
+                                    title="Tentang Posisi"
+                                    invalid={bad(
+                                        about.trim() === '',
+                                        errors.about,
+                                    )}
+                                >
                                     <div className="space-y-1 p-4">
                                         <textarea
                                             id="about"
@@ -1109,6 +1181,10 @@ export default function RequisitionForm({
                                 <Section
                                     number="02"
                                     title="Tanggung Jawab Utama"
+                                    invalid={bad(
+                                        responsibilitiesMissing,
+                                        errors.responsibilities,
+                                    )}
                                 >
                                     <div className="divide-y">
                                         {responsibilities.map(
@@ -1234,6 +1310,10 @@ export default function RequisitionForm({
                                     number="01"
                                     title="Kualifikasi"
                                     note="WAJIB"
+                                    invalid={bad(
+                                        counts.qualification === 0,
+                                        errors.qualification,
+                                    )}
                                 >
                                     <ChecklistSubtitle
                                         letter="a"
@@ -1261,6 +1341,10 @@ export default function RequisitionForm({
                                     number="02"
                                     title="Skills"
                                     note="WAJIB"
+                                    invalid={bad(
+                                        counts.skills === 0,
+                                        errors.skills,
+                                    )}
                                 >
                                     <ChecklistSubtitle
                                         letter="a"
@@ -1301,14 +1385,9 @@ export default function RequisitionForm({
                                 </Section>
 
                                 <div
-                                    className="surface flex flex-wrap items-center justify-between gap-3 bg-muted/40 p-4"
+                                    className="surface flex flex-wrap items-center justify-end gap-3 bg-muted/40 p-4"
                                     data-test="step-two-banner"
                                 >
-                                    <p className="label-mono uppercase">
-                                        {missingDetails.length === 0
-                                            ? 'Isi lowongan dan checklist sudah lengkap'
-                                            : `Belum lengkap: ${missingDetails.join(', ')}`}
-                                    </p>
                                     <Button
                                         type="button"
                                         onClick={() => goTo(3)}
@@ -1368,31 +1447,6 @@ export default function RequisitionForm({
                                         Manajemen mana pun bila tidak ada.
                                     </p>
                                 </section>
-
-                                {!complete && (
-                                    <div
-                                        className="rounded-xl border border-pending/50 p-3 text-sm text-pending-text"
-                                        data-test="missing-banner"
-                                    >
-                                        <p className="font-medium">
-                                            Belum bisa diajukan, masih perlu:
-                                        </p>
-                                        <ul className="list-disc pl-5">
-                                            {missingRequest.length > 0 && (
-                                                <li>
-                                                    Langkah 1:{' '}
-                                                    {missingRequest.join(', ')}
-                                                </li>
-                                            )}
-                                            {missingDetails.length > 0 && (
-                                                <li>
-                                                    Langkah 2:{' '}
-                                                    {missingDetails.join(', ')}
-                                                </li>
-                                            )}
-                                        </ul>
-                                    </div>
-                                )}
                             </div>
 
                             {stepError && (
@@ -1402,23 +1456,6 @@ export default function RequisitionForm({
                                 >
                                     {stepError}
                                 </p>
-                            )}
-
-                            {Object.keys(errors).length > 0 && (
-                                <div className="rounded-xl border border-destructive/40 p-3 text-sm text-destructive">
-                                    <p className="font-medium">
-                                        {sent
-                                            ? 'Belum bisa disimpan:'
-                                            : 'Belum bisa diajukan:'}
-                                    </p>
-                                    <ul className="list-disc pl-5">
-                                        {Object.values(errors).map(
-                                            (message) => (
-                                                <li key={message}>{message}</li>
-                                            ),
-                                        )}
-                                    </ul>
-                                </div>
                             )}
 
                             <div className="flex flex-wrap items-center gap-3 border-t pt-4">

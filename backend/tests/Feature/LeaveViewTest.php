@@ -180,3 +180,25 @@ it('opens the new-request form empty, and ignores a date that is not one', funct
 
     expect($props['prefill'])->toBe(['employeeId' => null, 'date' => null, 'type' => null]);
 });
+
+// --- A request opened from an employee's profile ---
+
+it('opens a request of the employee whose profile it is as the Pengajuan page panel, and only theirs', function () {
+    $mine = lvRequest($this->budi);
+    $theirs = lvRequest($this->siti);
+
+    $props = $this->actingAs($this->hr)->get(route('employees.show', $this->budi).'?request='.$mine->id)->assertOk()->viewData('page')['props'];
+
+    expect($props['openedRequest']['id'])->toBe($mine->id)
+        ->and($props['openedRequest'])->toHaveKeys(['reference', 'steps', 'canDecide']);
+
+    // Another employee's request does not open on this profile; neither does one that is not there.
+    foreach ([$theirs->id, 999999] as $id) {
+        $props = $this->actingAs($this->hr)->get(route('employees.show', $this->budi).'?request='.$id)->assertOk()->viewData('page')['props'];
+        expect($props['openedRequest'])->toBeNull();
+    }
+
+    // Without the parameter, nothing is opened.
+    $props = $this->actingAs($this->hr)->get(route('employees.show', $this->budi))->assertOk()->viewData('page')['props'];
+    expect($props['openedRequest'])->toBeNull();
+});

@@ -16,6 +16,7 @@ import type { ReactNode } from 'react';
 import { useConfirm } from '@/components/confirm-dialog';
 import { InfoHint } from '@/components/info-hint';
 import InputError from '@/components/input-error';
+import { INVALID_FIELDS } from '@/lib/invalid';
 import LimitedFileInput from '@/components/limited-file-input';
 import { PhaseActions } from '@/components/phase-actions';
 import { Badge } from '@/components/ui/badge';
@@ -266,7 +267,9 @@ export default function OffboardingForm({
                                     <legend className="label-mono px-1">
                                         Karyawan
                                     </legend>
-                                    <div className="grid gap-2">
+                                    <div
+                                        className={`grid gap-2 ${errors.employee_id ? INVALID_FIELDS : ''}`}
+                                    >
                                         <Label htmlFor="employee_id">
                                             Pilih karyawan
                                         </Label>
@@ -397,7 +400,9 @@ export default function OffboardingForm({
                                     <legend className="label-mono px-1">
                                         Detail keluar
                                     </legend>
-                                    <div className="grid gap-2">
+                                    <div
+                                        className={`grid gap-2 ${errors.exit_type ? INVALID_FIELDS : ''}`}
+                                    >
                                         <Label htmlFor="exit_type">
                                             Jenis keluar
                                         </Label>
@@ -425,7 +430,9 @@ export default function OffboardingForm({
                                         />
                                     </div>
                                     <div className="grid gap-4 sm:grid-cols-2">
-                                        <div className="grid gap-2">
+                                        <div
+                                            className={`grid gap-2 ${errors.notice_on ? INVALID_FIELDS : ''}`}
+                                        >
                                             <Label htmlFor="notice_on">
                                                 Tanggal pemberitahuan
                                             </Label>
@@ -444,7 +451,9 @@ export default function OffboardingForm({
                                                 message={errors.notice_on}
                                             />
                                         </div>
-                                        <div className="grid gap-2">
+                                        <div
+                                            className={`grid gap-2 ${errors.last_working_on ? INVALID_FIELDS : ''}`}
+                                        >
                                             <Label htmlFor="last_working_on">
                                                 Hari kerja terakhir
                                             </Label>
@@ -522,7 +531,9 @@ export default function OffboardingForm({
                                                 )}
                                         </div>
                                     )}
-                                    <div className="grid gap-2">
+                                    <div
+                                        className={`grid gap-2 ${errors.reason ? INVALID_FIELDS : ''}`}
+                                    >
                                         <Label htmlFor="reason">Alasan</Label>
                                         <textarea
                                             id="reason"
@@ -542,7 +553,9 @@ export default function OffboardingForm({
                                     <legend className="label-mono px-1">
                                         Kompensasi
                                     </legend>
-                                    <div className="grid gap-2">
+                                    <div
+                                        className={`grid gap-2 ${errors.compensation_months ? INVALID_FIELDS : ''}`}
+                                    >
                                         <Label htmlFor="compensation_months">
                                             Jumlah bulan
                                         </Label>
@@ -564,7 +577,9 @@ export default function OffboardingForm({
                                             message={errors.compensation_months}
                                         />
                                     </div>
-                                    <div className="grid gap-2">
+                                    <div
+                                        className={`grid gap-2 ${errors.compensation_reason ? INVALID_FIELDS : ''}`}
+                                    >
                                         <Label htmlFor="compensation_reason">
                                             Alasan kompensasi
                                             {months > 0 ? ' (wajib)' : ''}
@@ -611,7 +626,7 @@ export default function OffboardingForm({
                                         return (
                                             <div
                                                 key={kind.value}
-                                                className="grid gap-2"
+                                                className={`grid gap-2 ${(errors[name] ?? errors[`${name}.0`]) ? INVALID_FIELDS : ''}`}
                                             >
                                                 <Label htmlFor={name}>
                                                     {kind.label}
@@ -807,23 +822,6 @@ export default function OffboardingForm({
                                         ))}
                                     </ol>
                                 </section>
-
-                                {Object.keys(errors).length > 0 && (
-                                    <div className="rounded-xl border border-destructive/40 p-3 text-sm text-destructive">
-                                        <p className="font-medium">
-                                            Belum bisa dikirim:
-                                        </p>
-                                        <ul className="list-disc pl-5">
-                                            {Object.values(errors).map(
-                                                (message) => (
-                                                    <li key={message}>
-                                                        {message}
-                                                    </li>
-                                                ),
-                                            )}
-                                        </ul>
-                                    </div>
-                                )}
                             </div>
 
                             <div className="flex items-center gap-3 border-t pt-4">

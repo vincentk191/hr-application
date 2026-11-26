@@ -1,6 +1,7 @@
 import { Head, Link, router, setLayoutProps, usePage } from '@inertiajs/react';
 import {
     ArrowLeft,
+    ChevronRight,
     Lock,
     MoreVertical,
     Pencil,
@@ -18,7 +19,7 @@ import { InfoHint } from '@/components/info-hint';
 import { EmployeeAvatar } from '@/components/employee-avatar';
 import { EmployeeDocuments } from '@/components/employee-documents';
 import { EmployeeTeamTab } from '@/components/employee-team';
-import { LeaveRequestDetail } from '@/components/leave-request-detail';
+import { LeaveDecisionDialog } from '@/components/leave-decision-dialog';
 import { revealTarget } from '@/components/masked-value';
 import { Card, Field, CardGroup } from '@/components/profile-parts';
 import { Badge } from '@/components/ui/badge';
@@ -30,11 +31,17 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { formatRupiah } from '@/lib/format';
-import { edit, index as employeesIndex, reactivate } from '@/routes/employees';
+import {
+    edit,
+    index as employeesIndex,
+    reactivate,
+    show as showEmployee,
+} from '@/routes/employees';
 import { activate, reject } from '@/routes/employees/activation';
 import { create as requestChange } from '@/routes/employees/changes';
 import type { BreadcrumbItem } from '@/types';
 import type { Timesheet, YearTimesheet } from '@/types/attendance';
+import type { LeaveRequestRow } from '@/types/leave';
 import type {
     EmployeeDetail,
     EmployeeDocumentRow,
@@ -62,6 +69,8 @@ type Props = {
     attendance?: Timesheet | YearTimesheet | null;
     canCorrectAttendance: boolean;
     requests: LeaveRow[];
+    /** The request asked for with `?request=ID`, to open as the Pengajuan page's side panel. */
+    openedRequest: LeaveRequestRow | null;
     leaveTakenThisYear: number;
     canUpdate: boolean;
     /** Null for someone who may not see the directory. */
@@ -111,70 +120,64 @@ function RestrictedCard({ title }: { title: string }) {
 }
 
 /**
- * One leave request on the profile. Opening it shows the requester's note and each reviewer's
- * decision with the note they left, which a rejected request needs the requester to be able to read.
+ * One leave request on the profile. Choosing it opens the same side panel as the Pengajuan page (the requester's note, the
+ * approval chain and what each reviewer decided), so a rejected request can be read in full.
  */
-function RequestRow({ row }: { row: LeaveRow }) {
-    const [open, setOpen] = useState(false);
-
+function RequestRow({
+    row,
+    onOpen,
+}: {
+    row: LeaveRow;
+    onOpen: (id: number) => void;
+}) {
     return (
-        <>
-            <tr
-                className="cursor-pointer border-t hover:bg-muted/40"
-                onClick={() => setOpen((value) => !value)}
-            >
-                <td className="p-3 font-medium">{row.reference}</td>
-                <td className="p-3">{row.type}</td>
-                <td className="p-3 whitespace-nowrap">
-                    {row.startOn} – {row.endOn}
-                    {row.timeframe && (
-                        <span className="block text-xs text-muted-foreground">
-                            {row.timeframe}
-                        </span>
-                    )}
-                </td>
-                <td className="p-3">{row.days}</td>
-                <td className="p-3">{row.stageLabel}</td>
-                <td className="p-3 text-right">
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        type="button"
-                        aria-expanded={open}
-                        onClick={(event) => {
-                            event.stopPropagation();
-                            setOpen((value) => !value);
-                        }}
-                    >
-                        {open ? 'Tutup' : 'Detail'}
-                    </Button>
-                </td>
-            </tr>
-            {open && (
-                <tr className="bg-muted/30">
-                    <td colSpan={6} className="px-4 py-3">
-                        <LeaveRequestDetail row={row} />
-                    </td>
-                </tr>
-            )}
-        </>
+        <tr
+            className="cursor-pointer border-t hover:bg-muted/40"
+            onClick={() => onOpen(row.id)}
+        >
+            <td className="p-3 font-medium">{row.reference}</td>
+            <td className="p-3">{row.type}</td>
+            <td className="p-3 whitespace-nowrap">
+                {row.startOn} – {row.endOn}
+                {row.timeframe && (
+                    <span className="block text-xs text-muted-foreground">
+                        {row.timeframe}
+                    </span>
+                )}
+            </td>
+            <td className="p-3">{row.days}</td>
+            <td className="p-3">{row.stageLabel}</td>
+            <td className="p-3 text-right">
+                <IconButton
+                    icon={ChevronRight}
+                    label="Detail"
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        onOpen(row.id);
+                    }}
+                    className="size-8"
+                />
+            </td>
+        </tr>
     );
 }
 
 /**
  * One leave request on the profile as a card, for a phone, where the table's six columns do not fit: what it is and its
- * status on top, the dates and days beneath, and the same detail (the requester's note and each reviewer's decision)
- * unfolding underneath when it is tapped.
+ * status on top, the dates and days beneath. Tapping it opens the same side panel as the table's rows.
  */
-function RequestCard({ row }: { row: LeaveRow }) {
-    const [open, setOpen] = useState(false);
-
+function RequestCard({
+    row,
+    onOpen,
+}: {
+    row: LeaveRow;
+    onOpen: (id: number) => void;
+}) {
     return (
         <article className="surface overflow-hidden" data-test="request-card">
             <button
                 type="button"
-                aria-expanded={open}
-                onClick={() => setOpen((value) => !value)}
+                onClick={() => onOpen(row.id)}
                 className="flex w-full flex-col gap-2 p-4 text-left"
             >
                 <span className="flex items-start justify-between gap-3">
@@ -194,15 +197,7 @@ function RequestCard({ row }: { row: LeaveRow }) {
                         {row.timeframe}
                     </span>
                 )}
-                <span className="text-xs text-muted-foreground">
-                    {open ? 'Tutup detail' : 'Lihat detail'}
-                </span>
             </button>
-            {open && (
-                <div className="border-t bg-muted/30 p-4">
-                    <LeaveRequestDetail row={row} />
-                </div>
-            )}
         </article>
     );
 }
@@ -230,8 +225,33 @@ export default function EmployeeShow({
     canActivateAccount,
     canReactivate,
     team,
+    openedRequest,
 }: Props) {
     const { features } = usePage().props;
+
+    // A request opens as the Pengajuan page's side panel on top of the profile, so the person stays on this tab. It is read
+    // from the server (`?request=ID`, a partial reload of that one prop, and the address can be shared); closing hides it at
+    // once and then clears the address.
+    const [dismissed, setDismissed] = useState<number | null>(null);
+    const request = openedRequest?.id === dismissed ? null : openedRequest;
+
+    const showRequest = (id: number | null) => {
+        const params = new URLSearchParams(window.location.search);
+
+        if (id === null) {
+            params.delete('request');
+        } else {
+            params.set('request', String(id));
+            setDismissed(null);
+        }
+
+        router.get(showEmployee(employee.id).url, Object.fromEntries(params), {
+            only: ['openedRequest'],
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
+    };
 
     // ?tab=attendance opens straight onto that tab, so other screens can link to it.
     const [tab, setTab] = useState<TabKey>(() => {
@@ -870,7 +890,11 @@ export default function EmployeeShow({
                                 </p>
                             )}
                             {requests.map((row) => (
-                                <RequestCard key={row.id} row={row} />
+                                <RequestCard
+                                    key={row.id}
+                                    row={row}
+                                    onOpen={showRequest}
+                                />
                             ))}
                         </div>
 
@@ -909,7 +933,11 @@ export default function EmployeeShow({
                                         </tr>
                                     )}
                                     {requests.map((row) => (
-                                        <RequestRow key={row.id} row={row} />
+                                        <RequestRow
+                                            key={row.id}
+                                            row={row}
+                                            onOpen={showRequest}
+                                        />
                                     ))}
                                 </tbody>
                             </table>
@@ -939,6 +967,14 @@ export default function EmployeeShow({
                     />
                 )}
             </div>
+
+            <LeaveDecisionDialog
+                request={request}
+                onClose={() => {
+                    setDismissed(openedRequest?.id ?? null);
+                    showRequest(null);
+                }}
+            />
         </>
     );
 }

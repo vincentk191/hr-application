@@ -178,6 +178,9 @@ class EmployeeController extends Controller
 
         return Inertia::render('employees/show', [
             ...$this->profile($request, $employee),
+            // A request of this person opened as the side panel of the Pengajuan page (`?request=ID`), read through the same
+            // visibility, so a request the viewer may not see opens nothing.
+            'openedRequest' => fn (): ?array => $this->openedRequest($request, $employee),
             'documentCategories' => array_map(
                 fn (DocumentCategory $category): array => ['value' => $category->value, 'label' => $category->label()],
                 DocumentCategory::cases(),
@@ -356,6 +359,26 @@ class EmployeeController extends Controller
         ]);
 
         return to_route('employees.show', $employee);
+    }
+
+    /**
+     * The one request of this employee that the page was asked to open, as the Pengajuan page's side panel reads it.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function openedRequest(Request $request, Employee $employee): ?array
+    {
+        $id = $request->integer('request');
+        $user = $request->user();
+
+        if ($id <= 0 || $user === null) {
+            return null;
+        }
+
+        $leave = LeaveRequest::query()->visibleTo($user)->where('employee_id', $employee->id)
+            ->with(LeaveRequestPresenter::RELATIONS)->find($id);
+
+        return $leave === null ? null : LeaveRequestPresenter::row($leave, $user);
     }
 
     /**

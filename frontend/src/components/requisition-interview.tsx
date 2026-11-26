@@ -1299,12 +1299,6 @@ function WeekCalendar({
                         </>
                     )}
                 </span>
-                {canSchedule && (
-                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <span className="size-3 rounded-sm border border-dashed" />
-                        Kosong, klik untuk memilih
-                    </span>
-                )}
             </footer>
         </section>
     );
