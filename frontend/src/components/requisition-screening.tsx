@@ -556,7 +556,7 @@ export function AddCandidateDialog({
                 data-test="add-candidate-dialog"
             >
                 <DialogHeader>
-                    <DialogTitle>Tambah ke shortlist</DialogTitle>
+                    <DialogTitle>Tambah Ke Shortlist</DialogTitle>
                     <DialogDescription className="sr-only">
                         Data kandidat yang lolos screening.
                     </DialogDescription>

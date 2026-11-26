@@ -527,7 +527,7 @@ export default function EmployeeShow({
                             <Field label="Akun" value={employee.accountLabel} />
                         </Card>
 
-                        <Card title="Data pribadi">
+                        <Card title="Data Pribadi">
                             <Field
                                 label="Jenis kelamin"
                                 value={employee.personal.genderLabel}
@@ -554,7 +554,7 @@ export default function EmployeeShow({
                             />
                         </Card>
 
-                        <Card title="Kontak & darurat">
+                        <Card title="Kontak & Darurat">
                             <Field
                                 label="Email"
                                 value={employee.contact.email}
@@ -598,7 +598,7 @@ export default function EmployeeShow({
                             />
                         </Card>
 
-                        <Card title="Alamat tinggal">
+                        <Card title="Alamat Tinggal">
                             <Field
                                 label="Alamat"
                                 value={employee.contact.address}
@@ -670,7 +670,7 @@ export default function EmployeeShow({
                         </Card>
 
                         {employee.identity ? (
-                            <Card title="Identitas keluarga">
+                            <Card title="Identitas Keluarga">
                                 <Field
                                     label="No. KK"
                                     value={employee.identity.family_card_number}
@@ -686,11 +686,11 @@ export default function EmployeeShow({
                                 />
                             </Card>
                         ) : (
-                            <RestrictedCard title="Identitas keluarga" />
+                            <RestrictedCard title="Identitas Keluarga" />
                         )}
 
                         {employee.bank ? (
-                            <Card title="Bank & pajak">
+                            <Card title="Bank & Pajak">
                                 <Field
                                     label="Bank"
                                     value={employee.bank.bank_name}
@@ -731,11 +731,11 @@ export default function EmployeeShow({
                                 />
                             </Card>
                         ) : (
-                            <RestrictedCard title="Bank & pajak" />
+                            <RestrictedCard title="Bank & Pajak" />
                         )}
 
                         {employee.coverage ? (
-                            <Card title="Kesehatan & asuransi">
+                            <Card title="Kesehatan & Asuransi">
                                 <Field
                                     label="BPJS Ketenagakerjaan"
                                     value={
@@ -758,7 +758,7 @@ export default function EmployeeShow({
                                 />
                             </Card>
                         ) : (
-                            <RestrictedCard title="Kesehatan & asuransi" />
+                            <RestrictedCard title="Kesehatan & Asuransi" />
                         )}
 
                         {employee.payroll ? (

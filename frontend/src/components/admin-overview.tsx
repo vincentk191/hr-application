@@ -44,7 +44,7 @@ export function WaitingCard({
     return (
         <section className="surface overflow-hidden" data-test="admin-waiting">
             <div className="flex items-baseline justify-between gap-2 p-4">
-                <h2 className="font-semibold">Menunggu keputusan</h2>
+                <h2 className="font-semibold">Menunggu Keputusan</h2>
                 <span className="text-2xl font-extrabold tabular-nums">
                     {data.total}
                 </span>
@@ -522,7 +522,7 @@ export function RecruitmentCard({
             data-test="admin-recruitment"
         >
             <div className="flex items-baseline justify-between gap-2">
-                <h2 className="font-semibold">Rekrutmen berjalan</h2>
+                <h2 className="font-semibold">Rekrutmen Berjalan</h2>
                 <Link
                     href={recruitmentIndex()}
                     className="text-sm text-primary underline-offset-4 hover:underline"

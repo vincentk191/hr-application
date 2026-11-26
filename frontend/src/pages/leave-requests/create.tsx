@@ -16,7 +16,7 @@ import type { EmployeeOption, LeaveTypeOption } from '@/types/leave';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Pengajuan', href: '/leave-requests' },
-    { title: 'Buat pengajuan', href: '/leave-requests/create' },
+    { title: 'Buat Pengajuan', href: '/leave-requests/create' },
 ];
 
 const selectClasses =

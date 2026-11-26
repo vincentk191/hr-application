@@ -48,7 +48,7 @@ export default function ManageTwoFactor(props: Props) {
 
     return (
         <div className="space-y-6">
-            <Heading variant="small" title="Autentikasi dua langkah (2FA)" />
+            <Heading variant="small" title="Autentikasi Dua Langkah (2FA)" />
             {twoFactorEnabled ? (
                 <div className="flex flex-col items-start justify-start space-y-4">
                     <p className="text-sm text-muted-foreground">

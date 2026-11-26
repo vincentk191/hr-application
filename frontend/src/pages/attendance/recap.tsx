@@ -865,7 +865,7 @@ export default function AttendanceRecap({
                 showLabel={`Tampilkan ${total.employees} karyawan`}
                 onDesktop
             >
-                <FilterSection title="Rentang tanggal">
+                <FilterSection title="Rentang Tanggal">
                     <div className="grid grid-cols-2 gap-2">
                         <div className="grid gap-1">
                             <label
@@ -965,6 +965,6 @@ export default function AttendanceRecap({
 
 AttendanceRecap.layout = {
     breadcrumbs: [
-        { title: 'Rekap absensi', href: recapRoute() },
+        { title: 'Rekap Absensi', href: recapRoute() },
     ] satisfies BreadcrumbItem[],
 };

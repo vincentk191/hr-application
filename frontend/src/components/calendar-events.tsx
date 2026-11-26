@@ -249,7 +249,7 @@ export function CalendarEvents({
                 >
                     <Flag className="size-4 shrink-0" aria-hidden />
                     <span>
-                        Libur & acara
+                        Libur & Acara
                         {events.length === 0 && ' · kosong'}
                     </span>
                 </h3>

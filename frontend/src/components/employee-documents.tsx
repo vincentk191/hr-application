@@ -465,7 +465,7 @@ export function EmployeeDocuments({
                     {({ processing, errors }) => (
                         <>
                             <h2 className="font-medium sm:col-span-2">
-                                Tambah dokumen
+                                Tambah Dokumen
                             </h2>
                             <DocumentFields
                                 categories={categories}

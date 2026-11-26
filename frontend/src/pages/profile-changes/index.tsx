@@ -11,7 +11,7 @@ import { StatusPill } from '@/components/status-pill';
 import { decisionTone } from '@/lib/status';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Perubahan data', href: '/profile-changes' },
+    { title: 'Perubahan Data', href: '/profile-changes' },
 ];
 
 type Filter = 'all' | 'pending' | 'approved' | 'rejected';

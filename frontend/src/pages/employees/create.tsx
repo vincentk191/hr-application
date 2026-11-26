@@ -8,7 +8,7 @@ import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Karyawan', href: '/employees' },
-    { title: 'Tambah karyawan', href: '/employees/create' },
+    { title: 'Tambah Karyawan', href: '/employees/create' },
 ];
 
 /** Add an employee (EMP-ADD-001). */

@@ -44,6 +44,6 @@ export default function VerifyEmail({ status }: { status?: string }) {
 }
 
 VerifyEmail.layout = {
-    title: 'Verifikasi email',
+    title: 'Verifikasi Email',
     description: 'Buka tautan yang kami kirim ke email Anda untuk verifikasi.',
 };

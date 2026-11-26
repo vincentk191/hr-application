@@ -109,7 +109,7 @@ export function FilterSheet({
             >
                 <div className="flex items-center justify-between p-4 pr-12">
                     <SheetTitle className="text-xl font-extrabold">
-                        Cari &amp; filter
+                        Cari &amp; Filter
                     </SheetTitle>
                     <button
                         type="button"

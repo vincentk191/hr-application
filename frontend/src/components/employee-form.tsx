@@ -195,7 +195,7 @@ export function EmployeeForm({
         >
             {({ processing, errors }) => (
                 <>
-                    <Section title="Foto profil">
+                    <Section title="Foto Profil">
                         <div className="flex items-center gap-4 sm:col-span-2">
                             <EmployeeAvatar
                                 name={employee?.name ?? '?'}
@@ -473,7 +473,7 @@ export function EmployeeForm({
                         />
                     </Section>
 
-                    <Section title="Data pribadi">
+                    <Section title="Data Pribadi">
                         <SelectField
                             name="gender"
                             label="Jenis kelamin"
@@ -517,7 +517,7 @@ export function EmployeeForm({
                         />
                     </Section>
 
-                    <Section title="Kontak & kontak darurat">
+                    <Section title="Kontak & Kontak Darurat">
                         <TextField
                             name="email"
                             label="Email"
@@ -570,7 +570,7 @@ export function EmployeeForm({
                         />
                     </Section>
 
-                    <Section title="Alamat tinggal">
+                    <Section title="Alamat Tinggal">
                         <div className="sm:col-span-2">
                             <TextField
                                 name="address"
@@ -693,7 +693,7 @@ export function EmployeeForm({
 
                     {canEditSensitive && (
                         <>
-                            <Section title="Identitas keluarga">
+                            <Section title="Identitas Keluarga">
                                 <TextField
                                     name="family_card_number"
                                     label="No. KK (16 digit)"
@@ -714,7 +714,7 @@ export function EmployeeForm({
                                 />
                             </Section>
 
-                            <Section title="Bank & pajak">
+                            <Section title="Bank & Pajak">
                                 <TextField
                                     name="bank_name"
                                     label="Bank"
@@ -767,7 +767,7 @@ export function EmployeeForm({
                             </Section>
 
                             <Section
-                                title="Kesehatan & asuransi"
+                                title="Kesehatan & Asuransi"
                                 description="Data lainnya dapat dilihat di situs BPJS."
                             >
                                 <TextField

@@ -77,7 +77,7 @@ export function InvitationResult({
                 data-test="invitation-result"
             >
                 <DialogHeader>
-                    <DialogTitle>Undangan untuk {invitation.name}</DialogTitle>
+                    <DialogTitle>Undangan Untuk {invitation.name}</DialogTitle>
                     <DialogDescription>
                         {invitation.email
                             ? invitation.viaGoogle
@@ -809,7 +809,7 @@ function PlaceButton({ candidate }: { candidate: Candidate }) {
                     >
                         <DialogHeader>
                             <DialogTitle className="sr-only">
-                                Alamat interview
+                                Alamat Interview
                             </DialogTitle>
                             <DialogDescription className="pr-6 break-words text-foreground">
                                 <LinkifiedText text={place} />
@@ -1514,7 +1514,7 @@ export function InterviewTab({
                     className="surface space-y-4 p-4 lg:col-start-2 lg:row-start-1"
                     data-test="interview-list"
                 >
-                    <h2 className="label-mono">Kandidat &amp; jadwal</h2>
+                    <h2 className="label-mono">Kandidat &amp; Jadwal</h2>
 
                     {canManage && mailable > 0 && (
                         <Button
@@ -1546,7 +1546,7 @@ export function InterviewTab({
                                 )}
                             </Group>
                             <Group
-                                title="Menunggu nilai"
+                                title="Menunggu Nilai"
                                 count={awaiting.length}
                             >
                                 {awaiting.map((entry) =>
@@ -1560,7 +1560,7 @@ export function InterviewTab({
                             </Group>
                             {unscheduled.length > 0 && (
                                 <Group
-                                    title="Belum dijadwalkan"
+                                    title="Belum Dijadwalkan"
                                     count={unscheduled.length}
                                 >
                                     {unscheduled.map((candidate) =>

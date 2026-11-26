@@ -34,7 +34,7 @@ export default function BeritaAcara({ case: item }: { case: OffboardingCase }) {
             title: `${item.reference} ${item.employee.name}`,
             href: show(item.id).url,
         },
-        { title: 'Berita acara', href: '#' },
+        { title: 'Berita Acara', href: '#' },
     ];
 
     setLayoutProps({ breadcrumbs });
@@ -117,7 +117,7 @@ export default function BeritaAcara({ case: item }: { case: OffboardingCase }) {
 
                     <section className="space-y-2">
                         <h2 className="text-xs font-bold tracking-widest uppercase">
-                            Checklist serah terima
+                            Checklist Serah Terima
                         </h2>
                         {item.checklist?.groups
                             .filter((group) => !group.notInvolved)
@@ -149,7 +149,7 @@ export default function BeritaAcara({ case: item }: { case: OffboardingCase }) {
 
                     <section className="space-y-2">
                         <h2 className="text-xs font-bold tracking-widest uppercase">
-                            Wawancara keluar
+                            Wawancara Keluar
                         </h2>
                         {exit?.recorded ? (
                             exit.skipped ? (
@@ -168,7 +168,7 @@ export default function BeritaAcara({ case: item }: { case: OffboardingCase }) {
 
                     <section className="break-inside-avoid space-y-2">
                         <h2 className="text-xs font-bold tracking-widest uppercase">
-                            Tanda tangan
+                            Tanda Tangan
                         </h2>
                         <div className="grid gap-6 sm:grid-cols-2">
                             {[

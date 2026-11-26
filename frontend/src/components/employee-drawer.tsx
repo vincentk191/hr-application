@@ -150,7 +150,7 @@ export function EmployeeDrawer({
                 className="w-full gap-0 sm:max-w-xl"
                 onOpenAutoFocus={(event) => event.preventDefault()}
             >
-                <SheetTitle className="sr-only">Profil karyawan</SheetTitle>
+                <SheetTitle className="sr-only">Profil Karyawan</SheetTitle>
                 <SheetDescription className="sr-only">
                     Ringkasan profil karyawan yang dipilih dari daftar.
                 </SheetDescription>

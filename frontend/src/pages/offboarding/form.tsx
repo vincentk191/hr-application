@@ -766,7 +766,7 @@ export default function OffboardingForm({
                                 <section className="surface space-y-3 p-4 text-sm">
                                     <div className="flex items-center justify-between gap-2">
                                         <h2 className="label-mono">
-                                            Alur persetujuan
+                                            Alur Persetujuan
                                         </h2>
                                         <InfoHint label="Siapa yang menyetujui">
                                             Kasus dikirim ke Manajemen di atas

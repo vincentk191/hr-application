@@ -53,7 +53,7 @@ export default function OfferLetter({
             title: `${requisition.reference} ${requisition.positionName}`,
             href: show(requisition.id).url,
         },
-        { title: 'Surat penawaran', href: '#' },
+        { title: 'Surat Penawaran', href: '#' },
     ];
 
     setLayoutProps({ breadcrumbs });

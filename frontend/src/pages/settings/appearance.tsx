@@ -7,7 +7,7 @@ export default function Appearance() {
         <>
             <Head title="Pengaturan tampilan" />
 
-            <h1 className="sr-only">Pengaturan tampilan</h1>
+            <h1 className="sr-only">Pengaturan Tampilan</h1>
 
             <AppearanceTabs />
         </>

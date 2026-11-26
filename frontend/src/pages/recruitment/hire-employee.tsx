@@ -32,7 +32,7 @@ export default function HireEmployee({
             title: `${requisition.reference} ${requisition.positionName}`,
             href: show(requisition.id).url,
         },
-        { title: 'Jadikan karyawan', href: '#' },
+        { title: 'Jadikan Karyawan', href: '#' },
     ];
 
     setLayoutProps({ breadcrumbs });

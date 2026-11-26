@@ -60,7 +60,7 @@ type ExpiringDocuments = {
 function ExpiringDocumentsCard({ data }: { data: ExpiringDocuments }) {
     return (
         <section className="surface p-4">
-            <h2 className="font-medium">Dokumen segera berakhir</h2>
+            <h2 className="font-medium">Dokumen Segera Berakhir</h2>
 
             {data.total === 0 ? (
                 <div className="mt-3">
@@ -187,7 +187,7 @@ function AttendanceStatusCard({
                         <span className="relative inline-flex size-2.5 rounded-full bg-pending" />
                     </span>
                     <h2 className="font-medium">
-                        Data absensi perlu diperbarui
+                        Data Absensi Perlu Diperbarui
                     </h2>
                 </div>
                 <Button asChild size="sm">

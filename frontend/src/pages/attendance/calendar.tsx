@@ -116,6 +116,14 @@ const PERIOD: Record<CalendarView, string> = {
     year: 'tahun',
 };
 
+/** Each word of a heading starts with a capital: "Hari ini" as a heading is "Hari Ini". */
+function titleCase(text: string): string {
+    return text.replace(
+        /(^|\s)(\p{L})/gu,
+        (_, space: string, letter: string) => space + letter.toUpperCase(),
+    );
+}
+
 /** "Minggu ini", "Hari ini": what the button that returns to the present is called in each view. */
 function currentLabel(view: CalendarView): string {
     return `${PERIOD[view][0].toUpperCase()}${PERIOD[view].slice(1)} ini`;
@@ -242,7 +250,7 @@ function OnLeavePanel({
         <section className="surface p-4">
             <h3 className="font-medium">
                 {isCurrent
-                    ? `Sedang cuti ${PERIOD[view]} ini`
+                    ? `Sedang Cuti ${titleCase(PERIOD[view])} Ini`
                     : `Cuti · ${label}`}
             </h3>
             {onLeave.entries.length === 0 ? (
@@ -624,7 +632,11 @@ export default function AttendanceCalendar(props: Props) {
 
                     <aside className="flex flex-col gap-3">
                         <StatusPanel
-                            heading={isCurrent ? currentLabel(view) : nav.label}
+                            heading={
+                                isCurrent
+                                    ? titleCase(currentLabel(view))
+                                    : nav.label
+                            }
                             entries={entries}
                             onPick={pickStatus}
                             showRequestKey={view === 'day' || view === 'week'}
@@ -669,7 +681,7 @@ export default function AttendanceCalendar(props: Props) {
                     />
                 </form>
 
-                <FilterSection title="Status kehadiran">
+                <FilterSection title="Status Kehadiran">
                     <div className="flex flex-wrap gap-2">
                         {options.statuses
                             .filter(

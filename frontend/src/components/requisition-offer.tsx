@@ -124,7 +124,7 @@ function ApproveOffer({
         <DecisionDialog
             form={decide.form({ requisition: item.id, offer: offer.id })}
             decision="approve"
-            title={`Setujui penawaran — ${offer.name}`}
+            title={`Setujui Penawaran — ${offer.name}`}
             subtitle={`${item.reference} · ${item.positionName}`}
             fieldLabel="Catatan"
             hint="Opsional"
@@ -182,7 +182,7 @@ function RejectOffer({
         <DecisionDialog
             form={decide.form({ requisition: item.id, offer: offer.id })}
             decision="reject"
-            title={`Tolak penawaran — ${offer.name}`}
+            title={`Tolak Penawaran — ${offer.name}`}
             subtitle={`${item.reference} · kandidat kembali ke daftar interview`}
             fieldLabel="Alasan penolakan"
             hint="Wajib diisi"
@@ -239,7 +239,7 @@ function OfferTerms({
         <DecisionDialog
             form={terms.form({ requisition: item.id, offer: offer.id })}
             decision="terms"
-            title={`Ketentuan penawaran — ${offer.name}`}
+            title={`Ketentuan Penawaran — ${offer.name}`}
             subtitle={`${item.reference} · ${item.positionName}`}
             confirmLabel="Simpan"
             extra={(errors) => (
@@ -394,8 +394,8 @@ function SendOffer({
             decision="send"
             title={
                 emailing
-                    ? `Kirim penawaran — ${offer.name}`
-                    : `Tandai terkirim — ${offer.name}`
+                    ? `Kirim Penawaran — ${offer.name}`
+                    : `Tandai Terkirim — ${offer.name}`
             }
             subtitle={
                 emailing
@@ -680,7 +680,7 @@ function AcceptOffer({
         <DecisionDialog
             form={accept.form({ requisition: item.id, offer: offer.id })}
             decision="accept"
-            title={`Tandai diterima — ${offer.name}`}
+            title={`Tandai Diterima — ${offer.name}`}
             subtitle={`${item.reference} · ${item.filled} dari ${item.quota ?? '—'} terisi`}
             confirmLabel="Tandai diterima"
             extra={(errors) => (
@@ -884,7 +884,7 @@ function DeclineOffer({
         <DecisionDialog
             form={decline.form({ requisition: item.id, offer: offer.id })}
             decision="decline"
-            title={`Kandidat menolak — ${offer.name}`}
+            title={`Kandidat Menolak — ${offer.name}`}
             subtitle={`${item.reference} · tempat masih terbuka`}
             fieldLabel="Alasan kandidat menolak"
             hint="Wajib diisi · tidak dikirim ke kandidat"
@@ -916,7 +916,7 @@ function WithdrawSentOffer({
         <DecisionDialog
             form={withdraw.form({ requisition: item.id, offer: offer.id })}
             decision="withdraw"
-            title={`Tarik penawaran — ${offer.name}`}
+            title={`Tarik Penawaran — ${offer.name}`}
             subtitle={`${item.reference} · kandidat sudah menerima suratnya`}
             fieldLabel="Alasan penarikan"
             hint="Wajib diisi · tidak dikirim ke kandidat"
@@ -1180,7 +1180,7 @@ export function OfferTab({ item }: { item: Requisition }) {
                     <header className="flex items-center justify-between gap-3">
                         <h2 className="label-mono flex items-center gap-2">
                             <UserCheck className="size-4" aria-hidden />
-                            Dipilih atasan langsung
+                            Dipilih Atasan Langsung
                         </h2>
                         <span className="label-mono inline-flex items-center gap-1.5">
                             <Users className="size-4" aria-hidden />

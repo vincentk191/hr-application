@@ -264,7 +264,7 @@ export default function TwoFactorSetupModal({
     }>(() => {
         if (twoFactorEnabled) {
             return {
-                title: '2FA aktif',
+                title: '2FA Aktif',
                 description:
                     'Autentikasi dua langkah sudah aktif. Pindai kode QR atau masukkan kunci pengaturan di aplikasi autentikator.',
                 buttonText: 'Tutup',
@@ -273,7 +273,7 @@ export default function TwoFactorSetupModal({
 
         if (showVerificationStep) {
             return {
-                title: 'Verifikasi kode',
+                title: 'Verifikasi Kode',
                 description:
                     'Masukkan 6 digit kode dari aplikasi autentikator.',
                 buttonText: 'Lanjut',

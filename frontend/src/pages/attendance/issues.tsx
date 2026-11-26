@@ -612,7 +612,7 @@ export default function AttendanceIssues({
                 onReset={() => go({ types: [], branches: [], departments: [] })}
                 showLabel={`Tampilkan ${total} masalah`}
             >
-                <FilterSection title="Rentang tanggal">
+                <FilterSection title="Rentang Tanggal">
                     <div className="grid grid-cols-2 gap-2">
                         <div className="grid gap-1">
                             <label
@@ -653,7 +653,7 @@ export default function AttendanceIssues({
                     </div>
                 </FilterSection>
 
-                <FilterSection title="Jenis masalah">
+                <FilterSection title="Jenis Masalah">
                     <div className="flex flex-wrap gap-2">
                         {options.types.map((type) => (
                             <button
@@ -701,6 +701,6 @@ export default function AttendanceIssues({
 
 AttendanceIssues.layout = {
     breadcrumbs: [
-        { title: 'Masalah absensi', href: issuesRoute() },
+        { title: 'Masalah Absensi', href: issuesRoute() },
     ] satisfies BreadcrumbItem[],
 };

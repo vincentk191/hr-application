@@ -25,10 +25,10 @@ export default function Security(props: Props) {
         <>
             <Head title="Pengaturan keamanan" />
 
-            <h1 className="sr-only">Pengaturan keamanan</h1>
+            <h1 className="sr-only">Pengaturan Keamanan</h1>
 
             <div className="space-y-6">
-                <Heading variant="small" title="Ubah kata sandi" />
+                <Heading variant="small" title="Ubah Kata Sandi" />
 
                 <Form
                     {...SecurityController.update.form()}

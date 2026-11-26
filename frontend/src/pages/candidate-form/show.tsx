@@ -54,7 +54,7 @@ function Questions({
         <section className="space-y-4" data-test="questions">
             <div>
                 <h2 className="text-lg font-extrabold tracking-tight">
-                    Kesesuaian dengan persyaratan
+                    Kesesuaian Dengan Persyaratan
                 </h2>
                 <div className="mt-2 flex items-start gap-2 rounded-xl bg-muted/50 p-3 text-sm text-muted-foreground">
                     <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
@@ -115,7 +115,7 @@ export default function CandidateForm(props: Props) {
         return (
             <>
                 <Head title="Tautan tidak berlaku" />
-                <Notice title="Tautan tidak berlaku">
+                <Notice title="Tautan Tidak Berlaku">
                     Tautan ini tidak dikenali atau sudah diganti dengan yang
                     baru. Gunakan tautan terbaru dari pesan undangan, atau
                     hubungi HR.
@@ -128,7 +128,7 @@ export default function CandidateForm(props: Props) {
         return (
             <>
                 <Head title="Formulir terkirim" />
-                <Notice title="Terima kasih">
+                <Notice title="Terima Kasih">
                     {`Formulir Anda untuk posisi ${props.positionName} sudah kami terima. Tidak ada yang perlu dilakukan lagi; sampai jumpa di interview.`}
                 </Notice>
             </>
@@ -139,7 +139,7 @@ export default function CandidateForm(props: Props) {
         return (
             <>
                 <Head title="Tautan kedaluwarsa" />
-                <Notice title="Tautan sudah kedaluwarsa">
+                <Notice title="Tautan Sudah Kedaluwarsa">
                     Masa berlaku tautan ini sudah habis. Hubungi HR untuk
                     meminta tautan baru.
                 </Notice>
@@ -151,7 +151,7 @@ export default function CandidateForm(props: Props) {
         return (
             <>
                 <Head title="Formulir belum dibuka" />
-                <Notice title="Formulir belum dibuka">
+                <Notice title="Formulir Belum Dibuka">
                     {`Formulir ini hanya bisa dibuka dan diisi pada hari interview: ${props.opensOn}. Silakan buka kembali tautan ini pada hari itu.`}
                 </Notice>
             </>
@@ -162,7 +162,7 @@ export default function CandidateForm(props: Props) {
         return (
             <>
                 <Head title="Lowongan ditutup" />
-                <Notice title="Lowongan sudah ditutup">
+                <Notice title="Lowongan Sudah Ditutup">
                     {`Lowongan ${props.positionName} sudah tidak membuka formulir. Terima kasih atas minat Anda.`}
                 </Notice>
             </>
@@ -193,7 +193,7 @@ export default function CandidateForm(props: Props) {
                         className="surface space-y-1 p-4"
                         data-test="interview-details"
                     >
-                        <h2 className="label-mono">Jadwal interview</h2>
+                        <h2 className="label-mono">Jadwal Interview</h2>
                         <p className="font-semibold">{props.interview.when}</p>
                         <p className="text-sm text-muted-foreground">
                             {props.interview.mode}
@@ -223,7 +223,7 @@ export default function CandidateForm(props: Props) {
 
                             <section className="space-y-4">
                                 <h2 className="text-lg font-extrabold tracking-tight">
-                                    Informasi tambahan
+                                    Informasi Tambahan
                                 </h2>
                                 <div className="grid gap-1">
                                     <Label htmlFor="expected-salary">

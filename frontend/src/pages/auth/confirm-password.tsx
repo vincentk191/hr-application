@@ -50,6 +50,6 @@ export default function ConfirmPassword() {
 }
 
 ConfirmPassword.layout = {
-    title: 'Konfirmasi kata sandi',
+    title: 'Konfirmasi Kata Sandi',
     description: 'Masukkan kata sandi Anda untuk melanjutkan.',
 };

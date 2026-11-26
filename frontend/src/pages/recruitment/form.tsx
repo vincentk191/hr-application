@@ -768,7 +768,7 @@ export default function RequisitionForm({
 
                                 <Section
                                     number="01"
-                                    title="Posisi yang diminta"
+                                    title="Posisi Yang Diminta"
                                 >
                                     <FieldRow
                                         label="Posisi"
@@ -917,7 +917,7 @@ export default function RequisitionForm({
                                     </FieldRow>
                                 </Section>
 
-                                <Section number="02" title="Konteks permintaan">
+                                <Section number="02" title="Konteks Permintaan">
                                     <FieldRow
                                         label="Tipe kontrak"
                                         htmlFor="employment_type"
@@ -1086,7 +1086,7 @@ export default function RequisitionForm({
                                 className={step === 2 ? 'space-y-5' : 'hidden'}
                             >
                                 <h2 className="text-2xl font-extrabold tracking-tight">
-                                    Detail lowongan
+                                    Detail Lowongan
                                 </h2>
 
                                 <Section number="01" title="Tentang Posisi">
@@ -1324,7 +1324,7 @@ export default function RequisitionForm({
                                 className={step === 3 ? 'space-y-5' : 'hidden'}
                             >
                                 <h2 className="text-2xl font-extrabold tracking-tight">
-                                    Review sebelum diajukan
+                                    Review Sebelum Diajukan
                                 </h2>
 
                                 <RequisitionSummary
@@ -1353,7 +1353,7 @@ export default function RequisitionForm({
 
                                 <section className="surface space-y-2 p-4 text-sm">
                                     <h2 className="label-mono">
-                                        Alur persetujuan
+                                        Alur Persetujuan
                                     </h2>
                                     <p>
                                         01 · Manajemen menyetujui dan menetapkan

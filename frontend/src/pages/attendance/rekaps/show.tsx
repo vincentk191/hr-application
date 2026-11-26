@@ -267,7 +267,7 @@ export default function AttendanceRekapShow({
 
                 <section className="surface">
                     <div className="p-4">
-                        <h2 className="font-medium">Baris rekapitulasi</h2>
+                        <h2 className="font-medium">Baris Rekapitulasi</h2>
                         <p className="text-sm text-muted-foreground">
                             Selisih dengan berkas ditandai merah; angka aplikasi
                             yang dipakai.
@@ -542,7 +542,7 @@ export default function AttendanceRekapShow({
 
 AttendanceRekapShow.layout = {
     breadcrumbs: [
-        { title: 'Data absensi', href: device({ query: { tab: 'rekap' } }) },
-        { title: 'Periksa rekapitulasi', href: '#' },
+        { title: 'Data Absensi', href: device({ query: { tab: 'rekap' } }) },
+        { title: 'Periksa Rekapitulasi', href: '#' },
     ] satisfies BreadcrumbItem[],
 };

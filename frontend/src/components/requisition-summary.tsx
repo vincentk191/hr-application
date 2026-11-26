@@ -233,7 +233,7 @@ export function RequisitionSummary({
             <div className="grid items-start gap-5 lg:grid-cols-2">
                 <Block
                     number="02"
-                    title="Isi lowongan"
+                    title="Isi Lowongan"
                     onEdit={onEdit && (() => onEdit(2))}
                 >
                     <div className="divide-y">

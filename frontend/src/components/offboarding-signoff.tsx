@@ -45,7 +45,7 @@ export function OffboardingImpactPanel({ item }: { item: OffboardingCase }) {
             data-test="impact-panel"
         >
             <h2 className="label-mono">
-                Harus diselesaikan sebelum kasus ditutup
+                Harus Diselesaikan Sebelum Kasus Ditutup
             </h2>
 
             {impact.reports.length > 0 && (
@@ -132,7 +132,7 @@ function ExitInterview({ item }: { item: OffboardingCase }) {
     if (exit.recorded && !exit.canRecord) {
         return (
             <section className="surface space-y-2 p-4">
-                <h2 className="label-mono">Wawancara keluar</h2>
+                <h2 className="label-mono">Wawancara Keluar</h2>
                 {exit.skipped ? (
                     <p className="text-sm">Dilewati: {exit.skippedReason}</p>
                 ) : (
@@ -169,7 +169,7 @@ function ExitInterview({ item }: { item: OffboardingCase }) {
 
     return (
         <section className="surface space-y-3 p-4" data-test="exit-interview">
-            <h2 className="label-mono">Wawancara keluar</h2>
+            <h2 className="label-mono">Wawancara Keluar</h2>
             <Form
                 {...interview.form(item.id)}
                 options={{ preserveScroll: true }}
@@ -392,7 +392,7 @@ export function OffboardingSignOffPanel({
 
             {item.checklist && (
                 <section className="surface space-y-2 p-4">
-                    <h2 className="label-mono">Ringkasan checklist</h2>
+                    <h2 className="label-mono">Ringkasan Checklist</h2>
                     <ul className="divide-y text-sm">
                         {item.checklist.groups.map((group) => (
                             <li

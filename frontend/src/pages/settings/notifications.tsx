@@ -16,7 +16,7 @@ export default function NotificationSettings({
         <>
             <Head title="Pengaturan notifikasi" />
 
-            <h1 className="sr-only">Pengaturan notifikasi</h1>
+            <h1 className="sr-only">Pengaturan Notifikasi</h1>
 
             <PushNotificationsCard endpoints={pushEndpoints} />
         </>

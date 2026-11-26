@@ -56,7 +56,7 @@ export function LastDayDialog({
                         <>
                             <DialogHeader className="border-b bg-muted/40 p-5 text-left">
                                 <DialogTitle className="text-2xl font-extrabold tracking-tight">
-                                    Ubah hari terakhir — {item.employee.name}
+                                    Ubah Hari Terakhir — {item.employee.name}
                                 </DialogTitle>
                                 <DialogDescription className="label-mono">
                                     {item.reference} · sekarang{' '}

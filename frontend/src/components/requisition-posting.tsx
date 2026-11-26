@@ -130,7 +130,7 @@ function CopySection({
 function CopyShortcuts({ item }: { item: Requisition }) {
     return (
         <section className="surface space-y-3 p-4" data-test="copy-shortcuts">
-            <h2 className="label-mono">Salin untuk platform</h2>
+            <h2 className="label-mono">Salin Untuk Platform</h2>
             <div className="space-y-2">
                 <CopySection
                     label="Judul"
@@ -436,7 +436,7 @@ export function PostingTab({ item }: { item: Requisition }) {
 
             {item.canManagePostings && (
                 <section className="surface space-y-3 p-4">
-                    <h2 className="label-mono">Tandai sudah diposting</h2>
+                    <h2 className="label-mono">Tandai Sudah Diposting</h2>
                     <Form
                         key={formKey}
                         {...store.form(item.id)}

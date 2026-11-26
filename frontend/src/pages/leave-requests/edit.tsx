@@ -59,7 +59,7 @@ export default function LeaveRequestEdit({
                 {(rejection.length > 0 || request.history.length > 0) && (
                     <section className="surface flex flex-col gap-3 p-4 text-sm">
                         <h2 className="font-medium">
-                            Catatan dari persetujuan
+                            Catatan Dari Persetujuan
                         </h2>
                         <LeaveHistory history={request.history} />
                         {rejection.map((step, index) => (
@@ -276,6 +276,6 @@ export default function LeaveRequestEdit({
 LeaveRequestEdit.layout = {
     breadcrumbs: [
         { title: 'Pengajuan', href: '/leave-requests' },
-        { title: 'Ubah pengajuan', href: '#' },
+        { title: 'Ubah Pengajuan', href: '#' },
     ] satisfies BreadcrumbItem[],
 };

@@ -130,7 +130,7 @@ export function WorkflowDiscussion({
             >
                 <SheetHeader className="border-b p-5 pr-12">
                     <SheetTitle className="text-xl font-extrabold tracking-tight">
-                        Komentar & masukan
+                        Komentar & Masukan
                     </SheetTitle>
                     <SheetDescription className="label-mono">
                         {reference} · {subject} · {discussion.items.length}{' '}

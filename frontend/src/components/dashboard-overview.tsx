@@ -145,7 +145,7 @@ export function AttendanceToday({
                 data-test="attendance-today"
             >
                 <div className="flex items-center justify-between gap-3">
-                    <h2 className="font-semibold">Absensi hari ini</h2>
+                    <h2 className="font-semibold">Absensi Hari Ini</h2>
                     <Badge tone={data.tone}>{data.statusLabel}</Badge>
                 </div>
             </Link>
@@ -180,7 +180,7 @@ export function AttendanceToday({
                     ABSENSI HARI INI
                 </h2>
                 <h2 className="hidden font-semibold md:block">
-                    Absensi hari ini
+                    Absensi Hari Ini
                 </h2>
                 <Badge tone={data.tone}>{data.statusLabel}</Badge>
             </div>
@@ -263,7 +263,7 @@ export function QuickActions({ actions }: { actions: QuickAction[] }) {
             data-test="quick-actions"
         >
             <h2 className="hidden border-b px-6 py-4 font-semibold md:block">
-                Ajukan cepat
+                Ajukan Cepat
             </h2>
             <ul className="grid grid-cols-4 gap-2.5 md:grid-cols-2 md:gap-3 md:p-4">
                 {actions.map((action) => (
@@ -356,7 +356,7 @@ export function OpenRequests({
                     PENGAJUAN BERJALAN
                 </h2>
                 <h2 className="hidden font-semibold md:block">
-                    Pengajuan berjalan
+                    Pengajuan Berjalan
                 </h2>
                 <Link
                     href={leaveRequestsIndex()}
@@ -619,7 +619,7 @@ export function SickCalendar({ sick }: { sick: Overview['sickDays'] }) {
     return (
         <section className="surface rounded-2xl" data-test="sick-calendar">
             <header className="flex items-center justify-between gap-2 px-4 py-3 md:px-6 md:py-4">
-                <h2 className="font-semibold">Hari sakit</h2>
+                <h2 className="font-semibold">Hari Sakit</h2>
                 <div className="flex items-center gap-1">
                     <Button
                         type="button"

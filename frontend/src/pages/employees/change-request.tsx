@@ -40,8 +40,8 @@ export default function ProfileChangeRequestPage({
     latest,
 }: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
-        { title: 'Profil saya', href: show(employee.id).url },
-        { title: 'Ajukan perubahan data', href: '#' },
+        { title: 'Profil Saya', href: show(employee.id).url },
+        { title: 'Ajukan Perubahan Data', href: '#' },
     ];
 
     setLayoutProps({ breadcrumbs });

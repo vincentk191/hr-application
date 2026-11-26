@@ -156,7 +156,7 @@ export default function RecruitmentIndex({
                     className="surface space-y-3 p-4"
                     data-test="recruitment-funnel"
                 >
-                    <h2 className="label-mono">Corong rekrutmen</h2>
+                    <h2 className="label-mono">Corong Rekrutmen</h2>
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                         {funnelSteps.map(([label, value], position) => {
                             const before =

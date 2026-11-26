@@ -450,7 +450,7 @@ function DrawerBody({
                                 candidate: candidate.id,
                             })}
                             decision="reject"
-                            title={`Tolak kandidat — ${candidate.name}`}
+                            title={`Tolak Kandidat — ${candidate.name}`}
                             subtitle={`${item.reference} · ${item.positionName}`}
                             fieldLabel="Alasan penolakan"
                             hint="Wajib diisi · tidak dikirim ke kandidat"
@@ -652,7 +652,7 @@ function Questionnaire({ candidate }: { candidate: Candidate }) {
                 data-test="no-questionnaire"
             >
                 <h3 className="mb-1 font-extrabold tracking-tight">
-                    Formulir kandidat
+                    Formulir Kandidat
                 </h3>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                     {candidate.inviteState === 'none' ? (
@@ -718,7 +718,7 @@ function Questionnaire({ candidate }: { candidate: Candidate }) {
         >
             <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <h3 className="font-extrabold tracking-tight">
-                    Formulir kandidat
+                    Formulir Kandidat
                 </h3>
                 <p className="label-mono">
                     {form.yes} dari {form.answers.length} YA
@@ -975,7 +975,7 @@ function InterviewSection({
             <section className="overflow-hidden rounded-2xl border">
                 <div className="space-y-3 p-4">
                     <div className="flex items-center justify-between gap-3">
-                        <h3 className="label-mono">Jadwal interview</h3>
+                        <h3 className="label-mono">Jadwal Interview</h3>
                         <StatusPill tone={state.tone} className="rounded-full">
                             {state.shortLabel}
                         </StatusPill>

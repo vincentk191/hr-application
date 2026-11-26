@@ -478,7 +478,7 @@ export default function LeaveRequestsIndex({
                         <section className="flex flex-col gap-3">
                             {mine.length > 0 && (
                                 <h2 className="label-mono">
-                                    Pengajuan lainnya
+                                    Pengajuan Lainnya
                                 </h2>
                             )}
                             {others.map((row) => (

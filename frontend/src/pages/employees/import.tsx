@@ -416,6 +416,6 @@ function Choice({
 EmployeesImport.layout = {
     breadcrumbs: [
         { title: 'Karyawan', href: index() },
-        { title: 'Impor karyawan', href: importMethod() },
+        { title: 'Impor Karyawan', href: importMethod() },
     ] satisfies BreadcrumbItem[],
 };

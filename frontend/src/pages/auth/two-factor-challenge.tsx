@@ -24,14 +24,14 @@ export default function TwoFactorChallenge() {
     }>(() => {
         if (showRecoveryInput) {
             return {
-                title: 'Kode pemulihan',
+                title: 'Kode Pemulihan',
                 description: 'Masukkan salah satu kode pemulihan akun Anda.',
                 toggleText: 'masuk dengan kode autentikasi',
             };
         }
 
         return {
-            title: 'Kode autentikasi',
+            title: 'Kode Autentikasi',
             description: 'Masukkan kode dari aplikasi autentikator Anda.',
             toggleText: 'masuk dengan kode pemulihan',
         };

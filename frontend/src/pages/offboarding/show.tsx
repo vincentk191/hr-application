@@ -121,7 +121,7 @@ function SignOffs({ item }: { item: OffboardingCase }) {
 
     return (
         <section className="surface space-y-3 p-4" data-test="owner-signoffs">
-            <h2 className="label-mono">Sign-off pemilik item</h2>
+            <h2 className="label-mono">Sign-off Pemilik Item</h2>
             <ul className="divide-y text-sm">
                 {item.checklist.groups.map((group) => (
                     <li
@@ -151,7 +151,7 @@ function SignOffs({ item }: { item: OffboardingCase }) {
 function Files({ item }: { item: OffboardingCase }) {
     return (
         <section className="surface space-y-3 p-4">
-            <h2 className="label-mono">Berkas kasus</h2>
+            <h2 className="label-mono">Berkas Kasus</h2>
             {item.files.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                     Belum ada berkas.
@@ -220,7 +220,7 @@ function Files({ item }: { item: OffboardingCase }) {
 function SubmittedTab({ item }: { item: OffboardingCase }) {
     return (
         <section className="surface space-y-4 p-4">
-            <h2 className="label-mono">Pratinjau pengajuan</h2>
+            <h2 className="label-mono">Pratinjau Pengajuan</h2>
             <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <Row label="Karyawan">
                     <Link
@@ -329,7 +329,7 @@ export default function OffboardingShow({
                           <DecisionDialog
                               form={decide.form(item.id)}
                               decision="reject"
-                              title={`Tolak pengajuan — ${item.employee.name}`}
+                              title={`Tolak Pengajuan — ${item.employee.name}`}
                               subtitle={`${item.reference} · dikembalikan ke ${item.createdBy ?? 'pemohon'}`}
                               fieldLabel="Catatan untuk pemohon"
                               hint="Wajib diisi · terkirim ke pemohon lewat notifikasi"
@@ -358,7 +358,7 @@ export default function OffboardingShow({
                           <DecisionDialog
                               form={decide.form(item.id)}
                               decision="approve"
-                              title={`Setujui pengajuan — ${item.employee.name}`}
+                              title={`Setujui Pengajuan — ${item.employee.name}`}
                               subtitle={`${item.reference} · checklist offboarding dimulai`}
                               fieldLabel="Catatan (opsional)"
                               confirmLabel="Setujui"
@@ -404,7 +404,7 @@ export default function OffboardingShow({
                           <DecisionDialog
                               form={cancel.form(item.id)}
                               decision="cancel"
-                              title={`Batalkan kasus — ${item.employee.name}`}
+                              title={`Batalkan Kasus — ${item.employee.name}`}
                               subtitle={`${item.reference} · pengunduran diri ditarik atau kasus keliru`}
                               fieldLabel="Alasan pembatalan"
                               hint="Wajib diisi · semua pihak diberi tahu · tidak ada yang dinonaktifkan"
@@ -438,7 +438,7 @@ export default function OffboardingShow({
                           <DecisionDialog
                               form={sendBack.form(item.id)}
                               decision="send-back"
-                              title={`Kembalikan ke checklist — ${item.employee.name}`}
+                              title={`Kembalikan Ke Checklist — ${item.employee.name}`}
                               subtitle={`${item.reference} · tanda tangan yang sudah ada dihapus`}
                               fieldLabel="Apa yang perlu diperbaiki"
                               hint="Wajib diisi · masuk ke komentar dan dikirim ke pemilik checklist"

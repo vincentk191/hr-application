@@ -106,7 +106,7 @@ function StatusCard({ status }: { status: CaptureStatus }) {
     return (
         <section className="surface p-4">
             <div className="flex flex-wrap items-center gap-3">
-                <h2 className="font-medium">Status data absensi</h2>
+                <h2 className="font-medium">Status Data Absensi</h2>
                 <StatusPill tone={badge.tone}>{badge.label}</StatusPill>
             </div>
             <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
@@ -141,7 +141,7 @@ function AgentsCard({ agents }: { agents: SyncAgent[] }) {
     return (
         <section className="surface p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="font-medium">Agen sinkronisasi</h2>
+                <h2 className="font-medium">Agen Sinkronisasi</h2>
                 {agents.length > 0 && (
                     <Button
                         size="sm"
@@ -300,7 +300,7 @@ function RekapCard({
             className={`surface p-4 ${branches.length === 0 ? 'border-dashed bg-muted/40' : ''}`}
         >
             <div className="flex items-center justify-between gap-3">
-                <h2 className="font-medium">Unggah rekapitulasi cabang</h2>
+                <h2 className="font-medium">Unggah Rekapitulasi Cabang</h2>
                 <SampleLink href={sampleRekap().url} />
             </div>
 
@@ -645,7 +645,7 @@ function AddMapCard({
         >
             {({ processing, errors }) => (
                 <>
-                    <h2 className="font-medium">Tambah pemetaan</h2>
+                    <h2 className="font-medium">Tambah Pemetaan</h2>
 
                     <div className="flex flex-wrap items-start gap-3">
                         <div className="grid w-44 gap-2">
@@ -791,7 +791,7 @@ export default function AttendanceDevice({
                         <section className="surface">
                             <div className="p-4">
                                 <h2 className="font-medium">
-                                    ID menunggu pemetaan ({waiting.length})
+                                    ID Menunggu Pemetaan ({waiting.length})
                                 </h2>
                             </div>
                             {waiting.length === 0 ? (
@@ -979,7 +979,7 @@ export default function AttendanceDevice({
 
                         <section className="surface">
                             <h2 className="p-4 font-medium">
-                                Riwayat impor{' '}
+                                Riwayat Impor{' '}
                                 <span className="text-sm font-normal text-muted-foreground">
                                     (waktu {timezone})
                                 </span>
@@ -1209,6 +1209,6 @@ export default function AttendanceDevice({
 
 AttendanceDevice.layout = {
     breadcrumbs: [
-        { title: 'Data absensi', href: device() },
+        { title: 'Data Absensi', href: device() },
     ] satisfies BreadcrumbItem[],
 };

@@ -321,7 +321,7 @@ export default function RequisitionShow({
                           <DecisionDialog
                               form={decide.form(item.id)}
                               decision="reject"
-                              title={`Tolak lowongan — ${item.positionName}`}
+                              title={`Tolak Lowongan — ${item.positionName}`}
                               subtitle={`${item.reference} · dikembalikan ke ${item.createdBy ?? 'pemohon'}`}
                               fieldLabel="Alasan penolakan"
                               hint="Wajib diisi · terkirim ke pemohon lewat notifikasi"
@@ -351,7 +351,7 @@ export default function RequisitionShow({
                           <DecisionDialog
                               form={decide.form(item.id)}
                               decision="approve"
-                              title={`Setujui lowongan — ${item.positionName}`}
+                              title={`Setujui Lowongan — ${item.positionName}`}
                               subtitle={`${item.reference} · ${item.awaitingSalary ? 'lalu ke HR' : 'siap lanjut ke Posting'}`}
                               fieldLabel="Catatan (opsional)"
                               confirmLabel="Setujui"
@@ -510,7 +510,7 @@ export default function RequisitionShow({
                           <DecisionDialog
                               form={filled.form(item.id)}
                               decision="filled"
-                              title={`Tandai selesai — ${item.positionName}`}
+                              title={`Tandai Selesai — ${item.positionName}`}
                               subtitle={`${item.reference} · ${item.filled} dari ${item.quota ?? '—'} terisi`}
                               confirmLabel="Tandai selesai"
                               footnote="Penawaran lain ditarik, tautan formulir ditutup"
@@ -629,7 +629,7 @@ export default function RequisitionShow({
                           <DecisionDialog
                               form={superior.form(item.id)}
                               decision="change-superior"
-                              title={`Ganti atasan langsung — ${item.positionName}`}
+                              title={`Ganti Atasan Langsung — ${item.positionName}`}
                               subtitle={`${item.reference} · saat ini ${item.manager ?? '—'}`}
                               fieldLabel="Alasan"
                               hint="Opsional · hanya karyawan dengan akun aktif"
@@ -697,7 +697,7 @@ export default function RequisitionShow({
                           <DecisionDialog
                               form={cancel.form(item.id)}
                               decision="cancel"
-                              title={`Batalkan lowongan — ${item.positionName}`}
+                              title={`Batalkan Lowongan — ${item.positionName}`}
                               subtitle={`${item.reference} · pembatalan tidak bisa diurungkan`}
                               fieldLabel="Alasan pembatalan"
                               hint={`Wajib diisi · terkirim ke pemohon lewat notifikasi${
@@ -820,7 +820,7 @@ export default function RequisitionShow({
                         data-test="cancelled-banner"
                     >
                         <h2 className="label-mono text-destructive">
-                            Lowongan dibatalkan
+                            Lowongan Dibatalkan
                         </h2>
                         <p className="text-sm">{item.cancelledReason ?? '—'}</p>
                         <p className="label-mono">

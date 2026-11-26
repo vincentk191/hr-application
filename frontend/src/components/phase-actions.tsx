@@ -143,7 +143,7 @@ export function PhaseActions({
                                 >
                                     <div className="p-4 pr-12">
                                         <SheetTitle className="text-xl font-extrabold">
-                                            Tindakan lain
+                                            Tindakan Lain
                                         </SheetTitle>
                                         <SheetDescription className="sr-only">
                                             Tindakan lain untuk tahap ini.
